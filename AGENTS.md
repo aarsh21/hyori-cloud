@@ -26,6 +26,16 @@ Optimize both measured and perceived speed. A polished interface must remain res
 - Profile affected user journeys when changing a hot path. Report measured results and remaining bottlenecks rather than calling unmeasured code fast.
 - Preserve authorization, data integrity, and durability while optimizing.
 
+## Architecture: Fernando Rojo's product engineering
+
+Architecture decisions must follow Fernando Rojo's product-engineering approach. For architecture, API/SDK design, or React feature boundaries, load `fernando-product-engineering` and follow its adoption contract and affected references before implementation. Report an unavailable skill rather than silently skipping its requirements.
+
+- **Consumer-first contracts:** Design the public API/SDK call site before the UI. Define runtime schemas once in the owning feature; derive types, RPC, SDK, and Query consumption rather than maintaining parallel contracts.
+- **Server-owned behavior:** Keep authorization, domain rules, and orchestration behind documented product operations. UI and SDK consumers must not reconstruct backend workflows.
+- **Owned boundaries:** Inject narrow capabilities at their composition owner, encapsulate vendor dependencies, and consume packages through deliberate public exports. Keep vanilla core/SDK code separate from React and host adapters.
+- **Composable React:** Apps own bootstrap and shared infrastructure; features compose owned state, hooks, and design-system components. Follow the skill's cache, provider, effect, and state-rendering requirements.
+- **Vertical-slice completion:** Implement only the foundation needed by the current outcome, then verify its real end-to-end path. Enforce affected architecture rules with executable checks and report functional and architecture evidence separately.
+
 ## Feature discovery
 
 For scope, feature planning, or architecture decisions, read `docs/product.md`. It distinguishes confirmed requirements from proposals and unresolved decisions.

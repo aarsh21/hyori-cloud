@@ -9,6 +9,7 @@ Status: discovery. Only the confirmed requirements below are commitments; propos
 - Use shadcn/ui and Tailwind CSS.
 - Ship self-hosted only for now. A managed service is a possible future offering, not a v1 commitment.
 - Treat Emil Kowalski-inspired design craftsmanship and exceptional performance as core product requirements. Implementation guidance lives in `../AGENTS.md`.
+- Follow Fernando Rojo's product-engineering approach for architecture decisions, as required by the architecture policy in `../AGENTS.md`.
 
 ## Starting point
 
@@ -21,13 +22,52 @@ See `../README.md` for development setup.
 - Google Drive-style files and folders that can be shared directly. Use item-level sharing rather than introducing a separate shared-space concept for v1.
 - Support both account-specific sharing and anyone-with-the-link access. Keep access restricted by default; link sharing is explicitly enabled.
 - Configure each account-specific share or public link using exactly three roles: **Viewer** (view/download), **Contributor** (view/download and upload new files), and **Editor** (Contributor capabilities plus modifying existing files). Public links may use any of these roles.
-- These roles are the permission controls, not presets over a custom permission system. Do not introduce a Custom mode or per-capability toggles. Deletion is owner-only: no sharing role, including Editor, grants permission to delete. Moves and resharing still need role-level policies.
+- These roles are the permission controls, not presets over a custom permission system. Do not introduce a Custom mode or per-capability toggles. Individual file/folder deletion is owner-only: no sharing role, including Editor, grants permission to delete. Admin deletion of an entire account and its owned files is a separate administrative exception, described below. Moves and resharing still need role-level policies.
 - Shared-folder permissions apply recursively to existing contents, subfolders, and future uploads. Inheritance applies to both account-specific shares and public links and does not grant deletion rights. How inherited access combines with direct item shares remains to be defined.
 - New files uploaded into a shared folder belong to that folder's owner, not the contributor. Record upload attribution separately from ownership: identify the uploader when authenticated, and mark anonymous link uploads as anonymous rather than inventing an account identity. Uploading does not confer deletion rights.
 - A dedicated Photos view over the same underlying file library, not a separate storage/import system. Files and Photos reference the same originals and preserve the same ownership and access rules. Photo sources use the confirmed folder-selection model below; organization and presentation remain to be defined.
 - Browser-based document editing in v1 through all four selected ArtCraft apps: **WordCraft**, **GridCraft**, **DeckCraft**, and **PdfCraft** (https://getartcraft.com/apps). One-person-at-a-time editing is sufficient; simultaneous co-editing is not a launch requirement. Browser integration and supported formats must be validated for each app. Locking or conflict handling must prevent silent overwrites; the exact mechanism remains open.
 
 This establishes the product areas, not their detailed feature contracts or implementation feasibility. Calendars, contacts, and a general third-party app ecosystem have not been requested for v1.
+
+### Public-link controls — confirmed
+
+- V1 public links support optional password protection, an optional expiration date, and revocation at any time.
+- These controls supplement the link's Viewer, Contributor, or Editor role; they do not introduce additional permission modes.
+- Enforce password checks, expiry, and revocation in backend authorization for reads and writes, not merely in the link UI. Successful password entry must not bypass later expiry or revocation.
+- Define link-password session handling, expiry/timezone semantics, and the effect on in-progress transfers or already-issued storage URLs during contract design. Revocation cannot retract content already downloaded.
+
+### Deployment target — resource tuning deferred
+
+- Target home NAS/mini PCs, VPSs, and dedicated servers. The default deployment target remains **2 CPU cores and 4 GB total host RAM** for the complete self-hosted stack.
+- RustFS is a settled technology choice. The user reports successful use across multiple projects and explicitly asked to proceed with it rather than revisit its selection over general sizing guidance.
+- Defer detailed memory budgets, capacity sizing, concurrency tuning, and resource/performance benchmarking until a later implementation stage. These are not blockers to current feature discovery.
+- Performance remains a core requirement under `../AGENTS.md`; the target is not a measured capacity guarantee. Supported OS/architectures, storage/network conditions, and workload sizes remain unspecified.
+
+### Authentication — email and password only
+
+- Use local accounts with an email address and password (previously called the master password). PIN sign-in and PIN unlock are outside v1 scope. OIDC/SSO is not required for v1.
+- Email verification is not required. Treat an entered email address as unverified, not proof of mailbox ownership; account-specific sharing and recovery must respect that distinction.
+- During initial instance setup, the first successfully created user becomes the instance admin. This is a one-time bootstrap rule, not an admin-promotion path for ordinary registration.
+- Public registration is disabled by default. After bootstrap, admins can create accounts or issue invite links for additional users.
+- Bootstrap must be server-authorized and atomic so concurrent requests cannot create multiple initial admins or let an unauthenticated remote visitor claim an exposed instance. The exact setup-access mechanism still needs design; setup must not reopen automatically just because accounts are deleted.
+- Password policy, rate limiting, credential storage, session handling, invite lifecycle, and account recovery still need design. Prioritize memorable strong passwords/passphrases rather than reintroducing a short PIN fallback. See Data protection for the server-readable model and remaining at-rest encryption decisions.
+
+### Data protection — E2EE deferred from v1
+
+- Use a server-readable file model for v1; defer end-to-end encryption to prioritize the selected workflows and performance goals.
+- E2EE is not inherently slow, but can add client-side processing and change how thumbnails, previews, and browser editors obtain usable content. No measured E2EE slowdown has been established for this application; this is a scope/complexity tradeoff, not a benchmark result.
+- Require HTTPS for production browser access and enforce application authorization for files, shares, and recovery. Omitting E2EE does not waive these protections.
+- Encryption at rest and its key-management/deployment strategy remain separate design decisions. The server/storage operator is inside the trust boundary; app-level admin restrictions do not protect data against direct infrastructure access.
+
+### Administration and storage limits — confirmed
+
+- Provide an admin-only user-management route where admins can allocate per-user storage quotas and see aggregate storage usage per user.
+- Admin status alone does not grant access to another user's file listings, names, previews, downloads, or individual-file deletion. Enforce this at backend operations, not merely by hiding UI. An admin using ordinary file-sharing access remains subject to the same sharing roles and owner-only deletion rules as any other user.
+- Admins can delete a user and all files owned by that user through user management. This is an explicit account-level destructive operation, not permission to browse or selectively delete that user's files.
+- Account deletion targets owned files, not other users' files merely shared with the deleted account. Under the confirmed upload-ownership rule, contributions to another owner's shared folder belong to that folder owner and are not deleted simply because the contributor's account is deleted.
+- Require explicit confirmation for account-and-data deletion. Revoke the deleted account's access and its issued shares, prevent further writes under that account, and track cleanup of metadata, originals, and derived media without granting the admin browsing access.
+- Quota accounting/enforcement, quota reductions below current usage, and account-deletion retention/recovery behavior still need design. This is application-level privacy, not protection against direct server/database/storage access; end-to-end encryption is not established by this policy.
 
 ### Photos sources — confirmed
 
@@ -44,16 +84,45 @@ V1 includes timeline browsing, albums, and a full-screen photo/video viewer. Thi
 
 Detailed timeline ordering, album membership/sharing, and supported media formats remain to be specified. Albums reference the existing media rather than duplicate originals; they must respect the library's authorization rules.
 
+### File recovery — confirmed
+
+- V1 includes both trash/restore and file version history.
+- Ordinary file/folder deletion moves owned items to trash so they can be restored before permanent removal. The existing owner-only deletion rule still applies.
+- Preserve recoverable previous file contents when existing files are edited or replaced, including changes made through shared editing and the selected browser editors. Define save/version boundaries during editor integration; this is not simultaneous co-editing.
+- Recovery must preserve ownership and enforce current authorization; trash and historical versions must not become an alternate way to access revoked or private content.
+- Retention durations, version limits, permissions for viewing/restoring history, and how retained content counts toward storage quotas remain to be specified.
+- Admin deletion of a user and all owned data remains a separate destructive workflow. Its retention/recovery policy is unresolved; ordinary trash does not automatically make a deleted account recoverable.
+- Trash and version history are not substitutes for an independent backup and restore strategy.
+
+### Search — confirmed
+
+- V1 searches file and folder names, with filters for file type, date, and size.
+- Return only items the requesting user or share holder is authorized to access. Results, exposed metadata, and filter counts must respect that access scope; search must not reveal private file names or metadata.
+- Searching inside document contents and OCR for images/scanned PDFs are deferred beyond v1, without a committed delivery date.
+- Exact name-matching behavior, date-field semantics, and sorting/pagination contracts remain to be specified.
+
+### Uploads — confirmed
+
+- V1 includes resumable uploads: interrupted transfers continue from saved progress rather than restarting from zero.
+- Provide per-file progress, cancellation, retry for failed transfers, and clear completion/error feedback.
+- Apply the existing sharing roles, destination-folder ownership, and storage quotas to uploads. Resume/finalization must respect current authorization rather than relying solely on access granted when the transfer began.
+- Incomplete uploads must not appear as successfully stored files. A failed or cancelled replacement must preserve the previously committed file; successful replacements participate in version history.
+- Specify the transfer protocol, checkpoint retention/cleanup, and browser reload/restart behavior during contract design. Browser resumption may require the user to reselect a local file; unrestricted background browser access is not assumed.
+
 ### Candidate file workflows — details awaiting approval
 
-- File and folder browsing, navigation, sorting, and basic metadata search.
-- Uploads and downloads with visible progress, cancellation, and explicit failure/retry behavior.
-- Rename, move, trash, and restore workflows.
+- File and folder browsing, navigation, and sorting; search scope is confirmed above.
+- Downloads with visible progress, cancellation, and explicit failure/retry behavior; upload requirements are confirmed above.
+- Rename and move workflows; trash/restore and version history are confirmed above.
 - Useful previews for agreed file types.
 - Authentication and ownership/permission enforcement appropriate to the chosen audience.
 - Sharing only after its audience and access rules are agreed.
 
-Potential later branches, not excluded or committed: desktop/mobile sync, WebDAV compatibility, calendars and contacts, and third-party applications.
+### Client compatibility — confirmed
+
+V1 ships Hyori Cloud's own web application. WebDAV, existing Nextcloud-client compatibility, and dedicated desktop/mobile sync clients are deferred beyond v1, without a committed delivery date. Keep the public product API consumable by future clients in accordance with the architecture policy; this does not authorize building those clients now.
+
+Migration/import requirements remain open. Calendars, contacts, and third-party applications are also outside confirmed launch scope.
 
 ### ArtCraft integration: evidence and open checks
 
@@ -77,12 +146,12 @@ Discuss one consequential decision at a time. For each answer, record the choice
 
 1. **Audience — confirmed:** The first release must serve individual self-hosters, families/small private groups, and teams/organizations. Required capabilities for each audience remain to be defined.
 2. **Product boundary — confirmed:** Files, sharing, Photos, and shared document editing belong in v1. Photos uses the same underlying file library and source-selection rules above; timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1. Still define detailed album/timeline behavior and media formats. Integrate WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser; one-person-at-a-time editing is sufficient initially. Still validate per-app integration, exact file-format support, and the locking/conflict policy.
-3. **Deployment — direction confirmed:** Self-hosted only for now; a managed service is a possible later offering. Still define supported hardware, installation, upgrades, and operational burden. Future managed hosting does not itself require SaaS billing or multi-tenant infrastructure in v1.
-4. **Access and trust — core sharing rules confirmed:** Share files and folders directly, Google Drive-style, rather than using separate shared spaces. Support account-specific and anyone-with-the-link access, restricted by default, through exactly Viewer, Contributor, or Editor. Deletion is owner-only. Folder access extends recursively to existing contents and future uploads. New uploads belong to the destination folder's owner, with separate uploader attribution. Still define combined direct/inherited access, moves, resharing, link controls, instance administration, authentication, and encryption guarantees.
-5. **File workload:** Expected library size, files per folder, largest file, simultaneous transfers, and target devices/network conditions?
-6. **Compatibility:** Must existing Nextcloud clients, WebDAV clients, or migration workflows work at launch?
-7. **Reliability:** Required upload resume behavior, version history, trash retention, backups, and recovery expectations?
-8. **Speed criteria:** Which browsing, search, preview, and transfer journeys will define the initial benchmark and acceptance budgets?
+3. **Deployment — direction and target confirmed:** Use the Deployment target section above. RustFS is settled, and detailed resource tuning is deferred rather than blocking discovery. Installation, upgrades, and operational burden still need definition. Managed hosting is a possible later offering, not authorization for SaaS infrastructure in v1.
+4. **Access and trust — core policies confirmed:** Use the sharing rules, Authentication section, and Administration and storage limits section above as the authoritative requirements. Public links have the password, expiry, and revocation controls specified above. Still define secure bootstrap access, password policy, invite lifecycle, recovery, combined direct/inherited access, moves, resharing, detailed link-session/expiry behavior, quota accounting/enforcement, account-deletion retention, and at-rest encryption/key management. E2EE is deferred as specified in Data protection.
+5. **File workload — detailed sizing deferred:** Library size, files per folder, largest file, and simultaneous transfers remain unspecified. Revisit capacity scenarios later; do not block current feature discovery on resource sizing.
+6. **Compatibility — client scope confirmed:** Own web application for v1; WebDAV, Nextcloud-client compatibility, and desktop/mobile sync are deferred as specified above. Still define any required migration/import workflows.
+7. **Reliability — transfer and recovery features confirmed:** V1 includes resumable uploads with progress/cancel/retry, trash/restore, and file version history as specified above. Still define transfer protocol/reload behavior, retention, version limits, restoration permissions, quota accounting, independent backups, and account-deletion recovery.
+8. **Speed criteria — detailed work deferred:** Keep performance as a core requirement and the host target unchanged. Define and measure workload-specific budgets later, not as a prerequisite for finishing feature discovery.
 
 ## Architecture questions to validate after scope
 
@@ -183,3 +252,87 @@ Validate capabilities against the selected versions and official documentation b
 - **Decision:** V1 uses WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser. SurrealDB is the application backend and database, not merely an incidental data store; RustFS remains the file/object store.
 - **Rationale:** The user explicitly named all four browser apps and reaffirmed SurrealDB's backend/database role.
 - **Scope consequence:** Plan browser integration for each selected editor while validating its actual interfaces and formats. Design around SurrealDB without assuming an additional backend framework. Authentication, authorization, server-function boundaries, and editor save/locking behavior remain architecture work, not capabilities already implemented.
+
+### 2026-11-04: local email sign-in without required email verification
+
+- **Decision:** Use local email-based accounts for now; email verification is not required. The requested credential experience involves a six-digit PIN / master password, with their relationship still to be clarified.
+- **Rationale:** The user chose normal email-based sign-in instead of the proposed local-account plus optional SSO scope, explicitly waived email verification, and named PIN/master-password credentials.
+- **Scope consequence:** Keep SSO outside current launch requirements and preserve unverified-email semantics. The subsequent alternative-credential decision resolves the PIN's intended role; sharing and recovery must not treat an unverified email as proof of identity.
+
+### 2026-11-04: alternative PIN or master-password sign-in (superseded)
+
+- **Decision:** Email + either a six-digit PIN or a master password are alternative sign-in methods, not a password-first/PIN-unlock sequence.
+- **Rationale:** The user explicitly selected alternative sign-in, then asked how to improve strength and memorability.
+- **Scope consequence:** This option was superseded by the subsequent password-only decision. It is not a current implementation requirement.
+
+### 2026-11-04: remove PIN, use email and password
+
+- **Decision:** Remove the PIN feature and use email plus a password for local sign-in. The existing decision not to require email verification is unchanged.
+- **Rationale:** The user accepted password-only authentication to avoid the weakness of a short standalone PIN.
+- **Scope consequence:** Do not implement PIN login, PIN unlock, or a PIN fallback for v1. Define a usable strong-password policy and appropriate credential-storage, rate-limiting, session, and recovery protections. Password-only sign-in does not itself establish file-encryption guarantees.
+
+### 2026-11-04: initial admin and controlled account creation
+
+- **Decision:** The first user created during initial server setup becomes admin. Additional accounts are admin-created or admitted through invite links; public registration is disabled by default.
+- **Rationale:** The user explicitly selected first-user administration and accepted the recommended admin-controlled registration model.
+- **Scope consequence:** Implement a protected, atomic, one-time bootstrap before normal account creation. Define invitation and admin authorization through the owning backend operations; initial-admin status must not depend on a client-side user-count check. The setup-access mechanism and exact admin powers remain open.
+
+### 2026-11-04: adopt Fernando's architecture conventions
+
+- **Decision:** Architecture decisions follow Fernando Rojo's product-engineering approach and the `fernando-product-engineering` skill.
+- **Rationale:** The user explicitly requested this policy in `AGENTS.md` and invoked the skill.
+- **Scope consequence:** Apply the architecture policy in `../AGENTS.md` and the skill's affected adoption gates to future implementation. This documentation change does not establish an implemented API/SDK, lint profile, or verified vertical slice.
+
+### 2026-11-04: admin quotas and account deletion without file browsing
+
+- **Decision:** Admin user management can set per-user storage limits, show aggregate usage, and delete a user together with all files that user owns. Admin status does not grant browsing or individual-file access/deletion rights.
+- **Rationale:** The user accepted the recommended application-level privacy boundary and explicitly added quota management and whole-account/data deletion as admin powers.
+- **Scope consequence:** Separate ordinary item authorization from the account-deletion operation. The latter is the explicit administrative exception to owner-only file deletion and needs confirmation and reliable cleanup. Preserve other owners' files and the existing shared-folder upload ownership model; quota and deletion-retention details remain open.
+
+### 2026-11-04: include trash/restore and version history
+
+- **Decision:** Include both trash/restore and file version history in v1.
+- **Rationale:** The user accepted the recommendation to include both, particularly to support recovery from edits and uploads through shares.
+- **Scope consequence:** Plan recoverable ordinary deletions and previous-content versions while preserving existing access and ownership rules. Retention durations, version limits, quota treatment, and restoration permissions remain open. This decision does not make whole-account deletion recoverable or establish an independent backup system.
+
+### 2026-11-04: web app first, compatibility and sync later
+
+- **Decision:** Launch with Hyori Cloud's own web application. Defer WebDAV, Nextcloud-client compatibility, and dedicated desktop/mobile sync beyond v1.
+- **Rationale:** The user accepted the recommendation to prioritize the web app's speed, reliability, and polish and do compatibility/sync later.
+- **Scope consequence:** These integrations and clients are not launch dependencies. Preserve the adopted public API/SDK boundaries for future consumers without implementing deferred clients. No delivery date or migration/import feature has been committed.
+
+### 2026-11-04: all three host classes, 2-core / 4-GB default
+
+- **Decision:** Target home NAS/mini PCs, VPSs, and dedicated servers, with 2 CPU cores and 4 GB RAM as the default complete-stack deployment budget.
+- **Rationale:** The user explicitly selected all three host classes and specified this baseline.
+- **Scope consequence:** Retain this default deployment target. Detailed budgets, capacity scenarios, tuning, and measurement are deferred by the subsequent prioritization decision.
+
+### 2026-11-04: keep RustFS, defer detailed resource planning
+
+- **Decision:** Proceed with RustFS as selected and move detailed memory budgeting, resource tuning, and capacity benchmarking to a later implementation stage.
+- **Rationale:** The user has used RustFS successfully in multiple projects and explicitly asked not to focus on sizing now.
+- **Scope consequence:** Continue product feature discovery without reopening the object-store choice or repeatedly gating progress on sizing caveats. The 2-core / 4-GB target and performance principles remain in force; no measured support or capacity claim has been established.
+
+### 2026-11-04: name search and metadata filters for v1
+
+- **Decision:** Search file/folder names and filter by file type, date, and size, always within the requester's authorized access scope. Defer document-content search and OCR.
+- **Rationale:** The user explicitly accepted the recommended search scope.
+- **Scope consequence:** Plan permission-scoped name search and metadata filtering without a document-text extraction or OCR launch dependency. Define detailed matching, date, ordering, and pagination semantics during contract design.
+
+### 2026-11-04: resumable uploads and transfer feedback
+
+- **Decision:** V1 includes resumable uploads, per-file progress, cancellation, retries for failed transfers, and explicit completion/error feedback.
+- **Rationale:** The user explicitly approved the recommended upload feature set.
+- **Scope consequence:** Design resumable transfer operations around committed file state, current authorization, quotas, and existing ownership/version-history policies. Transfer protocol, checkpoint lifetime, and browser reload/restart behavior remain implementation contracts, not verified capabilities of the current template.
+
+### 2026-11-04: public-link password, expiry, and revocation controls
+
+- **Decision:** Include optional password protection, optional expiration dates, and revocation at any time for public links in v1.
+- **Rationale:** The user explicitly approved all three recommended controls alongside the existing sharing roles.
+- **Scope consequence:** Enforce these controls for both read and write access without adding permission modes. Define session and in-flight transfer semantics before implementation; do not imply that revocation retracts downloaded content or automatically invalidates previously issued storage URLs.
+
+### 2026-11-04: defer E2EE for the performance-first v1
+
+- **Decision:** Use server-readable files and defer E2EE from v1 under the user's instruction to omit it if it adds performance cost.
+- **Rationale:** The user prioritized speed over adding E2EE. It can add client-side work and materially change previews/editor workflows, although no application-specific slowdown has been measured and encryption is not inherently slow.
+- **Scope consequence:** Plan the selected server-readable workflows with HTTPS and authorization. Keep at-rest encryption/key management as separate design work, preserve the admin privacy boundary, and do not claim protection against the infrastructure operator.
