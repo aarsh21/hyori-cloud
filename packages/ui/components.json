@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-lyra",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@hyori-cloud/ui/components",
+    "utils": "@hyori-cloud/ui/lib/utils",
+    "hooks": "@hyori-cloud/ui/hooks",
+    "lib": "@hyori-cloud/ui/lib",
+    "ui": "@hyori-cloud/ui/components"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}

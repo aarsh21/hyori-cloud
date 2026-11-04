@@ -1,0 +1,3 @@
+{
+  "extends": "@hyori-cloud/config/tsconfig.base.json"
+}
