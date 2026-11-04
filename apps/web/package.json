@@ -8,7 +8,8 @@
     "dev": "vp dev",
     "check-types": "NODE_ENV=production vp build && tsc --noEmit",
     "env:generate": "varlock codegen",
-    "test:runtime": "bun test --preload ./test/client-assets.ts ./test/server-runtime.test.ts && bun test --preload ./test/dom-environment.ts --preload ./test/client-assets.ts ./test/browser-runtime.test.tsx"
+    "test:runtime": "bun test --preload ./test/client-assets.ts ./test/server-runtime.test.ts && bun test --preload ./test/dom-environment.ts --preload ./test/client-assets.ts ./test/browser-runtime.test.tsx",
+    "test:dev-server": "node --test --test-timeout=30000 test/dev-disconnect.test.ts"
   },
   "dependencies": {
     "@hyori-cloud/api": "workspace:*",

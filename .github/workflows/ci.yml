@@ -49,5 +49,7 @@ jobs:
         run: bun run ui:doctor
       - name: Verify web build and startup limits
         run: bun run check:web
+      - name: Verify dev-server cancellation and visible HMR errors
+        run: bun run check:dev-server
       - name: Test real database and storage integration
         run: bun run test:services

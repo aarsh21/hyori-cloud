@@ -103,6 +103,7 @@ bun run check:app-runtime   # Actual app-owned runtime/cache/provider compositio
 bun run lint:architecture  # Registered feature/DS/host rules and React Compiler diagnostics
 bun run ui:doctor           # Local React Doctor; no remote scoring or Socket dependency scan
 bun run check:web           # Bounded web build and dev HTTP-readiness check
+bun run check:dev-server    # Isolated Nitro request cancellation and real HMR error delivery
 ```
 
 Install the locked architecture-tool dependencies before its checks:

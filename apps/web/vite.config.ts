@@ -5,6 +5,7 @@ import babel from "@rolldown/plugin-babel";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite-plus";
+import { requestDisconnectBoundary } from "./tooling/request-disconnect.ts";
 
 export default defineConfig({
   server: {
@@ -18,6 +19,7 @@ export default defineConfig({
     tailwindcss(),
     tanstackStart(),
     nitro({ preset: "node-server" }),
+    requestDisconnectBoundary(),
     viteReact(),
     babel({ presets: [reactCompilerPreset()] }),
   ],

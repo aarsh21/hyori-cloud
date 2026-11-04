@@ -49,6 +49,7 @@
     "test": "bun test packages/core/test packages/api/test packages/client-sdk/tests packages/features/src",
     "test:services": "bun scripts/test-services.ts",
     "check:web": "bun scripts/check-web.ts",
+    "check:dev-server": "bun run --cwd apps/web test:dev-server",
     "postinstall": "varlock codegen --path ./apps/web/"
   },
   "dependencies": {
