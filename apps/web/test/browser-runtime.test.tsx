@@ -226,6 +226,22 @@ test("actual app root shares SDK/cache across features, invalidation and real ro
     );
     const readsAfterMutation = api.calls.filter((operation) => operation === "files.list").length;
 
+    await act(async () => {
+      fireEvent.click(within(document.body).getAllByRole("button", { name: /Ada/ })[0]!);
+    });
+    const appearance = await within(document.body).findByRole("menuitemradio", { name: "Dark" });
+    await act(async () => fireEvent.click(appearance));
+    await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
+    expect(localStorage.getItem("hyori-appearance")).toBe("dark");
+    expect(getAppRuntime()).toBe(runtime);
+    expect(sharedQuery?.getObserversCount()).toBe(2);
+    expect(runtime.queryClient.getQueryCache().find({ queryKey: sharedKey, exact: true })).toBe(
+      sharedQuery,
+    );
+    expect(api.calls.filter((operation) => operation === "files.list")).toHaveLength(
+      readsAfterMutation,
+    );
+
     seen.clear();
     await act(async () => {
       await router.navigate({ to: "/$", params: { _splat: "photos" } });
@@ -235,6 +251,7 @@ test("actual app root shares SDK/cache across features, invalidation and real ro
       expect(seen.size).toBe(2);
     });
     expect(router.state.location.pathname).toBe("/photos");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
     expect(getAppRuntime()).toBe(runtime);
     const anotherRouter = getRouter();
 

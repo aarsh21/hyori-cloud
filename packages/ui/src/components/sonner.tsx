@@ -7,7 +7,7 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useAppearance } from "@hyori-cloud/ui/theme";
 import { Toaster as Sonner, toast, type ToasterProps } from "sonner";
 
 // Custom properties are outside CSSProperties' named keys, so the template index types them.
@@ -18,19 +18,12 @@ const TOAST_VARIABLES: React.CSSProperties & Record<`--${string}`, string> = {
   "--border-radius": "var(--radius)",
 };
 
-// next-themes reports any configured theme name; anything Sonner can't render falls back to light.
-function toasterTheme(theme: string | undefined): ToasterProps["theme"] {
-  if (theme === "dark" || theme === "system") return theme;
-
-  return "light";
-}
-
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme } = useTheme();
+  const { resolved } = useAppearance();
 
   return (
     <Sonner
-      theme={toasterTheme(theme)}
+      theme={resolved ?? "light"}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

@@ -1,6 +1,7 @@
 import type { FileEntry } from "@hyori-cloud/client-sdk";
 import { Download, FolderOpen } from "@hyori-cloud/lib/icons";
 import { AppMain, AppShell } from "@hyori-cloud/ui/components/app-shell";
+import { AppearanceMenu } from "@hyori-cloud/ui/components/appearance-menu";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus-layout";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
@@ -34,6 +35,7 @@ export function PublicSharedItem({
           rootSearchScope="this folder"
           rootFolderId={item.id}
           rootCanUpload={false}
+          actions={<AppearanceMenu />}
           folderPath={(id) =>
             formatCloudPath({
               section: "publicShare",
@@ -53,7 +55,7 @@ function PublicSharedFile({ item }: { item: FileEntry }) {
   const download = useDownloadFile();
 
   return (
-    <FocusLayout>
+    <FocusLayout footer={<AppearanceMenu />}>
       <Wordmark />
       <FocusLayoutHeader>
         <Heading className="break-words">{item.name}</Heading>

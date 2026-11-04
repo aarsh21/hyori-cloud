@@ -24,6 +24,7 @@ const profile = createArchitectureConfig({
       "packages/ui/src/hooks/use-entered-viewport.ts",
       "packages/ui/src/hooks/use-refocus-after-removal.ts",
       "packages/ui/src/lib/browser-list-store.ts",
+      "packages/ui/src/theme.tsx",
       "packages/lib/src/surreal.ts",
       "packages/lib/src/storage.ts",
       "packages/lib/src/crypto.ts",

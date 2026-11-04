@@ -1,5 +1,6 @@
 import { Link2, LogOut, Users } from "@hyori-cloud/lib/icons";
 import { AppAccountSummary } from "@hyori-cloud/ui/components/app-account";
+import { AppearanceMenuItems } from "@hyori-cloud/ui/components/appearance-menu-items";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -45,6 +46,9 @@ export function AccountMenuItems({
           Users
         </DropdownMenuItem>
       ) : null}
+      <DropdownMenuSeparator />
+      <AppearanceMenuItems />
+      <DropdownMenuSeparator />
       <DropdownMenuItem onClick={onSignOut} disabled={signingOut}>
         <LogOut />
         Sign out

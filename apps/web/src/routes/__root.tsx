@@ -1,6 +1,7 @@
 import { ClientSDKProvider } from "@hyori-cloud/client-sdk/react";
 import { QueryClientProvider } from "@hyori-cloud/lib/query";
 import { Toaster } from "@hyori-cloud/ui/components/sonner";
+import { AppearanceProvider } from "@hyori-cloud/ui/theme";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 
 import type { createAppRuntime } from "@/app/runtime";
@@ -18,7 +19,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         name: "description",
         content: "A thoughtful home for your files, photos, and documents. On your own server.",
       },
-      { name: "theme-color", content: "#f8f7f4" },
+      { name: "color-scheme", content: "light dark" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
@@ -29,17 +30,19 @@ function RootDocument() {
   const { queryClient, sdkClient } = Route.useRouteContext();
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body>
-        <QueryClientProvider client={queryClient}>
-          <ClientSDKProvider sdkClient={sdkClient}>
-            <Outlet />
-            <Toaster richColors />
-          </ClientSDKProvider>
-        </QueryClientProvider>
+        <AppearanceProvider>
+          <QueryClientProvider client={queryClient}>
+            <ClientSDKProvider sdkClient={sdkClient}>
+              <Outlet />
+              <Toaster richColors />
+            </ClientSDKProvider>
+          </QueryClientProvider>
+        </AppearanceProvider>
         <Scripts />
       </body>
     </html>

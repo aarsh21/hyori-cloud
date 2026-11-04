@@ -75,6 +75,8 @@ Object.assign(dom.window, {
     media: query,
     addEventListener() {},
     removeEventListener() {},
+    addListener() {},
+    removeListener() {},
   }),
 });
 

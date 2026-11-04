@@ -7,6 +7,7 @@ Status: v1 scope discovery is complete; implementation is in progress. Confirmed
 - Build a Nextcloud alternative on the existing template.
 - Use React and TanStack Start for the web application, SurrealDB as the application backend and database, and RustFS for file/object storage. The authorization model and division of responsibilities between SurrealDB and TanStack Start server functions remain to be designed.
 - Use shadcn/ui and Tailwind CSS.
+- Offer Light, Dark, and System appearance. Default to the operating system, with an explicit preference remembered locally in the browser; this is not an account-synced setting.
 - Ship self-hosted only for now. A managed service is a possible future offering, not a v1 commitment.
 - Treat Emil Kowalski-inspired design craftsmanship and exceptional performance as core product requirements. Implementation guidance lives in `../AGENTS.md`.
 - Follow Fernando Rojo's product-engineering approach for architecture decisions, as required by the architecture policy in `../AGENTS.md`.
@@ -162,6 +163,12 @@ The product-scope grilling is finished. Resolve these follow-ups during contract
 Validate capabilities against the selected versions and official documentation before committing to a design. In particular, do not assume complete S3 compatibility, resumable-upload behavior, or cross-system transaction guarantees.
 
 ## Decision log
+
+### 2026-11-05: dark mode with a local appearance preference
+
+- **Decision:** Add Light, Dark, and System appearance, defaulting to System and remembering explicit choices in browser storage. Keep the choice available in the account menu and on setup, sign-in, invite, and public-link screens.
+- **Rationale:** The user requested dark mode. System defaults respect the device without an extra setup step; a local override works before authentication and on public links without adding backend/account settings.
+- **Scope consequence:** Reuse the shared semantic palettes and an app-mounted, owned browser adapter. No backend/API or account-synchronization changes are required.
 
 ### 2026-11-04: serve all three audiences
 

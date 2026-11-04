@@ -35,16 +35,59 @@ class LayoutObserver {
   disconnect() {}
 }
 
+type SchemeListener = (this: MediaQueryList, event: MediaQueryListEvent) => void;
+
+class SystemAppearanceQuery extends dom.window.EventTarget implements MediaQueryList {
+  readonly media = "(prefers-color-scheme: dark)";
+  matches = false;
+  onchange: SchemeListener | null = null;
+  private readonly listeners = new Set<SchemeListener>();
+
+  addListener(listener: SchemeListener | null) {
+    if (listener) this.listeners.add(listener);
+  }
+
+  removeListener(listener: SchemeListener | null) {
+    if (listener) this.listeners.delete(listener);
+  }
+
+  get listenerCount() {
+    return this.listeners.size;
+  }
+
+  set(appearance: "light" | "dark") {
+    this.matches = appearance === "dark";
+
+    const event = Object.assign(new dom.window.Event("change"), {
+      matches: this.matches,
+      media: this.media,
+    });
+
+    this.dispatchEvent(event);
+    this.onchange?.call(this, event);
+
+    for (const listener of this.listeners) listener.call(this, event);
+  }
+}
+
+export const systemAppearance = new SystemAppearanceQuery();
+
 Object.assign(dom.window, {
   ResizeObserver: LayoutObserver,
   IntersectionObserver: LayoutObserver,
   scrollTo() {},
-  matchMedia: (media: string) => ({
-    matches: false,
-    media,
-    addEventListener() {},
-    removeEventListener() {},
-  }),
+  matchMedia: (media: string) => {
+    if (media === systemAppearance.media) return systemAppearance;
+
+    return {
+      matches: false,
+      media,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+    };
+  },
 });
 
 for (const key of Object.getOwnPropertyNames(dom.window)) {

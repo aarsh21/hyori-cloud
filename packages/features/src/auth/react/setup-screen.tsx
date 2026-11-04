@@ -1,3 +1,4 @@
+import { AppearanceMenu } from "@hyori-cloud/ui/components/appearance-menu";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Field, FieldDescription, Form } from "@hyori-cloud/ui/components/field";
 import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus-layout";
@@ -14,7 +15,7 @@ export function SetupScreen() {
   const setup = useSetup();
 
   return (
-    <FocusLayout>
+    <FocusLayout footer={<AppearanceMenu />}>
       <Wordmark />
       <FocusLayoutHeader>
         <Heading>Set up this server</Heading>

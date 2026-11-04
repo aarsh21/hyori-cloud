@@ -8,7 +8,7 @@ The vendored `../fernando-lint` is Fernando's executable adoption profile and re
 
 - Portable feature hooks/components: effects and raw/registered transports are rejected.
 - Generic DS: product imports and protocol markers are rejected.
-- Registered SDK React/host files: intentional synchronization owners, still subject to React diagnostics.
+- Registered SDK React/host files: intentional synchronization owners, still subject to React diagnostics. The explicit `@hyori-cloud/ui/theme` host adapter owns next-themes, its pre-paint script, browser preference persistence, OS/storage subscriptions and hydration-safe consumption; the app root alone mounts its provider. The boundary gate rejects next-themes imports outside that adapter. Portable appearance controls remain effect-free.
 - Query views retain ordinary data-first guards. Upload task/entry presentations and cloud-section dispatch are explicitly registered finite workflow presenters; ordinary Query status checks are not treated as a universal state machine.
 - The pinned React hooks recommended preset supplies React Compiler diagnostics. The actual build transform and compiler log remain separate app-owned evidence.
 

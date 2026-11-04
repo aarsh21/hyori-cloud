@@ -108,6 +108,13 @@ for (const file of files) {
   for (const reference of references(file)) {
     const specifier = reference.specifier;
 
+    if (specifier === "next-themes" && local !== "packages/ui/src/theme.tsx")
+      error(
+        file,
+        reference.line,
+        "Appearance vendor imports belong to the owned UI theme adapter.",
+      );
+
     const owner = [...manifests.values()].find((manifest) =>
       file.startsWith(`${manifest.directory}${path.sep}`),
     );

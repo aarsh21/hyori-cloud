@@ -11,7 +11,7 @@ function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
 function AlertDialogContent({ className, children, ...props }: AlertDialogPrimitive.Popup.Props) {
   return (
     <AlertDialogPrimitive.Portal>
-      <AlertDialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-[oklch(0.22_0.01_70/0.32)] transition-opacity duration-180 ease-(--ease-out) data-ending-style:opacity-0 data-ending-style:duration-120 data-starting-style:opacity-0" />
+      <AlertDialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-overlay transition-opacity duration-180 ease-(--ease-out) data-ending-style:opacity-0 data-ending-style:duration-120 data-starting-style:opacity-0" />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         className={cn(

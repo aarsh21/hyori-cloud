@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@hyori-cloud/lib/query";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { toast, Toaster } from "@hyori-cloud/ui/components/sonner";
 import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
+import { AppearanceProvider } from "@hyori-cloud/ui/theme";
 import { act, cleanup, configure, render, waitFor } from "@testing-library/react";
 
 export { act, fireEvent, screen, waitFor } from "@testing-library/react";
@@ -92,12 +93,14 @@ export function mount(ui: ReactNode, api: FakeApi) {
   const sdkClient = createClient({ fetch: api.fetch });
 
   const tree = (children: ReactNode) => (
-    <QueryClientProvider client={queryClient}>
-      <ClientSDKProvider sdkClient={sdkClient}>
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster />
-      </ClientSDKProvider>
-    </QueryClientProvider>
+    <AppearanceProvider>
+      <QueryClientProvider client={queryClient}>
+        <ClientSDKProvider sdkClient={sdkClient}>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster />
+        </ClientSDKProvider>
+      </QueryClientProvider>
+    </AppearanceProvider>
   );
 
   const view = render(tree(ui));

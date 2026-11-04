@@ -61,6 +61,7 @@ type FileBrowserProps = {
   foreignRoot?: { readonly label: string; readonly path: string };
   /** Whether new items can be created at the root, which has no folder entry to carry access. */
   rootCanUpload: boolean;
+  actions?: ReactNode;
   folderPath: (folderId: string | null) => string;
   empty: (actions: { upload?: () => void; createFolder?: () => void }) => ReactNode;
 };
@@ -86,6 +87,7 @@ export function FileBrowser({
   rootFolderId = null,
   foreignRoot,
   rootCanUpload,
+  actions,
   folderPath,
   empty,
 }: FileBrowserProps) {
@@ -162,6 +164,7 @@ export function FileBrowser({
                 Upload
               </Button>
             ) : null}
+            {actions}
           </PageBarActions>
         </PageBar>
         {filtersOpen ? <FileFilterBar filters={filters} onChange={patch} onClear={clear} /> : null}

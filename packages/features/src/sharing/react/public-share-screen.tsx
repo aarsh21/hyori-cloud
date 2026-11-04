@@ -1,4 +1,5 @@
 import { useRef, useState } from "@hyori-cloud/lib/react";
+import { AppearanceMenu } from "@hyori-cloud/ui/components/appearance-menu";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Field, Form } from "@hyori-cloud/ui/components/field";
 import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus-layout";
@@ -87,7 +88,7 @@ function PublicShareAccess({ token, folderId }: { token: string; folderId: strin
 
   if (resolved === undefined) {
     return (
-      <FocusLayout>
+      <FocusLayout footer={<AppearanceMenu />}>
         <Wordmark />
         <FocusLayoutHeader>
           <Heading>Someone shared something with you</Heading>
@@ -108,7 +109,7 @@ function PublicShareAccess({ token, folderId }: { token: string; folderId: strin
 
   if (resolved.item === null) {
     return (
-      <FocusLayout>
+      <FocusLayout footer={<AppearanceMenu />}>
         <Wordmark />
         <FocusLayoutHeader>
           <Heading>This link needs a password</Heading>

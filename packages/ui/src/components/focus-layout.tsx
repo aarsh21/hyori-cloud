@@ -2,7 +2,12 @@ import { cn } from "@hyori-cloud/ui/lib/utils";
 import * as React from "react";
 
 /** A single quiet column for moments with one job: setup, sign-in, an invite, a shared link. */
-function FocusLayout({ className, children, ...props }: React.ComponentProps<"main">) {
+function FocusLayout({
+  className,
+  children,
+  footer,
+  ...props
+}: React.ComponentProps<"main"> & { footer?: React.ReactNode }) {
   return (
     <main
       data-slot="focus-layout"
@@ -13,6 +18,7 @@ function FocusLayout({ className, children, ...props }: React.ComponentProps<"ma
       {...props}
     >
       <div className="flex w-full max-w-[22rem] flex-col gap-7">{children}</div>
+      {footer === undefined ? null : <div className="mt-8">{footer}</div>}
     </main>
   );
 }
