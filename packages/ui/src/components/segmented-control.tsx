@@ -6,10 +6,10 @@ import { AppLink } from "@hyori-cloud/ui/components/app-link";
 import { cn } from "@hyori-cloud/ui/lib/utils";
 import * as React from "react";
 
-const trackClasses = "inline-flex shrink-0 items-center gap-0.5 rounded-md bg-muted p-0.5";
+const trackClasses = "inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-0.5";
 
 const segmentClasses =
-  "inline-flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[13px] text-muted-foreground outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 coarse:h-9 [&_svg]:size-4 [&_svg]:stroke-[1.75]";
+  "inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:h-9 [&_svg]:size-4 [&_svg]:stroke-[1.75]";
 
 const selectedClasses = "bg-card font-medium text-foreground shadow-(--shadow-panel)";
 

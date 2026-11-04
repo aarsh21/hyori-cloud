@@ -57,7 +57,7 @@ export function TrashScreen() {
             <ItemTableHeader>
               <ItemTableHeaderCell>Name</ItemTableHeaderCell>
               <ItemTableHeaderCell>Deleted</ItemTableHeaderCell>
-              <ItemTableHeaderCell>Size</ItemTableHeaderCell>
+              <ItemTableHeaderCell className="text-right">Size</ItemTableHeaderCell>
               <ItemTableHeaderCell />
             </ItemTableHeader>
             <ItemTableBody aria-label="Trash">
@@ -111,7 +111,7 @@ function TrashRow({
         </ItemName>
       </ItemTableCell>
       <ItemTableDetailCell>{formatDate(deletedAt)}</ItemTableDetailCell>
-      <ItemTableDetailCell>
+      <ItemTableDetailCell className="text-right">
         {entry.kind === "folder" ? "—" : formatBytes(entry.size)}
       </ItemTableDetailCell>
       <ItemTableCell className="flex justify-end overflow-visible">

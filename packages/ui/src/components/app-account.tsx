@@ -27,7 +27,7 @@ function AppAccountTrigger({
     <button
       type="button"
       className={cn(
-        "flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-none select-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring/40 aria-expanded:bg-sidebar-accent",
+        "flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-none select-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-sidebar-accent",
         className,
       )}
       {...props}
@@ -63,7 +63,7 @@ function AppAccountNavTrigger({
       )}
       {...props}
     >
-      <Initial name={name} className="size-5 text-[10px]" />
+      <Initial name={name} className="size-5 text-[11px]" />
       <span className="truncate">Account</span>
     </button>
   );

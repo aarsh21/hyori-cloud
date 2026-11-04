@@ -69,7 +69,7 @@ export function FileListingContent({
           <ItemTableHeader>
             <ItemTableHeaderCell>Name</ItemTableHeaderCell>
             <ItemTableHeaderCell>Modified</ItemTableHeaderCell>
-            <ItemTableHeaderCell>Size</ItemTableHeaderCell>
+            <ItemTableHeaderCell className="text-right">Size</ItemTableHeaderCell>
             <ItemTableHeaderCell />
           </ItemTableHeader>
           <ItemTableBody aria-label={label}>
@@ -107,7 +107,7 @@ function FileRow({ entry }: { entry: FileEntry }) {
         </FileEntryTarget>
       </ItemTableCell>
       <ItemTableDetailCell>{formatDate(entry.updatedAt)}</ItemTableDetailCell>
-      <ItemTableDetailCell>
+      <ItemTableDetailCell className="text-right">
         {entry.kind === "folder" ? "—" : formatBytes(entry.size)}
       </ItemTableDetailCell>
       <ItemTableCell className="overflow-visible">

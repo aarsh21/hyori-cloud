@@ -53,7 +53,7 @@ function Heading({ className, ...props }: React.ComponentProps<"h1">) {
   return (
     <h1
       data-slot="heading"
-      className={cn("text-xl font-semibold tracking-[-0.016em] text-balance", className)}
+      className={cn("text-xl font-semibold tracking-[-0.02em] text-balance", className)}
       {...props}
     />
   );

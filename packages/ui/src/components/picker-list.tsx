@@ -33,7 +33,7 @@ function PickerRowButton({ className, ...props }: React.ComponentProps<"button">
     <button
       type="button"
       className={cn(
-        "flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-sm px-2 text-left text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50 coarse:min-h-11 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.5]",
+        "flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-sm px-2 text-left text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 coarse:min-h-11 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.5]",
         className,
       )}
       {...props}

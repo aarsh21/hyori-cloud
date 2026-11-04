@@ -164,6 +164,12 @@ Validate capabilities against the selected versions and official documentation b
 
 ## Decision log
 
+### 2026-11-05: design language and image tooling policy
+
+- **Decision:** Adopt the restrained language of the owner-supplied Raycats reference for product UI through `../DESIGN.md`, pin the upstream `design-taste-frontend-v2-experimental` skill unchanged and `brandkit` with only a Hyori identity section added, and use the Codex CLI for product images and web assets.
+- **Rationale:** The user requested this design material and tooling. Only the source's language fits an application; its dark-only rule, marketing layouts, and decorative artwork do not.
+- **Scope consequence:** The user then approved moving the shipped palette, with the source's warm Porcelain scheme for Light and its cold near-black for Dark. Light, Dark, and System remain required; product scope is unchanged.
+
 ### 2026-11-05: dark mode with a local appearance preference
 
 - **Decision:** Add Light, Dark, and System appearance, defaulting to System and remembering explicit choices in browser storage. Keep the choice available in the account menu and on setup, sign-in, invite, and public-link screens.

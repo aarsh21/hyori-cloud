@@ -3,7 +3,7 @@ import { cn } from "@hyori-cloud/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-[13px] font-medium whitespace-nowrap transition-[scale,background-color,border-color,box-shadow,color,opacity] duration-150 ease-(--ease-out) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background active:not-aria-[haspopup]:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-busy:opacity-70 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-[13px] font-medium whitespace-nowrap transition-[scale,background-color,border-color,box-shadow,color,opacity] duration-150 ease-(--ease-out) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background active:not-aria-[haspopup]:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-busy:opacity-70 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -22,11 +22,11 @@ const buttonVariants = cva(
       size: {
         default:
           "h-8 gap-1.5 px-3 coarse:h-10 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-sm px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
+        xs: "h-6 gap-1 rounded-md px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 px-2.5 coarse:h-9 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-10 gap-2 px-4 text-sm",
         icon: "size-8 coarse:size-10",
-        "icon-xs": "size-6 rounded-sm [&_svg:not([class*='size-'])]:size-3",
+        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7 coarse:size-9",
         "icon-lg": "size-10",
       },

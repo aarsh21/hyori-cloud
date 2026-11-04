@@ -56,6 +56,8 @@ export default defineConfig({
       "**/node_modules/**",
       "tooling/fernando-lint/**",
       "tooling/anti-slop/src/**",
+      ".agents/skills/design-taste-frontend-v2-experimental/**",
+      ".agents/skills/brandkit/**",
       ".cache/**",
       "apps/web/.output/**",
       "apps/web/dist/**",

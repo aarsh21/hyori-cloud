@@ -55,7 +55,7 @@ function SearchField({
     <search
       data-slot="search-field"
       className={cn(
-        "group/search relative flex h-8 min-w-0 items-center rounded-md border border-transparent bg-muted transition-[background-color,border-color,box-shadow] duration-150 focus-within:border-ring focus-within:bg-card focus-within:ring-2 focus-within:ring-ring/25 coarse:h-10",
+        "group/search relative flex h-8 min-w-0 items-center rounded-lg border border-input bg-card transition-[background-color,border-color,box-shadow] duration-150 focus-within:border-ring focus-within:bg-card focus-within:ring-2 focus-within:ring-ring/25 coarse:h-10",
         className,
       )}
     >
@@ -98,7 +98,7 @@ function SearchField({
           type="button"
           aria-label="Clear search"
           onClick={clear}
-          className="absolute right-1 grid size-6 place-items-center rounded-sm text-muted-foreground outline-none after:absolute after:-inset-1.5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="absolute right-1 grid size-6 place-items-center rounded-sm text-muted-foreground outline-none after:absolute after:-inset-1.5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <XIcon aria-hidden strokeWidth={1.75} className="size-3.5" />
         </button>

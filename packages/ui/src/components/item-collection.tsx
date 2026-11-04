@@ -237,7 +237,7 @@ function ItemName({
         {icon}
       </span>
       <span className="flex min-w-0 flex-col py-1">
-        <span className="truncate text-[13px] text-foreground">{children}</span>
+        <span className="truncate text-sm text-foreground">{children}</span>
         {meta === undefined ? null : (
           <span className="truncate text-xs text-muted-foreground tabular-nums @2xl:hidden">
             {meta}
@@ -249,7 +249,7 @@ function ItemName({
 }
 
 const itemTargetClasses =
-  "flex min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-accent";
+  "flex min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-accent";
 
 function ItemLink({ className, ...props }: React.ComponentProps<typeof AppLink>) {
   const tabIndex = useItemTabIndex();
@@ -370,7 +370,7 @@ function ItemTile({
 function ItemTileLabel({ children, meta }: { children: React.ReactNode; meta?: React.ReactNode }) {
   return (
     <span className="flex min-w-0 flex-1 flex-col px-1 py-0.5">
-      <span className="truncate text-[13px] text-foreground">{children}</span>
+      <span className="truncate text-sm text-foreground">{children}</span>
       {meta === undefined ? null : (
         <span className="truncate text-xs text-muted-foreground tabular-nums">{meta}</span>
       )}

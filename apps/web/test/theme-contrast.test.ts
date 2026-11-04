@@ -73,6 +73,20 @@ for (const selector of [":root", ".dark"]) {
     }
   });
 
+  test(`${selector}: the brand mark and checked controls keep their contrast`, () => {
+    expect(contrast(color("brand-foreground"), color("brand"))).toBeGreaterThanOrEqual(4.5);
+
+    for (const surface of ["background", "card", "popover"]) {
+      expect(contrast(color("brand"), color(surface))).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  test(`${selector}: control boundaries stay perceivable on every surface they sit on`, () => {
+    for (const surface of ["background", "card", "popover"]) {
+      expect(contrast(color("input"), color(surface))).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   test(`${selector}: Photos placeholders, completed transfers and focus borders are distinct`, () => {
     expect(contrast(color("muted-foreground"), color("muted"))).toBeGreaterThanOrEqual(4.5);
     expect(contrast(color("success"), color("popover"))).toBeGreaterThanOrEqual(3);

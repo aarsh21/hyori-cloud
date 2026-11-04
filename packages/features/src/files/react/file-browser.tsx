@@ -212,7 +212,7 @@ function FiltersToggle({
       className={
         activeCount === 0
           ? undefined
-          : "relative after:absolute after:top-1 after:right-1 after:size-1.5 after:rounded-full after:bg-primary"
+          : "relative after:absolute after:top-1 after:right-1 after:size-1.5 after:rounded-full after:bg-brand"
       }
       onClick={onToggle}
     >

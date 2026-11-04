@@ -36,7 +36,7 @@ function Lightbox({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Popup
           data-slot="lightbox"
-          className="fixed inset-0 z-50 flex flex-col bg-[oklch(0.13_0.004_70)] text-white outline-none transition-opacity duration-150 ease-(--ease-out) data-ending-style:opacity-0 data-ending-style:duration-100 data-starting-style:opacity-0"
+          className="fixed inset-0 z-50 flex flex-col bg-[oklch(0.134_0.005_262)] text-white outline-none transition-opacity duration-150 ease-(--ease-out) data-ending-style:opacity-0 data-ending-style:duration-100 data-starting-style:opacity-0"
           onKeyDown={(event) => {
             // Portaled menu keystrokes bubble through React, and a focused video owns its arrows.
             const element = event.target;

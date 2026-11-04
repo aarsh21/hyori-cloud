@@ -11,7 +11,7 @@ function Wordmark({ className }: { className?: string }) {
     >
       <span
         aria-hidden
-        className="grid size-[18px] place-items-center rounded-[5px] bg-primary text-[11px] leading-none font-semibold text-primary-foreground"
+        className="grid size-[18px] place-items-center rounded-[5px] bg-brand text-[11px] leading-none font-semibold text-brand-foreground"
       >
         h
       </span>

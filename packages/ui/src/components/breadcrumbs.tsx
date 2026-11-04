@@ -21,7 +21,7 @@ function BreadcrumbLink({ className, ...props }: React.ComponentProps<typeof App
     <li className="flex min-w-0 shrink items-center gap-0.5">
       <AppLink
         className={cn(
-          "max-w-40 truncate rounded-sm px-1 py-0.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40",
+          "max-w-40 truncate rounded-sm px-1 py-0.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
           className,
         )}
         {...props}
@@ -41,7 +41,7 @@ function BreadcrumbCurrent({ className, ...props }: React.ComponentProps<"h1">) 
       <h1
         aria-current="page"
         className={cn(
-          "truncate px-1 py-0.5 text-[15px] font-semibold tracking-[-0.008em] text-foreground",
+          "truncate px-1 py-0.5 text-lg font-semibold tracking-[-0.02em] text-foreground",
           className,
         )}
         {...props}

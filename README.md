@@ -58,7 +58,9 @@ Shared primitives live in `packages/ui`; tokens and global styles live in `packa
 npx shadcn@latest add dialog popover sheet -c packages/ui
 ```
 
-Product features consume owned DS exports, not raw transport or server implementations. Emil-inspired polish includes keyboard interactions and explicit loading, empty, failure, and retained-data states; decorative motion must not delay frequent actions.
+[DESIGN.md](DESIGN.md) defines the visual language. The [pinned upstream skills](.agents/skills/UPSTREAM.md) `design-taste-frontend-v2-experimental` and `brandkit` guide taste and brand imagery. Product features consume owned DS exports, not raw transport or server implementations. Emil-inspired polish includes keyboard interactions and explicit loading, empty, failure, and retained-data states; decorative motion must not delay frequent actions.
+
+The desktop sidebar collapses from its toggle or with Ctrl/Cmd+B, and this browser remembers the choice. Phones use the bottom navigation.
 
 Appearance defaults to **System**. Choose **Light**, **Dark**, or **System** in the account menu, or use **Appearance** below sign-in/setup/invite/public-link forms (in the toolbar for an opened shared folder). Choices persist locally in this browser, not on the account. The app root mounts the owned `@hyori-cloud/ui/theme` adapter once; its pre-paint script applies the saved or system scheme before content, and native controls and toasts follow the resolved appearance. Theme changes are immediate, without page-wide color animations.
 
