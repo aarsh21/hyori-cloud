@@ -1,0 +1,8 @@
+{
+  "projects": ["apps/web", "packages/features", "packages/ui"],
+  "noScore": true,
+  "supplyChain": { "enabled": false },
+  "ignore": {
+    "files": ["**/.output/**", "**/.tanstack/**", "**/routeTree.gen.ts", "**/src/env.ts"]
+  }
+}

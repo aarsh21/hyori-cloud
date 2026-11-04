@@ -1,0 +1,258 @@
+{
+  "repository": "https://github.com/dmmulroy/anti-slop",
+  "revision": "13909c9e07590f5a85d93c62712259fe14a883f7",
+  "files": [
+    {
+      "path": "LICENSE",
+      "gitBlobSha": "69239ead1ed4a05db45c0da08d1b8f64c0a76ee4"
+    },
+    {
+      "path": "src/effect/index.ts",
+      "gitBlobSha": "55eb13ddeace8e2f4a7005511c2a68a17d4fc2cf"
+    },
+    {
+      "path": "src/effect/rules/no-manual-effect-error-tag.test.ts",
+      "gitBlobSha": "805ae170ee949c87a01171d5ca7e6b3fd9024632"
+    },
+    {
+      "path": "src/effect/rules/no-manual-effect-error-tag.ts",
+      "gitBlobSha": "daaa109ae95a6448b05194d8afb203831d51158d"
+    },
+    {
+      "path": "src/effect/rules/no-manual-tag-comparison.test.ts",
+      "gitBlobSha": "63cfd6c947deb044e0d741cda90e50372acaa49c"
+    },
+    {
+      "path": "src/effect/rules/no-manual-tag-comparison.ts",
+      "gitBlobSha": "868d1d274bf9eb8697d93db581201f9bca8d7a6e"
+    },
+    {
+      "path": "src/effect/rules/no-manual-tagged-construction.test.ts",
+      "gitBlobSha": "986a432c3fb8795e386a5e2bd0181d8374ab73e5"
+    },
+    {
+      "path": "src/effect/rules/no-manual-tagged-construction.ts",
+      "gitBlobSha": "382f166a1f0bdfcced51daf85653199702c467a9"
+    },
+    {
+      "path": "src/effect/rules/no-service-constructor-imports.test.ts",
+      "gitBlobSha": "69578ec3cde77e886c9ea27d0a1bb46ba406bfdb"
+    },
+    {
+      "path": "src/effect/rules/no-service-constructor-imports.ts",
+      "gitBlobSha": "55cefb7e7b4c8e0330ccf66ab71096a3976e1f18"
+    },
+    {
+      "path": "src/effect/rules/prefer-effect-match.test.ts",
+      "gitBlobSha": "34930a970e1a152644d8e76f1640754358a406d6"
+    },
+    {
+      "path": "src/effect/rules/prefer-effect-match.ts",
+      "gitBlobSha": "d834540343ef1933adbe61e9eecbb6c8e9465372"
+    },
+    {
+      "path": "src/effect/shared/tagged-values.ts",
+      "gitBlobSha": "21d10a2f8d9f97af79bbbc2d15155c4322dbaeb0"
+    },
+    {
+      "path": "src/index.ts",
+      "gitBlobSha": "a3876ec07e4548f66ee353096b3ac851b7572f5b"
+    },
+    {
+      "path": "src/rules/no-array-filter-map.test.ts",
+      "gitBlobSha": "d007921172f4e2e19b84abc4195b38158766c0d5"
+    },
+    {
+      "path": "src/rules/no-array-filter-map.ts",
+      "gitBlobSha": "dc001b381465420ec98111507f1cde2e6c92fb6f"
+    },
+    {
+      "path": "src/rules/no-chained-type-assertions.test.ts",
+      "gitBlobSha": "c0e2b9afdbab17cab2b44dbe55f0f60451f512f8"
+    },
+    {
+      "path": "src/rules/no-chained-type-assertions.ts",
+      "gitBlobSha": "0d118527804cfd00fe377af13293f3d2071492bf"
+    },
+    {
+      "path": "src/rules/no-conditional-empty-object-spread.test.ts",
+      "gitBlobSha": "bccfba646e89d97de5ea4c7080f0adfc43f445ee"
+    },
+    {
+      "path": "src/rules/no-conditional-empty-object-spread.ts",
+      "gitBlobSha": "ae7248d36e54851b67ad1f5d78813bf09ac3dd6a"
+    },
+    {
+      "path": "src/rules/no-known-value-widening.test.ts",
+      "gitBlobSha": "66dd6355f08a4da3decf511b4f79b33acebbd720"
+    },
+    {
+      "path": "src/rules/no-known-value-widening.ts",
+      "gitBlobSha": "0df39ab89cc2d9fe482c92b55ef04ae2c245b46b"
+    },
+    {
+      "path": "src/rules/no-module-mocking.test.ts",
+      "gitBlobSha": "b4c22cc3631456edf9cdb6d0a95edd329d3cf247"
+    },
+    {
+      "path": "src/rules/no-module-mocking.ts",
+      "gitBlobSha": "2d60d48c998cbedfb84f3a09daec6ca52e3e6de5"
+    },
+    {
+      "path": "src/rules/no-object-parameters.test.ts",
+      "gitBlobSha": "3c5f08d23c409df5b13415ca7e655e8d1d675d82"
+    },
+    {
+      "path": "src/rules/no-object-parameters.ts",
+      "gitBlobSha": "6589ebf5f587ecdad1989b9f89886370f0ed5350"
+    },
+    {
+      "path": "src/rules/no-reduce-accumulator-copy.test.ts",
+      "gitBlobSha": "48f8944e2481dc5632934e3bcbae6d7d5a0b39c3"
+    },
+    {
+      "path": "src/rules/no-reduce-accumulator-copy.ts",
+      "gitBlobSha": "47d8e2cf6b5c640b0a587b65457a543747123bac"
+    },
+    {
+      "path": "src/rules/no-reflect-apply.test.ts",
+      "gitBlobSha": "ee24df8f4619000a4985b5d80cf74dd6f6487bd9"
+    },
+    {
+      "path": "src/rules/no-reflect-apply.ts",
+      "gitBlobSha": "2cc30451bda68d90d84eb9744034a778ae783b20"
+    },
+    {
+      "path": "src/rules/no-reflect-get.test.ts",
+      "gitBlobSha": "c4d9155bff1aef154fbb1104ace6661527700888"
+    },
+    {
+      "path": "src/rules/no-reflect-get.ts",
+      "gitBlobSha": "cf630ecc005aa9cef09cdd4a701feea968674b47"
+    },
+    {
+      "path": "src/rules/no-runtime-typeof.test.ts",
+      "gitBlobSha": "abeeaed0b7088dcb928ebe96dddbc648b69e7235"
+    },
+    {
+      "path": "src/rules/no-runtime-typeof.ts",
+      "gitBlobSha": "43259eb9e65b480b3b64b03a4de0154511efcb51"
+    },
+    {
+      "path": "src/rules/no-shape-in-symbol-names.test.ts",
+      "gitBlobSha": "4d3461262cfc79c9cbb484d4cba9dfda6cbd7bc7"
+    },
+    {
+      "path": "src/rules/no-shape-in-symbol-names.ts",
+      "gitBlobSha": "436d2a25255b4aa43b50cc117e8f15539924dbd8"
+    },
+    {
+      "path": "src/rules/no-unknown-parameters.test.ts",
+      "gitBlobSha": "75aca19a188e0aef3d1bba05992e8cefc02556cf"
+    },
+    {
+      "path": "src/rules/no-unknown-parameters.ts",
+      "gitBlobSha": "b4a1545a7b2bc54b5eb8d5ce3090bf151d0cd6e0"
+    },
+    {
+      "path": "src/rules/no-unknown-returns.test.ts",
+      "gitBlobSha": "f0c1e79925facf9b834b15f545c84813bcc0c7a9"
+    },
+    {
+      "path": "src/rules/no-unknown-returns.ts",
+      "gitBlobSha": "e1f43f8d055f848c61fda84e907d0dea4079c3ba"
+    },
+    {
+      "path": "src/rules/no-unknown-type-aliases.test.ts",
+      "gitBlobSha": "32c11516af083c2626a1c606c065792dbfae2068"
+    },
+    {
+      "path": "src/rules/no-unknown-type-aliases.ts",
+      "gitBlobSha": "af5f08a5002fb26f94414be13f1ad848ae73d522"
+    },
+    {
+      "path": "src/rules/no-unsafe-dictionary-type.test.ts",
+      "gitBlobSha": "c45fdac32eebe2128e8f60b81d9a1910377747de"
+    },
+    {
+      "path": "src/rules/no-unsafe-dictionary-type.ts",
+      "gitBlobSha": "8cb615a14f97769bd8e37465a8334edd338dc839"
+    },
+    {
+      "path": "src/rules/no-widen-then-assert.test.ts",
+      "gitBlobSha": "068611081699373b0ad0241a3cc4de42e4392e12"
+    },
+    {
+      "path": "src/rules/no-widen-then-assert.ts",
+      "gitBlobSha": "c5e07f7fc55a8ebc1c19db58625552822beb0c1e"
+    },
+    {
+      "path": "src/rules/require-readable-spacing-cli.test.ts",
+      "gitBlobSha": "15417f7a67ea00f679da165a6876a3a6d562d844"
+    },
+    {
+      "path": "src/rules/require-readable-spacing.test.ts",
+      "gitBlobSha": "d88a8d0ea6cc7cb3a96b55d2be0f24f6b0ec688d"
+    },
+    {
+      "path": "src/rules/require-readable-spacing.ts",
+      "gitBlobSha": "40735c731b274007347fedd15f638e2ff1b159aa"
+    },
+    {
+      "path": "src/rules/require-safety-comment-for-type-assertion.test.ts",
+      "gitBlobSha": "bdfa7bb45dda870eab846c4505857500398353a4"
+    },
+    {
+      "path": "src/rules/require-safety-comment-for-type-assertion.ts",
+      "gitBlobSha": "bfea1a23a8358caf125b083452425649c7abe29d"
+    },
+    {
+      "path": "src/shared/array-method.ts",
+      "gitBlobSha": "87eb9d842f4d8b4cc0b8e26a7e686034abd4d828"
+    },
+    {
+      "path": "src/shared/dictionary-types.ts",
+      "gitBlobSha": "8db73ffab0fceb26cf6c0c534b3c4da71436396f"
+    },
+    {
+      "path": "src/shared/function-parameters.ts",
+      "gitBlobSha": "80de91d7a75258044257d6e89ba666c29c284609"
+    },
+    {
+      "path": "src/shared/lexical-type-parameters.ts",
+      "gitBlobSha": "7cdb18c911c9dd31066ead3beda0a9dfc6554018"
+    },
+    {
+      "path": "src/shared/reflect-method.ts",
+      "gitBlobSha": "43a7cfcc12e9e0bff173d1246d38ba880d83ed07"
+    },
+    {
+      "path": "src/shared/scope.ts",
+      "gitBlobSha": "602414abaa2ac38d778f52b452d3a7f7fad81fa3"
+    },
+    {
+      "path": "src/shared/type-alias-resolution.ts",
+      "gitBlobSha": "4744222a0a30874037eb8354b1aa744072c50330"
+    },
+    {
+      "path": "src/vendor/eslint-stylistic/LICENSE",
+      "gitBlobSha": "38dbc3547844ce7d5479008d9db1c042e1505b36"
+    },
+    {
+      "path": "src/vendor/eslint-stylistic/UPSTREAM.md",
+      "gitBlobSha": "95d15ed3d206e90e930b1ae3acd5f3699e444899"
+    },
+    {
+      "path": "src/vendor/eslint-stylistic/padding-line-ast.ts",
+      "gitBlobSha": "10f34cc8e5fcdd71ec6eed40e4369c6e4bfc7b89"
+    },
+    {
+      "path": "src/vendor/eslint-stylistic/padding-line-between-statements.ts",
+      "gitBlobSha": "8e2c99f314b16e47924814bff1f1faf53b414b78"
+    },
+    {
+      "path": "src/vendor/eslint-stylistic/padding-line-options.d.ts",
+      "gitBlobSha": "45068ec5246b423cd44ec6329185e0a30267ba72"
+    }
+  ]
+}

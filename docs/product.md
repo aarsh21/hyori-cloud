@@ -1,6 +1,6 @@
 # Hyori Cloud: product discovery
 
-Status: discovery. Only the confirmed requirements below are commitments; proposed features and architecture remain open.
+Status: v1 scope discovery is complete; implementation is in progress. Confirmed requirements are the target, not a claim that all features are implemented. Use `../README.md`, `../packages/api/README.md`, and `artcraft-integration.md` for coverage and current limitations.
 
 ## Confirmed requirements
 
@@ -13,7 +13,7 @@ Status: discovery. Only the confirmed requirements below are commitments; propos
 
 ## Starting point
 
-The template already provides React, TanStack Start/Router/Query, and shared shadcn/ui components with Tailwind CSS. It does not yet establish the product's file model, SurrealDB integration, or RustFS integration.
+The original template supplied React, TanStack Start/Router/Query, and shared shadcn/ui components with Tailwind CSS. Product behavior, SurrealDB persistence, and RustFS transfers are being added during v1 implementation; their verified coverage is tracked in the implementation documentation rather than inferred from this scope.
 
 See `../README.md` for development setup.
 
@@ -140,9 +140,9 @@ All four apps are confirmed v1 browser-integration requirements. Their selection
 
 ArtCraft is the user's selected integration direction; changing it requires discussion, not a silent substitution.
 
-## Decision queue
+## Implementation follow-ups
 
-Discuss one consequential decision at a time. For each answer, record the choice, rationale, and resulting scope changes here before moving on.
+The product-scope grilling is finished. Resolve these follow-ups during contract design and implementation with explicit, reasonable defaults; record the rationale. Ask the user only when a choice materially changes scope, security, or data-loss behavior. Resource sizing remains deferred as agreed.
 
 1. **Audience — confirmed:** The first release must serve individual self-hosters, families/small private groups, and teams/organizations. Required capabilities for each audience remain to be defined.
 2. **Product boundary — confirmed:** Files, sharing, Photos, and shared document editing belong in v1. Photos uses the same underlying file library and source-selection rules above; timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1. Still define detailed album/timeline behavior and media formats. Integrate WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser; one-person-at-a-time editing is sufficient initially. Still validate per-app integration, exact file-format support, and the locking/conflict policy.

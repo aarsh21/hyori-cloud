@@ -1,0 +1,53 @@
+name: Verify Hyori Cloud
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Install the locked architecture checker
+        run: npm --prefix tooling/fernando-lint ci
+      - name: Format and lint
+        run: bun run check
+      - name: Verify anti-slop checker regressions and tooling types
+        run: bun run test:anti-slop && bun run check:tooling-types && bun run check:scripts-types
+      - name: Enforce TypeScript-only authored source
+        run: bun run check:source-files
+      - name: Run local anti-slop analysis
+        run: bun run lint:anti-slop
+      - name: Test product behavior
+        run: bun run test
+      - name: Verify architecture checker and adopted rules
+        run: bun run test:architecture
+      - name: Verify package boundaries
+        run: bun run check:boundaries
+      - name: Verify public SDK and Query contracts
+        run: bun run check:query
+      - name: Verify external packed SDK consumers offline
+        run: bun run check:artifacts
+      - name: Verify actual app runtime composition
+        run: bun run check:app-runtime
+      - name: Verify feature boundaries and React Compiler diagnostics
+        run: bun run lint:architecture
+      - name: Run local React Doctor analysis
+        run: bun run ui:doctor
+      - name: Verify web build and startup limits
+        run: bun run check:web
+      - name: Test real database and storage integration
+        run: bun run test:services

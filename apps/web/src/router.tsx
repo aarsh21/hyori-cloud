@@ -1,14 +1,15 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 
-import Loader from "./components/loader";
-import { routeTree } from "./routeTree.gen";
+import { getAppRuntime } from "@/app/runtime";
+import Loader from "@/components/loader";
+import { routeTree } from "@/routeTree.gen";
 
 export const getRouter = () => {
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    context: {},
+    context: getAppRuntime(),
     defaultPendingComponent: () => <Loader />,
     defaultNotFoundComponent: () => <div>Not Found</div>,
   });

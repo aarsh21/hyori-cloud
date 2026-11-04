@@ -1,0 +1,5 @@
+{
+  "buildMaximumSeconds": 120,
+  "devStartupMaximumSeconds": 60,
+  "conditions": "Fresh CI checkout with no .output/.tanstack build artifacts; dependency cache may be warm. Dev readiness means the app root responds with HTTP 200 on loopback; it does not prove browser hydration or backend availability. Resource/capacity benchmarking remains deferred."
+}

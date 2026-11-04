@@ -1,0 +1,20 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": [
+    "../../packages/**/*.ts",
+    "../../packages/**/*.tsx",
+    "../../apps/web/src/**/*.ts",
+    "../../apps/web/src/**/*.tsx"
+  ],
+  "exclude": [
+    "../../node_modules",
+    "../../tooling/fernando-lint",
+    "../../apps/web/src/routeTree.gen.ts"
+  ]
+}

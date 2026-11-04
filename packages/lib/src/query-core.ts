@@ -1,0 +1,30 @@
+export {
+  MutationCache,
+  MutationObserver,
+  QueryCache,
+  QueryClient,
+  QueryObserver,
+  dehydrate,
+  focusManager,
+  hashKey,
+  hydrate,
+  onlineManager,
+} from "@tanstack/query-core";
+
+export type {
+  DataTag,
+  DefaultError,
+  DefaultOptions,
+  DefinedQueryObserverResult,
+  MutationFunction,
+  MutationKey,
+  MutationObserverOptions,
+  MutationObserverResult,
+  MutationOptions,
+  QueryClientConfig,
+  QueryFunction,
+  QueryKey,
+  QueryObserverOptions,
+  QueryObserverResult,
+  QueryOptions,
+} from "@tanstack/query-core";

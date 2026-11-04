@@ -2,17 +2,18 @@
 
 ## Product direction
 
-Build a Nextcloud alternative with React and TanStack Start, SurrealDB as the application backend and database, and RustFS for file/object storage. Use shadcn/ui and Tailwind CSS for the interface. SurrealDB and RustFS are intended integrations, not capabilities already implemented by the template.
+Build a Nextcloud alternative with React and TanStack Start, SurrealDB as the application backend and database, and RustFS for file/object storage. Use shadcn/ui and Tailwind CSS for the interface. Use `README.md` and `packages/api/README.md` for implementation coverage and known limits; approved product scope is not evidence of completion.
 
 ## Design is a core requirement
 
 Aim for Emil Kowalski's level of design engineering: restrained visuals, excellent defaults, precise typography and spacing, and cohesive interactions. Polish is part of feature completion, not a later pass.
 
-- Use shared shadcn/ui primitives and Tailwind design tokens so improvements carry across the app.
+- Use shadcn/ui for standard interface patterns. Add missing components to `packages/ui` as needed, reuse shared primitives and Tailwind tokens, and build product-specific composites from them rather than recreating standard controls. Preserve existing shared customizations when adding components.
 - Design loading, empty, error, success, focus, hover, and pressed states alongside the happy path.
 - Make keyboard and touch interactions first-class; preserve accessible semantics, visible focus, and reduced-motion preferences.
 - Motion must clarify state or provide feedback. Keep frequent actions immediate, keyboard-triggered actions unanimated, and occasional transitions short and interruptible. Prefer transform and opacity for motion.
 - For interface implementation or review, use the `emil-design-eng` skill when available.
+- Run the local React Doctor check for UI changes. `doctor.config.json` owns scan scope and privacy settings; keep remote scoring and dependency-report uploads disabled unless the user approves them. Report its diagnostics separately from functional tests.
 
 ## Performance is a core requirement
 
@@ -45,3 +46,5 @@ Discuss consequential choices with the user before treating them as requirements
 ## Repository workflow
 
 Use `README.md` for template setup, shared UI conventions, environment handling, and development commands. Consult package manifests for available scripts rather than duplicating them here.
+
+After every change, run `bun run lint:anti-slop` and report remaining diagnostics. For anti-slop updates, read `tooling/anti-slop/UPSTREAM.md` to preserve the pinned source, licenses, local adaptations, and exact Oxlint/plugin compatibility. Keep handwritten Hyori tooling in TypeScript; preserve vendored JavaScript and generated artifacts in their original form.

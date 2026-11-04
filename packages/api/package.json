@@ -1,0 +1,32 @@
+{
+  "name": "@hyori-cloud/api",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "type": "module",
+  "imports": {
+    "#api/*": "./src/*.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hyori-cloud/core": "workspace:*",
+    "@hyori-cloud/lib": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.5",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "bun": "1.4.4"
+  }
+}

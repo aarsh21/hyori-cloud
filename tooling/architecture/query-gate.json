@@ -1,0 +1,32 @@
+{
+  "sdkPackageJson": "../../packages/client-sdk/package.json",
+  "reactEntry": "../../packages/client-sdk/src/react/index.ts",
+  "requiredSymbols": [
+    "ClientSDKProvider",
+    "useClientSDK",
+    "createQuery",
+    "setMutationDefaults",
+    "ResourceOf",
+    "SuspenseResourceOf"
+  ],
+  "checks": {
+    "compile": {
+      "fixture": "../../packages/client-sdk/tests/compile.tsx",
+      "command": ["bun", "run", "--cwd", "../../packages/client-sdk", "test:compile"]
+    },
+    "behavior": {
+      "fixture": "../../apps/web/test/browser-runtime.test.tsx",
+      "command": ["bun", "run", "--cwd", "../../", "check:app-runtime"]
+    },
+    "secondClient": {
+      "fixture": "../../packages/client-sdk/tests/second-client.test.ts",
+      "command": [
+        "bun",
+        "test",
+        "../../packages/client-sdk/tests/second-client.test.ts",
+        "../../packages/client-sdk/tests/upload-queue.test.ts"
+      ]
+    },
+    "evolution": { "fixture": "evolution.ts", "command": ["bun", "run", "evolution.ts"] }
+  }
+}

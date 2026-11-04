@@ -1,33 +1,111 @@
 name: hyori-cloud
 
 services:
+  volume-permissions:
+    image: alpine:3.22
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    security_opt: ["no-new-privileges:true"]
+    command: ["sh", "-c", "chown 65532:65532 /database && chown 10001:10001 /storage /logs"]
+    volumes:
+      - surreal-data:/database
+      - rustfs-data:/storage
+      - rustfs-logs:/logs
+    restart: "no"
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2.6.5
+    working_dir: /data
+    command:
+      - start
+      - --bind
+      - 0.0.0.0:8000
+      - --user
+      - ${SURREALDB_USERNAME:-root}
+      - --pass
+      - ${SURREALDB_PASSWORD:?Set SURREALDB_PASSWORD in apps/web/.env}
+      - surrealkv:///data/hyori.db
+    volumes:
+      - type: volume
+        source: surreal-data
+        target: /data
+        volume:
+          nocopy: true
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "/surreal", "isready", "--endpoint", "http://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:1.0.0-alpha.85
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?Set RUSTFS_ACCESS_KEY in apps/web/.env}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?Set RUSTFS_SECRET_KEY in apps/web/.env}
+      RUSTFS_CONSOLE_ENABLE: "false"
+      RUSTFS_ADDRESS: ":9000"
+    command: ["/data"]
+    volumes:
+      - type: volume
+        source: rustfs-data
+        target: /data
+        volume:
+          nocopy: true
+      - type: volume
+        source: rustfs-logs
+        target: /logs
+        volume:
+          nocopy: true
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:9000:9000"
+    restart: unless-stopped
+
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      secrets:
-        - web_env
     init: true
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     env_file:
       - path: apps/web/.env
-        required: false
+        required: true
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+      SURREALDB_URL: http://surrealdb:8000
+      RUSTFS_ENDPOINT: http://rustfs:9000
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+      rustfs:
+        condition: service_started
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3001/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 20s
     restart: unless-stopped
 
-# BuildKit makes these available only while install/build commands run.
-secrets:
-  web_env:
-    file: apps/web/.env
+volumes:
+  surreal-data:
+  rustfs-data:
+  rustfs-logs:

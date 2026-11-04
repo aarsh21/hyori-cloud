@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@hyori-cloud/lib/react": ["../../packages/lib/src/react.ts"],
+      "@hyori-cloud/client-sdk": ["../../packages/client-sdk/src/index.ts"]
+    }
+  },
+  "include": ["./fixtures/*.ts"],
+  "exclude": []
+}

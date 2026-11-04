@@ -1,0 +1,55 @@
+{
+  "name": "@hyori-cloud/lib",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "exports": {
+    "./effect": "./src/effect.ts",
+    "./effect/rpc": "./src/effect-rpc.ts",
+    "./react": "./src/react.ts",
+    "./query": "./src/query.ts",
+    "./query-core": "./src/query-core.ts",
+    "./icons": "./src/icons.ts",
+    "./surreal": "./src/surreal.ts",
+    "./storage": "./src/storage.ts",
+    "./crypto": "./src/crypto.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.922.0",
+    "@effect/platform": "0.97.2",
+    "@effect/rpc": "0.76.2",
+    "@tanstack/query-core": "5.104.2",
+    "effect": "3.22.2"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "5.104.2",
+    "@types/react": "^19.3.0",
+    "lucide-react": "0.468.0"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "5.104.2",
+    "@types/react": "^19.0.0",
+    "lucide-react": "0.468.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "bun": "1.4.4"
+  }
+}

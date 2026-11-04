@@ -1,0 +1,18 @@
+{
+  "extends": "../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "architecture/boundaries.ts",
+    "architecture/packed-consumer.ts",
+    "architecture/checker.d.ts",
+    "architecture/eslint.config.ts",
+    "architecture/profile.test.ts",
+    "anti-slop/src/**/*.ts",
+    "anti-slop/integration.test.ts",
+    "../vite.config.ts",
+    "../packages/ui/postcss.config.ts"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "name": "@hyori-cloud/client-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "imports": {
+    "#client-sdk/*": "./src/*.ts",
+    "#client-sdk-react/*": "./src/react/*.tsx",
+    "#client-sdk-test/*": "./tests/*.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react/index.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test tests",
+    "test:compile": "tsc --noEmit -p tests/tsconfig.json"
+  },
+  "dependencies": {
+    "@hyori-cloud/api": "workspace:*",
+    "@hyori-cloud/lib": "workspace:*"
+  },
+  "devDependencies": {
+    "@hyori-cloud/config": "workspace:*",
+    "@types/bun": "1.3.5",
+    "@types/react": "^19.2.0",
+    "@types/react-test-renderer": "^19.1.0",
+    "react-test-renderer": "19.3.1",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "5.104.2",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "bun": "1.4.4"
+  }
+}
