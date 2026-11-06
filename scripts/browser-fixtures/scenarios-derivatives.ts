@@ -70,11 +70,26 @@ function decodedVideoFrame(page: Page) {
 
     if (video === null) throw new Error("No video in the viewer.");
 
+    const state = () =>
+      `readyState ${video.readyState}, currentTime ${video.currentTime}, seeking ${video.seeking}`;
+
+    const seeked = new Promise((resolve) =>
+      video.addEventListener("seeked", resolve, { once: true }),
+    );
+
     video.currentTime = 2;
-    await new Promise((resolve) => {
-      video.addEventListener("seeked", resolve, { once: true });
-      setTimeout(resolve, 8000);
-    });
+
+    // “seeked” can arrive before the decoder holds that frame, so wait for both, and say so on a
+    // timeout instead of drawing whatever is there.
+    const deadline = Date.now() + 8000;
+
+    await Promise.race([seeked, new Promise((resolve) => setTimeout(resolve, 8000))]);
+
+    while (video.seeking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (Date.now() > deadline) throw new Error(`No decoded frame after seeking: ${state()}.`);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
 
     const canvas = document.createElement("canvas");
 
@@ -310,26 +325,30 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
   await report.check("opening a video plays the original stream, not its poster", async () => {
     await tile(page, CLIP).click();
 
-    const stage = await stageState(page);
+    // Closed even when a check fails, so the next scenario doesn't start under an open viewer.
+    try {
+      const stage = await stageState(page);
 
-    assert.equal(stage.kind, "video");
-    assert.ok(stage.kind === "video" && stage.errorCode === 0, "didn't decode");
-    assert.match(String(stage.src), /^\/api\/storage\/previews\//);
+      assert.equal(stage.kind, "video");
+      assert.ok(stage.kind === "video" && stage.errorCode === 0, "didn't decode");
+      assert.match(String(stage.src), /^\/api\/storage\/previews\//);
 
-    // Headless screenshots can leave a playing video black, so ask the page for the decoded frame.
-    const frame = await decodedVideoFrame(page);
+      // Headless screenshots can leave a playing video black, so ask the page for the decoded frame.
+      const frame = await decodedVideoFrame(page);
 
-    report.observe("decoded video frame, read back from the page", {
-      width: frame.width,
-      height: frame.height,
-      distinctColours: frame.distinctColours,
-    });
-    writeFileSync(
-      join(report.directory, "decoded-video-frame.png"),
-      Buffer.from(frame.dataUrl.split(",")[1] ?? "", "base64"),
-    );
-    assert.ok(frame.distinctColours > 8, `${frame.distinctColours} colours: not a real picture`);
-    await closeViewer(page);
+      report.observe("decoded video frame, read back from the page", {
+        width: frame.width,
+        height: frame.height,
+        distinctColours: frame.distinctColours,
+      });
+      writeFileSync(
+        join(report.directory, "decoded-video-frame.png"),
+        Buffer.from(frame.dataUrl.split(",")[1] ?? "", "base64"),
+      );
+      assert.ok(frame.distinctColours > 8, `${frame.distinctColours} colours: not a real picture`);
+    } finally {
+      await closeViewer(page);
+    }
   });
 
   return { thumbnailUrl, posterUrl: String(clip.src) };
