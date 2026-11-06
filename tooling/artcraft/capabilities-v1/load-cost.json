@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "kind": "static-wasm-load-cost-investigation",
+  "runtimeManifestSha256": "bb6d2eb3f4e81976429c4e0c65de57452898398dd962af7e81083478daa28ea0",
+  "vendorExecution": false,
+  "strippedOrCompressedArtifactsShipped": false,
+  "loadTimeMeasured": false,
+  "productionHttpEncodingMeasured": false,
+  "compressionParameters": {
+    "gzipLevel": 6,
+    "brotliQuality": 6
+  },
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0",
+      "path": "wordcraft/0.14.0/wordcraft-web-a75a8b404d46b7ab_bg.wasm",
+      "bytes": 50434398,
+      "sha256": "b92e14bc7be246f67ae914f834bcf50d9cd772ff9f71840aee3d7f7c362c689c",
+      "gzipLevel6Bytes": 18851972,
+      "brotliQuality6Bytes": 14028172,
+      "codeSectionBytes": 35021224,
+      "dataSectionBytes": 15305431,
+      "customSections": [
+        {
+          "name": "producers",
+          "bytes": 124
+        },
+        {
+          "name": "target_features",
+          "bytes": 124
+        }
+      ],
+      "sfntInstances": 24,
+      "sfntInstanceBytes": 7904742,
+      "sfntNotice": "Structurally recognized sfnt regions only; not all possible font formats or runtime font/atlas allocation. Instances may repeat."
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0",
+      "path": "gridcraft/0.15.0/gridcraft-web-7d721fa0754b75b9_bg.wasm",
+      "bytes": 22895249,
+      "sha256": "4e46b23339e36fbadeaae9ec4fc3a71a5dfe2d72b9bd645166ec3bd3149a905b",
+      "gzipLevel6Bytes": 8578402,
+      "brotliQuality6Bytes": 6678972,
+      "codeSectionBytes": 19347563,
+      "dataSectionBytes": 3465834,
+      "customSections": [
+        {
+          "name": "producers",
+          "bytes": 124
+        },
+        {
+          "name": "target_features",
+          "bytes": 124
+        }
+      ],
+      "sfntInstances": 5,
+      "sfntInstanceBytes": 1417502,
+      "sfntNotice": "Structurally recognized sfnt regions only; not all possible font formats or runtime font/atlas allocation. Instances may repeat."
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0",
+      "path": "pdfcraft/0.17.0/pdfcraft-web-f32e9f5f03a85965_bg.wasm",
+      "bytes": 47293618,
+      "sha256": "5c5a618eccbfd41102e1310b0a9e6759f0a950f794c0a048da7e217724bb8240",
+      "gzipLevel6Bytes": 17628290,
+      "brotliQuality6Bytes": 13301221,
+      "codeSectionBytes": 33789652,
+      "dataSectionBytes": 13397908,
+      "customSections": [
+        {
+          "name": "producers",
+          "bytes": 124
+        },
+        {
+          "name": "target_features",
+          "bytes": 124
+        }
+      ],
+      "sfntInstances": 11,
+      "sfntInstanceBytes": 3489784,
+      "sfntNotice": "Structurally recognized sfnt regions only; not all possible font formats or runtime font/atlas allocation. Instances may repeat."
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.14.1-hyori-host.2",
+      "path": "deckcraft/0.14.1-hyori-host.2/deckcraft-web-75e966a6dd7e7144_bg.wasm",
+      "bytes": 32283455,
+      "sha256": "81ecb8a33cf3a8fc7f2dc559b334728ae52b2da2f3ef452ced11ae244477ef98",
+      "gzipLevel6Bytes": 11748244,
+      "brotliQuality6Bytes": 8832848,
+      "codeSectionBytes": 27594086,
+      "dataSectionBytes": 4599062,
+      "customSections": [
+        {
+          "name": "producers",
+          "bytes": 124
+        },
+        {
+          "name": "target_features",
+          "bytes": 124
+        }
+      ],
+      "sfntInstances": 7,
+      "sfntInstanceBytes": 2140854,
+      "sfntNotice": "Structurally recognized sfnt regions only; not all possible font formats or runtime font/atlas allocation. Instances may repeat."
+    }
+  ]
+}

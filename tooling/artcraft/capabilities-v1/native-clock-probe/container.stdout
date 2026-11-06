@@ -1,0 +1,7 @@
+rustc: exit 0
+cargo-test-help: exit 0
+cargo-lock-help: exit 0
+generate-lock: exit 0
+native-clock-tests: exit 0
+metadata: exit 0
+features: exit 0

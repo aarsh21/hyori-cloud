@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "artifactVersion": "0.14.1-hyori-host.2",
+  "sourceArchiveSha256": "6e03f2e9532c0102ec01d8be8bba556a0191ee11d5ca64412a5b48457afddfb7",
+  "buildManifestSha256": "eb9efd3888731d7b770a5dbc7643d8ecea00f74e0a3e7410d0ec5c5b999531c2",
+  "payloadSha256": "69404214dfe470e545cf997af4b224b043e389e2e58032bc643e8f46ca56d3d7",
+  "receiptSha256": "1a651c60bd31aa8fea0f059aca0f8e611556f9a87db4bd0c0fa84ec7481fe62d",
+  "sourceSummarySha256": "55fff7e2e96967ecc2751ab7357759d7987824e4dd9c11148b7b17a6a80b1a74",
+  "receiptRoot": "builds/deckcraft-host-v2/run-2026-11-05",
+  "sourceSummary": "builds/deckcraft-host-v2/run-2026-11-05/source-summary.json"
+}

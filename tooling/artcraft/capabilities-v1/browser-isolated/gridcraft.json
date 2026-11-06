@@ -1,0 +1,157 @@
+{
+  "app": "gridcraft",
+  "version": "0.15.0",
+  "inputSha256": "b7d7367bbae85475509de46126bd15300d43db720c48a36504d78d6b093ae780",
+  "attempts": [
+    {
+      "focus": "parent",
+      "target": "window",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "document",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "canvas",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "textarea",
+      "available": false,
+      "trusted": null,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "window",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "document",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "canvas",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 1
+    },
+    {
+      "focus": "editor",
+      "target": "textarea",
+      "available": false,
+      "trusted": null,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    }
+  ],
+  "trustedControlNativeSaves": 1,
+  "observed": {
+    "messages": [
+      {
+        "type": "gridcraft:ready",
+        "version": "0.15.0"
+      },
+      {
+        "type": "gridcraft:dirty",
+        "dirty": false
+      },
+      {
+        "type": "gridcraft:save",
+        "name": "Synthetic.xlsx"
+      },
+      {
+        "type": "gridcraft:save",
+        "name": "Synthetic.xlsx"
+      }
+    ],
+    "saves": [
+      {
+        "type": "gridcraft:save",
+        "name": "Synthetic.xlsx",
+        "bytes": 4107,
+        "sha256": "cbaa1830e7b79c3f11fb2cbe0411e9cec096bd4e4b8d651d37488496303f8d51",
+        "prefix": [
+          80,
+          75,
+          3,
+          4,
+          20,
+          0,
+          0,
+          0,
+          8,
+          0,
+          0,
+          0,
+          33,
+          0,
+          255,
+          22
+        ]
+      },
+      {
+        "type": "gridcraft:save",
+        "name": "Synthetic.xlsx",
+        "bytes": 4107,
+        "sha256": "cbaa1830e7b79c3f11fb2cbe0411e9cec096bd4e4b8d651d37488496303f8d51",
+        "prefix": [
+          80,
+          75,
+          3,
+          4,
+          20,
+          0,
+          0,
+          0,
+          8,
+          0,
+          0,
+          0,
+          33,
+          0,
+          255,
+          22
+        ]
+      }
+    ]
+  },
+  "errors": [],
+  "wasm": [
+    {
+      "url": "http://127.0.0.1:33441/gridcraft/0.15.0/gridcraft-web-7d721fa0754b75b9_bg.wasm",
+      "durationMs": 81.90000009536743
+    }
+  ]
+}

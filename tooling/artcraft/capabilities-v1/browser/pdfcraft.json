@@ -1,0 +1,157 @@
+{
+  "app": "pdfcraft",
+  "version": "0.17.0",
+  "inputSha256": "c7ea3b0ee4dee499f5c57e48470bfe7084103c41fbb03aa193bd3e5a58072a2e",
+  "attempts": [
+    {
+      "focus": "parent",
+      "target": "window",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "document",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "canvas",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "textarea",
+      "available": false,
+      "trusted": null,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "window",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "document",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "canvas",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 1
+    },
+    {
+      "focus": "editor",
+      "target": "textarea",
+      "available": false,
+      "trusted": null,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    }
+  ],
+  "trustedControlNativeSaves": 1,
+  "observed": {
+    "messages": [
+      {
+        "type": "pdfcraft:ready",
+        "version": "0.17.0"
+      },
+      {
+        "type": "pdfcraft:save",
+        "name": "Synthetic.pdf",
+        "saveAs": false
+      },
+      {
+        "type": "pdfcraft:save",
+        "name": "Synthetic.pdf",
+        "saveAs": false
+      }
+    ],
+    "saves": [
+      {
+        "type": "pdfcraft:save",
+        "name": "Synthetic.pdf",
+        "saveAs": false,
+        "bytes": 431,
+        "sha256": "c7ea3b0ee4dee499f5c57e48470bfe7084103c41fbb03aa193bd3e5a58072a2e",
+        "prefix": [
+          37,
+          80,
+          68,
+          70,
+          45,
+          49,
+          46,
+          55,
+          10,
+          49,
+          32,
+          48,
+          32,
+          111,
+          98,
+          106
+        ]
+      },
+      {
+        "type": "pdfcraft:save",
+        "name": "Synthetic.pdf",
+        "saveAs": false,
+        "bytes": 431,
+        "sha256": "c7ea3b0ee4dee499f5c57e48470bfe7084103c41fbb03aa193bd3e5a58072a2e",
+        "prefix": [
+          37,
+          80,
+          68,
+          70,
+          45,
+          49,
+          46,
+          55,
+          10,
+          49,
+          32,
+          48,
+          32,
+          111,
+          98,
+          106
+        ]
+      }
+    ]
+  },
+  "errors": [],
+  "wasm": [
+    {
+      "url": "http://127.0.0.1:38845/pdfcraft/0.17.0/pdfcraft-web-f32e9f5f03a85965_bg.wasm",
+      "durationMs": 134.5
+    }
+  ]
+}

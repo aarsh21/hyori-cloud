@@ -1,0 +1,161 @@
+{
+  "app": "wordcraft",
+  "version": "0.14.0",
+  "inputSha256": "d32cb22c833fb37772f33a083f84fc700aa2ccb702aa095185f5520284fd7053",
+  "attempts": [
+    {
+      "focus": "parent",
+      "target": "window",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "document",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "canvas",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "parent",
+      "target": "textarea",
+      "available": false,
+      "trusted": null,
+      "focusUnchanged": true,
+      "documentFocused": false,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "window",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "document",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    },
+    {
+      "focus": "editor",
+      "target": "canvas",
+      "available": true,
+      "trusted": false,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 1
+    },
+    {
+      "focus": "editor",
+      "target": "textarea",
+      "available": false,
+      "trusted": null,
+      "focusUnchanged": true,
+      "documentFocused": true,
+      "nativeSaveEvents": 0
+    }
+  ],
+  "trustedControlNativeSaves": 1,
+  "observed": {
+    "messages": [
+      {
+        "type": "wordcraft:ready",
+        "version": "0.14.0"
+      },
+      {
+        "type": "wordcraft:dirty",
+        "dirty": false
+      },
+      {
+        "type": "wordcraft:save",
+        "name": "Synthetic.rtf",
+        "saveAs": false
+      },
+      {
+        "type": "wordcraft:save",
+        "name": "Synthetic.rtf",
+        "saveAs": false
+      }
+    ],
+    "saves": [
+      {
+        "type": "wordcraft:save",
+        "name": "Synthetic.rtf",
+        "saveAs": false,
+        "bytes": 916,
+        "sha256": "1382f2a369383c2a86e87736d2d95adeff048be63b6d59223a90529450a38e81",
+        "prefix": [
+          123,
+          92,
+          114,
+          116,
+          102,
+          49,
+          92,
+          97,
+          110,
+          115,
+          105,
+          92,
+          97,
+          110,
+          115,
+          105
+        ]
+      },
+      {
+        "type": "wordcraft:save",
+        "name": "Synthetic.rtf",
+        "saveAs": false,
+        "bytes": 916,
+        "sha256": "1382f2a369383c2a86e87736d2d95adeff048be63b6d59223a90529450a38e81",
+        "prefix": [
+          123,
+          92,
+          114,
+          116,
+          102,
+          49,
+          92,
+          97,
+          110,
+          115,
+          105,
+          92,
+          97,
+          110,
+          115,
+          105
+        ]
+      }
+    ]
+  },
+  "errors": [],
+  "wasm": [
+    {
+      "url": "http://127.0.0.1:38845/wordcraft/0.14.0/wordcraft-web-a75a8b404d46b7ab_bg.wasm",
+      "durationMs": 149.79999995231628
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+
+running 5 tests
+test clock::tests::closed_or_replaced_native_document_cannot_reuse_old_token ... ok
+test clock::tests::exhaustion_fails_closed_instead_of_wrapping ... ok
+test clock::tests::draft_edit_cancel_and_ime_cancel_have_distinct_coherent_tokens ... ok
+test clock::tests::idle_repaints_do_not_allocate_revisions ... ok
+test clock::tests::queued_native_typing_invalidates_ack_before_model_revision_changes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
