@@ -1,6 +1,6 @@
 # V1 implementation handoff
 
-Status: implementation started. Product scope is authoritative in `product.md`; this note assigns owners and fixes the initial consumption contract so parallel work composes. It is not evidence of implemented functionality.
+Status: historical TypeScript implementation handoff. The Rust/PostgreSQL rewrite supersedes the stack and original owner assignments below; use [rust-rewrite.md](rust-rewrite.md) for current migration acceptance. The public consumption and preservation requirements remain applicable. Product scope is authoritative in `product.md`; neither handoff is evidence of completed functionality.
 
 ## Owners
 

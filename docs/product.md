@@ -5,7 +5,7 @@ Status: v1 scope discovery is complete; implementation is in progress. Confirmed
 ## Confirmed requirements
 
 - Build a Nextcloud alternative on the existing template.
-- Use React and TanStack Start for the web application, SurrealDB as the application backend and database, and RustFS for file/object storage. The authorization model and division of responsibilities between SurrealDB and TanStack Start server functions remain to be designed.
+- Use React and TanStack Start for the web application, a Rust application backend with PostgreSQL and Better Auth Rust, and RustFS for file/object storage. This supersedes the original SurrealDB decision; the replacement is in progress, not evidence of completed migration. Preserve existing deployment data until an explicit migration or clean-instance choice is made.
 - Use shadcn/ui and Tailwind CSS.
 - Offer Light, Dark, and System appearance. Default to the operating system, with an explicit preference remembered locally in the browser; this is not an account-synced setting.
 - Ship self-hosted only for now. A managed service is a possible future offering, not a v1 commitment.
@@ -14,7 +14,7 @@ Status: v1 scope discovery is complete; implementation is in progress. Confirmed
 
 ## Starting point
 
-The original template supplied React, TanStack Start/Router/Query, and shared shadcn/ui components with Tailwind CSS. Product behavior, SurrealDB persistence, and RustFS transfers are being added during v1 implementation; their verified coverage is tracked in the implementation documentation rather than inferred from this scope.
+The original template supplied React, TanStack Start/Router/Query, and shared shadcn/ui components with Tailwind CSS. Product behavior, PostgreSQL persistence, and RustFS transfers are being added during v1 implementation; their verified coverage is tracked in the implementation documentation rather than inferred from this scope.
 
 See `../README.md` for development setup.
 
@@ -30,6 +30,15 @@ See `../README.md` for development setup.
 - Browser-based document editing in v1 through all four selected ArtCraft apps: **WordCraft**, **GridCraft**, **DeckCraft**, and **PdfCraft** (https://getartcraft.com/apps). One-person-at-a-time editing is sufficient; simultaneous co-editing is not a launch requirement. Browser integration and supported formats must be validated for each app. Locking or conflict handling must prevent silent overwrites; the exact mechanism remains open.
 
 This establishes the product areas, not their detailed feature contracts or implementation feasibility. Calendars, contacts, and a general third-party app ecosystem have not been requested for v1.
+
+### Integrated document workspace — confirmed 2026-11-05
+
+- A primary click on a supported document opens its editor directly, in both signed-in files and authorized public shares. Preserve explicit selection checkboxes, modifier/multi-select gestures, keyboard activation, and unsupported-file behavior; do not require finding an editor action in a context menu.
+- Opening, reopening, and saving documents must feel immediate and be optimized with measured cold/warm workloads. Separate asset transfer, decompression/compilation, engine initialization, document parsing, serialization, and durable persistence before attributing delays. Keep measured-device/network conditions and proposed performance targets explicit; the existing 2-core/4-GB deployment target is not a capacity guarantee.
+- ArtCraft's actual editor chrome and interactions should follow Hyori's design language, including Light/Dark/System, restrained motion, accessible controls, typography, and spacing. Matching only the outer iframe wrapper does not complete this requirement. Preserve document content and formatting rather than changing document styling to match interface tokens.
+- Support automatic saving for authorized writable documents, with honest pending/saving/saved/error states tied to backend durability, plus an explicit save/flush action. Do not silently overwrite conflicts, save read-only sources, choose copy/export destinations automatically, or claim automatic saving when an engine cannot provide a reliable native serialization/acknowledgement contract. Preserve recovery bytes and explicit failure recovery.
+- Google Office-style automatic saving is the interaction direction, not authorization for simultaneous co-editing or a claim of feature/performance parity. Save/version checkpoint boundaries must preserve useful history without treating every keystroke as a separate full-file historical version.
+- Existing open tabs and sessions must remain safe during engine upgrades. New versioned runtime bundles must not silently make an old live editor unable to save; retain bounded verified legacy compatibility or explicitly coordinate a safe transition without discarding work.
 
 ### Public-link controls — confirmed
 
@@ -156,13 +165,39 @@ The product-scope grilling is finished. Resolve these follow-ups during contract
 
 ## Architecture questions to validate after scope
 
-- How do SurrealDB metadata and RustFS objects stay consistent across interrupted transfers, retries, moves, and deletion?
+- How do PostgreSQL metadata and RustFS objects stay consistent across interrupted transfers, retries, moves, and deletion?
 - Which operations pass through the application server, and which can use narrowly authorized direct object-storage transfers?
 - What background processing is necessary for previews, indexing, cleanup, and integrity checks?
 
 Validate capabilities against the selected versions and official documentation before committing to a design. In particular, do not assume complete S3 compatibility, resumable-upload behavior, or cross-system transaction guarantees.
 
 ## Decision log
+
+### 2026-11-05: GPT-only integration, performance, and automatic saving
+
+- **Decision:** Use GPT models for UI/UX as well as other work; do not use Opus for any further task. This supersedes the earlier Opus-only UI ownership and earlier pause on interface improvements.
+- **Rationale:** The owner explicitly requested an integrated, polished, responsive document workspace, direct-click editor opening, substantially faster load/save behavior, Hyori-matched ArtCraft UI, and Google Office-style automatic saving.
+- **Scope consequence:** Preserve existing data and authorization while improving the real end-to-end workflow. Measure before claiming speed, implement reliable native save/theme/readiness bridges where necessary rather than relying on focus-stealing keyboard simulation, and ship only versioned/verified assets with retained notices and source evidence. Loading animation alone is not a performance improvement.
+
+### 2026-11-05: continuous Opus 5.5 UI/UX ownership (superseded)
+
+- **Decision:** Use Opus 5.5 for UI/UX across the entire application and throughout backend integration, not only for a final cosmetic pass. Keep backend/research work with the separately selected Astra/Sol models.
+- **Rationale:** The owner explicitly emphasized that UI/UX matters throughout the app and named Opus 5.5 for that responsibility.
+- **Scope consequence:** Treat each product surface and its loading, empty, error, recovery, permission, keyboard, touch and appearance states as part of completion. Keep `DESIGN.md` and the shared design system authoritative. Mounted/fake-transport checks remain distinct from real Rust-backed browser acceptance; a passing backend suite does not finish the interface.
+
+### 2026-11-05: expose the entire Rust app only after verification
+
+- **Decision:** Finish the Rust-backed entire app before providing the final local-network link. Do not launch a legacy SurrealDB preview as the requested final app.
+- **Rationale:** When offered a current working legacy preview versus waiting for the Rust app, the owner explicitly selected finishing Rust first.
+- **Scope consequence:** Preserve the no-SurrealDB direction and verify the whole application before handing over its LAN URL. A running UI shell, standalone metadata service, test instance, or incomplete rewrite is not the requested deliverable. Keep production HTTPS/session protections intact when arranging LAN access.
+
+### 2026-11-05: Rust/PostgreSQL rewrite and performance-first completion
+
+- **Decision:** Replace SurrealDB and the TypeScript server implementation with a Rust backend, PostgreSQL, and Better Auth Rust (https://better-auth.rs/docs). Retain the React/TanStack web app and RustFS. Research coollabsio/orbit for backend organization and ethanniser/NextFaster for loading techniques; neither reference establishes Hyori's measured performance.
+- **Rationale:** The owner explicitly requested removal of SurrealDB, a Rust backend like Orbit, PostgreSQL authentication, exceptional page/data loading speed, and completion of the confirmed v1 workflows.
+- **Scope consequence:** Preserve sharing/ownership, upload durability, quota, recovery, public API/SDK consumption, and application-level admin privacy. Replace Effect-specific cross-language implementation details with mechanically derived contracts, keeping feature-owned schema authority, runtime validation, typed clients, and architecture gates. Do not maintain handwritten parallel Rust and TypeScript wire contracts. Existing database volumes and objects are not authorized for deletion; migration/import policy remains a separate data-safety decision.
+- **Design/tooling direction:** Use Astra High Fast and Sol High Fast for research/backend work, and Opus High Fast for UI work. Apply Emil and the directly read taste skill, with Omarchy's restraint as inspiration rather than copying its identity or unlicensed assets. Product images/assets use Codex image generation. Light/Dark/System, shared shadcn controls, and accessibility remain required.
+- **Completion evidence:** Real PostgreSQL/RustFS HTTP lifecycle tests, generated SDK/Query/packaging checks, Rust and web quality gates, browser interaction checks, failure recovery, and representative measured workloads are required before claiming production readiness or performance parity.
 
 ### 2026-11-05: design language and image tooling policy
 
@@ -260,7 +295,7 @@ Validate capabilities against the selected versions and official documentation b
 - **Rationale:** The user explicitly accepted this baseline as enough for the first release.
 - **Scope consequence:** Include these three features in launch planning. Automatic phone backup, face grouping, and map browsing are not launch requirements. Album sharing, timeline ordering, and supported media formats still need detailed contracts.
 
-### 2026-11-04: four ArtCraft apps in the browser and SurrealDB backend
+### 2026-11-04: four ArtCraft apps in the browser and SurrealDB backend (backend choice superseded on 2026-11-05)
 
 - **Decision:** V1 uses WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser. SurrealDB is the application backend and database, not merely an incidental data store; RustFS remains the file/object store.
 - **Rationale:** The user explicitly named all four browser apps and reaffirmed SurrealDB's backend/database role.
