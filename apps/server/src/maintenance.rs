@@ -8,6 +8,8 @@ use tokio::{sync::watch, time::MissedTickBehavior};
 /// Each pass deletes at most this many rows from each authentication table.
 pub const AUTH_BATCH_SIZE: i64 = 256;
 const AUTH_INTERVAL: Duration = Duration::from_secs(30);
+const UPLOAD_CLEANUP_QUIET: Duration = Duration::from_millis(500);
+const UPLOAD_CLEANUP_SETTLE_MAX: Duration = Duration::from_secs(5);
 
 /// Counts only committed deletions, never active records or pending work.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -112,7 +114,22 @@ async fn run_uploads(state: std::sync::Arc<crate::AppState>, mut shutdown: watch
             return;
         }
         // Notify coalesces publication follow-ups; one worker owns bounded storage concurrency.
-        tokio::select! { biased; _ = shutdown.changed() => return, _ = interval.tick() => {}, _ = state.upload_cleanup.notified() => {} }
+        let notified = tokio::select! { biased; _ = shutdown.changed() => return, _ = interval.tick() => false, _ = state.upload_cleanup.notified() => true };
+        if notified {
+            // Each publication in a burst notifies, and a scan while the next ones commit costs them
+            // serializable retries. Wait for a quiet moment, bounded so a steady stream can't starve it.
+            let deadline = tokio::time::Instant::now() + UPLOAD_CLEANUP_SETTLE_MAX;
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = shutdown.changed() => return,
+                    _ = tokio::time::sleep_until(deadline) => break,
+                    _ = tokio::time::sleep(UPLOAD_CLEANUP_QUIET) => break,
+                    _ = state.upload_cleanup.notified() => {}
+                }
+            }
+            interval.reset();
+        }
         tokio::select! {
             biased;
             _ = shutdown.changed() => return,

@@ -39,6 +39,25 @@ impl UploadsService {
             .as_ref()
             .ok_or_else(ApiError::unavailable)
     }
+    /// Which owner's lock to queue on. Nothing read here authorizes anything: the transaction
+    /// that follows decides that, and a wrong or missing guess only brings back a retry.
+    async fn owner_hint(&self, query: &str, value: String) -> Option<String> {
+        let row = self
+            .state
+            .db
+            .query_one_raw(sql(query, vec![value.into()]))
+            .await;
+        row.ok().flatten()?.try_get("", "owner_id").ok()
+    }
+    /// Every upload transaction of one owner queues on its lock first; see `db::OwnerLocks`.
+    async fn owner_domain<T, F>(&self, owner: Option<&str>, operation: F) -> Result<T, ApiError>
+    where
+        T: Send,
+        F: for<'a> Fn(&'a sea_orm::DatabaseTransaction) -> db::DomainFuture<'a, T>,
+    {
+        let _queued = self.state.owner_locks.lock(owner).await;
+        db::domain(&self.state.db, operation).await
+    }
     pub async fn begin(&self, input: BeginUpload) -> Result<UploadStatus, ApiError> {
         let storage = self.storage()?;
         let _permit = self
@@ -59,20 +78,35 @@ impl UploadsService {
             return Err(ApiError::invalid());
         }
         let id = random_token();
-        let upload = db::domain(&self.state.db, |tx| {
-            let (context, mut input, id) = (self.context.clone(), input.clone(), id.clone());
-            input.name.0 = name.clone();
-            input.mime_type = mime.clone();
-            Box::pin(async move { reserve(tx, &context, &input, &id).await })
-        })
-        .instrument(tracing::info_span!("upload_reservation"))
-        .await?;
+        let hint = match input.replace_id.as_ref().or(input.parent_id.0.as_ref()) {
+            Some(item) => {
+                let query = "SELECT owner_id FROM hyori_items WHERE id=$1";
+                self.owner_hint(query, item.0.clone()).await
+            }
+            None => match &self.context.session {
+                Some(token) => {
+                    let query =
+                        "SELECT user_id AS owner_id FROM hyori_sessions WHERE token_digest=$1";
+                    self.owner_hint(query, digest(token)).await
+                }
+                None => None,
+            },
+        };
+        let upload = self
+            .owner_domain(hint.as_deref(), |tx| {
+                let (context, mut input, id) = (self.context.clone(), input.clone(), id.clone());
+                input.name.0 = name.clone();
+                input.mime_type = mime.clone();
+                Box::pin(async move { reserve(tx, &context, &input, &id).await })
+            })
+            .instrument(tracing::info_span!("upload_reservation"))
+            .await?;
         // No automatic replay. Timeout/lost response leaves the starting intent for cleanup.
         let multipart = storage
             .begin(&upload.object_key, &upload.mime_type)
             .await
             .map_err(storage_error)?;
-        db::domain(&self.state.db, |tx| {
+        self.owner_domain(hint.as_deref(), |tx| {
             let assets = self.state.editor_assets.clone();
             let (context,id,multipart) = (self.context.clone(),id.clone(),multipart.clone());
             Box::pin(async move {
@@ -195,7 +229,10 @@ impl UploadsService {
         token: String,
     ) -> Result<UploadStatus, ApiError> {
         let storage = self.storage()?;
-        let (upload,acknowledged) = db::domain(&self.state.db, |tx| {
+        let owner = self
+            .owner_hint("SELECT owner_id FROM hyori_uploads WHERE id=$1", id.clone())
+            .await;
+        let (upload,acknowledged) = self.owner_domain(owner.as_deref(), |tx| {
             let assets = self.state.editor_assets.clone(); let (context,id,token)=(self.context.clone(),id.clone(),token.clone()); Box::pin(async move {
             let (upload,_) = policy::checked(tx,&assets,&context,&id).await?;
             if upload.state != "uploading" || upload.expires_at <= Utc::now() { return Err(ApiError::conflict().into()); }
@@ -258,7 +295,7 @@ impl UploadsService {
                 return Err(error);
             }
         };
-        let recorded = db::domain(&self.state.db, |tx| {
+        let recorded = self.owner_domain(owner.as_deref(), |tx| {
             let assets = self.state.editor_assets.clone(); let (context,id,token,etag,checksum)=(self.context.clone(),id.clone(),token.clone(),etag.clone(),checksum.clone()); Box::pin(async move {
             let (current,_) = policy::checked(tx,&assets,&context,&id).await?;
             if current.state != "uploading" || current.expires_at <= Utc::now() { return Err(ApiError::conflict().into()); }
@@ -349,45 +386,50 @@ impl UploadsService {
     ) -> Result<FileEntry, ApiError> {
         let storage = self.storage()?;
         let id = input.upload_id.0;
-        let (upload, parts) = db::domain(&self.state.db, |tx| {
-            let assets = self.state.editor_assets.clone();
-            let (context, id, token) = (self.context.clone(), id.clone(), token.clone());
-            Box::pin(async move {
-                let (upload, _) = policy::checked(tx, &assets, &context, &id).await?;
-                if upload.state == "complete" {
-                    return Ok((upload, vec![]));
-                }
-                if !matches!(upload.state.as_str(), "uploading" | "finalizing")
-                    || upload.expires_at <= Utc::now()
-                {
-                    return Err(ApiError::conflict().into());
-                }
-                policy::quota(tx, &upload.owner_id, 0).await?;
-                files::available_name(
-                    tx,
-                    &upload.owner_id,
-                    upload.parent_id.as_deref(),
-                    &upload.name,
-                    upload.replace_id.as_deref(),
-                )
-                .await?;
-                let parts = upload.parts(tx).await?;
-                if parts.len() as u64 != upload.total_parts()
-                    || parts.iter().enumerate().any(|(i, (p, size))| {
-                        usize::from(p.part_number) != i + 1
-                            || upload.part_size(u32::from(p.part_number)).ok() != Some(*size)
-                    })
-                {
-                    return Err(ApiError::conflict().into());
-                }
-                claim(tx, &upload, &token, "finalizing").await?;
-                Ok((
-                    upload,
-                    parts.into_iter().map(|(p, _)| p).collect::<Vec<_>>(),
-                ))
+        // An upload's owner never changes, so one lookup serves both transactions.
+        let owner = self
+            .owner_hint("SELECT owner_id FROM hyori_uploads WHERE id=$1", id.clone())
+            .await;
+        let (upload, parts) = self
+            .owner_domain(owner.as_deref(), |tx| {
+                let assets = self.state.editor_assets.clone();
+                let (context, id, token) = (self.context.clone(), id.clone(), token.clone());
+                Box::pin(async move {
+                    let (upload, _) = policy::checked(tx, &assets, &context, &id).await?;
+                    if upload.state == "complete" {
+                        return Ok((upload, vec![]));
+                    }
+                    if !matches!(upload.state.as_str(), "uploading" | "finalizing")
+                        || upload.expires_at <= Utc::now()
+                    {
+                        return Err(ApiError::conflict().into());
+                    }
+                    policy::quota(tx, &upload.owner_id, 0).await?;
+                    files::available_name(
+                        tx,
+                        &upload.owner_id,
+                        upload.parent_id.as_deref(),
+                        &upload.name,
+                        upload.replace_id.as_deref(),
+                    )
+                    .await?;
+                    let parts = upload.parts(tx).await?;
+                    if parts.len() as u64 != upload.total_parts()
+                        || parts.iter().enumerate().any(|(i, (p, size))| {
+                            usize::from(p.part_number) != i + 1
+                                || upload.part_size(u32::from(p.part_number)).ok() != Some(*size)
+                        })
+                    {
+                        return Err(ApiError::conflict().into());
+                    }
+                    claim(tx, &upload, &token, "finalizing").await?;
+                    Ok((
+                        upload,
+                        parts.into_iter().map(|(p, _)| p).collect::<Vec<_>>(),
+                    ))
+                })
             })
-        })
-        .await?;
+            .await?;
         if upload.state == "complete" {
             return terminal(&upload);
         }
@@ -418,7 +460,7 @@ impl UploadsService {
             }
             return Err(error);
         }
-        let published = db::domain(&self.state.db, |tx| {
+        let published = self.owner_domain(owner.as_deref(), |tx| {
             let assets = self.state.editor_assets.clone();
             let (context, id, token) = (self.context.clone(), id.clone(), token.clone());
             Box::pin(async move {

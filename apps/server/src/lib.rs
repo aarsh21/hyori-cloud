@@ -31,6 +31,7 @@ pub struct AppState {
     pub(crate) transfers: Arc<tokio::sync::Semaphore>,
     pub(crate) requests: tokio::sync::Semaphore,
     pub(crate) upload_cleanup: tokio::sync::Notify,
+    pub(crate) owner_locks: db::OwnerLocks,
 }
 impl AppState {
     /// Call after HTTP admission ends, before closing storage/database resources.
@@ -87,6 +88,7 @@ impl AppState {
             transfers: Arc::new(tokio::sync::Semaphore::new(16)),
             requests: tokio::sync::Semaphore::new(128),
             upload_cleanup: tokio::sync::Notify::new(),
+            owner_locks: db::OwnerLocks::new(),
         }))
     }
 }

@@ -8,6 +8,25 @@ use sea_orm::{
 };
 use sha2::{Digest, Sha256};
 
+/// Every upload reservation and publication updates its owner's `hyori_users` row, so under
+/// SERIALIZABLE two that overlap always cost one of them a retry, and a busy batch can exhaust
+/// the budget. Queueing them here first leaves retries for contention this process can't see.
+/// Striped, so different owners rarely wait on each other; the stripe is only a hint.
+pub(crate) struct OwnerLocks([tokio::sync::Mutex<()>; 64]);
+impl OwnerLocks {
+    pub(crate) fn new() -> Self {
+        Self(std::array::from_fn(|_| tokio::sync::Mutex::new(())))
+    }
+    pub(crate) async fn lock(
+        &self,
+        owner: Option<&str>,
+    ) -> Option<tokio::sync::MutexGuard<'_, ()>> {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::hash::DefaultHasher::new();
+        owner?.hash(&mut hasher);
+        Some(self.0[(hasher.finish() % 64) as usize].lock().await)
+    }
+}
 pub fn sql(statement: &str, values: Vec<sea_orm::Value>) -> Statement {
     Statement::from_sql_and_values(DbBackend::Postgres, statement, values)
 }

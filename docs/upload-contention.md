@@ -110,3 +110,21 @@ Source/toolchain provenance: Rust `1.99.1 (58cf8f9c3 2026-10-13)`, native ICU `7
 - `apps/server/src/main.rs`: `cdb6a04f1815fe7d7c5a7aac454d9391c5bf6a3b324949c010b8742ec39697b1`
 
 Functional evidence above is distinct from architecture/tooling evidence: package boundary checks passed across 294 files; no wire schema, SDK or UI boundary changed. Strict focused Clippy (`--lib --bin hyori-server --test upload_disconnect --all-features -- -D warnings`), affected-file rustfmt and diff-whitespace checks passed. The all-targets/all-features strict Clippy run found an unrelated concurrent listing test-module placement diagnostic in `features/files/service.rs` (`items_after_test_module`); this follow-up did not change that file. Root anti-slop passed after the fixture changes; the later shared-worktree run reported concurrent `scripts/metadata-query-experiments.ts` diagnostics at 1218 (`no-unknown-parameters`), 1224 and 1229 (`require-readable-spacing`), outside this follow-up's ownership. Browser/release acceptance must use a rebuilt image containing this lifetime change; it is not established by these direct-HTTP regressions.
+
+## Same-owner queue and cleanup settling (2026-11-06)
+
+### Observation
+
+A real-browser run against a native release build (PostgreSQL 17, RustFS `1.0.0-alpha.85`, no containers) had one row in an ordinary batch of new files that needed a manual Retry. Traffic showed `uploads.complete` → 503 `service.unavailable`, and the server logged `upload_publication … transaction retry budget exhausted sqlstate="40001" attempts=4`. PostgreSQL reported SSI pivot cancellations on `hyori_uploads` writes for _different_ uploads, and `could not serialize access due to concurrent update` on the owner's `hyori_users` accounting row. Every reservation and publication updates that row, so under `SERIALIZABLE` two of the same owner's overlapping ones always cost one a retry. A busy batch can lose four in a row.
+
+A scratch public-SDK stress run over that stack sent 300 two-KiB files from one owner with no injected faults. The pre-change server failed **3, 12 and 27** uploads at 2, 4 and 8 concurrent lanes, all with `service.unavailable`. Storage accounting stayed exact for the uploads that did commit.
+
+### Change
+
+- `db::OwnerLocks` holds 64 in-process async mutexes, striped by owner. `UploadsService::owner_domain` queues on the owner's stripe and then runs the unchanged `db::domain` transaction. Six transactions use it: begin's reservation and multipart record, part claim and acknowledgement, and completion's validation and publication. Storage and network work stay outside the lock, so it never covers an S3 call.
+- The stripe comes from a hint read outside the transaction by immutable ID: the upload's owner, the destination item's owner, or the session's user for a root upload. The hint authorizes nothing. A wrong or missing hint only falls back to the existing retry path. Different processes don't share the queue, so the four-attempt retries remain the correctness mechanism, and this change only makes them rare.
+- Upload cleanup still runs every second. When publications notify it during a burst, it waits for 500 ms with no further notification, capped at 5 s, so it doesn't scan `hyori_uploads` while the next ones commit. Cleanup is already off the save path.
+
+### Evidence
+
+With the change, the same stress run passed three repetitions of **500 files at 8 lanes**: zero failures, **zero** PostgreSQL serialization errors, zero exhausted retry budgets, and `usedBytes` equal to the bytes uploaded. With only the reservation/publication lock and no cleanup settling, 1 of 1,500 still failed. Without the settling, cleanup claims accounted for most of the remaining errors. `bun run check:rust` (format, all-target strict Clippy, workspace tests) passed. The Docker-based `upload_contention`, `uploads` and `upload_disconnect` real-service suites could not run on this orb, so rerun them before relying on this change. Uploads from one owner on one server now commit their database steps one at a time. That is a deliberate trade: each step is a few milliseconds and carries no storage I/O, and the 300-file run took about 5 s at 8 lanes.
