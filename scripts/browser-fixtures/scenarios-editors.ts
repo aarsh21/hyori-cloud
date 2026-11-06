@@ -39,11 +39,12 @@ import { createLink } from "./scenarios-sharing.ts";
 const ALL_APPS: readonly EditorApp[] = ["wordcraft", "gridcraft", "pdfcraft", "deckcraft"];
 const DECK_VERSION = "0.14.1-hyori-host.2";
 
+// Every native build the server accepts, one entry per authority revision, oldest first.
 const NATIVE_VERSIONS = new Map([
-  ["wordcraft", "0.14.0-hyori-host.1"],
-  ["gridcraft", "0.15.0-hyori-host.1"],
-  ["pdfcraft", "0.17.0-hyori-host.1"],
-  ["deckcraft", "0.14.1-hyori-host.3"],
+  ["wordcraft", ["0.14.0-hyori-host.1", "0.14.0-hyori-host.2"]],
+  ["gridcraft", ["0.15.0-hyori-host.1"]],
+  ["pdfcraft", ["0.17.0-hyori-host.1"]],
+  ["deckcraft", ["0.14.1-hyori-host.3", "0.14.1-hyori-host.4"]],
 ]);
 
 const NATIVE_MARKER = "HYORIAUTOSAVE";
@@ -80,7 +81,7 @@ async function bundleIdentity(run: CoreRun) {
   for (const { app, version, protocol } of editorBundle.editors) {
     if (protocol === 2) {
       await report.check(`${app} is the native host build`, () => {
-        assert.equal(version, NATIVE_VERSIONS.get(app));
+        assert.ok(NATIVE_VERSIONS.get(app)?.includes(version), `${app} ${version}`);
       });
     } else if (app === "deckcraft") {
       await report.check("Deck is the rebuilt host version", () => {
