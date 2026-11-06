@@ -7,6 +7,7 @@ import { createServer } from "node:net";
 import { createFrontHandler, serveHttp1, serveHttp2 } from "./browser-fixtures/front-proxy.ts";
 import { createMediaKit } from "./browser-fixtures/media.ts";
 import { createRunReport } from "./browser-fixtures/run-report.ts";
+import { startNativeRustStack } from "./browser-fixtures/native-stack.ts";
 import { startRustStack } from "./browser-fixtures/rust-stack.ts";
 import { startHostNetworkLog, summarizeHostNetwork } from "./browser-fixtures/host-network-log.ts";
 import { runAdminScenarios } from "./browser-fixtures/scenarios-admin.ts";
@@ -44,6 +45,8 @@ import { createWebImageHost } from "./browser-fixtures/web-image-host.ts";
  *     [--editor-bundle=<dir> --editor-bundle-sha256=<manifest sha>] Mount a verified editor bundle,
  *       which `--scenarios=editors` needs. Without it, every editor check reads as unverified.
  *     [--failure-screenshots=false] Never capture an unexpected failed state; explicit document shots remain.
+ *     [--native] For hosts without containers: <image> is a `hyori-server` binary, run with native
+ *       PostgreSQL 17 (`HYORI_POSTGRES_BIN`) and RustFS (`HYORI_RUSTFS_BIN`). No media worker.
  */
 const image = process.argv[2];
 
@@ -77,6 +80,13 @@ const editorBundle =
 // Only a backend built with server-owned preview revisions and admin parity may run those checks.
 
 const freshImage = flags.includes("--fresh-image");
+const native = flags.includes("--native");
+
+if (native && (worker !== null || webImage !== null))
+  throw new Error(
+    "--native runs without containers, so it takes neither --worker nor --web-image.",
+  );
+
 const artifacts = flag("artifacts") ?? mkdtempSync(join(tmpdir(), "hyori-browser-artifacts-"));
 const work = mkdtempSync(join(tmpdir(), "hyori-browser-work-"));
 const cleanups: (() => void)[] = [() => rmSync(work, { recursive: true, force: true })];
@@ -148,7 +158,21 @@ try {
 
   cleanups.push(hostNetwork.stop);
 
-  const stack = await startRustStack(image, origin, backendPort, worker, editorBundle);
+  const stack = native
+    ? await startNativeRustStack(
+        {
+          server: image,
+          rustfs: process.env.HYORI_RUSTFS_BIN ?? "rustfs",
+          postgresBin: process.env.HYORI_POSTGRES_BIN ?? "/usr/lib/postgresql/17/bin",
+          logFile: join(artifacts, "native-stack.log"),
+        },
+        origin,
+        backendPort,
+        await fixturePort(),
+        await fixturePort(),
+        editorBundle,
+      )
+    : await startRustStack(image, origin, backendPort, worker, editorBundle);
 
   cleanups.push(stack.stop);
 

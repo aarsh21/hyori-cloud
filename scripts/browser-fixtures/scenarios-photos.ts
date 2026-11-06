@@ -248,35 +248,32 @@ export async function chooseSources(run: CoreRun, page: Page, expectedTile = "re
   });
 }
 
-/** A backend from before thumbnails sends no state, so images can only show as originals. */
-async function originalTiles({ report }: CoreRun, page: Page) {
+/**
+ * Without a worker the server reports thumbnails as unavailable. No tile may then cost a download
+ * of its original: every tile stays an honest placeholder, and only opening one loads media.
+ */
+async function originalTiles({ report, front }: CoreRun, page: Page) {
   await report.check(
-    "image tiles decode their originals; video tiles are honest placeholders",
+    "without thumbnails, tiles stay placeholders and download nothing",
     async () => {
+      front.resetCounters();
+
       for (const format of MEDIA_FORMATS) {
         const name = `red.${format.extension}`;
 
         await tile(page, name).scrollIntoViewIfNeeded();
-        await page.waitForFunction(
-          ({ label, video }) => {
-            const button = document.querySelector(`button[aria-label="${label}"]`);
-            const image = button?.querySelector("img");
+        await page.waitForFunction((label) => {
+          const button = document.querySelector(`button[aria-label="${label}"]`);
 
-            if (video) return button !== null && image === null;
-
-            return image !== null && image !== undefined && image.complete;
-          },
-          { label: name, video: format.mimeType.startsWith("video/") },
-        );
-
-        const state = await tileImageState(page, name);
-
-        if (format.mimeType.startsWith("video/")) {
-          assert.equal(state.src ?? null, null, `${name} tile used a video URL as an image`);
-        } else {
-          assert.ok(state.decoded, `${name} tile didn't decode`);
-        }
+          return button?.querySelector("img") === null && button.querySelector("svg") !== null;
+        }, name);
       }
+
+      const previews = front.records.filter((record) =>
+        record.path.startsWith("/api/storage/previews/"),
+      );
+
+      assert.equal(previews.length, 0, "tiles requested originals");
     },
   );
 
@@ -574,14 +571,47 @@ async function revisionFreshness(run: CoreRun, page: Page, freshImage: boolean) 
       { timeout: THUMBNAIL_TIMEOUT_MS },
     );
 
-  await tile(page, swap).scrollIntoViewIfNeeded();
-  await tileHasAspect(960 / 720);
+  /**
+   * What this photo shows, and under which URL: its thumbnail with a worker. Without one, tiles are
+   * placeholders by design, so the viewer, which is where the original bytes are seen, answers.
+   */
+  const showing = async (widthOverHeight: number) => {
+    await tile(page, swap).scrollIntoViewIfNeeded();
 
-  const first = await tileImageState(page, swap);
+    if (run.worker !== null) {
+      await tileHasAspect(widthOverHeight);
+
+      return tileImageState(page, swap);
+    }
+
+    await tile(page, swap).click();
+    await page.waitForFunction(
+      (ratio) => {
+        const image = document.querySelector('[data-slot="lightbox"] img');
+
+        return (
+          image instanceof HTMLImageElement &&
+          image.complete &&
+          image.naturalHeight > 0 &&
+          Math.abs(image.naturalWidth / image.naturalHeight - ratio) < 0.02
+        );
+      },
+      widthOverHeight,
+      { timeout: THUMBNAIL_TIMEOUT_MS },
+    );
+
+    const src = await page.locator('[data-slot="lightbox"] img').getAttribute("src");
+
+    await closeViewer(page);
+
+    return { src };
+  };
+
+  const first = await showing(960 / 720);
   const sources: string[] = [String(first.src)];
   const bigger = media.png("swap replacement.png", 2, "640x640");
 
-  await report.check("the tile's URL carries a server revision", () => {
+  await report.check("the photo's URL carries a server revision", () => {
     assert.match(String(first.src), /[?&]revision=\d+/);
   });
 
@@ -606,12 +636,11 @@ async function revisionFreshness(run: CoreRun, page: Page, freshImage: boolean) 
   };
 
   await report.check(
-    "after replacing, the same tile shows the new bytes under a new URL",
+    "after replacing, the same photo shows the new bytes under a new URL",
     async () => {
       await backToPhotos();
-      await tileHasAspect(1);
 
-      const replaced = await tileImageState(page, swap);
+      const replaced = await showing(1);
 
       assert.notEqual(replaced.src, first.src, "the URL didn't change");
       sources.push(String(replaced.src));
@@ -650,9 +679,8 @@ async function revisionFreshness(run: CoreRun, page: Page, freshImage: boolean) 
     await page.getByText(/Restored the version from/).waitFor();
     await history.getByRole("button", { name: "Close" }).click();
     await backToPhotos();
-    await tileHasAspect(960 / 720);
 
-    const restored = await tileImageState(page, swap);
+    const restored = await showing(960 / 720);
 
     sources.push(String(restored.src));
     assert.equal(
@@ -926,14 +954,8 @@ async function sharedSources(run: CoreRun) {
     await friend.getByRole("button", { name: "Show my photos" }).click();
     await tile(friend, "beach.png").waitFor();
 
-    // With a worker it may still be waiting its turn, which the real-thumbnail scenario covers.
-    if (run.worker === null) {
-      await friend.waitForFunction(() => {
-        const image = document.querySelector('button[aria-label="beach.png"] img');
-
-        return image instanceof HTMLImageElement && image.complete && image.naturalWidth === 640;
-      });
-    }
+    // Its thumbnail may still be waiting, or disabled without a worker; the viewer below
+    // proves the shared original itself is readable.
   });
 
   await tile(friend, "beach.png").click();
