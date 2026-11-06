@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/storage"]
+members = ["apps/media-worker", "crates/storage"]
 resolver = "2"
 
 [profile.release]
