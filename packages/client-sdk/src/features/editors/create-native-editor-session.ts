@@ -92,7 +92,10 @@ export function createNativeEditorSession(
   const scheduler =
     options.autosave === undefined
       ? null
-      : createAutosaveScheduler(options.autosave, () => flush("automatic"));
+      : createAutosaveScheduler(options.autosave, () => {
+          // A timer that finds nothing newer to save still ends "scheduled": say so.
+          if (!flush("automatic") && active()) publish();
+        });
 
   let snapshot = buildSnapshot();
 
@@ -509,7 +512,12 @@ export function createNativeEditorSession(
     queuedFlush = null;
 
     if (wanted !== null && epoch > savedEpoch) flush(wanted);
-    else schedule();
+    else {
+      schedule();
+
+      // A dropped queued flush changes what the snapshot reports, even when nothing is scheduled.
+      if (wanted !== null) publish();
+    }
   }
 
   function acceptSave(value: Save) {

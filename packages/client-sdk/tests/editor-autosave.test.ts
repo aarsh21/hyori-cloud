@@ -350,6 +350,45 @@ describe("protocol2 autosave through the public SDK (synthetic ports, not native
     expect(f.requests).toHaveLength(1);
   });
 
+  test("a flush queued during persistence that finds nothing newer leaves the snapshot idle", async () => {
+    const f = fixture();
+    const durable = Promise.withResolvers<EditorSaveResult>();
+
+    f.setSave(() => durable.promise);
+    await f.open();
+    f.dirty();
+    f.session.requestSave();
+    f.output();
+    // A second Save while the first is still persisting queues behind it.
+    f.session.requestSave();
+    expect(f.session.getSnapshot().autosave.status).toBe("scheduled");
+    durable.resolve({ status: "saved", revision: "2" });
+    await tick();
+    expect(f.requests).toHaveLength(1);
+    expect(f.session.getSnapshot()).toMatchObject({
+      hasUnsavedChanges: false,
+      autosave: { status: "idle" },
+    });
+  });
+
+  test("an autosave timer started during capture that finds nothing newer leaves the snapshot idle", async () => {
+    const f = fixture();
+
+    await f.open();
+    f.dirty();
+    f.session.requestSave();
+    // Observed while the capture is out; the capture then covers it.
+    f.dirty();
+    f.output();
+    await until(() => f.session.getSnapshot().lastSavedAt !== null);
+    await delay(60);
+    expect(f.requests).toHaveLength(1);
+    expect(f.session.getSnapshot()).toMatchObject({
+      hasUnsavedChanges: false,
+      autosave: { status: "idle" },
+    });
+  });
+
   test("an older acknowledgement never clears a newer draft; latest capture follows serially", async () => {
     const f = fixture();
     const durable = Promise.withResolvers<EditorSaveResult>();
