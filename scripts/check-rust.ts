@@ -5,9 +5,32 @@ import { rustBuildConfig } from "./rust-build-config.ts";
 const { values } = parseArgs({ options: { services: { type: "boolean", default: false } } });
 const build = rustBuildConfig();
 
+// These read a built ArtCraft bundle, which only exists where one was assembled; say so rather than abort.
+const bundleTests = process.env.HYORI_EDITOR_TEST_BUNDLE_DIR
+  ? []
+  : [
+      "actual_official_bundle_passes_the_runtime_inventory_verifier",
+      "actual_bundle_activation_preserves_disable_and_absence_revokes_session_capability",
+    ];
+
+if (values.services && bundleTests.length > 0) {
+  process.stdout.write(
+    `Skipping ${bundleTests.join(", ")}: set HYORI_EDITOR_TEST_BUNDLE_DIR and HYORI_EDITOR_TEST_BUNDLE_SHA256 to run them.\n`,
+  );
+}
+
 const commands = values.services
   ? [
-      ["test", "-p", "hyori-server", "--locked", "--", "--ignored", "--nocapture"],
+      [
+        "test",
+        "-p",
+        "hyori-server",
+        "--locked",
+        "--",
+        "--ignored",
+        "--nocapture",
+        ...bundleTests.flatMap((name) => ["--skip", name]),
+      ],
       [
         "test",
         "-p",
