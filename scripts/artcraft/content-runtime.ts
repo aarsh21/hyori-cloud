@@ -143,7 +143,7 @@ function readiness(includeMarked = false) {
   ];
 }
 
-function headers(path: string) {
+export function headers(path: string) {
   const legal = path.startsWith("legal/");
 
   const contentType = legal

@@ -34,7 +34,10 @@ export function patchNativeFrame(
     "NativeHostIntent", "NativeHostIntentFn",
   ].join(", ");
 
-  const header = `pub use eframe::egui;\npub use ${app}_ui_egui::{${exports}};\npub const NATIVE_ARTIFACT_VERSION: &str = "${nativeArtifactVersions[app]}";\n`;
+  // PDF's web crate reaches wasm-bindgen only through eframe; adding a direct dependency would
+  // change its manifest and lock.
+  const bindgen = app === "pdfcraft" ? "use eframe::wasm_bindgen;\n" : "";
+  const header = `${bindgen}pub use eframe::egui;\npub use ${app}_ui_egui::{${exports}};\npub const NATIVE_ARTIFACT_VERSION: &str = "${nativeArtifactVersions[app]}";\n`;
 
   const added = new Map([
     [path, Buffer.concat([Buffer.from(header), inputs.imports, Buffer.from("\n"), inputs.adapter, Buffer.from("\n"), inputs.frame])],

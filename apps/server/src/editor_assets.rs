@@ -456,6 +456,14 @@ fn known_identity(
     }
     let pins: Pins = serde_json::from_str(include_str!("../../../tooling/artcraft/manifest.json"))
         .map_err(|_| ApiError::unavailable())?;
+    if editor.protocol == Some(2) {
+        let source_pin = pins
+            .editors
+            .iter()
+            .find(|pin| pin.app == formats::app_name(&editor.app))
+            .ok_or_else(ApiError::unavailable)?;
+        return known_native_identity(editor, inventory, &source_pin.source_sha256);
+    }
     if editor.app == EditorApp::Deckcraft {
         let source_pin = pins
             .editors
@@ -507,14 +515,7 @@ fn known_deck_identity(
     {
         return Ok(false);
     }
-    // Matches the producer's compact UTF-8 JSON, ordered keys and ASCII byte-lexical paths.
-    let mut files: Vec<_> = editor.files.iter().collect();
-    files.sort_by(|left, right| left.path.cmp(&right.path));
-    if files.windows(2).any(|pair| pair[0].path == pair[1].path)
-        || hex::encode(Sha256::digest(
-            serde_json::to_vec(&files).map_err(|_| ApiError::unavailable())?,
-        )) != authority.payload_sha256
-    {
+    if payload_sha256(&editor.files)?.as_deref() != Some(authority.payload_sha256.as_str()) {
         return Ok(false);
     }
     let authority_hash = hex::encode(Sha256::digest(AUTHORITY.as_bytes()));
@@ -533,6 +534,100 @@ fn known_deck_identity(
         if !sha256(expected)
             || !inventory
                 .get(format!("legal/deckcraft-host-v2/{name}").as_str())
+                .is_some_and(|file| file.sha256 == expected)
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+/// The producer's canonical payload identity: compact UTF-8 JSON with ordered keys and ASCII
+/// byte-lexical paths. `None` when a path repeats, which no producer emits.
+fn payload_sha256(files: &[InventoryFile]) -> Result<Option<String>, ApiError> {
+    let mut files: Vec<_> = files.iter().collect();
+    files.sort_by(|left, right| left.path.cmp(&right.path));
+    if files.windows(2).any(|pair| pair[0].path == pair[1].path) {
+        return Ok(None);
+    }
+    let json = serde_json::to_vec(&files).map_err(|_| ApiError::unavailable())?;
+    Ok(Some(hex::encode(Sha256::digest(json))))
+}
+const NATIVE_AUTHORITY: &str = include_str!("../../../tooling/artcraft/runtime-native-v3.json");
+/// Native host v3 builds: one committed authority pins each app's build, payload, receipt and
+/// source summary; the bundle must carry those exact receipts and the authority itself.
+fn known_native_identity(
+    editor: &Editor,
+    inventory: &BTreeMap<&str, &InventoryFile>,
+    source_pin: &str,
+) -> Result<bool, ApiError> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct Authority {
+        schema_version: u32,
+        bridge: String,
+        protocol: u8,
+        receipt_root: String,
+        apps: Vec<AppAuthority>,
+    }
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct AppAuthority {
+        app: EditorApp,
+        artifact_version: String,
+        source_archive_sha256: String,
+        build_manifest_sha256: String,
+        payload_sha256: String,
+        receipt_sha256: String,
+        source_summary_sha256: String,
+        wasm_sha256: String,
+    }
+    let authority: Authority =
+        serde_json::from_str(NATIVE_AUTHORITY).map_err(|_| ApiError::unavailable())?;
+    validate_relative(&authority.receipt_root)?;
+    let Some(entry) = authority.apps.iter().find(|entry| entry.app == editor.app) else {
+        return Ok(false);
+    };
+    let name = formats::app_name(&editor.app);
+    if authority.schema_version != 1
+        || authority.bridge != editor.bridge
+        || Some(authority.protocol) != editor.protocol
+        || entry.artifact_version != editor.version
+        || editor.archive_sha256.is_some()
+        || entry.source_archive_sha256 != source_pin
+        || editor.source_archive_sha256.as_deref() != Some(entry.source_archive_sha256.as_str())
+        || editor.build_manifest_sha256.as_deref() != Some(entry.build_manifest_sha256.as_str())
+        || editor.payload_sha256.as_deref() != Some(entry.payload_sha256.as_str())
+        || !sha256(&entry.wasm_sha256)
+        || !editor
+            .files
+            .iter()
+            .any(|file| file.path.ends_with("_bg.wasm") && file.sha256 == entry.wasm_sha256)
+        || payload_sha256(&editor.files)?.as_deref() != Some(entry.payload_sha256.as_str())
+    {
+        return Ok(false);
+    }
+    let authority_hash = hex::encode(Sha256::digest(NATIVE_AUTHORITY.as_bytes()));
+    for (path, expected) in [
+        (
+            format!("legal/native-host-v3/{name}/build-manifest.json"),
+            entry.build_manifest_sha256.as_str(),
+        ),
+        (
+            format!("legal/native-host-v3/{name}/receipt.json"),
+            entry.receipt_sha256.as_str(),
+        ),
+        (
+            format!("legal/native-host-v3/{name}/source-summary.json"),
+            entry.source_summary_sha256.as_str(),
+        ),
+        (
+            "legal/native-host-v3/authority.json".to_owned(),
+            authority_hash.as_str(),
+        ),
+    ] {
+        if !sha256(expected)
+            || !inventory
+                .get(path.as_str())
                 .is_some_and(|file| file.sha256 == expected)
         {
             return Ok(false);
@@ -680,5 +775,106 @@ mod identity_tests {
             assert_eq!(editor_protocol(&editor).unwrap(), Some(2));
             assert!(!known_identity(&editor, &BTreeMap::new()).unwrap());
         }
+    }
+
+    const APPS: [&str; 4] = ["wordcraft", "gridcraft", "pdfcraft", "deckcraft"];
+
+    fn tooling(path: &str) -> Vec<u8> {
+        std::fs::read(format!(
+            "{}/../../tooling/artcraft/{path}",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap()
+    }
+
+    /// The editor entry and legal inventory a correctly assembled native bundle carries.
+    fn native_bundle(app: &str) -> (Editor, Vec<InventoryFile>) {
+        let receipt: serde_json::Value = serde_json::from_slice(&tooling(&format!(
+            "builds/native-host-v3/{app}/receipt.json"
+        )))
+        .unwrap();
+        let version = receipt["artifactVersion"].as_str().unwrap();
+        let editor: Editor = serde_json::from_value(serde_json::json!({
+            "app": app, "role": "current", "protocol": 2, "version": version,
+            "bridge": "hyori-correlated-host-v2",
+            "sourceArchiveSha256": receipt["sourceArchiveSha256"],
+            "buildManifestSha256": receipt["buildManifestSha256"],
+            "payloadSha256": receipt["payloadSha256"],
+            "index": format!("{app}/{version}/index.html"),
+            "assetUrl": format!("/artcraft/{app}/{version}/index.html?host=parent"),
+            "deployable": true, "files": receipt["files"],
+        }))
+        .unwrap();
+        let mut legal: Vec<_> = ["build-manifest.json", "receipt.json", "source-summary.json"]
+            .into_iter()
+            .map(|name| {
+                let bytes = tooling(&format!("builds/native-host-v3/{app}/{name}"));
+                InventoryFile {
+                    path: format!("legal/native-host-v3/{app}/{name}"),
+                    bytes: bytes.len() as u64,
+                    sha256: hex::encode(Sha256::digest(bytes)),
+                }
+            })
+            .collect();
+        legal.push(InventoryFile {
+            path: "legal/native-host-v3/authority.json".into(),
+            bytes: NATIVE_AUTHORITY.len() as u64,
+            sha256: hex::encode(Sha256::digest(NATIVE_AUTHORITY.as_bytes())),
+        });
+        (editor, legal)
+    }
+
+    fn inventory(files: &[InventoryFile]) -> BTreeMap<&str, &InventoryFile> {
+        files
+            .iter()
+            .map(|file| (file.path.as_str(), file))
+            .collect()
+    }
+
+    #[test]
+    fn native_builds_are_known_from_the_committed_authority() {
+        for app in APPS {
+            let (editor, legal) = native_bundle(app);
+            assert_eq!(editor_protocol(&editor).unwrap(), Some(2), "{app}");
+            assert!(
+                known_identity(&editor, &inventory(&legal)).unwrap(),
+                "{app}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_identity_rejects_a_changed_payload_file() {
+        for app in APPS {
+            let (mut editor, legal) = native_bundle(app);
+            editor.files[0].sha256 = "0".repeat(64);
+            assert!(
+                !known_identity(&editor, &inventory(&legal)).unwrap(),
+                "{app}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_identity_requires_the_bundled_receipts() {
+        for app in APPS {
+            let (editor, legal) = native_bundle(app);
+            for missing in 0..legal.len() {
+                let mut partial: Vec<_> = legal.iter().collect();
+                partial.remove(missing);
+                let inventory = partial
+                    .into_iter()
+                    .map(|file| (file.path.as_str(), file))
+                    .collect();
+                assert!(!known_identity(&editor, &inventory).unwrap(), "{app}");
+            }
+        }
+    }
+
+    #[test]
+    fn native_identity_is_not_shared_between_apps() {
+        let (mut editor, legal) = native_bundle("wordcraft");
+        editor.app = EditorApp::Gridcraft;
+        assert!(!known_identity(&editor, &inventory(&legal)).unwrap());
     }
 }

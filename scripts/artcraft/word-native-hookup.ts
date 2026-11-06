@@ -22,6 +22,7 @@ export function patchWordNativeHookup(source: ReadonlyMap<string, Buffer>, frame
   }
 
   replace(`${ui}/lib.rs`, "    pub services: Services,", "    pub services: Services,\n    pub(crate) native_host_intents: Option<crate::NativeHostIntentFn>,\n    pub(crate) native_host_job: Option<crate::NativeHostJob>,");
+  replace(`${ui}/window_ui.rs`, "            services: _,\n", "            services: _,\n            native_host_intents: _,\n            native_host_job: _,\n");
   replace(`${ui}/app.rs`, "            services,\n            printing:", "            services,\n            native_host_intents: None,\n            native_host_job: None,\n            printing:");
 
   replace(`${ui}/chrome.rs`, "                // AutoSave switch: greyed out, with the reason as its tooltip, when AutoSave can't", `                if app.native_host_intents.is_some() {

@@ -72,7 +72,9 @@ impl NativeHostFrame {
                 let name = intent.name.as_deref().ok_or_else(|| NativeHostFailure::SerializationFailed("Explicit export needs a name".into()))?;
                 if !js_can_export(name).map_err(js_failure)? { return Ok(None) }
             }
-            if queue.pending || queue.queued.is_some() || js_has_pending_save().map_err(js_failure)? {
+            // A plain replacement during an in-flight save is not an error the user can act on:
+            // publish_intent hands it to the host, which coalesces it or quietly cancels the job.
+            if queue.queued.is_some() || (intent.save_as && (queue.pending || js_has_pending_save().map_err(js_failure)?)) {
                 return Err(NativeHostFailure::Busy("A native save is already pending".into()));
             }
             queue.sequence = queue.sequence.checked_add(1).ok_or_else(|| NativeHostFailure::SerializationFailed("Native intent sequence exhausted".into()))?;
@@ -356,7 +358,7 @@ impl NativeHostFrame {
         self.process_capture(app)?;
         if !was_pending && self.pending.is_some() { ctx.request_repaint(); }
         if let Some(theme) = self.theme.as_ref()
-            && ctx.style().visuals.dark_mode == theme.resolved_dark
+            && ctx.global_style().visuals.dark_mode == theme.resolved_dark
         {
             js_theme_applied(&theme.request_id, &theme.preference, if theme.resolved_dark { "dark" } else { "light" }).map_err(js_failure)?;
             self.theme = None;

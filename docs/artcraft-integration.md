@@ -480,3 +480,36 @@ The agreed SDK scheduling policy is 750ms idle / 5s maximum dirty wait, one nati
 ### Verification separation
 
 Current source-stage checkpoint: 26 focused tests / 9,062 assertions pass using all four pinned source archives; script TypeScript and root anti-slop pass. This does not compile the new Rust helpers or prove their runtime wiring. React Doctor was run separately with remote scoring/dependency upload disabled: exit 0, five warnings (file-browser complexity, item-collection flushSync, three adjusted-state warnings in use-virtual-windows). No React file was edited by this owner, and those diagnostics are not native engine acceptance.
+
+## Native host v3 build — 2026-11-06
+
+All four editors now have a modified native build that speaks the correlated host protocol 2 (`hyori-correlated-host-v2`): Word `0.14.0-hyori-host.1`, Grid `0.15.0-hyori-host.1`, PDF `0.17.0-hyori-host.1` and Deck `0.14.1-hyori-host.3`. They carry the shared Hyori palette in Light and Dark, follow System live, autosave through the SDK, and drop upstream marks (Discord, Zotero, upstream site links, upstream icons; product names read Hyori Documents/Spreadsheets/PDF/Presentations). Pinned archives, `runtime-all4-v2`, `runtime-all4-transport-v2` and their receipts are untouched; the server still accepts their versions.
+
+### Composition and build
+
+```sh
+# Compose, stage, build offline and collect evidence, per app (APP = wordcraft|gridcraft|pdfcraft|deckcraft).
+bun scripts/artcraft/native-v3-build.ts APP /new/stage /public-cargo-home /pinned-tools /verified/APP-source.tar.gz
+# Run stage/driver/driver.js in the restricted container, or natively at the same absolute paths
+# with an empty environment (env -i … /tools/bin/bun --no-env-file --no-install driver.js APP).
+bun scripts/artcraft/native-v3-build-evidence.ts /stage-root /new/evidence/APP /pinned-tools /verified/APP-source.tar.gz
+# Record the compiled-in authority and per-app receipts, then assemble and check the bundle.
+bun scripts/artcraft/native-v3-runtime.ts record /evidence-root
+bun scripts/artcraft/native-v3-runtime.ts assemble tooling/artcraft/.generated/runtime-all4-native-v3 \
+  tooling/artcraft/.generated/runtime-all4-v2 /evidence-root
+bun scripts/artcraft/native-v3-runtime.ts check tooling/artcraft/.generated/runtime-all4-native-v3 MANIFEST_SHA256
+```
+
+`native-v3-source.ts` composes each app in recorded stages: Deck's .2 host-engine base (Deck only), direct native methods, intents/jobs, app frame hookup, the shared frame, palette, then `native-v3-marks.ts`. The host entry is bundled from `patches/native-host-v3/host-entry.ts`, which imports its wire types from `@hyori-cloud/client-sdk/editor-runtime`; the bundled effect/@effect/rpc licences ship with it. Cargo.toml files, Cargo.lock and the original legal files are byte-for-byte unchanged. Builds ran Cargo `--locked --offline` and Trunk `--locked=true --offline=true` with the deckcraft-host-v1 tool pins. Docker was unavailable on the build host, so the container step ran natively against root-owned read-only inputs at the container's absolute paths with an empty environment; that is weaker isolation than the container and is recorded as such.
+
+Each bundle app ships `legal/native-host-v3/<app>/` with `MODIFICATIONS.md`, the complete modified source and the original legal files. Records: `tooling/artcraft/builds/native-host-v3/<app>/{receipt,build-manifest,source-summary}.json`, the compiled-in authority `tooling/artcraft/runtime-native-v3.json`, and the bundle handoff `tooling/artcraft/runtime-all4-native-v3.json`. Trunk prints its content hash unpadded (Word's is 15 digits), so the v3 assembler matches 1–16 hex digits for the top-level pair and keeps them immutable-cached.
+
+### Fixes found in the browser
+
+- A plain Save pressed while a save was in flight returned `busy` from the shared intent sink, which Grid showed as an alert. The sink now refuses only a second queued intent, or an explicit export while a save is pending; the host coalesces or cancels a plain replacement.
+- Deck's theme hook called a nonexistent `view.darkMode`; it is `view.dark`.
+- The SDK could leave the bar at "Saving soon…" indefinitely after a save had landed. Deck reports a dirty burst while the capture is out; the capture covers it, but the autosave timer it started (or a flush queued during persistence) then refused to save nothing new without republishing the snapshot. The timer callback and `drain` now publish when they find nothing to save; both cases are covered in `packages/client-sdk/tests/editor-autosave.test.ts`. Seen in 3 of 5 Deck attempts before the fix.
+- Saving a copy leaves the source session's own edits unsaved (the copy holds them), so closing a converted PPTX after its copy asks before discarding.
+- A protocol 2 editor knows a converted file (PPTX in Deck) is copy-only when it opens: it reads "Save a copy to keep changes" and offers Save a copy, rather than failing a first save.
+
+Browser scenarios branch on the protocol the bundle declares, never on hard-coded versions. Native editors may make more than one version per edit session (background save plus Ctrl+S); the checks count versions against server-confirmed saves.

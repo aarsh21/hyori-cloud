@@ -68,7 +68,7 @@ impl SlideApp {
 
     /// The bridge resolves System without touching slide themes, typography or document styles.
     pub fn native_host_theme(&mut self, dark: bool) -> Result<(), NativeHostFailure> {
-        self.run("view.darkMode", json!({"on": dark}))
+        self.run("view.dark", json!({"on": dark}))
             .map_err(NativeHostFailure::SerializationFailed)?;
         Ok(())
     }
