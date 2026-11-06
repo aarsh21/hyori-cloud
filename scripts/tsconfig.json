@@ -2,6 +2,7 @@
   "extends": "@hyori-cloud/config/tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["node", "bun"],
     "noEmit": true,
     "allowImportingTsExtensions": true
   },

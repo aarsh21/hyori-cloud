@@ -1,8 +1,14 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ResourceOf, Query } from "@hyori-cloud/client-sdk/react";
+import {
+  generateRustContracts,
+  parseRustContractManifest,
+} from "../../scripts/generate-rust-contracts.ts";
+import { rustBuildConfig } from "../../scripts/rust-build-config.ts";
 
 export type ExistingResource = ResourceOf<Query["auth"]["status"]>;
 
@@ -11,6 +17,34 @@ const temporary = mkdtempSync(path.join(tmpdir(), "hyori-sdk-evolution-"));
 const compiler = path.join(root, "node_modules/typescript/bin/tsc");
 
 try {
+  const build = rustBuildConfig();
+
+  const manifest = execFileSync(
+    build.executable,
+    [
+      "run",
+      "--offline",
+      "--locked",
+      "--quiet",
+      "-p",
+      "hyori-server",
+      "--example",
+      "contract_evolution",
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 4 * 1024 * 1024,
+      env: build.env,
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  );
+
+  for (const [name, source] of Object.entries(
+    generateRustContracts(parseRustContractManifest(manifest)),
+  ))
+    writeFileSync(path.join(temporary, name), source);
+
   symlinkSync(
     path.join(root, "packages/client-sdk/node_modules"),
     path.join(temporary, "node_modules"),
@@ -19,23 +53,7 @@ try {
   writeFileSync(path.join(temporary, "package.json"), JSON.stringify({ type: "module" }));
   writeFileSync(
     path.join(temporary, "fixture-api.ts"),
-    `
-    export * from "@hyori-cloud/core/rpc";
-    import { operations as original } from "@hyori-cloud/core/rpc";
-    import { Rpc } from "@hyori-cloud/lib/effect/rpc";
-    import { Schema } from "@hyori-cloud/lib/effect";
-    export const operations = [...original, {
-      rpc: Rpc.make("evolution.probe", {
-        payload: Schema.Struct({ seed: Schema.Number }),
-        success: Schema.Struct({ revision: Schema.Number, state: Schema.Literal("ready", "waiting") }),
-        error: Schema.Struct({ code: Schema.Literal("fixture.old", "fixture.new"), message: Schema.String }),
-      }), kind: "query",
-    }, {
-      rpc: Rpc.make("evolution.noInput", { payload: Schema.Void, success: Schema.String }), kind: "query",
-    }, {
-      rpc: Rpc.make("evolution.optional", { payload: Schema.UndefinedOr(Schema.Struct({ value: Schema.String })), success: Schema.String }), kind: "query",
-    }] as const;
-  `,
+    'export * from "./schemas";\nexport { operations, ApiRpc, type Api } from "./operations";\n',
   );
 
   const consumer = `
@@ -47,11 +65,6 @@ try {
     const sdk = createClient();
     const query = createQuery(sdk);
     sdk.rpc.evolution.probe({ seed: 1 });
-    sdk.rpc.evolution.noInput();
-    query.evolution.noInput.getOptions();
-    sdk.rpc.evolution.optional();
-    query.evolution.optional.getOptions();
-    query.evolution.optional.getOptions({ value: "optional" });
     export type Input = InputOf<typeof query.evolution.probe.getOptions>;
     export type Output = OutputOf<typeof query.evolution.probe>;
     export type Error = ErrorOf<typeof query.evolution.probe>;
@@ -63,6 +76,8 @@ try {
       value.state satisfies never;
       return "";
     }
+    // @ts-expect-error Rust input type is derived through the public SDK
+    sdk.rpc.evolution.probe({ seed: "wrong" });
   `;
 
   writeFileSync(path.join(temporary, "consumer.ts"), consumer);
@@ -79,7 +94,6 @@ try {
             path.join(root, "packages/client-sdk/src/react/index.ts"),
           ],
           "@hyori-cloud/api/rpc": [path.join(temporary, "fixture-api.ts")],
-          "@hyori-cloud/core/rpc": [path.join(root, "packages/core/src/rpc.ts")],
         },
       },
       include: [path.join(temporary, "*.ts")],
@@ -100,6 +114,7 @@ try {
     throw new Error(
       `Evolved public SDK compile failed:\n${positive.stdout.toString()}${positive.stderr.toString()}`,
     );
+
   writeFileSync(
     path.join(temporary, "consumer.ts"),
     consumer.replace('case "waiting": return "waiting";', ""),
@@ -107,7 +122,8 @@ try {
   const negative = run();
 
   if (negative.exitCode === 0 || !negative.stdout.toString().includes("never"))
-    throw new Error("The newly introduced state did not reject the incomplete public consumer.");
+    throw new Error("The Rust-introduced state did not reject the incomplete public consumer.");
+
   writeFileSync(
     path.join(temporary, "consumer.ts"),
     consumer +
@@ -122,9 +138,10 @@ try {
   const errorVariant = run();
 
   if (errorVariant.exitCode === 0 || !errorVariant.stdout.toString().includes("never"))
-    throw new Error("The added error variant did not reject its incomplete handler.");
+    throw new Error("The Rust-introduced error variant did not reject its incomplete handler.");
+
   process.stdout.write(
-    "PASS declaration-only operation automatically derives RPC, query, options, resources, and public types; new state/error variants reject incomplete consumers.\n",
+    "PASS compiled Rust contract derives public RPC, Query options/resources and types; added Rust state/error variants reject incomplete consumers.\n",
   );
 } finally {
   rmSync(temporary, { recursive: true, force: true });

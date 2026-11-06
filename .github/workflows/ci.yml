@@ -19,6 +19,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.4"
+      - name: Install native Rust prerequisites
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang
+      - name: Install the repository-pinned Rust toolchain and components
+        run: rustup show active-toolchain
+      - name: Prepare the locked Cargo graph for offline architecture checks
+        run: cargo fetch --locked
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile
       - name: Install the locked architecture checker
@@ -31,8 +37,10 @@ jobs:
         run: bun run check:source-files
       - name: Run local anti-slop analysis
         run: bun run lint:anti-slop
-      - name: Test product behavior
-        run: bun run test
+      - name: Verify private deployment and decoder isolation configuration
+        run: bun run test:deployment
+      - name: Test product behavior and actual Node host transport
+        run: bun run test && bun run test:node-proxy
       - name: Verify architecture checker and adopted rules
         run: bun run test:architecture
       - name: Verify package boundaries
@@ -51,5 +59,74 @@ jobs:
         run: bun run check:web
       - name: Verify dev-server cancellation and visible HMR errors
         run: bun run check:dev-server
-      - name: Test real database and storage integration
-        run: bun run test:services
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+      - name: Install native Rust prerequisites
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang
+      - name: Install the repository-pinned Rust toolchain and components
+        run: rustup show active-toolchain
+      - name: Fetch the exact workspace dependency graph
+        run: cargo fetch --locked
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Enforce Rust formatting, all-feature Clippy, unit and rustdoc tests
+        run: bun run check:rust
+      - name: Reject drift in Rust-derived client contracts
+        run: bun run contracts:check
+      - name: Build the isolated decoder image without publishing
+        run: docker build --file apps/media-worker/Dockerfile --tag hyori-media-ci:${{ github.sha }} .
+      - name: Test explicit real PostgreSQL, RustFS and isolated media lifecycle fixtures
+        env:
+          HYORI_MEDIA_TEST_IMAGE: hyori-media-ci:${{ github.sha }}
+          RUST_TEST_THREADS: "1"
+        run: bun run test:rust-services
+      - name: Exercise the real Rust service through the web proxy and public SDK
+        run: bun run test:rust-sdk
+      - name: Exercise resumable uploads, downloads and recovery through the public SDK
+        run: bun run test:rust-upload-sdk
+      - name: Exercise Photos, safe previews and current metadata through the public SDK
+        run: bun run test:rust-photos-sdk
+      - name: Exercise administration, quota and account purge through the public SDK
+        run: bun run test:rust-admin-sdk
+      - name: Exercise real isolated derivatives, recovery and purge through the public SDK
+        env:
+          HYORI_MEDIA_TEST_IMAGE: hyori-media-ci:${{ github.sha }}
+        run: bun run test:rust-media-sdk
+      - name: Exercise editor persistence, stable saves and revocation through the public SDK
+        run: bun run test:rust-editors-sdk
+
+  rust-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+      - name: Build the Rust release container without publishing
+        run: docker build --file apps/server/Dockerfile --tag hyori-rust-ci:${{ github.sha }} .
+      - name: Drive the production-mode release image through the public SDK
+        run: bun run test:rust-image hyori-rust-ci:${{ github.sha }}
+      - name: Build the actual Nitro web host
+        run: bun run --cwd apps/web build
+      - name: Exercise public SDK through HTTPS termination and the built Nitro host
+        run: bun run test:rust-web-host hyori-rust-ci:${{ github.sha }}
+      - name: Build the minimal frontend container without publishing
+        run: docker build --file apps/web/Dockerfile --tag hyori-web-ci:${{ github.sha }} .
+      - name: Verify read-only nonroot frontend runtime and environment isolation
+        run: bun run test:web-image hyori-web-ci:${{ github.sha }}
