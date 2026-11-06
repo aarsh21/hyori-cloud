@@ -12,13 +12,9 @@
     "./react": "./src/react.ts",
     "./query": "./src/query.ts",
     "./query-core": "./src/query-core.ts",
-    "./icons": "./src/icons.ts",
-    "./surreal": "./src/surreal.ts",
-    "./storage": "./src/storage.ts",
-    "./crypto": "./src/crypto.ts"
+    "./icons": "./src/icons.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.922.0",
     "@effect/platform": "0.97.2",
     "@effect/rpc": "0.76.2",
     "@tanstack/query-core": "5.104.2",
