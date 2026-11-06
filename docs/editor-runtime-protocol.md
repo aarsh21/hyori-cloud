@@ -18,14 +18,14 @@ Bytes are nonempty ArrayBuffer/Uint8Array with ordinary ArrayBuffer backing, bou
 
 All commands carry the common envelope above.
 
-| Operation | Additional payload | Meaning |
-| --- | --- | --- |
-| `open` | `openId,name,bytes,writable,replacementName,outputFormats,maxBytes` | Fresh attachment input; exactly one initial open. Formats carry extension, document/export kind, and optional smaller byte limit. |
-| `request-save` | `requestId,openId,documentId,reason`, optional manual `intentId`, optionally `saveAs:true,name` | Request an engine-produced coherent snapshot. `reason` is `manual` or `automatic`. Explicit copy/export needs a name; automatic requests carry neither a copy nor a native intent. |
-| `cancel-intent` | `openId,documentId,intentId` | Fence the matching deferred native action/export job; stale cancellation is a no-op. This does not cancel cloud publication, discard recovery bytes, or mark source clean. |
-| `save-result` | Captured tuple plus `status:"saved",fileRevision` | Authoritative durable result for those exact captured bytes. `fileRevision` is the backend revision; captured `revision` remains native. |
-| `save-result` | Captured tuple plus `status:"failed"|"conflict"|"read-only"|"access-ended",message` | Preserve snapshot and display failure; never clear native dirty state. |
-| `set-theme` | `requestId,theme` | `light`, `dark`, or `system`, applied through the real native theme API. |
+| Operation       | Additional payload                                                                              | Meaning                                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open`          | `openId,name,bytes,writable,replacementName,outputFormats,maxBytes`                             | Fresh attachment input; exactly one initial open. Formats carry extension, document/export kind, and optional smaller byte limit.                                                  |
+| `request-save`  | `requestId,openId,documentId,reason`, optional manual `intentId`, optionally `saveAs:true,name` | Request an engine-produced coherent snapshot. `reason` is `manual` or `automatic`. Explicit copy/export needs a name; automatic requests carry neither a copy nor a native intent. |
+| `cancel-intent` | `openId,documentId,intentId`                                                                    | Fence the matching deferred native action/export job; stale cancellation is a no-op. This does not cancel cloud publication, discard recovery bytes, or mark source clean.         |
+| `save-result`   | Captured tuple plus `status:"saved",fileRevision`                                               | Authoritative durable result for those exact captured bytes. `fileRevision` is the backend revision; captured `revision` remains native.                                           |
+| `save-result`   | Captured tuple plus `status:"failed"                                                            | "conflict"                                                                                                                                                                         | "read-only" | "access-ended",message` | Preserve snapshot and display failure; never clear native dirty state. |
+| `set-theme`     | `requestId,theme`                                                                               | `light`, `dark`, or `system`, applied through the real native theme API.                                                                                                           |
 
 The captured tuple is `{requestId,openId,documentId,revision,saveId}`. Acknowledgements must match every field, not only save ID. Save IDs are stable for the retained output, including ambiguous-response retry.
 
@@ -33,17 +33,17 @@ The captured tuple is `{requestId,openId,documentId,revision,saveId}`. Acknowled
 
 All events carry the common envelope.
 
-| Operation | Additional payload | Meaning |
-| --- | --- | --- |
-| `ready` | `capabilities,maxBytes` | Listening only. Required capabilities are serialize, parsedOpen, documentRevision, durableSaveAck, and theme, each literally true. |
-| `opened` | `openId,documentId,revision` | The exact requested document has actually parsed. Only now may the host leave opening state. |
-| `dirty` | `openId,documentId,revision,dirty` | Every relevant signature change, including dirty-true to dirty-true, not just boolean transitions. A different native document detaches source replacement. |
+| Operation        | Additional payload                                                  | Meaning                                                                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ready`          | `capabilities,maxBytes`                                             | Listening only. Required capabilities are serialize, parsedOpen, documentRevision, durableSaveAck, and theme, each literally true.                                                                                                     |
+| `opened`         | `openId,documentId,revision`                                        | The exact requested document has actually parsed. Only now may the host leave opening state.                                                                                                                                           |
+| `dirty`          | `openId,documentId,revision,dirty`                                  | Every relevant signature change, including dirty-true to dirty-true, not just boolean transitions. A different native document detaches source replacement.                                                                            |
 | `save-requested` | `openId,documentId,saveAs`, optional `intentId` and explicit `name` | Native Ctrl+S/menu intent, routed through SDK immediate manual admission. Save As includes a chosen name; retained export settings and SaveChanges continuations require an intent ID. Not serialized bytes or a save acknowledgement. |
-| `save` | Captured tuple plus `name,bytes,saveAs` | Immutable snapshot produced by the engine after safe native input handling. |
-| `saved` | Captured tuple plus `currentRevision,dirty` | Native application of the already durable result. PDF may legitimately advance generation while applying the exact acknowledgement. |
-| `save-paused` | Captured tuple plus failure `status,message` | Native presentation of the parent's failure; not an independent workflow authority. |
-| `error` | `code,operation,message`, optional `requestId` | Stable code is busy, identity-changed, or serialization-failed; operation is open/save/theme. Do not infer policy from prose. |
-| `theme-applied` | `requestId,theme,resolvedTheme` | Matching theme applied through a native UI pass; resolvedTheme is light or dark. |
+| `save`           | Captured tuple plus `name,bytes,saveAs`                             | Immutable snapshot produced by the engine after safe native input handling.                                                                                                                                                            |
+| `saved`          | Captured tuple plus `currentRevision,dirty`                         | Native application of the already durable result. PDF may legitimately advance generation while applying the exact acknowledgement.                                                                                                    |
+| `save-paused`    | Captured tuple plus failure `status,message`                        | Native presentation of the parent's failure; not an independent workflow authority.                                                                                                                                                    |
+| `error`          | `code,operation,message`, optional `requestId`                      | Stable code is busy, identity-changed, or serialization-failed; operation is open/save/theme. Do not infer policy from prose.                                                                                                          |
+| `theme-applied`  | `requestId,theme,resolvedTheme`                                     | Matching theme applied through a native UI pass; resolvedTheme is light or dark.                                                                                                                                                       |
 
 ## Capture, drafts, acknowledgement, and recovery
 

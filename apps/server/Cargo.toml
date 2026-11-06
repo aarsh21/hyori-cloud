@@ -15,7 +15,11 @@ futures-util = "0.3"
 flate2 = "=1.1.10"
 hyori-storage = { path = "../../crates/storage" }
 hyori-media-worker = { path = "../media-worker" }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "rustls-tls",
+  "stream",
+] }
 jsonschema = { version = "0.33", default-features = false }
 rand = "0.9"
 schemars = { version = "1.0", features = ["chrono04"] }
@@ -39,4 +43,8 @@ url = "2"
 
 [dev-dependencies]
 http-body-util = "0.1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "rustls-tls",
+  "stream",
+] }

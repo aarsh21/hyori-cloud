@@ -16,12 +16,15 @@ const backend = sdkClient.editors.backend({
 });
 const document = await backend.open({ signal });
 const bytes = await backend.download(document, { signal });
-const result = await backend.save({
-  sessionId: document.sessionId,
-  expectedRevision: document.revision,
-  saveId, // retain alongside exactly this captured output for ambiguous-response retries
-  output: { name: document.name, bytes: editedBytes, intent: "replace" },
-}, { signal });
+const result = await backend.save(
+  {
+    sessionId: document.sessionId,
+    expectedRevision: document.revision,
+    saveId, // retain alongside exactly this captured output for ambiguous-response retries
+    output: { name: document.name, bytes: editedBytes, intent: "replace" },
+  },
+  { signal },
+);
 // The existing createEditorSession({backend,messages,maxBytes}) owns frame attachment/recovery.
 ```
 
@@ -135,12 +138,12 @@ Focused close acceptance: three real disposable PostgreSQL/RustFS HTTP tests pas
 
 ## Supported conservative subset
 
-| App | Exact asset identity | Input | Output | Byte ceiling |
-| --- | --- | --- | --- | --- |
-| Word | `0.14.0` | `.docx` | `.docx` document, `.pdf` export | 32 MiB |
-| Grid | `0.15.0` | `.xlsx` | `.xlsx` document | 32 MiB |
+| App  | Exact asset identity                                                      | Input                 | Output                               | Byte ceiling                          |
+| ---- | ------------------------------------------------------------------------- | --------------------- | ------------------------------------ | ------------------------------------- |
+| Word | `0.14.0`                                                                  | `.docx`               | `.docx` document, `.pdf` export      | 32 MiB                                |
+| Grid | `0.15.0`                                                                  | `.xlsx`               | `.xlsx` document                     | 32 MiB                                |
 | Deck | `0.14.1-hyori-host.2` (`.1` retained as historical evidence, not shipped) | `.deckcraft`, `.pptx` | `.deckcraft` document, `.pdf` export | 64 MiB native/PPTX; 32 MiB PDF output |
-| PDF | `0.17.0` | `.pdf` | `.pdf` document | 32 MiB |
+| PDF  | `0.17.0`                                                                  | `.pdf`                | `.pdf` document                      | 32 MiB                                |
 
 Extensions are deliberately lowercase and exact. Deck additionally rejects names longer than 255 UTF-16 code units at open and save preparation, matching its JavaScript bridge; Files' Unicode-scalar name contract is unchanged and no source is silently renamed. Empty, oversized, unsupported and signature/container-mismatched bytes are rejected. OOXML requires the corresponding central-directory document/workbook/presentation entry plus content-types metadata. Native Deck additionally requires its stored mimetype member; PDF requires a PDF header and an EOF marker. This is not full validation, decompression-bomb proof, antivirus scanning, or a lossless Office round-trip guarantee. No other formats are promised by this slice.
 

@@ -39,18 +39,18 @@ The final run, `uREpG8`, fixed its conditions at **00:27:22.643 UTC** and comple
 
 ### Exact software identity
 
-| Component | Identity |
-|---|---|
-| Tested release server image | `sha256:f80c86dcb9aa437fc13fc7fc16f17cad65105ad3e8932e812760d034b5c51c9a` |
-| Image tag checked against that ID | `hyori-rust-verification:uploads-t3-ce2b2e51` |
-| PostgreSQL image | `sha256:327daa8fae7178d61f93142f146b098467b345e10997b9eb79f63bd58e5c8f3c` |
-| RustFS image | `sha256:cffb90dadc42b024ee57e1ac5a8f1f92acfc1d009d1460fdcf84648e106a4609` |
-| Final harness SHA-256 | `34bc3648ddf068056a6aa1872a970f5a203f13b9dfb6e0061d4e579c7a4146ce` |
-| Before/after client-source manifest digest | `06c7f5721a74d38d5567e55ee358e1637a6bf7a75c999a7f1c15a7485f004cdb` |
-| Actual generated operations SHA-256 | `329bdb38f58449bbbdb2682c3de439a5faee989cdc1755e2bfe837a0727ba750` |
-| Actual generated schemas SHA-256 | `b3d0223e5eb2f6777e3972cc621713bdb8825e6f3dca5e17db79ab0ff28545f1` |
-| Actual SDK checkpoint source SHA-256 | `7f423ec17b35743c63a98c6e17315d0e1d81256b543fa227fdd8bddb31108d51` |
-| Worktree base HEAD, not a clean snapshot | `83c768a687da9acd455e9d6ba542cec21fd23b49` |
+| Component                                  | Identity                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| Tested release server image                | `sha256:f80c86dcb9aa437fc13fc7fc16f17cad65105ad3e8932e812760d034b5c51c9a` |
+| Image tag checked against that ID          | `hyori-rust-verification:uploads-t3-ce2b2e51`                             |
+| PostgreSQL image                           | `sha256:327daa8fae7178d61f93142f146b098467b345e10997b9eb79f63bd58e5c8f3c` |
+| RustFS image                               | `sha256:cffb90dadc42b024ee57e1ac5a8f1f92acfc1d009d1460fdcf84648e106a4609` |
+| Final harness SHA-256                      | `34bc3648ddf068056a6aa1872a970f5a203f13b9dfb6e0061d4e579c7a4146ce`        |
+| Before/after client-source manifest digest | `06c7f5721a74d38d5567e55ee358e1637a6bf7a75c999a7f1c15a7485f004cdb`        |
+| Actual generated operations SHA-256        | `329bdb38f58449bbbdb2682c3de439a5faee989cdc1755e2bfe837a0727ba750`        |
+| Actual generated schemas SHA-256           | `b3d0223e5eb2f6777e3972cc621713bdb8825e6f3dca5e17db79ab0ff28545f1`        |
+| Actual SDK checkpoint source SHA-256       | `7f423ec17b35743c63a98c6e17315d0e1d81256b543fa227fdd8bddb31108d51`        |
+| Worktree base HEAD, not a clean snapshot   | `83c768a687da9acd455e9d6ba542cec21fd23b49`                                |
 
 **The measured server image predates the parent's subsequent grant-continuity fix and Photos implementation work. These numbers must not be attributed to current Rust source or used as security acceptance of that older image.** The final run used the actual current public SDK/generated operations at the recorded snapshot, including the client-side checkpoint changes; checkpoint behavior itself is not exercised by this metadata benchmark. Nothing was rebuilt or optimized for this task.
 
@@ -65,11 +65,11 @@ The final run, `uREpG8`, fixed its conditions at **00:27:22.643 UTC** and comple
 
 Final-run boundary snapshots, not peaks or steady-state utilization:
 
-| Boundary | Host load average, 1/5/15 min | MemAvailable | PostgreSQL / RustFS / server memory |
-|---|---|---|---|
-| Before first pass | 3.82 / 3.29 / 2.74 | 8,816,316 KiB | 25.38 / 67.86 / 52.38 MiB |
-| After sequential | 3.57 / 3.35 / 2.83 | 8,824,060 KiB | 191.1 / 77.36 / 55.7 MiB |
-| After ten-client phase | 4.21 / 3.50 / 2.89 | 8,572,192 KiB | 404.2 / 77.23 / 66.34 MiB |
+| Boundary               | Host load average, 1/5/15 min | MemAvailable  | PostgreSQL / RustFS / server memory |
+| ---------------------- | ----------------------------- | ------------- | ----------------------------------- |
+| Before first pass      | 3.82 / 3.29 / 2.74            | 8,816,316 KiB | 25.38 / 67.86 / 52.38 MiB           |
+| After sequential       | 3.57 / 3.35 / 2.83            | 8,824,060 KiB | 191.1 / 77.36 / 55.7 MiB            |
+| After ten-client phase | 4.21 / 3.50 / 2.89            | 8,572,192 KiB | 404.2 / 77.23 / 66.34 MiB           |
 
 Swap was already in use. These snapshots exclude driver memory and are not complete-stack peak accounting. Low CPU percentages in `docker stats` taken between phases do not describe utilization during the requests. **Do not describe this as a controlled quiet host, a cold cache, or supported 2-CPU/4-GiB NAS capacity.**
 
@@ -77,33 +77,33 @@ Swap was already in use. These snapshots exclude driver memory and are not compl
 
 All values are milliseconds. Warm columns have **100 samples each**. The first-pass column is **one observation**, not a statistically meaningful p95 or a cold-cache latency. Candidate comparisons are for the wider SDK boundary, not isolated server latency.
 
-| Journey | First pass | Sequential p50 | Sequential p95 | Ten-client p50 | Ten-client p95 | Fixed candidate p95 |
-|---|---:|---:|---:|---:|---:|---:|
-| Root, 100 entries | 665.39 | 330.02 | **359.86** | 550.86 | **718.75** | 150 |
-| Root, 1,000 entries | 377.80 | 85.24 | 87.78 | 147.49 | **159.26** | 150 |
-| Root, 10,000 entries | 309.21 | 89.06 | 91.53 | 151.10 | **166.45** | 150 |
-| Folder, 100 children | 320.59 | 328.50 | **340.28** | 532.27 | **595.19** | 150 |
-| Folder, 1,000 children | 325.77 | 5.73 | 6.77 | 13.89 | 16.74 | 150 |
-| Folder, 10,000 children | 10.26 | 6.69 | 7.78 | 13.78 | 16.71 | 150 |
-| Folder, 10,000, page two | 9.16 | 5.43 | 6.72 | 12.95 | 15.76 | 150 |
-| Inherited folder, 10,000 | 9.34 | 15.54 | 16.95 | 24.00 | 29.00 | 150 |
-| Shared roots, 1,201 grants | 66.74 | 69.58 | 78.41 | 117.41 | 127.72 | 150 |
-| Private name search | 7.69 | 5.41 | 6.78 | 13.64 | 17.53 | 300 |
-| Shared name search | 10.26 | 8.42 | 9.44 | 14.14 | 20.49 | 300 |
-| MIME/date/size filtering | 12.34 | 7.32 | 14.27 | 14.65 | 18.83 | 300 |
-| Private sentinel denied, zero rows | 61.78 | 59.74 | 61.19 | 104.44 | 112.25 | 300 |
+| Journey                            | First pass | Sequential p50 | Sequential p95 | Ten-client p50 | Ten-client p95 | Fixed candidate p95 |
+| ---------------------------------- | ---------: | -------------: | -------------: | -------------: | -------------: | ------------------: |
+| Root, 100 entries                  |     665.39 |         330.02 |     **359.86** |         550.86 |     **718.75** |                 150 |
+| Root, 1,000 entries                |     377.80 |          85.24 |          87.78 |         147.49 |     **159.26** |                 150 |
+| Root, 10,000 entries               |     309.21 |          89.06 |          91.53 |         151.10 |     **166.45** |                 150 |
+| Folder, 100 children               |     320.59 |         328.50 |     **340.28** |         532.27 |     **595.19** |                 150 |
+| Folder, 1,000 children             |     325.77 |           5.73 |           6.77 |          13.89 |          16.74 |                 150 |
+| Folder, 10,000 children            |      10.26 |           6.69 |           7.78 |          13.78 |          16.71 |                 150 |
+| Folder, 10,000, page two           |       9.16 |           5.43 |           6.72 |          12.95 |          15.76 |                 150 |
+| Inherited folder, 10,000           |       9.34 |          15.54 |          16.95 |          24.00 |          29.00 |                 150 |
+| Shared roots, 1,201 grants         |      66.74 |          69.58 |          78.41 |         117.41 |         127.72 |                 150 |
+| Private name search                |       7.69 |           5.41 |           6.78 |          13.64 |          17.53 |                 300 |
+| Shared name search                 |      10.26 |           8.42 |           9.44 |          14.14 |          20.49 |                 300 |
+| MIME/date/size filtering           |      12.34 |           7.32 |          14.27 |          14.65 |          18.83 |                 300 |
+| Private sentinel denied, zero rows |      61.78 |          59.74 |          61.19 |         104.44 |         112.25 |                 300 |
 
 Bold values miss the fixed candidate. No failure or slow sample was discarded, no budget was raised, and these results do not establish that larger folders are generally cheaper than smaller folders.
 
 Earlier runs are retained to show variability rather than cherry-picking the final numbers. Selected ten-client p95s:
 
-| Journey | Run 1 `qAkpcc` | Run 2 `ysPPTH` | Final `uREpG8` |
-|---|---:|---:|---:|
-| Root 100 | 730.96 | 784.56 | 718.75 |
-| Root 1,000 | 161.43 | 193.59 | 159.26 |
-| Root 10,000 | 174.92 | 209.81 | 166.45 |
-| Folder 100 | 618.73 | 635.75 | 595.19 |
-| Shared 1,201 grants | 133.95 | 130.27 | 127.72 |
+| Journey             | Run 1 `qAkpcc` | Run 2 `ysPPTH` | Final `uREpG8` |
+| ------------------- | -------------: | -------------: | -------------: |
+| Root 100            |         730.96 |         784.56 |         718.75 |
+| Root 1,000          |         161.43 |         193.59 |         159.26 |
+| Root 10,000         |         174.92 |         209.81 |         166.45 |
+| Folder 100          |         618.73 |         635.75 |         595.19 |
+| Shared 1,201 grants |         133.95 |         130.27 |         127.72 |
 
 Runs 1 and 2 used the same image/protocol and their own fresh fixtures, but did not yet have before/after SDK-source manifests; they are secondary observations, not an assertion of identical client bytes. Run 2 added fixture ownership/cursor assertions and checked the pinned image ID. Final instrumentation added client provenance and the parent's concurrency/image-scope caveats, without changing the dataset, timings, concurrency or budgets. An initial `L5YCVH` preflight failed before timing because this Docker host did not publish ports on an `--internal` network; the harness uses its own bridge with only loopback-published ports instead. That partial artifact is also retained.
 
@@ -111,11 +111,11 @@ Runs 1 and 2 used the same image/protocol and their own fresh fixtures, but did 
 
 Each timed operation is one real public `files.list` SDK request. App-role `pg_stat_statements` shows the following request shapes, not one SQL request per rendered row:
 
-| Journey shape | Data-query calls per request | Transaction/SET calls | Normal total |
-|---|---:|---:|---:|
-| Root, shared-root, successful root search | 3: identity, authorized listing, batched roles | 5 | 8 |
-| Explicit folder, second page, inherited folder, folder filters | 7: identity, folder, active owner, folder roles, listing, batched roles, ancestor lookup | 5 | 12 |
-| Empty denied-name search | 2: identity and authorized listing | 5 | 7 |
+| Journey shape                                                  |                                                             Data-query calls per request | Transaction/SET calls | Normal total |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------: | --------------------: | -----------: |
+| Root, shared-root, successful root search                      |                                           3: identity, authorized listing, batched roles |                     5 |            8 |
+| Explicit folder, second page, inherited folder, folder filters | 7: identity, folder, active owner, folder roles, listing, batched roles, ancestor lookup |                     5 |           12 |
+| Empty denied-name search                                       |                                                       2: identity and authorized listing |                     5 |            7 |
 
 Maintenance remains enabled. For example, final sequential root-100 recorded **816** total calls instead of 800, and folder-100 **1,215** instead of 1,200; the additional auth/upload maintenance and transaction-control statements are separately identifiable in raw query files. Do not attribute every app-role call to a timed request. No SQL counter reset/seeding/EXPLAIN query from the fixture-admin role is included.
 
@@ -123,15 +123,15 @@ Actual listing-query average execution time from the timed sequential requests w
 
 The archive contains 38 `EXPLAIN (ANALYZE, BUFFERS)` JSON plans per completed run, plus the actual SQL captured from the immutable image after timing. Selected final diagnostic plans:
 
-| Listing plan / forced mode | Execution ms | Shared buffer hits / reads | Relevant observation |
-|---|---:|---:|---|
-| Root-100 / generic | 1,462.73 | 180,924 / 0 | 100 returned, 99,900 rows removed; 88,800 authorization subplan loops |
-| Folder-100 / generic | 1,459.71 | 180,924 / 0 | Same full 100,000-item scan while seeking an absent 101st match |
-| Folder-1,000 / generic | 1.41 | 11 / 0 | Stops after 101 qualifying rows; only 200 rows removed |
-| Shared roots / generic | 236.87 | 37,215 / 0 | 12,199 rows removed; 12,300 authorization subplan loops before 101 rows |
-| Denied-name search / generic | 54.72 | 2,125 / 0 | Removes all 100,000 rows; no successful result |
-| Folder-1,000 / custom | 343.66 | 11 / 0 | JIT compilation accounts for 327.42 ms |
-| MIME/date/size / custom | 359.52 | 70 / 0 | JIT compilation accounts for 342.76 ms |
+| Listing plan / forced mode   | Execution ms | Shared buffer hits / reads | Relevant observation                                                    |
+| ---------------------------- | -----------: | -------------------------: | ----------------------------------------------------------------------- |
+| Root-100 / generic           |     1,462.73 |                180,924 / 0 | 100 returned, 99,900 rows removed; 88,800 authorization subplan loops   |
+| Folder-100 / generic         |     1,459.71 |                180,924 / 0 | Same full 100,000-item scan while seeking an absent 101st match         |
+| Folder-1,000 / generic       |         1.41 |                     11 / 0 | Stops after 101 qualifying rows; only 200 rows removed                  |
+| Shared roots / generic       |       236.87 |                 37,215 / 0 | 12,199 rows removed; 12,300 authorization subplan loops before 101 rows |
+| Denied-name search / generic |        54.72 |                  2,125 / 0 | Removes all 100,000 rows; no successful result                          |
+| Folder-1,000 / custom        |       343.66 |                     11 / 0 | JIT compilation accounts for 327.42 ms                                  |
+| MIME/date/size / custom      |       359.52 |                     70 / 0 | JIT compilation accounts for 342.76 ms                                  |
 
 EXPLAIN per-node timing instrumentation can substantially increase execution time in heavily repeated subplans. Those diagnostic times must not replace the measured SDK timings or be presented as additional SDK samples. Forced custom/generic plans are alternative plans on the same fixture, not proof of every pooled connection's automatic plan choice.
 
@@ -173,15 +173,15 @@ Before each fixture run, the harness extracts the current listing query from `ap
 
 Final run `qXqYJS`, conditions recorded 01:42:59.401 UTC, completed 01:55:38.205 UTC:
 
-| Evidence | SHA-256 |
-|---|---|
-| Current `files/service.rs` snapshot | `4357d00fc1bcd4ef6fe850ac5279513e8d8d382f75940cba007131fe31819982` |
-| Extracted current listing SQL | `4b64d510270b8cb66a46131de370d1a55236e88f14f12e978f4216adbf25a05f` |
+| Evidence                                      | SHA-256                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| Current `files/service.rs` snapshot           | `4357d00fc1bcd4ef6fe850ac5279513e8d8d382f75940cba007131fe31819982` |
+| Extracted current listing SQL                 | `4b64d510270b8cb66a46131de370d1a55236e88f14f12e978f4216adbf25a05f` |
 | Earlier captured SQL, raw whitespace retained | `baddf669a7d8b88df8ecd93fc5c694709bd6b7f033f658c05f7092006f985b31` |
-| Shared normalized listing SQL | `f70145e52ea74c1741c3b067f881ca7db77bdd304c8e8302ca8e9d9cd8898ebf` |
-| Current batched-role SQL | `fd3d4857c9c1a0171ccae03c94f5393c2d6b31df86fe669f972c8a57cc7acb2a` |
-| Current grant-resolution SQL | `731034b288b20a04931a90571155604b0ff8cf4e5f97b8ece0f568917fa1db08` |
-| Executed experiment harness | `acaa45efa4105bdd4b13e67112c954191b3a9a64ba8c0fb5832b8f0cac056616` |
+| Shared normalized listing SQL                 | `f70145e52ea74c1741c3b067f881ca7db77bdd304c8e8302ca8e9d9cd8898ebf` |
+| Current batched-role SQL                      | `fd3d4857c9c1a0171ccae03c94f5393c2d6b31df86fe669f972c8a57cc7acb2a` |
+| Current grant-resolution SQL                  | `731034b288b20a04931a90571155604b0ff8cf4e5f97b8ece0f568917fa1db08` |
+| Executed experiment harness                   | `acaa45efa4105bdd4b13e67112c954191b3a9a64ba8c0fb5832b8f0cac056616` |
 
 The listing file/query still matched at the end. These hashes establish applicability of the SQL comparison, **not equivalence of the current application to the older release image**.
 
@@ -199,9 +199,9 @@ Every value is passed through Bun SQL bindings. Fixture helpers receive JSON thr
 6. Parent ID or null.
 7. Lowercased search.
 8. Type/MIME filter.
-9–10. Inclusive after/before timestamps.
-11–12. Inclusive minimum/maximum sizes.
-13. Requested page limit plus one, normally 101.
+   9–10. Inclusive after/before timestamps.
+   11–12. Inclusive minimum/maximum sizes.
+9. Requested page limit plus one, normally 101.
 
 The scope selector is experimental tooling, **not a proposed public API or reusable framework**. Source queries, each selected shape, exact synthetic parameters, ordered-result digests, and plans are retained. Custom and generic plans are forced separately. JIT stays on. Plans use `EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, FORMAT JSON)`; three samples per primary journey/mode/variant and one per edge case are diagnostic observations, not latency percentiles. TIMING OFF avoids much of the per-node timing overhead present in the earlier release-plan captures, so the two sets of EXPLAIN execution times are not directly comparable.
 
@@ -239,28 +239,28 @@ The smallest supported handoff is deliberately partial:
 
 The final `recommended` selector was tested as a whole, not inferred solely from tests of its pieces. Primary values below are medians of three PostgreSQL execution observations in milliseconds, excluding Bun/SDK/Rust/HTTP. The trash row has one observation per mode.
 
-| Journey | Baseline custom | Selected custom | Baseline generic | Selected generic |
-|---|---:|---:|---:|---:|
-| Folder 100 | 303.145 | 0.311 | 332.336 | 0.128 |
-| Folder 1,000 | 306.580 | 0.099 | 0.235 | 0.125 |
-| Folder 10,000 | 0.338 | 0.097 | 0.662 | 0.126 |
-| Inherited folder 10,000 | 0.797 | 0.594 | 8.544 | 0.602 |
-| Shared roots, 1,201 grants | 59.143 | 5.007 | 62.932 | 5.016 |
-| Parent MIME/date/size filter | 310.257 | 20.022 | 1.208 | 0.668 |
-| Owned trash groups, edge fixture | 0.043 | 0.032 | 26.771 | 0.061 |
-| Ordinary root 100, **unchanged SQL** | 415.393 | 427.134 | 326.807 | 325.372 |
-| Unauthorized no-match, **unchanged SQL** | 41.126 | 41.696 | 53.392 | 53.227 |
+| Journey                                  | Baseline custom | Selected custom | Baseline generic | Selected generic |
+| ---------------------------------------- | --------------: | --------------: | ---------------: | ---------------: |
+| Folder 100                               |         303.145 |           0.311 |          332.336 |            0.128 |
+| Folder 1,000                             |         306.580 |           0.099 |            0.235 |            0.125 |
+| Folder 10,000                            |           0.338 |           0.097 |            0.662 |            0.126 |
+| Inherited folder 10,000                  |           0.797 |           0.594 |            8.544 |            0.602 |
+| Shared roots, 1,201 grants               |          59.143 |           5.007 |           62.932 |            5.016 |
+| Parent MIME/date/size filter             |         310.257 |          20.022 |            1.208 |            0.668 |
+| Owned trash groups, edge fixture         |           0.043 |           0.032 |           26.771 |            0.061 |
+| Ordinary root 100, **unchanged SQL**     |         415.393 |         427.134 |          326.807 |          325.372 |
+| Unauthorized no-match, **unchanged SQL** |          41.126 |          41.696 |           53.392 |           53.227 |
 
 Differences between the unchanged SQL samples are measurement variation, not an optimization. The parent-filter custom plan still has plan/JIT sensitivity; no blanket claim is made across plan modes or filter selectivity.
 
 Concrete generic-plan work counters from the final run:
 
-| Case | Baseline item work / authorization probes / shared buffer hits | Selected work / probes / hits |
-|---|---|---|
-| Owner's 100-child folder | 100,000 examined / 88,800 / 180,924 | 100 examined via `hyori_items_parent_cursor` / 0 / 8 |
-| Inherited 10,000-child folder, first page | 1,301 examined / 1,301 / 4,939 | 101 examined via parent index / 101 / 313 |
-| Shared roots | 12,300 examined / 12,300 / 37,215 | 1,201 root-ID matches plus 101 metadata lookups / no per-item ancestry authorization subplan / 457 |
-| Owned trash groups | 100,125 examined in enlarged edge fixture / 0 / 2,127 | 2 via `hyori_items_trash` / 0 / 4 |
+| Case                                      | Baseline item work / authorization probes / shared buffer hits | Selected work / probes / hits                                                                      |
+| ----------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Owner's 100-child folder                  | 100,000 examined / 88,800 / 180,924                            | 100 examined via `hyori_items_parent_cursor` / 0 / 8                                               |
+| Inherited 10,000-child folder, first page | 1,301 examined / 1,301 / 4,939                                 | 101 examined via parent index / 101 / 313                                                          |
+| Shared roots                              | 12,300 examined / 12,300 / 37,215                              | 1,201 root-ID matches plus 101 metadata lookups / no per-item ancestry authorization subplan / 457 |
+| Owned trash groups                        | 100,125 examined in enlarged edge fixture / 0 / 2,127          | 2 via `hyori_items_trash` / 0 / 4                                                                  |
 
 An authorization-probe count of zero for an owner's folder does not mean authorization was disabled: current actor identity and active owner are still prerequisites, and the unchanged owner-or-share expression resolves through ownership. Inherited access still executes authorization for every selected candidate. Buffer hits count accesses, not unique pages; plan row/filter counts multiplied by loops are rounded PostgreSQL work estimates, not unique-item counts. The artifact counter records individual scan nodes to avoid presenting heap/index levels as distinct rows.
 
@@ -350,4 +350,3 @@ bun scripts/metadata-query-experiments.ts --check-production-templates /absolute
 ```
 
 Use the repository's Rust build environment for native ICU and bounded build parallelism. Only the explicit `--check-production-templates` mode is service-free; the default experiment command starts its isolated PostgreSQL fixture and is deferred. No Docker fixtures, benchmark cohorts or release builds were started by this adoption task. Real regression gates, matched immutable pre/post images and a frozen SDK/workload capsule remain required. The **2-CPU/4-GB complete-stack target is unbenchmarked**; 150/300 ms remain proposed comparison thresholds, not agreed SLOs or NAS capacity claims.
-

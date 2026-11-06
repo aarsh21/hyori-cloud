@@ -6,12 +6,12 @@ Status: measurement plan and provisional engineering budgets, not achieved servi
 
 Use generated public fixtures only; never profile an existing user's documents or credentials. Retain the fixture generator, exact bytes/hash, engine version, runtime manifest, frontend/backend image IDs, protocol, browser version, and test configuration with each result.
 
-| Workload | Small interaction case | Larger diagnostic case |
-| --- | --- | --- |
-| Word | One-page DOCX with plain paragraphs and a distinctive edit marker | 100-page DOCX with paragraphs, tables, and repeated generated images |
-| Grid | XLSX with 100 populated cells and one edited cell | 10,000 populated cells, formulas, and multiple sheets |
-| PDF | Two-page generated PDF with a single ink/text edit | 100-page generated PDF with embedded text and generated images |
-| Deck | Three native slides and a title edit | 50 native slides with generated shapes/images; PPTX import measured separately |
+| Workload | Small interaction case                                            | Larger diagnostic case                                                         |
+| -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Word     | One-page DOCX with plain paragraphs and a distinctive edit marker | 100-page DOCX with paragraphs, tables, and repeated generated images           |
+| Grid     | XLSX with 100 populated cells and one edited cell                 | 10,000 populated cells, formulas, and multiple sheets                          |
+| PDF      | Two-page generated PDF with a single ink/text edit                | 100-page generated PDF with embedded text and generated images                 |
+| Deck     | Three native slides and a title edit                              | 50 native slides with generated shapes/images; PPTX import measured separately |
 
 These are fixture definitions to implement, not existing benchmark results. Report actual compressed/expanded sizes; padding a ZIP to the upload ceiling is not a representative document. Keep every fixture inside supported engine/format limits. Preserve document fonts and images when optimizing runtime chrome or embedded runtime assets.
 
