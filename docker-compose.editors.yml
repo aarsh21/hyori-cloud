@@ -1,0 +1,13 @@
+# Explicit opt-in only. Use alongside docker-compose.yml and the same immutable bundle at your gateway.
+services:
+  backend:
+    environment:
+      HYORI_EDITOR_ASSETS_DIR: /opt/hyori/artcraft
+      HYORI_EDITOR_ASSETS_MANIFEST_SHA256: ${HYORI_EDITOR_ASSETS_MANIFEST_SHA256:?Set the verified runtime manifest SHA-256}
+    volumes:
+      - type: bind
+        source: ${HYORI_EDITOR_ASSETS_DIR:?Set the absolute verified read-only runtime bundle directory}
+        target: /opt/hyori/artcraft
+        read_only: true
+        bind:
+          create_host_path: false

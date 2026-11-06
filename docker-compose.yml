@@ -1,74 +1,167 @@
-name: hyori-cloud
+# This is a separate fresh Rust stack, not an upgrade/migration of hyori-cloud volumes.
+name: hyori-cloud-rust
 
 services:
-  volume-permissions:
+  deployment-preflight:
+    image: alpine:3.22
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.deployment}
+      HYORI_SETUP_TOKEN: ${HYORI_SETUP_TOKEN:?Set HYORI_SETUP_TOKEN in .env.deployment}
+      HYORI_AUTH_SECRET: ${HYORI_AUTH_SECRET:?Set HYORI_AUTH_SECRET in .env.deployment}
+      HYORI_STORAGE_ACCESS_KEY: ${HYORI_STORAGE_ACCESS_KEY:?Set HYORI_STORAGE_ACCESS_KEY in .env.deployment}
+      HYORI_STORAGE_SECRET_KEY: ${HYORI_STORAGE_SECRET_KEY:?Set HYORI_STORAGE_SECRET_KEY in .env.deployment}
+    command:
+      - sh
+      - -ec
+      - |
+        for value in "$$POSTGRES_PASSWORD" "$$HYORI_SETUP_TOKEN" "$$HYORI_AUTH_SECRET" "$$HYORI_STORAGE_ACCESS_KEY" "$$HYORI_STORAGE_SECRET_KEY"; do
+          case "$$value" in ""|replace-with-*) printf '%s\n' 'Replace every deployment credential placeholder.' >&2; exit 1;; esac
+        done
+    restart: "no"
+
+  storage-permissions:
     image: alpine:3.22
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
     cap_add: [CHOWN]
     security_opt: ["no-new-privileges:true"]
-    command: ["sh", "-c", "chown 65532:65532 /database && chown 10001:10001 /storage /logs"]
+    command: ["sh", "-c", "chown 10001:10001 /storage /logs"]
     volumes:
-      - surreal-data:/database
-      - rustfs-data:/storage
-      - rustfs-logs:/logs
+      - rust-storage-data:/storage
+      - rust-storage-logs:/logs
+    depends_on:
+      deployment-preflight:
+        condition: service_completed_successfully
     restart: "no"
 
-  surrealdb:
-    image: surrealdb/surrealdb:v2.6.5
-    working_dir: /data
-    command:
-      - start
-      - --bind
-      - 0.0.0.0:8000
-      - --user
-      - ${SURREALDB_USERNAME:-root}
-      - --pass
-      - ${SURREALDB_PASSWORD:?Set SURREALDB_PASSWORD in apps/web/.env}
-      - surrealkv:///data/hyori.db
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: hyori
+      POSTGRES_DB: hyori
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.deployment}
     volumes:
-      - type: volume
-        source: surreal-data
-        target: /data
-        volume:
-          nocopy: true
+      - rust-postgres-data:/var/lib/postgresql/data
     depends_on:
-      volume-permissions:
+      deployment-preflight:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:8000:8000"
     healthcheck:
-      test: ["CMD", "/surreal", "isready", "--endpoint", "http://localhost:8000"]
-      interval: 10s
+      test: ["CMD", "pg_isready", "-U", "hyori", "-d", "hyori"]
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
     restart: unless-stopped
 
   rustfs:
     image: rustfs/rustfs:1.0.0-alpha.85
     environment:
-      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?Set RUSTFS_ACCESS_KEY in apps/web/.env}
-      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?Set RUSTFS_SECRET_KEY in apps/web/.env}
+      RUSTFS_ACCESS_KEY: ${HYORI_STORAGE_ACCESS_KEY:?Set HYORI_STORAGE_ACCESS_KEY in .env.deployment}
+      RUSTFS_SECRET_KEY: ${HYORI_STORAGE_SECRET_KEY:?Set HYORI_STORAGE_SECRET_KEY in .env.deployment}
       RUSTFS_CONSOLE_ENABLE: "false"
       RUSTFS_ADDRESS: ":9000"
     command: ["/data"]
     volumes:
       - type: volume
-        source: rustfs-data
+        source: rust-storage-data
         target: /data
         volume:
           nocopy: true
       - type: volume
-        source: rustfs-logs
+        source: rust-storage-logs
         target: /logs
         volume:
           nocopy: true
     depends_on:
-      volume-permissions:
+      storage-permissions:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:9000:9000"
+    restart: unless-stopped
+
+  media-socket-permissions:
+    image: alpine:3.22
+    user: "0:0"
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    command: ["sh", "-ec", "chmod 0700 /run/hyori-media && chown 10001:10001 /run/hyori-media"]
+    volumes:
+      - rust-media-socket:/run/hyori-media
+    depends_on:
+      deployment-preflight:
+        condition: service_completed_successfully
+    restart: "no"
+
+  media-worker:
+    image: hyori-cloud-media-worker:local
+    build:
+      context: .
+      dockerfile: apps/media-worker/Dockerfile
+    user: "10001:10001"
+    init: true
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: 1
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 64
+    tmpfs:
+      - /scratch:rw,noexec,nosuid,nodev,size=96m,uid=10001,gid=10001,mode=0700
+    volumes:
+      - rust-media-socket:/run/hyori-media
+    environment:
+      HYORI_MEDIA_SOCKET: /run/hyori-media/worker.sock
+    depends_on:
+      media-socket-permissions:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "test -S /run/hyori-media/worker.sock"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    init: true
+    # Allow the 125-second leased operation and bounded release to drain before SIGKILL.
+    stop_grace_period: 2m30s
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    volumes:
+      - rust-media-socket:/run/hyori-media:ro
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_ORIGIN: ${APP_ORIGIN:?Set the exact public HTTPS origin in .env.deployment}
+      HYORI_SERVER_BIND: 0.0.0.0:3002
+      # This full URL is operator-supplied so password URL encoding is never guessed by Compose.
+      HYORI_DATABASE_URL: ${HYORI_DATABASE_URL:?Set the dedicated PostgreSQL URL in .env.deployment}
+      HYORI_SETUP_TOKEN: ${HYORI_SETUP_TOKEN:?Set HYORI_SETUP_TOKEN in .env.deployment}
+      HYORI_AUTH_SECRET: ${HYORI_AUTH_SECRET:?Set HYORI_AUTH_SECRET in .env.deployment}
+      HYORI_STORAGE_ENDPOINT: http://rustfs:9000
+      HYORI_STORAGE_REGION: us-east-1
+      HYORI_STORAGE_BUCKET: ${HYORI_STORAGE_BUCKET:?Set a fresh dedicated Rust bucket in .env.deployment}
+      HYORI_STORAGE_ACCESS_KEY: ${HYORI_STORAGE_ACCESS_KEY:?Set HYORI_STORAGE_ACCESS_KEY in .env.deployment}
+      HYORI_STORAGE_SECRET_KEY: ${HYORI_STORAGE_SECRET_KEY:?Set HYORI_STORAGE_SECRET_KEY in .env.deployment}
+      HYORI_MEDIA_WORKER_SOCKET: /run/hyori-media/worker.sock
+    depends_on:
+      media-worker:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rustfs:
+        condition: service_started
     restart: unless-stopped
 
   web:
@@ -76,20 +169,18 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     ports:
-      - "127.0.0.1:3001:3001"
-    env_file:
-      - path: apps/web/.env
-        required: true
+      - "127.0.0.1:${HYORI_WEB_PORT:-3001}:3001"
     environment:
       NODE_ENV: production
-      APP_ENV: production
-      SURREALDB_URL: http://surrealdb:8000
-      RUSTFS_ENDPOINT: http://rustfs:9000
+      APP_ENV: ${APP_ENV:-production}
+      APP_ORIGIN: ${APP_ORIGIN:?Set the exact public HTTPS origin in .env.deployment}
+      HYORI_BACKEND_URL: http://backend:3002
     depends_on:
-      surrealdb:
-        condition: service_healthy
-      rustfs:
+      backend:
         condition: service_started
     healthcheck:
       test:
@@ -97,7 +188,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
@@ -106,6 +197,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  surreal-data:
-  rustfs-data:
-  rustfs-logs:
+  rust-postgres-data:
+  rust-storage-data:
+  rust-storage-logs:
+  rust-media-socket:
