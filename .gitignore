@@ -53,6 +53,9 @@ lerna-debug.log*
 coverage
 .nyc_output
 
+# Amp orb portals
+.amp/portals/*
+
 # Misc
 *.tgz
 .cache
