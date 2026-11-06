@@ -165,7 +165,7 @@ describe("recovering unsaved work, after the production compiler", () => {
       }),
     );
 
-    await screen.findByText("Not saved: save conflict");
+    await screen.findByText("Not saved: changed elsewhere");
     expect(screen.getByRole("button", DOWNLOAD)).toBeTruthy();
   });
 

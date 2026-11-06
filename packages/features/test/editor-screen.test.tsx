@@ -549,7 +549,7 @@ describe("the editor screen", () => {
     await ready(editorWindow);
     save(editorWindow);
 
-    expect(await screen.findByText("Not saved: save conflict")).toBeTruthy();
+    expect(await screen.findByText("Not saved: changed elsewhere")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open latest version" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download my version" })).toBeTruthy();
     expect(document.querySelector("iframe")).not.toBeNull();

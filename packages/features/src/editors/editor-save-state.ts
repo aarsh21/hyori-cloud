@@ -10,7 +10,7 @@ export function editorSaveState(snapshot: EditorSnapshot): string {
     case "save-failed":
       return "Not saved";
     case "conflict":
-      return "Not saved: save conflict";
+      return "Not saved: changed elsewhere";
     case "access-ended":
       return "Access ended";
     case "failed":
