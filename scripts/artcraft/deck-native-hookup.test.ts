@@ -21,9 +21,11 @@ test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
     const archive = await readFile(
       config.editors.find((editor) => editor.app === "deckcraft")!.sourceArchive,
     );
+
     expect(sha256(archive)).toBe(
       pins.editors.find((editor) => editor.app === "deckcraft")!.sourceSha256,
     );
+
     const original = readGitSourceArchive(
       archive,
       "deckcraft-0.14.1",

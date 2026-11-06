@@ -82,10 +82,12 @@ test("source ordering keeps pending raw input fenced until a nondiscarded UI pas
   expect(note).toContain(
     "self.input_pending |= !raw.events.is_empty() || !raw.dropped_files.is_empty();",
   );
+
   const logic = source.slice(
     source.indexOf("pub fn after_logic"),
     source.indexOf("pub fn after_ui"),
   );
+
   expect(logic.indexOf("if self.input_pending { return Ok(()) }")).toBeLessThan(
     logic.indexOf("self.process_capture(app)"),
   );

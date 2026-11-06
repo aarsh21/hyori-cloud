@@ -20,9 +20,11 @@ test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
     const archive = await readFile(
       config.editors.find((editor) => editor.app === "wordcraft")!.sourceArchive,
     );
+
     expect(sha256(archive)).toBe(
       pins.editors.find((editor) => editor.app === "wordcraft")!.sourceSha256,
     );
+
     const original = readGitSourceArchive(
       archive,
       "wordcraft-0.14.0",

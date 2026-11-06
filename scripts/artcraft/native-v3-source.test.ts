@@ -12,6 +12,7 @@ import {
 } from "./native-v3-source.ts";
 
 const inputs = z.object({ ARTCRAFT_TEST_INPUTS: z.string().optional() }).parse(process.env);
+
 const legal = [
   "LICENSE-MIT",
   "LICENSE-APACHE",
@@ -48,6 +49,7 @@ for (const app of nativeApps)
       const archive = await readFile(
         config.editors.find((editor) => editor.app === app)!.sourceArchive,
       );
+
       const { original } = readPinnedSource(app, archive);
       const snapshot = new Map([...original].map(([path, body]) => [path, Buffer.from(body)]));
       const result = await composeNativeSource(app, original, await nativeAuthoredInputs());

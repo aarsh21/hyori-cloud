@@ -163,8 +163,10 @@ export function patchWordNativeHookup(source: ReadonlyMap<string, Buffer>, frame
     "    prefs: crate::prefs::PrefsSync,",
     "    prefs: crate::prefs::PrefsSync,\n    native_host: Option<crate::native_host::NativeHostFrame>,",
   );
+
   const report = (method: string, context: string) =>
     `        if let Some(host) = self.native_host.as_mut()\n            && let Err(error) = host.${method}(&mut self.app, ${context})\n        { self.app.status(error.to_string()); }\n`;
+
   replace(
     `${web}/web.rs`,
     "        self.app.logic(ctx);",

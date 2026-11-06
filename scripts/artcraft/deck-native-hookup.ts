@@ -151,8 +151,10 @@ export function patchDeckNativeHookup(source: ReadonlyMap<string, Buffer>, frame
     "    bridge: Option<host::Bridge>,",
     "    native_host: Option<crate::native_host::NativeHostFrame>,",
   );
+
   const call = (method: string, context: string) =>
     `        if let Some(host) = self.native_host.as_mut()\n            && let Err(error) = host.${method}(&mut self.app, ${context})\n        { self.app.host_status(error.to_string()); }`;
+
   replace(
     `${web}/web.rs`,
     "        if let Some(bridge) = &self.bridge { bridge.tick(&mut self.app); }",
