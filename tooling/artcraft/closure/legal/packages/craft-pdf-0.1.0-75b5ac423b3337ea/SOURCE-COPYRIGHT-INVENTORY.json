@@ -1,0 +1,19 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/pdf/tests/support/synthetic_icc.rs",
+      "sha256": "e35c8d113060e852a7125e90302049d11f2dbb31908ef7ffd8a6d38e72a10249",
+      "lines": [
+        {
+          "line": 51,
+          "text": "        (b\"cprt\", text(b\"No copyright, synthetic test data\")),"
+        },
+        {
+          "line": 79,
+          "text": "        vec![(b\"desc\", text_description(description)), (b\"cprt\", text(b\"No copyright, synthetic test data\")), (b\"wtpt\", xyz(D50)), (b\"kTRC\", curve)];"
+        }
+      ]
+    }
+  ]
+}

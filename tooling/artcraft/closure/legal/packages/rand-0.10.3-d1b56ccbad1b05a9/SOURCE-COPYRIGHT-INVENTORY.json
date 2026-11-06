@@ -1,0 +1,357 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "9d9a2f6f49bb8d49ef1761e183d0d4fd4ad66dfd225b77815ba83775cf48de67",
+      "lines": [
+        {
+          "line": 27,
+          "text": "    \"COPYRIGHT\","
+        }
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "959bf9a210c48475cc996d653ed61a961909ae5820524afcde02e3d2fd44a44b",
+      "lines": [
+        {
+          "line": 600,
+          "text": "- Update copyright and licence notices ([#591], [#611])"
+        }
+      ]
+    },
+    {
+      "path": "README.md",
+      "sha256": "7e905209c6eddbe37fc4e4b2256cb030ac0f3d96629c7168131d44fa67911d76",
+      "lines": [
+        {
+          "line": 108,
+          "text": "[COPYRIGHT](https://github.com/rust-random/rand/blob/master/COPYRIGHT) for details."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/bernoulli.rs",
+      "sha256": "401146b975b643db0561651d9b3ae8ad4eee87861ad178e7a9800d719e0150cf",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/distribution.rs",
+      "sha256": "eadb28494ea0196d26d8d626917d6ed2584d60afc1df04f5a0e0da768cd2a8ac",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2013-2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/float.rs",
+      "sha256": "55c519d6919562903fcc98e0a5117ec8a4c6705fc464f1a5810f6f16add8da0a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/integer.rs",
+      "sha256": "9ab500a8d2e5b2cc7eb675208b8815d055739458725ab64241bd4f968556833f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/mod.rs",
+      "sha256": "010d76a87afc744bae3fad9b2603e6fe6aac6034b2b4d749f78b112284c09d03",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2013-2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/other.rs",
+      "sha256": "69f62c2fd4b56c5ab201170b3ef6c52ba2ac132a5b2efd65ad60bc7c7fd99a96",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/slice.rs",
+      "sha256": "f78ad41493fe6b771dcd2a26723e75875e103f09e18bc73e9cde1d4a2ca92873",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/uniform_float.rs",
+      "sha256": "3bcbedca5898e2bd3fc9a463c6142945596df94d25427f33d6581c69740dedf6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2020 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/uniform_int.rs",
+      "sha256": "d76c54c0434523db10cf8318a8c25fb3b5c97a8d9a78be550b78f5e3d7e1536d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2020 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/uniform_other.rs",
+      "sha256": "faa6eb24a511253e53911341b51f2bcba289bf0551aee66433a865520f76725a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2020 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/uniform.rs",
+      "sha256": "d488feea11392a92f94d7cc979c55783efbd93f22e10e3294e77fd895d31e3d6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2020 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/utils.rs",
+      "sha256": "7817a6bf9110161538e31694bc1e86d2791fcbf70f76655da902edf7dbca5fd5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/weighted/mod.rs",
+      "sha256": "41e3b8ba3726174002873c0a519ccb7b5f86764bfe95c81d1a4ad061fb7f545e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/distr/weighted/weighted_index.rs",
+      "sha256": "78ab182db34af2dd052fe7c4061a76ac64830ab95857785bffe4af0c94b3e57b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "46cfa24d3b4d636057300cfde33fb331def6507f1172d43772dd3641c68951dc",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2013-2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/prelude.rs",
+      "sha256": "f4e8223bbe45a4357c37bed7ccdb51fb89568921a57de936be8a0fe09b2d84d9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/rng.rs",
+      "sha256": "c22bb21ff75c8139da373ad8c3ab117e75ff8b7500f2005215597172d6619d89",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2013-2017 The Rust Project Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/rngs/mod.rs",
+      "sha256": "19c67fa87b56b563d5c6e96783e6bb08b3e4001b9d45bfbbfd42b2c52f1646e6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/rngs/small.rs",
+      "sha256": "6c048a200e5ce7b03b6998709378072225f5af8e313c8bb111976aab0068862a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/rngs/std.rs",
+      "sha256": "2e56683cda7a7e95a1e808a85c92c99e98f5be6af1c16c2373f20bf9e0e5a6c6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/rngs/thread.rs",
+      "sha256": "de1c5ca82f447ff4a22ff9b1340a295e9462d533a4e4c7563e917e6911ea218b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/rngs/xoshiro128plusplus.rs",
+      "sha256": "fdb928a19ebd3ad6a700b44251e244c0abda324504f808509260fff5fd632f8d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/rngs/xoshiro256plusplus.rs",
+      "sha256": "0d63fa0dead08064380d8dcccc4c20c2c7eb70be145fad7b1eaf0bcd7242498f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/seq/coin_flipper.rs",
+      "sha256": "4fd998410c6733c0be195930daa0cb43a180d9d10ffdf445d44f1c69233102d7",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2023 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/seq/increasing_uniform.rs",
+      "sha256": "223e06c513fc382793c302f08ad1a996c9ea8b189de218e25480d279b32f67a1",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2023 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/seq/index.rs",
+      "sha256": "50c4a5a5427bf46b69533488c06b74d0fffc679ff3d956d0309b9fd9b400e2c7",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/seq/iterator.rs",
+      "sha256": "07cc7b4ec043b630e2e53e8e76cf95e327f836d1da9dd2c42527c7e2521e3093",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2024 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/seq/mod.rs",
+      "sha256": "e67e885f5ee2e1fbed791607969e73def26ba5e734ccf643d95a0b6e843dc952",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2023 Developers of the Rand project."
+        }
+      ]
+    },
+    {
+      "path": "src/seq/slice.rs",
+      "sha256": "2297a8fe4588d6374159cfc853a49e665da08e3b8c69c6448272600aa57172b2",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2023 Developers of the Rand project."
+        }
+      ]
+    }
+  ]
+}

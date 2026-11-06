@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "6d0dbf7bd12ba7121e6767841a0cee23b8282cc4d7c4b778a1e33129abdd7d72",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 rustc-version-rs developers"
+        }
+      ]
+    }
+  ]
+}

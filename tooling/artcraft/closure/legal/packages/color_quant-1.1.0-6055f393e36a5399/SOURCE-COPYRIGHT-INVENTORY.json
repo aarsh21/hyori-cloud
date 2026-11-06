@@ -1,0 +1,31 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "17a7ed7a6c994b475976558f3492c8890d089c1ee19f4ea3cd246c28145c895a",
+      "lines": [
+        {
+          "line": 11,
+          "text": "Copyright (c) 2014 The Piston Developers"
+        },
+        {
+          "line": 20,
+          "text": "The above copyright notice and this permission notice shall be included in"
+        },
+        {
+          "line": 26,
+          "text": "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
+        },
+        {
+          "line": 34,
+          "text": "Copyright (c) 1994 Anthony Dekker"
+        },
+        {
+          "line": 49,
+          "text": "that this copyright notice remain intact."
+        }
+      ]
+    }
+  ]
+}

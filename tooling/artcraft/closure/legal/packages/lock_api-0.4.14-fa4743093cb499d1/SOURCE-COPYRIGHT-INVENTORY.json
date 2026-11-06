@@ -1,0 +1,45 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "f6dfe0a321e47b5ea9f01a59711e5d3a0442949a829eb4957fa1491fbce63e5c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Amanieu d'Antras"
+        }
+      ]
+    },
+    {
+      "path": "src/mutex.rs",
+      "sha256": "1487130ba159c9158623d58204b52531c0feaabcdea8e58c0740a29d4f33e5af",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Amanieu d'Antras"
+        }
+      ]
+    },
+    {
+      "path": "src/remutex.rs",
+      "sha256": "a0cc36a3ac9ba2a399f83667ca53670afbec0d0bae6e9c103323918594873eeb",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Amanieu d'Antras"
+        }
+      ]
+    },
+    {
+      "path": "src/rwlock.rs",
+      "sha256": "3094177475cf67c8dc34e68b3fdff2d4133ffb453860b72037477734cb87aefc",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        }
+      ]
+    }
+  ]
+}

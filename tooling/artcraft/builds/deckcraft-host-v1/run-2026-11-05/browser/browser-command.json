@@ -1,0 +1,23 @@
+{
+  "args": [
+    "/home/aarsh/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",
+    "--headless=new",
+    "--remote-debugging-port=0",
+    "--remote-debugging-address=127.0.0.1",
+    "--user-data-dir=/tmp/hyori-deck-browser-P7mrdy",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--disable-extensions",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--window-size=1280,900",
+    "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
+    "about:blank"
+  ],
+  "osSandboxDisabled": false,
+  "localhostOnlyServer": true,
+  "syntheticBackendOnly": true
+}

@@ -1,0 +1,39 @@
+{
+  "offset": 5719956,
+  "bytes": 133636,
+  "sha256": "21808625578fe8d8cd10cb684be546dca077b27cd03a53a2f1ec11dc743c924c",
+  "names": [
+    {
+      "id": 0,
+      "text": "Copyright 2016 The Dancing Script Project Authors (https://github.com/googlefonts/DancingScript), with Reserved Font Name \"Dancing Script\"."
+    },
+    {
+      "id": 1,
+      "text": "Dancing Script"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "2.001;NONE;DancingScript-Regular"
+    },
+    {
+      "id": 4,
+      "text": "Dancing Script Regular"
+    },
+    {
+      "id": 6,
+      "text": "DancingScript-Regular"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+    },
+    {
+      "id": 14,
+      "text": "http://scripts.sil.org/OFL"
+    }
+  ]
+}

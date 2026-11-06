@@ -1,0 +1,54 @@
+[
+  {
+    "id": "rust-library_compiler-builtins_LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/LICENSE.txt"
+  },
+  {
+    "id": "rust-library_compiler-builtins_compiler-builtins_Cargo.toml",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/compiler-builtins/Cargo.toml"
+  },
+  {
+    "id": "rust-library_compiler-builtins_README.md",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/README.md"
+  },
+  {
+    "id": "rust-library_compiler-builtins_libm_LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/libm/LICENSE.txt"
+  },
+  {
+    "id": "rust-library_compiler-builtins_REUSE.toml",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/REUSE.toml"
+  },
+  {
+    "id": "rust-LICENSES_Unicode-3.0.txt",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSES/Unicode-3.0.txt"
+  },
+  {
+    "id": "rust-LICENSES_LLVM-exception.txt",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSES/LLVM-exception.txt"
+  },
+  {
+    "id": "rust-library_compiler-builtins_compiler-builtins_LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/compiler-builtins/LICENSE.txt"
+  },
+  {
+    "id": "trunk-output.rs",
+    "url": "https://raw.githubusercontent.com/trunk-rs/trunk/8ec159c52dcaf661e6950bb71d7f62ab24558164/src/pipelines/rust/output.rs"
+  },
+  {
+    "id": "trunk-wasm_bindgen.rs",
+    "url": "https://raw.githubusercontent.com/trunk-rs/trunk/8ec159c52dcaf661e6950bb71d7f62ab24558164/src/pipelines/rust/wasm_bindgen.rs"
+  },
+  {
+    "id": "unicode-Scripts-17.0.0",
+    "url": "https://www.unicode.org/Public/17.0.0/ucd/Scripts.txt"
+  },
+  {
+    "id": "unicode-Scripts-18.0.0",
+    "url": "https://www.unicode.org/Public/18.0.0/ucd/Scripts.txt"
+  },
+  {
+    "id": "cldr-license",
+    "url": "https://raw.githubusercontent.com/unicode-org/cldr/release-48-2/LICENSE"
+  }
+]

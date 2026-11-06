@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/gdi/src/lib.rs",
+      "sha256": "54444bb3325dc19e7b93231934bb254ee9df32b4d1fd5b184ee3dbd272f2799e",
+      "lines": [
+        {
+          "line": 3,
+          "text": "// SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    },
+    {
+      "path": "crates/gdi/src/windows.rs",
+      "sha256": "5c1a6b185efa93be45ca29f8ca07a97bd457b6ed64ec711d7a7b0c8efb004316",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    }
+  ]
+}

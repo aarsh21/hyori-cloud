@@ -1,0 +1,115 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/bit_depth.rs",
+      "sha256": "5c931fec16be5d8ce92aa07ffa0034816acaed13f34532c396dd125a78ffa187",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/bytestream.rs",
+      "sha256": "9f7910790caa1a71751bf5f5a7b0004b287d373f6d1f1b97f5fdac2b3eb0bf21",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/bytestream/traits.rs",
+      "sha256": "2319bee5e2b62fec54866b9ca50caf0d50077e42755dedc951da9efd1c03f053",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/bytestream/writer.rs",
+      "sha256": "f0677013260efc84ed9e9fcda24621e8ac4565ef8a162675c49e248d1272a4cd",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/colorspace.rs",
+      "sha256": "c449b2ebc77cc34b2e6929d5299964e33af0df3d5e8cc5fea0e3b26c597a10ae",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "6c41d2ae4c535469e5421eb38a8f96b6ed735b4eb4c2d5b756b57575225c337e",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/log.rs",
+      "sha256": "d49b777e92608a1b2da1207d6f9a8897be085de4b09ef08bd522bb3937480aae",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/options/decoder.rs",
+      "sha256": "bf482212d229d535df6d01152853e1433d8704c1ededa6e218e9e0d138ae19bf",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/options/encoder.rs",
+      "sha256": "c9d33c8e29696bbd7e02e5f48439e3c4eb7f78d46e8630df435a218f933ae421",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/result.rs",
+      "sha256": "92a098ba09ae4e5202da45a2d2165a6df804d3952e8c657950d064e4714afcaa",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    },
+    {
+      "path": "src/serde.rs",
+      "sha256": "aad9fa47df57bbfc851cfd63c4e9b2f0fe061c1f76bfbd6bb5acdda840799a22",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright (c) 2023."
+        }
+      ]
+    }
+  ]
+}

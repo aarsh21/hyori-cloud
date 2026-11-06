@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/modular/safegcd.rs",
+      "sha256": "87e43dfd7950acc9c710bd1596263f4d153f5b467888f2422646c3c99f4cda0b",
+      "lines": [
+        {
+          "line": 8,
+          "text": "//! Copyright (c) 2023 Privacy Scaling Explorations Team"
+        }
+      ]
+    }
+  ]
+}

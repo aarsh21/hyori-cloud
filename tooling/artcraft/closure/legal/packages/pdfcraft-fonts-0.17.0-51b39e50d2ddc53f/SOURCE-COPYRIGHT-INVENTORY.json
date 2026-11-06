@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/fonts/src/embedding.rs",
+      "sha256": "bd0214b544ddc22e0253a9664b4dbd6ea9b62998f2e0ed150eada6012c134a52",
+      "lines": [
+        {
+          "line": 58,
+          "text": "        [StringId::COPYRIGHT_NOTICE, StringId::MANUFACTURER].into_iter().flat_map(|id| f.localized_strings(id)).map(|s| s.to_string()).collect();"
+        }
+      ]
+    },
+    {
+      "path": "crates/fonts/src/encodings.rs",
+      "sha256": "2fa227f5286859bdcf1c04e631ce5b18db75ebc323f577b5437b097892ba75d5",
+      "lines": [
+        {
+          "line": 138,
+          "text": "    (\"copyright\", 0xa9),"
+        }
+      ]
+    }
+  ]
+}

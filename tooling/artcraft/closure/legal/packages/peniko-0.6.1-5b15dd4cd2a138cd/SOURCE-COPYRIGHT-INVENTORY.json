@@ -1,0 +1,111 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/blend.rs",
+      "sha256": "b132b65724bab3c0e34756464e1d1d9024e4a27e40095f306ef82527a5905b4e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        },
+        {
+          "line": 7,
+          "text": "/// Illustrations fall under the [W3C open license](https://www.w3.org/copyright/software-license/)."
+        },
+        {
+          "line": 93,
+          "text": "/// Illustrations fall under the [W3C open license](https://www.w3.org/copyright/software-license/)."
+        }
+      ]
+    },
+    {
+      "path": "src/brush.rs",
+      "sha256": "614b1972b588b0d10d80a810e7ec38d977b032119abad6a6fc93a97c7ae375b7",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/gradient.rs",
+      "sha256": "c0520aca035fb605e6ab570bdbc47dc934d1f0a65b33b11912b80c215f6fe545",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/image.rs",
+      "sha256": "c7ec761dfbc823fb8d43203691254e8c31a6c1fb8974c93bd0c04e7b3b58bebf",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/impl_bytemuck.rs",
+      "sha256": "566bda726768e2062e88bbae04929194f9fda58b433e7f9e1c702c585a92def3",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2024 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "ada2d8dd23f35269426fead9dbe7dff1b2dc10fb4621336ff2258c4b8267d4fa",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/style.rs",
+      "sha256": "fe99e97722c707c50e4a178385407b242cfa7ee159d6320a62e605c44a95a734",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Peniko Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

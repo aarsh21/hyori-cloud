@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "ced6ebd3622af527cbbbb09feb57a2894751ff07e7ca8f97f22bad89401e5c8d",
+      "lines": [
+        {
+          "line": 4,
+          "text": "// Copyright (c) 2016-2018 isis lovecruft, Henry de Valence"
+        }
+      ]
+    }
+  ]
+}

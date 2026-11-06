@@ -1,0 +1,19 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/bufreader.rs",
+      "sha256": "20ffc9cb16f0b01ae50be49aaf33f3592e2805b7d6bd76b7ea04da72c428d281",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2013 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// <https://github.com/rust-lang/rust/blob/HEAD/COPYRIGHT>."
+        }
+      ]
+    }
+  ]
+}

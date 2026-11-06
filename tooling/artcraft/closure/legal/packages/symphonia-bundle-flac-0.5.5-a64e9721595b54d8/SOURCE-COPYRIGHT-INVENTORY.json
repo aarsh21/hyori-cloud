@@ -1,0 +1,65 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/decoder.rs",
+      "sha256": "2aa694a4669341a0733a2f00d2bdf936d685767010e604e9af95f175d7636e26",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/demuxer.rs",
+      "sha256": "9351b5d8ab45e85e0a348efd5c06f6d84846a075e160d0a99d9c62e30a0f8a68",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/frame.rs",
+      "sha256": "6b9cf41e8f60f3efbc73bff8e1527556f4fbf8319cf29e11e52d095ade38911a",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "e58d5796d6a11a536af262675598f7d213cb9b3bc24b326b9fa09469dd2fcdb3",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/parser.rs",
+      "sha256": "3f5867a0cf0d6d0a3ab61ee186e96352433e01b387ad8db4bd5c82f59c5f4502",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/validate.rs",
+      "sha256": "f3f515874c0c5aad6416da605fe830e807cc0e6dc6b22e54c6f203c83751a6f7",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    }
+  ]
+}

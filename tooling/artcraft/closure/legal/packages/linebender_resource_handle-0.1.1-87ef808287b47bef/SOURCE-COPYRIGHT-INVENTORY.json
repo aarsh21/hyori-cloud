@@ -1,0 +1,47 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/blob.rs",
+      "sha256": "e41c5b77222d2e57a79308fbef8d7e814743b2e57bba0cb9b570b72a3205900f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Raw Resource Handle Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/font.rs",
+      "sha256": "8cc131912d270aab2a4972857254904990a7facc8c3b747cbec37151da064098",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Raw Resource Handle Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "ba557d6e29bd215d0f14f639f03937767eca1bb821abf3d114ed69f339414001",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2024 the Raw Resource Handle Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

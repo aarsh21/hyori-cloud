@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/context.rs",
+      "sha256": "8fe7865962916fa7ce820b9fb407e6a2dd9b9c373191ad4a41c507b6be373e40",
+      "lines": [
+        {
+          "line": 5,
+          "text": "// Copyright 2013 Google Inc. All Rights Reserved."
+        }
+      ]
+    }
+  ]
+}

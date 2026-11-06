@@ -1,0 +1,351 @@
+//! The dialog's persistent state and every action it takes, as calls on [`EditSession`],
+//! [`Recorder`], [`editor::holders`] and [`Profiles`].
+
+use std::collections::BTreeSet;
+
+use crate::chord::{Chord, Key, ParseError, Trigger};
+use crate::command::CommandRef;
+use crate::editor::{self, DOUBLE_PRESS, EditSession, Recorded, Recorder};
+use crate::import::{self, ForeignSet, ImportOptions, ImportPlan, ImportReport};
+use crate::keymap::{AssignError, Assigned, Binding, BindingError, Holder, Keymap, MAX_BINDINGS, Overrides, Policy};
+use crate::profiles::{Builtins, ProfileError, Profiles, set_name};
+use crate::scope::Scope;
+use crate::ui::rows::{AreaEntry, AreaId, Built, Filter, RowCache, View};
+use crate::ui::text::{Text, trigger_text};
+use crate::ui::view::keyboard::KeyboardState;
+use crate::ui::{ConflictMode, JSON_FORMAT, Options, Outcome, capture, summary};
+
+/// What the dialog edits this frame.
+pub(crate) struct Env<'e> {
+    pub keymap: &'e mut Keymap,
+    pub sets: Option<(&'e mut Profiles, &'e Builtins<'e>)>,
+    pub options: &'e Options,
+    pub text: &'e dyn Text,
+}
+
+impl Env<'_> {
+    fn chord_text(&self, t: &Trigger) -> String {
+        trigger_text(self.text, t, self.keymap.platform())
+    }
+
+    fn label(&self, command: &CommandRef) -> String {
+        self.keymap.bindable(command).map_or_else(|| command.id.clone(), |b| self.text.command(b).into_owned())
+    }
+
+    /// `label (Scope)` for each holder, joined.
+    fn holder_labels(&self, holders: &[Holder]) -> String {
+        let mut out: Vec<String> = Vec::new();
+        for h in holders {
+            let label = self.label(&h.command);
+            let s = match &h.binding.scope {
+                Some(scope) => self.ui("{label} ({scope})", &[("label", &label), ("scope", &self.text.segment(scope.as_str()))]),
+                None => label,
+            };
+            if !out.contains(&s) {
+                out.push(s);
+            }
+        }
+        out.join(", ")
+    }
+
+    fn ui(&self, source: &str, args: &[(&str, &str)]) -> String {
+        craft_i18n::fmt(&self.text.ui(source), args)
+    }
+}
+
+/// Where a recording goes.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Target {
+    /// A row's shortcut cell: replaces `old`, or adds when `None`. Commits at once.
+    Cell { command: CommandRef, old: Option<Binding> },
+    /// The detail pane's New Shortcut field: the chord waits for Assign.
+    Field { command: CommandRef },
+    /// Search by key: the chord's text becomes the query.
+    Search,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Recording {
+    pub target: Target,
+    /// With [`Options::double_press`]: a single press waiting [`DOUBLE_PRESS`] for its second press.
+    pub waiting: Option<(Trigger, f64)>,
+}
+
+/// The New Shortcut field's chord, waiting for Assign.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct FieldChord {
+    pub command: CommandRef,
+    pub binding: Binding,
+    /// Commands whose bindings would clash ("Currently assigned to").
+    pub holders: Vec<Holder>,
+    /// Commands with the same trigger in another scope that do not clash ("both work").
+    pub shadows: Vec<Holder>,
+}
+
+/// The conflict bar, for one pending chord.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ConflictBar {
+    pub command: CommandRef,
+    pub old: Option<Binding>,
+    pub binding: Binding,
+    pub holders: Vec<Holder>,
+    /// "⚠ {chord} is used by {label}".
+    pub text: String,
+}
+
+/// A line under the table after an action.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Message {
+    pub text: String,
+    /// Nothing changed: shown with ⚠.
+    pub refused: bool,
+    /// Offers Go to Conflict.
+    pub goto: Option<CommandRef>,
+    /// Offers Undo.
+    pub undo: bool,
+    /// The chord text inside `text`, which is never put through `Text::visual`.
+    pub chord: Option<String>,
+}
+
+/// What to do after the Save changes prompt.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Then {
+    Switch(String),
+    NewSet { name: String, based_on: Option<String> },
+    Import,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Prompt {
+    /// "Restore every default shortcut in this set?"
+    ResetAll,
+    /// "Delete the set “{set}”?"
+    DeleteSet(String),
+    /// "Save changes to “{set}”?" with Save, Don't Save and Cancel.
+    SaveChanges { set: String, then: Then },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Answer {
+    /// Save, or confirm.
+    Yes,
+    /// Don't Save.
+    No,
+    Cancel,
+}
+
+/// A foreign set under review.
+#[derive(Clone, Debug)]
+pub(crate) struct Review {
+    pub set: ForeignSet,
+    pub options: ImportOptions,
+    pub plan: ImportPlan,
+    /// The new set's name.
+    pub name: String,
+    /// After Import as New Set: the set's name and the report.
+    pub done: Option<(String, ImportReport)>,
+}
+
+/// The set row's inline form: New Set… or Rename….
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SetForm {
+    pub kind: SetFormKind,
+    pub name: String,
+    /// Focus the name field on the next frame.
+    pub focus: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum SetFormKind {
+    /// `None`: based on the current shortcuts.
+    New {
+        based_on: Option<String>,
+    },
+    Rename,
+}
+
+#[derive(Clone, Debug)]
+struct Opened {
+    profiles: Option<Profiles>,
+    overrides: Overrides,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Phase {
+    New,
+    Open,
+    Closed,
+}
+
+/// The dialog's state between frames. Keep it while [`is_open`](Self::is_open) is true.
+#[derive(Clone, Debug)]
+pub struct DialogState {
+    phase: Phase,
+    opened: Option<Opened>,
+    session: Option<EditSession>,
+    recorder: Recorder,
+    pub(crate) selected: Option<CommandRef>,
+    /// Scroll the selected row into view on the next frame.
+    pub(crate) reveal: bool,
+    pub(crate) areas: Vec<AreaEntry>,
+    pub(crate) area: AreaId,
+    pub(crate) filter: Filter,
+    pub(crate) query: String,
+    pub(crate) collapsed: BTreeSet<String>,
+    /// The detail pane's Context: `None` is the command's home scope.
+    pub(crate) context: Option<Scope>,
+    pub(crate) recording: Option<Recording>,
+    pub(crate) field: Option<FieldChord>,
+    pub(crate) conflict: Option<ConflictBar>,
+    pub(crate) prompt: Option<Prompt>,
+    pub(crate) message: Option<Message>,
+    pub(crate) review: Option<Review>,
+    rows: RowCache,
+    changed: bool,
+    outcome: Option<Outcome>,
+    // ---- The view's own state ----
+    /// The table's share of the table/detail split.
+    pub(crate) split: f32,
+    /// The chip of the selected row that Enter and Delete act on.
+    pub(crate) chip: usize,
+    /// Typed entry in the detail pane, and the parse error shown under it.
+    pub(crate) typing: Option<String>,
+    pub(crate) type_error: Option<String>,
+    /// Height of the bars and footer under the table, measured last frame.
+    pub(crate) bottom_h: f32,
+    /// One of the dialog's text fields had focus at the end of last frame.
+    pub(crate) text_focus: bool,
+    /// The table lines drawn last frame.
+    pub(crate) visible: std::ops::Range<usize>,
+    pub(crate) set_form: Option<SetForm>,
+    pub(crate) keyboard: KeyboardState,
+}
+
+impl Default for DialogState {
+    fn default() -> DialogState {
+        DialogState::new()
+    }
+}
+
+impl DialogState {
+    /// A dialog about to open; it takes its snapshot on the first frame.
+    pub fn new() -> DialogState {
+        DialogState {
+            phase: Phase::New,
+            opened: None,
+            session: None,
+            recorder: Recorder::new(),
+            selected: None,
+            reveal: false,
+            areas: Vec::new(),
+            area: AreaId::All,
+            filter: Filter::All,
+            query: String::new(),
+            collapsed: BTreeSet::new(),
+            context: None,
+            recording: None,
+            field: None,
+            conflict: None,
+            prompt: None,
+            message: None,
+            review: None,
+            rows: RowCache::default(),
+            changed: false,
+            outcome: None,
+            split: 0.62,
+            chip: 0,
+            typing: None,
+            type_error: None,
+            bottom_h: 0.0,
+            text_focus: false,
+            visible: 0..0,
+            set_form: None,
+            keyboard: KeyboardState::default(),
+        }
+    }
+
+    /// False once the dialog has closed with OK or Cancel and reported its last outcome: drop the
+    /// state then. After a Cancel that undid edits it stays true for the frame that reports
+    /// [`Outcome::Changed`].
+    pub fn is_open(&self) -> bool {
+        self.phase != Phase::Closed || self.changed
+    }
+
+    /// Whether the dialog is drawn: not yet closed with OK or Cancel.
+    pub(crate) fn is_showing(&self) -> bool {
+        self.phase != Phase::Closed
+    }
+
+    /// While true the app also pauses native menu key equivalents.
+    pub fn is_recording(&self) -> bool {
+        self.recording.is_some()
+    }
+
+    /// Selects a command and scrolls to it, as when the dialog opens from "Edit Shortcut…".
+    pub fn select(&mut self, command: &CommandRef) {
+        self.selected = Some(command.clone());
+        self.reveal = true;
+        self.context = None;
+        self.field = None;
+    }
+
+    /// Shows `text`, already translated, as a warning under the table until the user dismisses it
+    /// or the next action's message replaces it: for the app's own errors while the dialog is
+    /// open, such as an import file it could not read.
+    pub fn show_error(&mut self, text: impl Into<String>) {
+        self.message = Some(Message { text: text.into(), refused: true, goto: None, undo: false, chord: None });
+    }
+
+    // ---- Frame ----
+
+    /// The first frame: snapshot for Cancel, an edit session, the Show entries.
+    pub(crate) fn begin(&mut self, env: &mut Env) {
+        if self.phase != Phase::New {
+            return;
+        }
+        self.phase = Phase::Open;
+        self.opened = Some(Opened { profiles: env.sets.as_ref().map(|(p, _)| (**p).clone()), overrides: env.keymap.overrides().clone() });
+        self.session = Some(EditSession::begin(env.keymap));
+        self.areas = crate::ui::rows::areas(env.keymap, env.options, env.text);
+    }
+
+    /// Takes this frame's key input while recording and commits a double-press wait that ended.
+    pub(crate) fn input(&mut self, env: &mut Env, ctx: &egui::Context) {
+        let now = ctx.input(|i| i.time);
+        self.tick(env, now);
+        if self.is_recording() {
+            let platform = env.keymap.platform();
+            let chords = ctx.input_mut(|i| capture::take(i, platform));
+            self.feed(env, &chords, now);
+        }
+        if let Some((_, at)) = self.recording.as_ref().and_then(|r| r.waiting) {
+            ctx.request_repaint_after(std::time::Duration::from_secs_f64((at + DOUBLE_PRESS - now).max(0.0)));
+        }
+    }
+
+    /// The frame's outcome: a closing or file outcome first, else Changed after an edit. An edit
+    /// that comes with another outcome stays pending and is reported by the next call.
+    pub(crate) fn finish(&mut self) -> Option<Outcome> {
+        self.outcome.take().or_else(|| std::mem::take(&mut self.changed).then_some(Outcome::Changed))
+    }
+
+    /// Whether an edit waits for the next [`finish`](Self::finish).
+    pub(crate) fn change_pending(&self) -> bool {
+        self.changed
+    }
+
+    /// The table's lines for the current view.
+    pub(crate) fn lines(&mut self, env: &Env) -> &Built {
+        let view = View { query: &self.query, area: &self.area, filter: self.filter, collapsed: &self.collapsed };
+        self.rows.get(env.keymap, env.options, env.text, &view)
+    }
+
+    /// The table's lines as last built by [`lines`](Self::lines).
+    pub(crate) fn lines_cached(&self) -> &[crate::ui::rows::Line] {
+        &self.rows.built().lines
+    }
+
+    // ---- Selection and view ----
+
+    pub(crate) fn select_row(&mut self, command: &CommandRef) {
+        if self.selected.as_ref() != Some(command)

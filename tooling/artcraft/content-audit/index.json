@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "path": "manifest.json",
+    "sha256": "001d8a87edf71b3e6269c3f1fdbed914ff6c7063f2f7181923cb93107deb1667"
+  },
+  "discovery": {
+    "path": "discovery.json",
+    "sha256": "7da48af5db4b6502dde3a7699e0a64ce284afb54ba04cb323ebd4bd20f0bad44"
+  },
+  "deployable": false
+}

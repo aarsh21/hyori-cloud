@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "artifactVersion": "0.14.1-hyori-host.1",
+  "platform": "linux/amd64",
+  "baseImage": "docker.io/library/rust@sha256:be49948243566aa0ae465ae2786c4bab8cb5597084873b01d3db50dcebc70b18",
+  "baseImageConfigSha256": "a9d8776121944dc474cbae7b1184dbdbd28f0d08d9fefa25737522c56a3f25cb",
+  "rustVersion": "1.99.1",
+  "rustCommit": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+  "target": "wasm32-unknown-unknown",
+  "bun": {
+    "version": "1.4.4",
+    "bytes": 107308936,
+    "sha256": "10702245766b225e70bbf6235fd6b47214fd94b4760d00ffaed8ab0df57ac235"
+  },
+  "archives": [
+    {
+      "id": "rust-std",
+      "version": "1.99.1",
+      "url": "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-wasm32-unknown-unknown.tar.gz",
+      "sha256": "fdc80d2da1effc88df0bae8503ad117d268a4854afb14a8e31fd1ef6df0aad17",
+      "checksumEvidence": "Installed Rust 1.99.1 multirust-channel-manifest.toml, pkg.rust-std.target.wasm32-unknown-unknown.hash",
+      "checksumUrl": null
+    },
+    {
+      "id": "trunk",
+      "version": "0.21.14",
+      "url": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz",
+      "sha256": "a67f4054b249fe9acc5fabc25de1aebf19783aca3ad6ff64bf34d7da44d0ea20",
+      "checksumEvidence": "Publisher release .sha256 asset",
+      "checksumUrl": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz.sha256"
+    },
+    {
+      "id": "wasm-bindgen",
+      "version": "0.2.129",
+      "url": "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz",
+      "sha256": "82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e",
+      "checksumEvidence": "Publisher GitHub expanded_assets HTML: exact matching x86_64-unknown-linux-musl asset digest",
+      "checksumUrl": null
+    },
+    {
+      "id": "binaryen",
+      "version": "123",
+      "url": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz",
+      "sha256": "e959f2170af4c20c552e9de3a0253704d6a9d2766e8fdb88e4d6ac4bae9388fe",
+      "checksumEvidence": "Publisher release .sha256 asset",
+      "checksumUrl": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz.sha256"
+    }
+  ],
+  "signatureVerification": "Publisher TLS/checksum or asset-digest evidence retained; no detached signature or SLSA verification claimed",
+  "deployable": false
+}

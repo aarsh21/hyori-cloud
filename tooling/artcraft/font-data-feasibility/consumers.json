@@ -1,0 +1,1208 @@
+{
+  "schemaVersion": 1,
+  "sourceArchiveSha256": "51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+  "deployable": false,
+  "legalOpinion": false,
+  "scope": "Bounded font-crate reference witnesses, not a Rust call-graph/feature-closure proof. Includes test and unrelated font API references; not every matching file requires edits. No claim of absence for aliases/reexports or dynamically selected code.",
+  "directConsumers": [
+    "crates/fonts/src/std14.rs",
+    "crates/fonts/src/lib.rs",
+    "crates/fonts/src/pdf.rs"
+  ],
+  "references": [
+    {
+      "member": "crates/a11y/src/headings.rs",
+      "sha256": "6ea0c516708727b79e7ea908d471bee2464f143356b94d89edfdbd05e5abcaa1",
+      "lines": [
+        {
+          "line": 8,
+          "text": "use pdfcraft_fonts::pdf::Metrics;"
+        }
+      ]
+    },
+    {
+      "member": "crates/annot/src/appearance.rs",
+      "sha256": "dad68b72156cb43e602e67794006507834dd65efeeb82b25502b7021f0c48a60",
+      "lines": [
+        {
+          "line": 14,
+          "text": "use pdfcraft_fonts::{first_undrawable, literal, win_ansi};"
+        },
+        {
+          "line": 15,
+          "text": "pub use pdfcraft_fonts::{helvetica_width as text_width, wrap};"
+        },
+        {
+          "line": 407,
+          "text": "/// [`crate::set_appearance`] marks the annotation with it (`pdfcraft_fonts::UNDRAWN_MARK`)."
+        }
+      ]
+    },
+    {
+      "member": "crates/annot/src/create.rs",
+      "sha256": "2c88cb42aae0683967e43b515de29ca9a1b516e3b7ecece302b5eaf80bfea1d5",
+      "lines": [
+        {
+          "line": 403,
+          "text": "        return Err(AnnotError::Undrawable(pdfcraft_fonts::undrawable_message(what, c)));"
+        }
+      ]
+    },
+    {
+      "member": "crates/annot/src/draw.rs",
+      "sha256": "4c454cf5bd09b9caf4f6819fe27acee6928d8b32155843d579226ed8142bb78c",
+      "lines": [
+        {
+          "line": 13,
+          "text": "/// (marked `pdfcraft_fonts::UNDRAWN_MARK`) is redrawn."
+        },
+        {
+          "line": 29,
+          "text": "/// fonts can't draw come out as `?`, and the annotation is marked (`pdfcraft_fonts::UNDRAWN_MARK`,"
+        },
+        {
+          "line": 87,
+          "text": "        pdfcraft_fonts::set_undrawn_mark(d, missing);"
+        }
+      ]
+    },
+    {
+      "member": "crates/annot/src/modify.rs",
+      "sha256": "b6c904b9370496e3e376e370366d01359c8f8926804fcde98e134269ee4f41e0",
+      "lines": [
+        {
+          "line": 17,
+          "text": "        d.get(b\"AP\").is_some_and(|ap| doc.resolve(ap).as_dict().is_some_and(|ap| ap.contains(b\"N\"))) && pdfcraft_fonts::undrawn_mark(d).is_none();"
+        }
+      ]
+    },
+    {
+      "member": "crates/annot/src/tests.rs",
+      "sha256": "cc270fa7731f3c0861b42229489966dca5fa3ac2444e34c0eb6334d63d7620b1",
+      "lines": [
+        {
+          "line": 1404,
+          "text": "    let mark = |doc: &Document, i: usize| pdfcraft_fonts::undrawn_mark(&list(doc, 0)[i]);"
+        },
+        {
+          "line": 1481,
+          "text": "    assert_eq!(doc.get(b).as_dict().and_then(pdfcraft_fonts::undrawn_mark), Some('欢'));"
+        }
+      ]
+    },
+    {
+      "member": "crates/automation/tests/it/automation.rs",
+      "sha256": "efe540ec64d1994b8e939e0e021812cc2135d2eb3919be17f3c90b157968d9ef",
+      "lines": [
+        {
+          "line": 718,
+          "text": "    if pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 3324,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 8638,
+          "text": "    if pdfcraft_fonts::document_thai_font().is_none() {"
+        },
+        {
+          "line": 8662,
+          "text": "    if pdfcraft_fonts::document_hebrew_font(false).is_none() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/create/src/lib.rs",
+      "sha256": "4e15497c4ba5c4ae3aa8bdf33dd4688d13308ce05b2390be51c2b79af038cc30",
+      "lines": [
+        {
+          "line": 10,
+          "text": "use pdfcraft_fonts::{literal, win_ansi, wrap};"
+        },
+        {
+          "line": 733,
+          "text": "        return Err(CreateError::Invalid(pdfcraft_fonts::undrawable_message(&format!(\"the text (line {line})\"), c)));"
+        },
+        {
+          "line": 741,
+          "text": "    text.split('\\n').enumerate().find_map(|(i, l)| pdfcraft_fonts::first_undrawable(&l.replace('\\u{c}', \"\")).map(|c| (i + 1, c)))"
+        },
+        {
+          "line": 756,
+          "text": "        if matches!(c, '\\n' | '\\r' | '\\u{c}') || pdfcraft_fonts::first_undrawable(c.encode_utf8(&mut [0; 4])).is_none() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/added.rs",
+      "sha256": "ab78f85bee0688109cb06336bb74349a525d1d9898a4dc4bfd839fee650e9b44",
+      "lines": [
+        {
+          "line": 14,
+          "text": "use pdfcraft_fonts::{"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/added/arabic_tests.rs",
+      "sha256": "501d0ae66fdafe22d2085d5f38a5b18e532213f1cc0d8d01afb6195702c5deaf",
+      "lines": [
+        {
+          "line": 162,
+          "text": "    let family = pdfcraft_fonts::document_arabic_font().map_or(\"Arabic\", |face| face.family);"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/added/draw.rs",
+      "sha256": "a4eea666bd8bef775496dc0267d59d59373bda9af47b4117749d54466853ade4",
+      "lines": [
+        {
+          "line": 286,
+          "text": "                || face_or_new(is_arabic, pdfcraft_fonts::document_arabic_font().is_some())"
+        },
+        {
+          "line": 287,
+          "text": "                || face_or_new(is_hebrew, pdfcraft_fonts::document_hebrew_font(false).is_some())"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/added/layout.rs",
+      "sha256": "a78de67e143e887a9af238c58cbe1d8a915c8594dc3890ab71a986d2106a5273",
+      "lines": [
+        {
+          "line": 127,
+          "text": "        if let Some(c) = t.text.chars().find(|c| is_thai(*c) && !pdfcraft_fonts::thai_has(*c)) {"
+        },
+        {
+          "line": 135,
+          "text": "        t.text.chars().find(|c| (shaped_arabic(*c) && !pdfcraft_fonts::arabic_has(*c)) || (is_hebrew(*c) && !pdfcraft_fonts::hebrew_has(*c)))"
+        },
+        {
+          "line": 142,
+          "text": "        return t.text.split('\\n').find_map(pdfcraft_fonts::first_non_win_ansi);"
+        },
+        {
+          "line": 148,
+          "text": "            Piece::Latin(s) => pdfcraft_fonts::first_non_win_ansi(s),"
+        },
+        {
+          "line": 157,
+          "text": "    (pdfcraft_fonts::document_arabic_font().is_some() && t.text.chars().any(is_arabic))"
+        },
+        {
+          "line": 158,
+          "text": "        || (pdfcraft_fonts::document_hebrew_font(false).is_some() && t.text.chars().any(is_hebrew))"
+        },
+        {
+          "line": 217,
+          "text": "            } else if is_hebrew(c) || (run_rtl && after_hebrew && !c.is_alphanumeric() && pdfcraft_fonts::hebrew_has(c)) {"
+        },
+        {
+          "line": 219,
+          "text": "            } else if is_arabic(c) || (run_rtl && !c.is_alphanumeric() && pdfcraft_fonts::arabic_has(c)) {"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/added/store.rs",
+      "sha256": "e87555c95f328ae198961cc6499dafbaf56767cb40fb2a72b2666d2a03e8ea8c",
+      "lines": [
+        {
+          "line": 144,
+          "text": "            if t.text.chars().any(is_thai) && pdfcraft_fonts::document_thai_font().is_none() {"
+        },
+        {
+          "line": 150,
+          "text": "            let undrawable = if t.text.chars().any(shaped_arabic) && pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 153,
+          "text": "                        .find(|c| !(shaped_arabic(*c) || is_thai(*c) && pdfcraft_fonts::thai_has(*c) || pdfcraft_fonts::win_ansi_encodable(*c)))"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/flatten.rs",
+      "sha256": "da2bd4c854c82a1618b3beab276e01bf314529b1a187212cf32b9d33108c81c5",
+      "lines": [
+        {
+          "line": 154,
+          "text": "/// (`pdfcraft_fonts::UNDRAWN_MARK`: a form field's value, a comment's text), or a comment without"
+        },
+        {
+          "line": 167,
+          "text": "            let drawn = pdfcraft_fonts::undrawn_mark(&d);"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/lib.rs",
+      "sha256": "d478edcaeddf8b382ed430c6d3bc17f8c0496ccfbfa5e84396fd342d73a97587",
+      "lines": [
+        {
+          "line": 21,
+          "text": "use pdfcraft_fonts::{helvetica_width, literal, win_ansi};"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/marks.rs",
+      "sha256": "e07eb42c40b9b6fa1a7c83ed1212a1c0ee483e6397ba903411be40ce2e15e23d",
+      "lines": [
+        {
+          "line": 70,
+          "text": "        self.text.iter().flat_map(|t| t.lines()).find_map(pdfcraft_fonts::first_non_win_ansi)"
+        },
+        {
+          "line": 147,
+          "text": "            None => self.text.trim().lines().find_map(pdfcraft_fonts::first_non_win_ansi),"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/tests.rs",
+      "sha256": "b8ee2980fbf1179b4b84ff5018f7d7c1faa768e9198d9ebcb4cb3f8929dbbb96",
+      "lines": [
+        {
+          "line": 165,
+          "text": "        assert!((x - (600.0 - 72.0 - pdfcraft_fonts::helvetica_width(text, 8.0))).abs() > 1.0, \"{base}: the faces differ in width\");"
+        },
+        {
+          "line": 1121,
+          "text": "    if pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 1172,
+          "text": "    if pdfcraft_fonts::document_hebrew_font(false).is_none() {"
+        },
+        {
+          "line": 1185,
+          "text": "        if other.text.chars().any(|c| ('\\u{0600}'..='\\u{06FF}').contains(&c)) && pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 1234,
+          "text": "        assert_eq!(r.is_ok(), pdfcraft_fonts::document_hebrew_font(false).is_some(), \"{:?}: {r:?}\", s.chars().take(12).collect::<String>());"
+        },
+        {
+          "line": 1250,
+          "text": "    if pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 1303,
+          "text": "        assert_eq!(r.is_ok(), pdfcraft_fonts::document_arabic_font().is_some(), \"{:?}: {r:?}\", s.chars().take(12).collect::<String>());"
+        },
+        {
+          "line": 1314,
+          "text": "    if pdfcraft_fonts::document_arabic_font().is_some() {"
+        },
+        {
+          "line": 1318,
+          "text": "    if pdfcraft_fonts::document_arabic_font().is_some() && !pdfcraft_fonts::arabic_has('\\u{FDFD}') {"
+        },
+        {
+          "line": 1439,
+          "text": "                x += pdfcraft_fonts::helvetica_width(&c.to_string(), 10.0) + 2.0001;"
+        },
+        {
+          "line": 1476,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_some() {"
+        },
+        {
+          "line": 1538,
+          "text": "    if pdfcraft_fonts::CRAFT_FONTS.iter().any(|f| f.family == \"BIZ UDPGothic\" && f.style == \"Bold\") {"
+        },
+        {
+          "line": 1573,
+          "text": "    if pdfcraft_fonts::CRAFT_FONTS.iter().any(|f| f.family == \"BIZ UDPGothic\" && f.style == \"Bold\") {"
+        },
+        {
+          "line": 1590,
+          "text": "    let face = pdfcraft_fonts::document_japanese_font_for_style(false, false).unwrap();"
+        },
+        {
+          "line": 1615,
+          "text": "    let has_all = |f: &pdfcraft_fonts::CraftFont| replacement.chars().all(|ch| pdfcraft_fonts::japanese_glyph_from(f, ch).is_ok());"
+        },
+        {
+          "line": 1616,
+          "text": "    if !pdfcraft_fonts::CRAFT_FONTS.iter().any(|f| f.covers(\"Jpan\") && has_all(f)) {"
+        },
+        {
+          "line": 1658,
+          "text": "    let face = pdfcraft_fonts::document_japanese_font_for_style(false, false).unwrap();"
+        },
+        {
+          "line": 1659,
+          "text": "    if pdfcraft_fonts::japanese_glyph_from(face, 'ф').is_err() {"
+        },
+        {
+          "line": 1685,
+          "text": "    let faces = pdfcraft_fonts::document_japanese_fonts_for_style(false, false);"
+        },
+        {
+          "line": 1688,
+          "text": "        .filter(|ch| faces.iter().all(|face| pdfcraft_fonts::japanese_glyph_from(face, *ch).is_ok()))"
+        },
+        {
+          "line": 1760,
+          "text": "        assert!(pdfcraft_fonts::document_japanese_font().is_none());"
+        },
+        {
+          "line": 1869,
+          "text": "    if !pdfcraft_fonts::CRAFT_FONTS.iter().any(|f| f.family == \"BIZ UDPGothic\" && f.style == \"Bold\") {"
+        },
+        {
+          "line": 1903,
+          "text": "            let face = pdfcraft_fonts::pdf::Metrics::from_dict(&doc, f).base_font;"
+        },
+        {
+          "line": 1951,
+          "text": "    if !pdfcraft_fonts::CRAFT_FONTS.iter().any(|f| f.family == \"BIZ UDPGothic\" && f.style == \"Bold\") {"
+        },
+        {
+          "line": 1984,
+          "text": "    let mut names: Vec<_> = fonts.iter().map(|(_, f)| pdfcraft_fonts::pdf::Metrics::from_dict(&doc, f).base_font).collect();"
+        },
+        {
+          "line": 2034,
+          "text": "    let faces = pdfcraft_fonts::document_japanese_fonts_for_style(false, false);"
+        },
+        {
+          "line": 2037,
+          "text": "        .find(|ch| faces.iter().all(|face| pdfcraft_fonts::japanese_glyph_from(face, *ch).is_err()))"
+        },
+        {
+          "line": 2240,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_some() {"
+        },
+        {
+          "line": 3323,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 5277,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 5307,
+          "text": "    if pdfcraft_fonts::document_hebrew_font(false).is_none() {"
+        },
+        {
+          "line": 5412,
+          "text": "    if pdfcraft_fonts::arabic_has('م') {"
+        },
+        {
+          "line": 5730,
+          "text": "    if pdfcraft_fonts::document_thai_font().is_none() {"
+        },
+        {
+          "line": 7343,
+          "text": "        .map(|f| (f.name(b\"Subtype\").unwrap_or_default().to_vec(), pdfcraft_fonts::pdf::embedded_sfnt(doc, &f)))"
+        },
+        {
+          "line": 7394,
+          "text": "    let metrics = pdfcraft_fonts::pdf::Metrics::from_dict(&doc, doc.resolve(fonts.get(&resource).unwrap()).as_dict().unwrap());"
+        },
+        {
+          "line": 7417,
+          "text": "    let shaped = pdfcraft_fonts::source_shaping::shape(inter, typed).unwrap();"
+        },
+        {
+          "line": 7433,
+          "text": "    let face = pdfcraft_fonts::document_japanese_font_for_style(false, false).map_or(\"Inter\", |f| f.family);"
+        },
+        {
+          "line": 7476,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/text_regions/styled.rs",
+      "sha256": "33d88b21578518ae68bee5fc5a4ac9a5108dfb0a2941fbc2629973197303ab15",
+      "lines": [
+        {
+          "line": 52,
+          "text": "            pdfcraft_fonts::embedding::face_key(&metrics.base_font) == pdfcraft_fonts::embedding::face_key(&source.base_font)"
+        },
+        {
+          "line": 58,
+          "text": "            pdfcraft_fonts::embedding::matching_faces(&source.base_font).into_iter().find(|face| pdfcraft_fonts::embedding::covers(face.bytes, text))"
+        },
+        {
+          "line": 67,
+          "text": "            .filter(|bytes| pdfcraft_fonts::embedding::covers(bytes, text))"
+        },
+        {
+          "line": 75,
+          "text": "        let family = pdfcraft_fonts::embedding::names(&bytes).map_or_else(|_| source.base_font.clone(), |(family, _)| family);"
+        },
+        {
+          "line": 83,
+          "text": "        let name = pdfcraft_fonts::embedding::embed(self.doc, self.fonts, bytes, family).map_err(EditError::Invalid)?;"
+        },
+        {
+          "line": 235,
+          "text": "type ShapedRunCache = HashMap<(usize, usize), (Vec<u8>, pdfcraft_fonts::source_shaping::ShapedRun, String)>;"
+        },
+        {
+          "line": 274,
+          "text": "        let resource = pdfcraft_fonts::embedding::embed_mapping(doc, fonts, bytes, family, &mappings).map_err(EditError::Invalid)?;"
+        },
+        {
+          "line": 283,
+          "text": "        if pdfcraft_fonts::source_shaping::required(&text)"
+        },
+        {
+          "line": 576,
+          "text": ") -> Result<Option<(Vec<u8>, pdfcraft_fonts::source_shaping::ShapedRun, String)>, EditError> {"
+        },
+        {
+          "line": 577,
+          "text": "    if !pdfcraft_fonts::source_shaping::required(text) {"
+        },
+        {
+          "line": 588,
+          "text": "            .filter(|f| pdfcraft_fonts::embedding::face_key(&Metrics::from_dict(doc, f).base_font) == pdfcraft_fonts::embedding::face_key(&family)),"
+        },
+        {
+          "line": 591,
+          "text": "        if let Some(bytes) = pdfcraft_fonts::pdf::embedded_sfnt(doc, &font)"
+        },
+        {
+          "line": 592,
+          "text": "            && pdfcraft_fonts::embedding::covers(&bytes, text)"
+        },
+        {
+          "line": 593,
+          "text": "            && let Ok(shaped) = pdfcraft_fonts::source_shaping::shape(&bytes, text)"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/text.rs",
+      "sha256": "0f81ed721bbd9026ad7d80659f37ed2ae46c3c26ca13ad95345147f029432a0a",
+      "lines": [
+        {
+          "line": 18,
+          "text": "use pdfcraft_fonts::pdf::Metrics;"
+        },
+        {
+          "line": 19,
+          "text": "use pdfcraft_fonts::{CraftFont, GlyphError, japanese_glyph_from};"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/text/editor.rs",
+      "sha256": "988dde081f08771dc21d90d4deaa1143359e109ba046edf9acc7e60963bce4ae",
+      "lines": [
+        {
+          "line": 26,
+          "text": "        let Some(bytes) = pdfcraft_fonts::pdf::embedded_sfnt_within(doc, &font, &mut decode) else { continue };"
+        },
+        {
+          "line": 41,
+          "text": "        for full in pdfcraft_fonts::embedding::matching_faces(&face) {"
+        },
+        {
+          "line": 55,
+          "text": "    pdfcraft_fonts::embedding::validate_document_input(bytes).map_err(EditError::Invalid)?;"
+        },
+        {
+          "line": 56,
+          "text": "    let (_, postscript) = pdfcraft_fonts::embedding::names(bytes).map_err(EditError::Invalid)?;"
+        },
+        {
+          "line": 60,
+          "text": "    let name = pdfcraft_fonts::embedding::embed(doc, &mut fonts, bytes, &postscript).map_err(EditError::Invalid)?;"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/text/fallback.rs",
+      "sha256": "3039f063ac8d0a2554612ee09664c8ad532df3b526e43725e3bd3df50aa6a348",
+      "lines": [
+        {
+          "line": 11,
+          "text": "    c == '\\t' || pdfcraft_fonts::win_ansi_byte(c).is_some()"
+        },
+        {
+          "line": 253,
+          "text": "fn proportional(ch: char, glyph: &pdfcraft_fonts::GlyphOutline) -> (f64, f64) {"
+        },
+        {
+          "line": 302,
+          "text": "    if needs_japanese(ch) && pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 343,
+          "text": "    let japanese = pdfcraft_fonts::document_japanese_fonts_for_style(family == crate::added::Family::Times, bold);"
+        },
+        {
+          "line": 344,
+          "text": "    let latin = pdfcraft_fonts::document_latin_fonts(bold);"
+        },
+        {
+          "line": 353,
+          "text": "    let hebrew = pdfcraft_fonts::document_hebrew_font(bold).ok_or_else(no_hebrew_font)?;"
+        },
+        {
+          "line": 519,
+          "text": "    let bytes = pdfcraft_fonts::pdf::embedded_sfnt(doc, &font)?;"
+        },
+        {
+          "line": 520,
+          "text": "    pdfcraft_fonts::embedding::validate(&bytes).is_ok().then_some(bytes)"
+        },
+        {
+          "line": 529,
+          "text": "    !missing.is_empty() && source_program(doc, fonts, &line.font).is_some_and(|bytes| pdfcraft_fonts::embedding::covers(&bytes, &missing))"
+        }
+      ]
+    },
+    {
+      "member": "crates/edit/src/text/rewrite.rs",
+      "sha256": "bac2174119f28e8193e265de7ef88f48e066d63f5cc0492b51140e7d256cc541",
+      "lines": [
+        {
+          "line": 104,
+          "text": "                let win = pdfcraft_fonts::win_ansi(&fallback_shown);"
+        },
+        {
+          "line": 244,
+          "text": "            || pdfcraft_fonts::source_shaping::required(draft)"
+        },
+        {
+          "line": 245,
+          "text": "            || !pdfcraft_fonts::embedding::matching_faces(&block.base_font).is_empty()"
+        },
+        {
+          "line": 412,
+          "text": "    let win = pdfcraft_fonts::win_ansi(flat);"
+        },
+        {
+          "line": 429,
+          "text": "    Ok(FontChoice { show_font: name, encode: Box::new(move |s: &str| Some(vec![(shown.clone(), pdfcraft_fonts::win_ansi(s))])), substituted })"
+        }
+      ]
+    },
+    {
+      "member": "crates/engine/src/dates.rs",
+      "sha256": "a830b030847ccfd8fa9110ee93ac4fcf70b98972175f3cfe3bb9c6a0c715a27d",
+      "lines": [
+        {
+          "line": 592,
+          "text": "        if c != '?' && pdfcraft_fonts::win_ansi(c.encode_utf8(&mut buf)) == b\"?\" && !out.contains(c) {"
+        }
+      ]
+    },
+    {
+      "member": "crates/engine/src/document.rs",
+      "sha256": "70f965bac519d3d3f03a6574a93d17899d2a5c94a542e767db2321fea136dd4e",
+      "lines": [
+        {
+          "line": 147,
+          "text": "/// `pdfcraft_fonts::UNDRAWN_MARK`), one notice per field or comment, in page order."
+        },
+        {
+          "line": 158,
+          "text": "            let Some(ch) = pdfcraft_fonts::undrawn_mark(d) else { continue };"
+        },
+        {
+          "line": 161,
+          "text": "            if was.as_dict().is_some_and(|w| w.get(b\"AP\") == d.get(b\"AP\") && pdfcraft_fonts::undrawn_mark(w) == Some(ch)) {"
+        }
+      ]
+    },
+    {
+      "member": "crates/engine/src/lib.rs",
+      "sha256": "56c9ebaaf769ff8c57621f9935ad1e52742483c17870b76f26c2a006e753d059",
+      "lines": [
+        {
+          "line": 105,
+          "text": "pub use pdfcraft_fonts::{MAX_SIGNATURE_CHARS, ScriptOutline, script_missing, script_outline, undrawable_message};"
+        }
+      ]
+    },
+    {
+      "member": "crates/engine/src/text_fonts.rs",
+      "sha256": "35ec36e336a90bcefe7299cf4a6e41a04b56af92eb050b75740c0a80cd820d9f",
+      "lines": [
+        {
+          "line": 83,
+          "text": "            if pdfcraft_fonts::embedding::validate_document_input(&bytes).is_err() {"
+        },
+        {
+          "line": 86,
+          "text": "            if let Ok((family, face)) = pdfcraft_fonts::embedding::names(&bytes) {"
+        }
+      ]
+    },
+    {
+      "member": "crates/engine/tests/it/document_fonts.rs",
+      "sha256": "34822b14e6abe5a4b7d071c4d68a0ade3f977d9e66cd044b03b3aa4b927f8fa4",
+      "lines": [
+        {
+          "line": 89,
+          "text": "    let Some(font) = pdfcraft_fonts::document_arabic_font() else {"
+        },
+        {
+          "line": 93,
+          "text": "    if pdfcraft_fonts::embedding::validate(font.bytes).is_err() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/fonts/src/pdf.rs",
+      "sha256": "8a89739c12e69ce1bcdd7664c96e4dba4d38eba0deb3991261cca4925e4a78c6",
+      "lines": [
+        {
+          "line": 1207,
+          "text": "    if let Ok(i) = crate::encodings::NAMES.binary_search_by(|(n, _)| (*n).cmp(part)) {"
+        },
+        {
+          "line": 1208,
+          "text": "        return char::from_u32(crate::encodings::NAMES[i].1).map(String::from);"
+        },
+        {
+          "line": 1257,
+          "text": "            Some(b\"WinAnsiEncoding\") => Some(&crate::encodings::WIN_ANSI),"
+        },
+        {
+          "line": 1258,
+          "text": "            Some(b\"MacRomanEncoding\") => Some(&crate::encodings::MAC_ROMAN),"
+        },
+        {
+          "line": 1259,
+          "text": "            Some(b\"StandardEncoding\") => Some(&crate::encodings::STANDARD),"
+        },
+        {
+          "line": 1265,
+          "text": "            _ => Some(&crate::encodings::STANDARD),"
+        }
+      ]
+    },
+    {
+      "member": "crates/fonts/src/std14.rs",
+      "sha256": "927d1b5516342279a3940fcaf79fee97a961f5cd9da92185f261216d488c6885",
+      "lines": [
+        {
+          "line": 96,
+          "text": "        f64::from(crate::std14_metrics::WIDTHS[self as usize][code as usize])"
+        },
+        {
+          "line": 120,
+          "text": "        crate::std14_metrics::BASE_FONTS[self as usize]"
+        }
+      ]
+    },
+    {
+      "member": "crates/forms/src/appearance.rs",
+      "sha256": "02516bb33bca2e498be7748b8ddce7f6f4a712cfa04863e0e6c967f3b4c5ccc8",
+      "lines": [
+        {
+          "line": 15,
+          "text": "//! (`pdfcraft_fonts::UNDRAWN_MARK`) and asks other viewers to redraw the field"
+        },
+        {
+          "line": 25,
+          "text": "use pdfcraft_fonts::pdf::Metrics;"
+        },
+        {
+          "line": 26,
+          "text": "use pdfcraft_fonts::{UnicodeCMap, cjk_width, helvetica_width, literal, win_ansi, wrap_with};"
+        },
+        {
+          "line": 326,
+          "text": "            Self::WinAnsi => pdfcraft_fonts::first_undrawable(s),"
+        },
+        {
+          "line": 1063,
+          "text": "        let dingbats = pdfcraft_fonts::Std14::ZapfDingbats;"
+        }
+      ]
+    },
+    {
+      "member": "crates/forms/src/appearances.rs",
+      "sha256": "65b9d618304cc5bf4496f65c5948ea9916e93d259bb41865272c027e96dab1e7",
+      "lines": [
+        {
+          "line": 227,
+          "text": "/// can't hold (`pdfcraft_fonts::UNDRAWN_MARK`): the field's name and that character, once per"
+        },
+        {
+          "line": 233,
+          "text": "            let c = f.widgets.iter().find_map(|w| doc.get(w.obj).as_dict().and_then(pdfcraft_fonts::undrawn_mark))?;"
+        }
+      ]
+    },
+    {
+      "member": "crates/forms/src/author/look.rs",
+      "sha256": "1defee06295cbdab1e694823cd926b9f06d9da389892b933ea679e596a0fa85d",
+      "lines": [
+        {
+          "line": 307,
+          "text": "/// (`pdfcraft_fonts::UNDRAWN_MARK`) and other viewers are asked to redraw the form (see"
+        },
+        {
+          "line": 357,
+          "text": "            pdfcraft_fonts::set_undrawn_mark(d, missing);"
+        }
+      ]
+    },
+    {
+      "member": "crates/forms/src/tests.rs",
+      "sha256": "60f9cda58cd054d47bcfbdbf846106d620f770cd7881449f92a5e1b7037f51bb",
+      "lines": [
+        {
+          "line": 421,
+          "text": "    let helv = |s: &str, size: f64| pdfcraft_fonts::helvetica_width(s, size);"
+        },
+        {
+          "line": 719,
+          "text": "    let metrics = pdfcraft_fonts::pdf::Metrics::from_dict(&doc, font.as_dict().unwrap());"
+        },
+        {
+          "line": 750,
+          "text": "    let metrics = pdfcraft_fonts::pdf::Metrics::from_dict(&doc, font);"
+        },
+        {
+          "line": 779,
+          "text": "    let metrics = pdfcraft_fonts::pdf::Metrics::from_dict(&doc, font.as_dict().unwrap());"
+        },
+        {
+          "line": 936,
+          "text": "        let mark = doc.get(w.obj).as_dict().and_then(pdfcraft_fonts::undrawn_mark);"
+        },
+        {
+          "line": 3297,
+          "text": "    use pdfcraft_fonts::{helvetica_width, wrap_with};"
+        }
+      ]
+    },
+    {
+      "member": "crates/forms/src/values.rs",
+      "sha256": "8cb75f04e4fe224db68d747ab22395cf53c8afcd1b6caa1687ef44772d81b118",
+      "lines": [
+        {
+          "line": 458,
+          "text": "            pdfcraft_fonts::set_undrawn_mark(d, missing);"
+        },
+        {
+          "line": 471,
+          "text": "/// (`pdfcraft_fonts::UNDRAWN_MARK`) is all, and the edit's report says the `?` shows everywhere."
+        }
+      ]
+    },
+    {
+      "member": "crates/ocr/src/lib.rs",
+      "sha256": "ae41b70292614f8962f0645d9e41b688d55c7fe03559267a2298e32ce5c75c0e",
+      "lines": [
+        {
+          "line": 15,
+          "text": "pub use pdfcraft_fonts::helvetica_width;"
+        },
+        {
+          "line": 241,
+          "text": "        out.extend(pdfcraft_fonts::literal(&pdfcraft_fonts::win_ansi(&w.text)));"
+        },
+        {
+          "line": 267,
+          "text": "        assert_eq!(pdfcraft_fonts::first_undrawable(ALPHABET), None);"
+        }
+      ]
+    },
+    {
+      "member": "crates/redact/src/interp.rs",
+      "sha256": "54e0c3102dfae7eb3c48988cfaf8447daa0a22dc825942dfeaa5d9aceed53c0c",
+      "lines": [
+        {
+          "line": 27,
+          "text": "use pdfcraft_fonts::pdf::Metrics;"
+        }
+      ]
+    },
+    {
+      "member": "crates/redact/src/lib.rs",
+      "sha256": "7c043b1596290d7aafcc92662f53efa83eba3ba1b770748af4ae58e6cf6fdb4e",
+      "lines": [
+        {
+          "line": 393,
+          "text": "    if let Some((m, c)) = chosen.iter().find_map(|m| pdfcraft_fonts::first_undrawable(&m.overlay).map(|c| (m, c))) {"
+        },
+        {
+          "line": 396,
+          "text": "            pdfcraft_fonts::undrawable_message(&format!(\"the overlay text of a redaction mark on page {}\", m.page + 1), c)"
+        }
+      ]
+    },
+    {
+      "member": "crates/redact/src/overlay.rs",
+      "sha256": "63460481cb8b67d8bcaffbff1335af40f26ad624151ae8af165c0ad752eb5f3b",
+      "lines": [
+        {
+          "line": 77,
+          "text": "            pdfcraft_annot::OverlayFont::Helvetica => (\"PCHelv\", pdfcraft_fonts::Std14::Helvetica),"
+        },
+        {
+          "line": 78,
+          "text": "            pdfcraft_annot::OverlayFont::Times => (\"PCTimes\", pdfcraft_fonts::Std14::TimesRoman),"
+        },
+        {
+          "line": 79,
+          "text": "            pdfcraft_annot::OverlayFont::Courier => (\"PCCour\", pdfcraft_fonts::Std14::Courier),"
+        },
+        {
+          "line": 103,
+          "text": "            let encoded = pdfcraft_fonts::literal(&pdfcraft_fonts::win_ansi(&line));"
+        }
+      ]
+    },
+    {
+      "member": "crates/redact/src/tests.rs",
+      "sha256": "11ec4cd640983f681b5d61852d9e0a1a3a84a5db4714213ef26337369c14ec77",
+      "lines": [
+        {
+          "line": 97,
+          "text": "        stream(&format!(\"/Length1 {}\", pdfcraft_fonts::INTER_REGULAR.len()), pdfcraft_fonts::INTER_REGULAR),"
+        }
+      ]
+    },
+    {
+      "member": "crates/render/src/inspect/resources.rs",
+      "sha256": "d3aac9d0cc862539f934451c3ea55c199384a9b816c1f7b5b255ca5d62fd0b31",
+      "lines": [
+        {
+          "line": 179,
+          "text": "                let chosen = pdfcraft_fonts::fallback::substitute(&pdfcraft_fonts::fallback::Request {"
+        }
+      ]
+    },
+    {
+      "member": "crates/render/src/inspect/tests.rs",
+      "sha256": "fe8a688c2b2622d8d7701c7bb6bf6092d75eb5e50b891663673a9931d2363562",
+      "lines": [
+        {
+          "line": 665,
+          "text": "            substitution: Some(pdfcraft_fonts::fallback::Why::NamedStandard14.note().into()),"
+        }
+      ]
+    },
+    {
+      "member": "crates/render/src/raster.rs",
+      "sha256": "09a6ede47fd995b95ea6bf334d9a37f37c31b14c05725709d3043f777e7ae575",
+      "lines": [
+        {
+          "line": 130,
+          "text": "        JapaneseFace::Mincho => pdfcraft_fonts::ui_japanese_fonts()"
+        },
+        {
+          "line": 133,
+          "text": "            .or_else(pdfcraft_fonts::document_japanese_font),"
+        },
+        {
+          "line": 135,
+          "text": "            let faces = pdfcraft_fonts::ui_japanese_fonts();"
+        }
+      ]
+    },
+    {
+      "member": "crates/render/src/raster/tests.rs",
+      "sha256": "b290ee284dbd8d6db2538793d5ac04a1d0b18be2360c7476346bb63259c4f9fc",
+      "lines": [
+        {
+          "line": 6540,
+          "text": "        if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 6573,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 6583,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 6633,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        },
+        {
+          "line": 6697,
+          "text": "    if pdfcraft_fonts::document_japanese_font().is_none() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/sign/src/pdf/signing.rs",
+      "sha256": "23215526ebe46e3d4c11139bc80f90048aa8def2d08961935a1e1d09d6e4c6e8",
+      "lines": [
+        {
+          "line": 65,
+          "text": "        self.fields().into_iter().find_map(|(field, text)| pdfcraft_fonts::first_undrawable(text).map(|c| (field, c)))"
+        },
+        {
+          "line": 436,
+          "text": "    use pdfcraft_fonts::{first_undrawable, helvetica_width, inter_width, literal, undrawable_message, win_ansi, wrap, wrap_with};"
+        },
+        {
+          "line": 460,
+          "text": "                    if !pdfcraft_fonts::embedding::covers(pdfcraft_fonts::INTER_REGULAR, &c.to_string()) {"
+        },
+        {
+          "line": 511,
+          "text": "        let tag = pdfcraft_fonts::embedding::embed(doc, &mut fonts, pdfcraft_fonts::INTER_REGULAR, \"Inter\")"
+        },
+        {
+          "line": 518,
+          "text": "        let m = pdfcraft_fonts::pdf::Metrics::from_dict(doc, &font_dict);"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/src/bidi/tests.rs",
+      "sha256": "75849fd0a5e77155cb8a8af0aabd239971f540f49eb6c028b4384f1b5b2432a3",
+      "lines": [
+        {
+          "line": 245,
+          "text": "    if pdfcraft_fonts::ui_arabic_fonts().is_empty() {"
+        },
+        {
+          "line": 260,
+          "text": "    if pdfcraft_fonts::ui_arabic_fonts().is_empty() {"
+        },
+        {
+          "line": 282,
+          "text": "    if pdfcraft_fonts::ui_arabic_fonts().is_empty() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/src/i18n/tests.rs",
+      "sha256": "a7fef2b6b11c88f36a2107b0ea7c5ed1e365091dd15c14bbc1f9d22cb2f8215b",
+      "lines": [
+        {
+          "line": 330,
+          "text": "    let craft = pdfcraft_fonts::ui_japanese_fonts();"
+        },
+        {
+          "line": 340,
+          "text": "        family.retain(|name| !pdfcraft_fonts::CRAFT_FONTS.iter().any(|face| face.name() == *name) || *name == web_name);"
+        },
+        {
+          "line": 512,
+          "text": "    let telugu: Vec<String> = pdfcraft_fonts::ui_telugu_fonts().iter().map(|f| f.name()).collect();"
+        },
+        {
+          "line": 522,
+          "text": "        family.retain(|name| !pdfcraft_fonts::CRAFT_FONTS.iter().any(|face| face.name() == *name) || telugu.contains(name));"
+        },
+        {
+          "line": 1085,
+          "text": "    let faces: Vec<String> = pdfcraft_fonts::ui_arabic_fonts().iter().map(|f| f.name()).collect();"
+        },
+        {
+          "line": 1095,
+          "text": "        family.retain(|name| !pdfcraft_fonts::CRAFT_FONTS.iter().any(|face| face.name() == *name) || faces.contains(name));"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/src/theme.rs",
+      "sha256": "b0b8abf78ee8e6199f0cb479dd9b88052a7dcad820541c721a9e78ffa8a69dd9",
+      "lines": [
+        {
+          "line": 292,
+          "text": "        let need = installed_fallback_need(cjk, !pdfcraft_fonts::ui_chinese_fonts().is_empty());"
+        },
+        {
+          "line": 295,
+          "text": "            let japanese: Vec<String> = pdfcraft_fonts::ui_japanese_fonts().iter().map(|f| f.name()).collect();"
+        },
+        {
+          "line": 365,
+          "text": "    add(&mut fonts, \"Inter\", pdfcraft_fonts::INTER_REGULAR);"
+        },
+        {
+          "line": 375,
+          "text": "    for face in pdfcraft_fonts::ui_cjk_fonts(prefer_hans) {"
+        },
+        {
+          "line": 388,
+          "text": "    for face in pdfcraft_fonts::ui_arabic_fonts()"
+        },
+        {
+          "line": 390,
+          "text": "        .chain(pdfcraft_fonts::ui_telugu_fonts())"
+        },
+        {
+          "line": 391,
+          "text": "        .chain(pdfcraft_fonts::ui_hebrew_fonts())"
+        },
+        {
+          "line": 392,
+          "text": "        .chain(pdfcraft_fonts::ui_thai_fonts())"
+        },
+        {
+          "line": 393,
+          "text": "        .chain(pdfcraft_fonts::ui_devanagari_fonts())"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/src/theme/tests.rs",
+      "sha256": "8415bfc8b6a50bbfdb03507cf2d11db337b1079fd7e953ec61999fded4097030",
+      "lines": [
+        {
+          "line": 143,
+          "text": "    defs.font_data.insert(\"Inter\".into(), Arc::new(FontData::from_static(pdfcraft_fonts::INTER_REGULAR)));"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/src/tools/edit_text_ui/layout.rs",
+      "sha256": "ec84126b1ef39dfda100a324400cd81c69fe16aded9dc2779b9dd2a234972cb4",
+      "lines": [
+        {
+          "line": 92,
+          "text": "                    pdfcraft_fonts::embedding::face_key(&p.face) == pdfcraft_fonts::embedding::face_key(&program.face)"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/src/widgets.rs",
+      "sha256": "9e24c1c90992845e0819044705171655ae53e659a688fdbf100bd8583d32fc64",
+      "lines": [
+        {
+          "line": 903,
+          "text": "        if pdfcraft_fonts::ui_arabic_fonts().is_empty() {"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/tests/it/content.rs",
+      "sha256": "b27f1b3fa2acdeed1e2c2aaf5a1b0d934c73c1d65e091d8e345baac60c952a6a",
+      "lines": [
+        {
+          "line": 96,
+          "text": "        if text.starts_with(\"سلام\") && pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 111,
+          "text": "            if original == \"سلام\" && pdfcraft_fonts::document_arabic_font().is_none() {"
+        },
+        {
+          "line": 402,
+          "text": "    if pdfcraft_fonts::document_thai_font().is_none() {"
+        },
+        {
+          "line": 406,
+          "text": "    let face = pdfcraft_fonts::document_thai_font().unwrap();"
+        }
+      ]
+    },
+    {
+      "member": "crates/ui-egui/tests/it/fonts.rs",
+      "sha256": "f1623bc8c434aa99877e926c8725f7f179c4b7b40a02ec66b5c7b20394086600",
+      "lines": [
+        {
+          "line": 41,
+          "text": "    if pdfcraft_fonts::ui_japanese_fonts().is_empty() {"
+        },
+        {
+          "line": 51,
+          "text": "        assert!(stack[first_jp..].iter().all(|n| pdfcraft_fonts::CRAFT_FONTS.iter().any(|f| f.name() == *n)), \"{stack:?}\");"
+        },
+        {
+          "line": 68,
+          "text": "    if pdfcraft_fonts::ui_chinese_fonts().is_empty() {"
+        },
+        {
+          "line": 73,
+          "text": "    let hans: Vec<String> = pdfcraft_fonts::ui_chinese_fonts().iter().map(|f| f.name()).collect();"
+        },
+        {
+          "line": 94,
+          "text": "    let arabic: Vec<String> = pdfcraft_fonts::ui_arabic_fonts().iter().map(|f| f.name()).collect();"
+        },
+        {
+          "line": 117,
+          "text": "    let telugu: Vec<String> = pdfcraft_fonts::CRAFT_FONTS.iter().filter(|f| f.covers(\"Telu\")).map(|f| f.name()).collect();"
+        },
+        {
+          "line": 191,
+          "text": "    if pdfcraft_fonts::ui_devanagari_fonts().is_empty() {"
+        },
+        {
+          "line": 199,
+          "text": "            stack.iter().position(|n| pdfcraft_fonts::ui_devanagari_fonts().iter().any(|f| f.name() == *n)).expect(\"a Deva face is a fallback\");"
+        },
+        {
+          "line": 332,
+          "text": "    if !pdfcraft_fonts::ui_chinese_fonts().is_empty() {"
+        },
+        {
+          "line": 363,
+          "text": "        assert_eq!(fonts.has_glyphs(&id, JAPANESE), !pdfcraft_fonts::ui_japanese_fonts().is_empty(), \"{id:?}\");"
+        }
+      ]
+    },
+    {
+      "member": "crates/xfa/src/pdf.rs",
+      "sha256": "8793016c13839fc0b960d4ba7330f95552efd59285a8a2eae19d45d2cf6fd982",
+      "lines": [
+        {
+          "line": 8,
+          "text": "use pdfcraft_fonts::{literal, win_ansi};"
+        },
+        {
+          "line": 625,
+          "text": "                    if let Some(c) = pdfcraft_fonts::first_undrawable(&s.text) {"
+        }
+      ]
+    },
+    {
+      "member": "crates/xfa/src/tests.rs",
+      "sha256": "d923e600b3f96ec5498e8a7adc6f83c826b25069826597cdffe5231b582d5c36",
+      "lines": [
+        {
+          "line": 47,
+          "text": "    let w = pdfcraft_fonts::helvetica_width(TEXT, 10.0) * 0.9;"
+        },
+        {
+          "line": 1976,
+          "text": "    let natural = pdfcraft_fonts::helvetica_width(TEXT, 8.0);"
+        },
+        {
+          "line": 2025,
+          "text": "    let natural = pdfcraft_fonts::helvetica_width(caption, 8.0);"
+        },
+        {
+          "line": 3807,
+          "text": "    let w = pdfcraft_fonts::helvetica_width(\"a. DATE\", 10.0) + 0.01;"
+        },
+        {
+          "line": 3829,
+          "text": "    let ink = pdfcraft_fonts::helvetica_width(\"TITLE\", 10.0);"
+        },
+        {
+          "line": 4047,
+          "text": "    use pdfcraft_fonts::Std14;"
+        }
+      ]
+    },
+    {
+      "member": "crates/xfa/src/text.rs",
+      "sha256": "a9411b6194f39d412a0f1e55e598967a81e52ca3aedc0a4a41cd4f492ee44e7d",
+      "lines": [
+        {
+          "line": 6,
+          "text": "use pdfcraft_fonts::Std14;"
+        }
+      ]
+    }
+  ]
+}

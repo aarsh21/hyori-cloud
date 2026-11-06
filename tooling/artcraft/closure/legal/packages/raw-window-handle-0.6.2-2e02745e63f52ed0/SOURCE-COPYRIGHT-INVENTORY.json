@@ -1,0 +1,79 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSE-APACHE.md",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "lines": [
+        {
+          "line": 13,
+          "text": "      \"Licensor\" shall mean the copyright owner or entity authorized by"
+        },
+        {
+          "line": 14,
+          "text": "      the copyright owner that is granting the License."
+        },
+        {
+          "line": 38,
+          "text": "      copyright notice that is included in or attached to the work"
+        },
+        {
+          "line": 52,
+          "text": "      submitted to Licensor for inclusion in the Work by the copyright owner"
+        },
+        {
+          "line": 54,
+          "text": "      the copyright owner. For the purposes of this definition, \"submitted\""
+        },
+        {
+          "line": 61,
+          "text": "      designated in writing by the copyright owner as \"Not a Contribution.\""
+        },
+        {
+          "line": 67,
+          "text": "   2. Grant of Copyright License. Subject to the terms and conditions of"
+        },
+        {
+          "line": 70,
+          "text": "      copyright license to reproduce, prepare Derivative Works of,"
+        },
+        {
+          "line": 102,
+          "text": "          that You distribute, all copyright, patent, trademark, and"
+        },
+        {
+          "line": 124,
+          "text": "      You may add Your own copyright statement to Your modifications and"
+        }
+      ]
+    },
+    {
+      "path": "LICENSE-MIT.md",
+      "sha256": "9c5a80639a57c1c945570e7ebbca0706305849ce3c098021325cca9db2f7acc4",
+      "lines": [
+        {
+          "line": 3,
+          "text": "Copyright (c) 2019 Osspial"
+        },
+        {
+          "line": 12,
+          "text": "The above copyright notice and this permission notice shall be included in all"
+        },
+        {
+          "line": 18,
+          "text": "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
+        }
+      ]
+    },
+    {
+      "path": "LICENSE-ZLIB.md",
+      "sha256": "ae895c8576e682f310fb70d93d9f99b1dd82872094c54a8f6cdfe2ca5c2d6ecb",
+      "lines": [
+        {
+          "line": 1,
+          "text": "Copyright (c) 2020 Osspial"
+        }
+      ]
+    }
+  ]
+}

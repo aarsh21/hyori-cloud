@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "artifactVersion": "0.14.1-hyori-host.1",
+  "deployable": false,
+  "sourceReplayVerified": true,
+  "isolatedOfflineLockedWasmBuild": true,
+  "nativeSyntheticBrowserReopenPassed": true,
+  "cloudPersistenceVerified": false,
+  "pptxFidelityVerified": false,
+  "independentBitIdenticalRebuildVerified": false,
+  "protectedMarksReplaced": false,
+  "fullNoticeContentAuditComplete": false,
+  "compilerGeneratedNoticeAuditComplete": false,
+  "originalDockerAttachmentTimedOut": true,
+  "dockerWaitExitStatus": 0,
+  "initialFailures": [
+    "Attempt 1 metadata and attempt 2 cargo build exited 101 offline because accesskit_atspi_common 0.21.0 was absent. The filtered metadata package list was insufficient for locked workspace resolution. Preparation was corrected to include all 575 checksum-verified locked registry archives; compilation remained offline and locked.",
+    "Browser attempt 1 failed with Execution context was destroyed. The CDP driver was corrected to wait for the matching page loader. Browser attempts 2 and 3 passed; attempt 3 additionally reopened the saved native document in a fresh real-WASM frame."
+  ],
+  "localArtifacts": {
+    "build": "/home/aarsh/.t3/worktrees/hyori-cloud/t3-ce2b2e51/tooling/artcraft/.generated/deckcraft-host-evidence-1",
+    "browser": "/home/aarsh/.t3/worktrees/hyori-cloud/t3-ce2b2e51/tooling/artcraft/.generated/deckcraft-browser-attempt-3",
+    "stage": "/home/aarsh/.t3/worktrees/hyori-cloud/t3-ce2b2e51/tooling/artcraft/.generated/deckcraft-host-attempt-3"
+  },
+  "retained": [
+    {
+      "path": "build-manifest.json",
+      "bytes": 234839,
+      "sha256": "2f739907cf47b7676d687346c920ef28f0f29a6ab6fa9668038434191a674c45"
+    },
+    {
+      "path": "execution.json",
+      "bytes": 1036,
+      "sha256": "af278332f09ddb9dff49b5bf9dc3b5dc7a92c8149fe5478e721fd858fdb3c324"
+    },
+    {
+      "path": "build-inputs.json",
+      "bytes": 375947,
+      "sha256": "debf3941936dac8fd0537af541ad1b6543d64cee1113243a28b5691e56d567c7"
+    },
+    {
+      "path": "tool-inputs.json",
+      "bytes": 24769,
+      "sha256": "8ad708779c6f5f860ab61509287f112d80e8fa1df03abeb8e2a451e8c588523b"
+    },
+    {
+      "path": "container-command.json",
+      "bytes": 1694,
+      "sha256": "88240bdbfc886f3e903248155c3e1b1aae554dbd820b4d84eab9717a0876eabb"
+    },
+    {
+      "path": "resolved-graph.json",
+      "bytes": 203343,
+      "sha256": "30c95d40c3bb343fc517d5b8a232feb931b7e2375b7677d0af3e2783dbf7ecdb"
+    },
+    {
+      "path": "host-bridge.js.source",
+      "bytes": 187343,
+      "sha256": "34579610572be4abd0696075e7d5dd3f63bb12f725f47ef54ef76533eab3f19d"
+    },
+    {
+      "path": "commands/rustc.command.json",
+      "bytes": 937,
+      "sha256": "339952b52660d373b3a4b0cf5c4c79fab8690e88a3567fc2b4c4f2ef2288023f"
+    },
+    {
+      "path": "commands/rustc.result.json",
+      "bytes": 36,
+      "sha256": "f678ffeccf05093926578c75b78980284189c4e338ebd1ec091e3455736883ac"
+    },
+    {
+      "path": "commands/rustc.stdout",
+      "bytes": 196,
+      "sha256": "f22d5e4e9ced367e774ce5bc140d9e6b1235c1882fec80d011044851f3ae6369"
+    },
+    {
+      "path": "commands/rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "commands/cargo-build.command.json",
+      "bytes": 1116,
+      "sha256": "95b7c0ec57652798771f6c828ed0635ce1c54ff90d149a8b5502f73a5ff180d9"
+    },
+    {
+      "path": "commands/cargo-build.result.json",
+      "bytes": 40,
+      "sha256": "dd1c30e9fcdd21bd357d9907542e11bf253a5b17beccaaa1de4795bdedae878b"
+    },
+    {
+      "path": "commands/cargo-build.stderr",
+      "bytes": 11998,
+      "sha256": "c00539f994bf02c5f71b836eea4f4464fd572fd7c9887a078afd0e1b1f38296c"
+    },
+    {
+      "path": "commands/metadata.command.json",
+      "bytes": 1113,
+      "sha256": "1333b9e9ce84c96001668ea23fd4903ed1f2a16bf6c47135c76d5f0694ffd6b2"
+    },
+    {
+      "path": "commands/metadata.result.json",
+      "bytes": 37,
+      "sha256": "99ded1ed5ff12a94ff3658ab6a1d8e50ae3d62c9058816acc457569dc85a658c"
+    },
+    {
+      "path": "commands/metadata.stderr",
+      "bytes": 1000,
+      "sha256": "9244ac746d94bc68f99e926e094bf89bc5931fde32015ecc8a0c100ac28197df"
+    },
+    {
+      "path": "commands/normal-tree.command.json",
+      "bytes": 1239,
+      "sha256": "a0d7a7db978670c6d752e83eb3b7ad5b7e88bfcc245a2a15c305cd64dfbb2621"
+    },
+    {
+      "path": "commands/normal-tree.result.json",
+      "bytes": 37,
+      "sha256": "ba22e915df85a4c98726ff5b569a9b7bcfe97d8d763bee32b90fbde76d37f00f"
+    },
+    {
+      "path": "commands/normal-tree.stderr",
+      "bytes": 1000,
+      "sha256": "9244ac746d94bc68f99e926e094bf89bc5931fde32015ecc8a0c100ac28197df"
+    },
+    {
+      "path": "commands/host-tree.command.json",
+      "bytes": 1231,
+      "sha256": "5587dd76fc56d9cc010c0b779633e30ea12ca74d8ca235133e9744489b4459a6"
+    },
+    {
+      "path": "commands/host-tree.result.json",
+      "bytes": 37,
+      "sha256": "24b5713caaf11101f3b2d53a6ea14375ad88dae510dbc5c183e09cc9fcfaa1af"
+    },
+    {
+      "path": "commands/host-tree.stderr",
+      "bytes": 1000,
+      "sha256": "9244ac746d94bc68f99e926e094bf89bc5931fde32015ecc8a0c100ac28197df"
+    },
+    {
+      "path": "commands/trunk.command.json",
+      "bytes": 1083,
+      "sha256": "4130841b009ef857069ab98e0a2796e671c61fb616a7cc286add81c2b49c5587"
+    },
+    {
+      "path": "commands/trunk.result.json",
+      "bytes": 40,
+      "sha256": "38e85f7991682642381f209e5b79e3d5e69241ca15108b6bfd0d738eebff8801"
+    },
+    {
+      "path": "commands/trunk.stdout",
+      "bytes": 222,
+      "sha256": "f1f18577da613ea4ed8d452a3f8a01c696c61330ceea9ee89111c3e07e71dbe7"
+    },
+    {
+      "path": "commands/trunk.stderr",
+      "bytes": 2049,
+      "sha256": "145f67afe340a53f761690ff87bda85fe473976472883602076d7b0eeabad8fb"
+    },
+    {
+      "path": "browser/result.json",
+      "bytes": 554,
+      "sha256": "402ea7ba1d6d3718395316b239cbc9d2fec1c7b1b37475f1b899685af18b810c"
+    },
+    {
+      "path": "browser/events.json",
+      "bytes": 2610,
+      "sha256": "6faa8655ac1cf4b789925867490941d10014651bb72103430ad6a9f76b1089b8"
+    },
+    {
+      "path": "browser/browser-version.json",
+      "bytes": 251,
+      "sha256": "680e856e526b51882f79ec00a45e70504b73ea3abb35bd5eae2be49c7fa44ab2"
+    },
+    {
+      "path": "browser/browser-command.json",
+      "bytes": 698,
+      "sha256": "be07e3123a18d0e1e819457fb5c145e61e163a9d9e4b806b056ad29011f5f595"
+    },
+    {
+      "path": "legal/zod/LICENSE",
+      "bytes": 1072,
+      "sha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+    },
+    {
+      "path": "legal/zod/package.json",
+      "bytes": 4142,
+      "sha256": "c2d190d9ee4e0bdb60332aaa2130a6a98d65ddb903fe1d29248b15de57832c45"
+    }
+  ]
+}

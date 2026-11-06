@@ -1,0 +1,45 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "benches/shootout-pidigits.rs",
+      "sha256": "c2a48133f5b679928f7e3f4e764c78aaa8c5b811f58b86fe57fae8c63cb07136",
+      "lines": [
+        {
+          "line": 6,
+          "text": "// Copyright (c) 2013-2014 The Rust Project Developers"
+        },
+        {
+          "line": 14,
+          "text": "// - Redistributions of source code must retain the above copyright"
+        },
+        {
+          "line": 17,
+          "text": "// - Redistributions in binary form must reproduce the above copyright"
+        },
+        {
+          "line": 28,
+          "text": "// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS"
+        },
+        {
+          "line": 32,
+          "text": "// COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "bc752ca8dcd9eb7356b20aa7b825899cc4227b933664fb93b10a8051756efbfe",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2013-2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    }
+  ]
+}

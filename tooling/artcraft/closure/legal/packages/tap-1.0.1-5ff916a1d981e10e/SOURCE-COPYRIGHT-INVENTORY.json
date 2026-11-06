@@ -1,0 +1,23 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSE.txt",
+      "sha256": "8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a",
+      "lines": [
+        {
+          "line": 3,
+          "text": "Copyright (c) 2017 Elliot Linder <darfink@gmail.com>"
+        },
+        {
+          "line": 12,
+          "text": "The above copyright notice and this permission notice shall be included in all"
+        },
+        {
+          "line": 18,
+          "text": "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
+        }
+      ]
+    }
+  ]
+}

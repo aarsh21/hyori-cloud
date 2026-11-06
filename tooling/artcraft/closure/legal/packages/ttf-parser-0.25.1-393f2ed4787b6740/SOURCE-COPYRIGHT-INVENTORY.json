@@ -1,0 +1,35 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/tables/cff/std_names.rs",
+      "sha256": "28f192e64551773c97d0457ddabc774cfabe535585a2ef65f37ca48022221923",
+      "lines": [
+        {
+          "line": 172,
+          "text": "    \"copyright\","
+        }
+      ]
+    },
+    {
+      "path": "src/tables/name.rs",
+      "sha256": "12ff8509c8fc14c12a244bc5b76ef43556d2d6800336e30d8ed9c96b9274bab8",
+      "lines": [
+        {
+          "line": 16,
+          "text": "    pub const COPYRIGHT_NOTICE: u16 = 0;"
+        }
+      ]
+    },
+    {
+      "path": "src/tables/post.rs",
+      "sha256": "a361a2c4462bd4d89a6c61a34004795151f579f4744073f911d704016a2854f8",
+      "lines": [
+        {
+          "line": 157,
+          "text": "    \"copyright\","
+        }
+      ]
+    }
+  ]
+}

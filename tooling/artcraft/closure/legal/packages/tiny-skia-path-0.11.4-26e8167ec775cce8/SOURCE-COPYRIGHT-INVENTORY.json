@@ -1,0 +1,171 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/dash.rs",
+      "sha256": "754ef74246efa014a2ffa92f8f99fef17e968847ea8886db840913867957ca29",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/f32x2_t.rs",
+      "sha256": "cd99d6e1fa00ed9c544af718b3f01b68a6eb500d183d3eeced804effb96878f8",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/f32x4_t.rs",
+      "sha256": "6328e5670e9dffa3443b4ab2d7c7f1ab36e2ac14511c54c824e782c89a955607",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/floating_point.rs",
+      "sha256": "720e2fd327609d81534f970a1b04d20750a587246ae4d5291e17f9dc17885f68",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "497bff2609b15972184c9730facc3d08082d7371c6e23f40065f45b5acf66135",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path_builder.rs",
+      "sha256": "28c18ba8da6cdb85a08bc423175248c9a4d8d6736a2a1e4e389dce5fab2435c5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path_geometry.rs",
+      "sha256": "a4efda6dbc421d44b51fbc06c91ca81011da1e86301c45bb5a5e1ab47109a028",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path.rs",
+      "sha256": "4ce0abee74a12b32e0f3e6bc4f3831ed409e39742dcbfc512dac7fb8c3fd1432",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/rect.rs",
+      "sha256": "e4ee2f7cc27746c954e3241e7e33956109aa1bc8c4441f7c98aaeee502eb5289",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/scalar.rs",
+      "sha256": "db35ad8097d346acc37c11bfb93378bf20d27f85e9716401cb82f1030ea0cd0f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/size.rs",
+      "sha256": "2a887b25bee4194b730283f3e09ea8647af1f4584c2ba5d415024b0485022107",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/stroker.rs",
+      "sha256": "ae1156a6686d96753bc1094b300e691334ba4c9c97a42e656bd39df66193ebee",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2008 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/transform.rs",
+      "sha256": "03f7e45c2708a416c35983ab6ad800211d5ceef92ba881b6025f2e8bc91a550f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/codecs/jpeg/transform.rs",
+      "sha256": "65490ae7ce990dda33044b4c52afc1bdcfa836b474a1b6a06c611af6e53a70db",
+      "lines": [
+        {
+          "line": 23,
+          "text": "    This software is copyright (C) 1991-2014, Thomas G. Lane, Guido Vollbeding."
+        },
+        {
+          "line": 30,
+          "text": "    README file must be included, with this copyright and no-warranty notice"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "6e47fec523655d8881a7d638045062f3b30f28e13a0ab041cdaf80027b6156a3",
+      "lines": [
+        {
+          "line": 298,
+          "text": "// Copyright (c) 2018 Guillaume Gomez"
+        }
+      ]
+    }
+  ]
+}

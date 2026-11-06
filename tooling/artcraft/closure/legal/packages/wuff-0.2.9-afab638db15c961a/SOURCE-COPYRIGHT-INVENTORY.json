@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/table_tags.rs",
+      "sha256": "cd4ffb517962fd8fdd02cf74011d1202c6487eb42fe105c2c83868d131f2327c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "/* Copyright 2014 Google Inc. All Rights Reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/variable_length.rs",
+      "sha256": "8a73d3269ee08f29e167b9124a899de87a2c9fdb379021a568052eee04b3d134",
+      "lines": [
+        {
+          "line": 1,
+          "text": "/* Copyright 2015 Google Inc. All Rights Reserved."
+        }
+      ]
+    }
+  ]
+}

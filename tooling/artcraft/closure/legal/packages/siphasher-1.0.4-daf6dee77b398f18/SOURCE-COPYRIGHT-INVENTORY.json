@@ -1,0 +1,61 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/sip.rs",
+      "sha256": "64e6d808ac93c4024ffb1ced16be1891407c6e7026dd0f4eb0145c98605392c3",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2015 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/sip128.rs",
+      "sha256": "c3d7cf996712e0184c5eaabfc2a0a5b64e2a5b89a1faa2d44da38cd5bc2590da",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2015 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/tests.rs",
+      "sha256": "6658c1ac8c688ed90682a6dbc759ab569d43a5fc1405df84575374507ce79a6a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/tests128.rs",
+      "sha256": "ae4f63fcc9aa59614e87c53242dd8b533edfe28e55a76e6a6de13f3d51bf0b05",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    }
+  ]
+}

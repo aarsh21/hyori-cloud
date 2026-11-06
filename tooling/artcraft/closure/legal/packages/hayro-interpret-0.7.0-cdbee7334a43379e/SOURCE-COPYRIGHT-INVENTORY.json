@@ -1,0 +1,199 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "vendor/hayro-interpret/assets/CGATS_LICENSE.txt",
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+      "lines": [
+        {
+          "line": 6,
+          "text": "exclusive Copyright and Related Rights (defined below) upon the creator and"
+        },
+        {
+          "line": 23,
+          "text": "Work (the \"Affirmer\"), to the extent that he or she is an owner of Copyright"
+        },
+        {
+          "line": 26,
+          "text": "Copyright and Related Rights in the Work and the meaning and intended legal"
+        },
+        {
+          "line": 29,
+          "text": "1. Copyright and Related Rights. A Work made available under CC0 may be"
+        },
+        {
+          "line": 30,
+          "text": "protected by copyright and related or neighboring rights (\"Copyright and"
+        },
+        {
+          "line": 31,
+          "text": "Related Rights\"). Copyright and Related Rights include, but are not limited"
+        },
+        {
+          "line": 58,
+          "text": "unconditionally waives, abandons, and surrenders all of Affirmer's Copyright"
+        },
+        {
+          "line": 78,
+          "text": "unconditional license to exercise Affirmer's Copyright and Related Rights in"
+        },
+        {
+          "line": 89,
+          "text": "Copyright and Related Rights in the Work or (ii) assert any associated claims"
+        },
+        {
+          "line": 107,
+          "text": "  any person's Copyright and Related Rights in the Work. Further, Affirmer"
+        }
+      ]
+    },
+    {
+      "path": "vendor/hayro-interpret/assets/README.md",
+      "sha256": "15f2b46ccef40443b9b815cefb17bdb55bcdd45a286b4caab2384485c54d656b",
+      "lines": [
+        {
+          "line": 5,
+          "text": "Original copyright notice:"
+        },
+        {
+          "line": 8,
+          "text": "Copyright 2014 PDFium Authors. All rights reserved."
+        },
+        {
+          "line": 12,
+          "text": "Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com"
+        }
+      ]
+    },
+    {
+      "path": "vendor/hayro-interpret/src/font/generated/glyph_names.rs",
+      "sha256": "3ae9e18c10206ce893c50572c6a121db69c3f7f7c0f75ea9607b41b4c5d3dc4b",
+      "lines": [
+        {
+          "line": 1471,
+          "text": "    \"copyright\" => \"\\u{00A9}\","
+        },
+        {
+          "line": 1472,
+          "text": "    \"copyrightsans\" => \"\\u{F8E9}\","
+        },
+        {
+          "line": 1473,
+          "text": "    \"copyrightserif\" => \"\\u{F6D9}\","
+        },
+        {
+          "line": 4560,
+          "text": "    '\\u{00A9}' => \"copyright\","
+        },
+        {
+          "line": 7553,
+          "text": "    '\\u{F6D9}' => \"copyrightserif\","
+        },
+        {
+          "line": 7697,
+          "text": "    '\\u{F8E9}' => \"copyrightsans\","
+        }
+      ]
+    },
+    {
+      "path": "vendor/hayro-interpret/src/font/generated/mac_roman.rs",
+      "sha256": "0451e6ed0659cda339ef2202f1e4782cac0c4e3ec819446b33c8c5b47575c8e3",
+      "lines": [
+        {
+          "line": 99,
+          "text": "    169_u8 => \"copyright\","
+        },
+        {
+          "line": 310,
+          "text": "     \"copyright\" => 169_u8,"
+        }
+      ]
+    },
+    {
+      "path": "vendor/hayro-interpret/src/font/generated/metrics.rs",
+      "sha256": "2ec9e608573eda459de1e1d9bda3bb494315e36bee885acc88912a11fe0caa41",
+      "lines": [
+        {
+          "line": 175,
+          "text": "    \"copyright\" => 600_f32,"
+        },
+        {
+          "line": 493,
+          "text": "    \"copyright\" => 600_f32,"
+        },
+        {
+          "line": 811,
+          "text": "    \"copyright\" => 600_f32,"
+        },
+        {
+          "line": 1129,
+          "text": "    \"copyright\" => 600_f32,"
+        },
+        {
+          "line": 1447,
+          "text": "    \"copyright\" => 737_f32,"
+        },
+        {
+          "line": 1765,
+          "text": "    \"copyright\" => 737_f32,"
+        },
+        {
+          "line": 2083,
+          "text": "    \"copyright\" => 737_f32,"
+        },
+        {
+          "line": 2401,
+          "text": "    \"copyright\" => 737_f32,"
+        },
+        {
+          "line": 2694,
+          "text": "    \"copyrightserif\" => 790_f32,"
+        },
+        {
+          "line": 2710,
+          "text": "    \"copyrightsans\" => 790_f32,"
+        },
+        {
+          "line": 2912,
+          "text": "    \"copyright\" => 747_f32,"
+        },
+        {
+          "line": 3230,
+          "text": "    \"copyright\" => 747_f32,"
+        },
+        {
+          "line": 3548,
+          "text": "    \"copyright\" => 760_f32,"
+        },
+        {
+          "line": 3866,
+          "text": "    \"copyright\" => 760_f32,"
+        }
+      ]
+    },
+    {
+      "path": "vendor/hayro-interpret/src/font/generated/symbol.rs",
+      "sha256": "3b0b7cc198c484fed14c867f033b82ff51257380dcaa72add3e87cd800afe615",
+      "lines": [
+        {
+          "line": 154,
+          "text": "    211_u8 => \"copyrightserif\","
+        },
+        {
+          "line": 170,
+          "text": "    227_u8 => \"copyrightsans\","
+        }
+      ]
+    },
+    {
+      "path": "vendor/hayro-interpret/src/font/generated/win_ansi.rs",
+      "sha256": "b9e4d4251a7c478c56c07ea445ebf179de6c0cbde1f50dff2b9ef9f3ae7f2139",
+      "lines": [
+        {
+          "line": 103,
+          "text": "    169_u8 => \"copyright\","
+        }
+      ]
+    }
+  ]
+}

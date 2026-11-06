@@ -1,0 +1,113 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "data/glyphlist.txt",
+      "sha256": "7bca3e2431753d85e6c6617707bec21396af7110199e746a3b75e01f0ace2346",
+      "lines": [
+        {
+          "line": 2,
+          "text": "# Copyright 2002-2019 Adobe (http://www.adobe.com/)."
+        },
+        {
+          "line": 9,
+          "text": "# copyright notice, this list of conditions and the following"
+        },
+        {
+          "line": 13,
+          "text": "# copyright notice, this list of conditions and the following"
+        },
+        {
+          "line": 21,
+          "text": "# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND"
+        },
+        {
+          "line": 25,
+          "text": "# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR"
+        },
+        {
+          "line": 1503,
+          "text": "copyright;00A9"
+        },
+        {
+          "line": 1504,
+          "text": "copyrightsans;F8E9"
+        },
+        {
+          "line": 1505,
+          "text": "copyrightserif;F6D9"
+        }
+      ]
+    },
+    {
+      "path": "src/ps/cff/dict.rs",
+      "sha256": "7c5b9e06b6ad3dfdb11d11f850e4c6536fac3bb9ca71cd72487431f4f72e9741",
+      "lines": [
+        {
+          "line": 35,
+          "text": "    Copyright,"
+        },
+        {
+          "line": 122,
+          "text": "            0 => Copyright,"
+        },
+        {
+          "line": 252,
+          "text": "    Copyright(Sid),"
+        },
+        {
+          "line": 455,
+          "text": "        Copyright => Entry::Copyright(stack.pop_i32()?.into()),"
+        },
+        {
+          "line": 645,
+          "text": "            Copyright(Sid::new(393)),"
+        }
+      ]
+    },
+    {
+      "path": "src/ps/cff/v1.rs",
+      "sha256": "33ca362b9334d14c87e1bac28584b391ba0eb246e903af5e2ebef1f4919ad323",
+      "lines": [
+        {
+          "line": 178,
+          "text": "        // Copyright"
+        },
+        {
+          "line": 181,
+          "text": "            b\"Copyright 2022 The Noto Project Authors https:github.comnotofontslatin-greek-cyrillic\""
+        }
+      ]
+    },
+    {
+      "path": "src/ps/string.rs",
+      "sha256": "6069b0c3d4b9fc6009c577e08dcb818708ad54b40ecf60537b36382c0f6e2718",
+      "lines": [
+        {
+          "line": 218,
+          "text": "    \"copyright\","
+        }
+      ]
+    },
+    {
+      "path": "src/ps/type1.rs",
+      "sha256": "feaa4699131860eff28f631c1661e7ef9e30e29937793b79d102db2e224ea290",
+      "lines": [
+        {
+          "line": 1625,
+          "text": "%Copyright: Copyright 2015-2021 Google LLC. All Rights Reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/tables/post.rs",
+      "sha256": "c626c72cedd62d4b9d2b55a473646a7f53e384fbe1ac71c2c665c32095817543",
+      "lines": [
+        {
+          "line": 246,
+          "text": "    \"germandbls\", \"registered\", \"copyright\", \"trademark\", \"acute\", \"dieresis\", \"notequal\", \"AE\","
+        }
+      ]
+    }
+  ]
+}

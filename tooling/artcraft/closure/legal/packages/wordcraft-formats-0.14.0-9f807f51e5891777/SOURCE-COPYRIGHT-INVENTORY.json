@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/formats/src/latex/lex.rs",
+      "sha256": "b802f6f0e99d95799efc71988ba9fe3c156fde0b6655d74a83be551ab6657903",
+      "lines": [
+        {
+          "line": 298,
+          "text": "        \"copyright\" | \"textcopyright\" => \"©\","
+        }
+      ]
+    }
+  ]
+}

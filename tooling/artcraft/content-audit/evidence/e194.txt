@@ -1,0 +1,245 @@
+//! Conversions between the crate's keys and egui's, matching egui key presses to chords, and a
+//! [`Dispatcher`] that turns a frame's key events into the commands they run. [`platform`] gives
+//! the platform to build a keymap for, the browser's operating system included on the web.
+
+use ::egui::os::OperatingSystem;
+use ::egui::{Context, Event, InputState, Key as EguiKey, KeyboardShortcut, Modifiers};
+
+use crate::chord::{Chord, Key, Mods, Platform, Trigger};
+use crate::command::CommandRef;
+use crate::keymap::{Keymap, Lookup};
+use crate::layout::{KeyInput, Layout};
+use crate::scope::Active;
+
+/// The platform to build a keymap for in this context. Unlike [`Platform::current`], a web build
+/// gets the browser's operating system, which eframe reads from the user agent, so a Mac browser
+/// shows and matches Cmd shortcuts. eframe sets it before the first frame; an app that builds its
+/// keymap earlier rebuilds it when this differs.
+pub fn platform(ctx: &Context) -> Platform {
+    Platform::from(ctx.os())
+}
+
+/// iOS counts as Mac; Android and unknown systems count as Linux.
+impl From<OperatingSystem> for Platform {
+    fn from(os: OperatingSystem) -> Platform {
+        match os {
+            OperatingSystem::Mac | OperatingSystem::IOS => Platform::Mac,
+            OperatingSystem::Windows => Platform::Windows,
+            OperatingSystem::Nix | OperatingSystem::Android | OperatingSystem::Unknown => Platform::Linux,
+        }
+    }
+}
+
+// Both matches are generated from one list so that a key added to `Key` without an egui
+// counterpart fails to compile.
+macro_rules! egui_keys {
+    ($($ours:ident = $theirs:ident),* ; $($same:ident),* $(,)?) => {
+        impl Key {
+            /// The key for an egui key. `None` for modifier keys, Copy, Cut, Paste, BrowserBack
+            /// and IntlBackslash.
+            pub fn from_egui(key: EguiKey) -> Option<Key> {
+                match key {
+                    $(EguiKey::$theirs => Some(Key::$ours),)*
+                    $(EguiKey::$same => Some(Key::$same),)*
+                    _ => None,
+                }
+            }
+
+            pub fn to_egui(self) -> EguiKey {
+                match self {
+                    $(Key::$ours => EguiKey::$theirs,)*
+                    $(Key::$same => EguiKey::$same,)*
+                }
+            }
+        }
+    };
+}
+
+egui_keys! {
+    Up = ArrowUp, Down = ArrowDown, Left = ArrowLeft, Right = ArrowRight;
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20,
+    F21, F22, F23, F24, F25, F26, F27, F28, F29, F30, F31, F32, F33, F34, F35,
+    Escape, Tab, Backspace, Enter, Space, Insert, Delete, Home, End, PageUp, PageDown,
+    Minus, Equals, Plus, OpenBracket, CloseBracket, Backslash, Semicolon, Quote, Backtick,
+    Comma, Period, Slash, Colon, Pipe, Questionmark, Exclamationmark, OpenCurlyBracket, CloseCurlyBracket,
+}
+
+impl Mods {
+    /// The modifiers egui reports, read for `platform`. On macOS cmd is ⌘ and ctrl the Control
+    /// key; elsewhere Ctrl is cmd and ctrl stays false.
+    pub fn from_egui(mods: &Modifiers, platform: Platform) -> Mods {
+        if platform.is_mac() {
+            // egui sets `command` together with `mac_cmd` on macOS; synthetic events may set
+            // only one of them.
+            Mods { cmd: mods.mac_cmd || mods.command, ctrl: mods.ctrl, alt: mods.alt, shift: mods.shift }
+        } else {
+            Mods { cmd: mods.ctrl || mods.command, ctrl: false, alt: mods.alt, shift: mods.shift }
+        }
+    }
+}
+
+impl Chord {
+    /// The egui shortcut for this chord, for egui's own shortcut text and `consume_shortcut`.
+    /// cmd becomes egui's `command` and ctrl its `ctrl`, which egui folds the same way off
+    /// macOS.
+    pub fn to_egui_shortcut(&self) -> KeyboardShortcut {
+        let m = self.mods;
+        KeyboardShortcut::new(Modifiers { alt: m.alt, ctrl: m.ctrl, shift: m.shift, mac_cmd: false, command: m.cmd }, self.key.to_egui())
+    }
+}
+
+impl KeyInput {
+    /// What an egui key press reports: the logical key as typed and the physical key. On a layout
+    /// that is not Latin, the suite's egui-winit reports the Latin layout's letter as the logical
+    /// key (Linux, Windows, and macOS with ⌘ held), and crates.io egui the physical key, so
+    /// [`Layout::resolve`] takes a letter there before the position. The Latin layout's character
+    /// comes from the frame's input ([`Dispatcher::dispatch`] fills it in). egui reports no Shift
+    /// level, so [`Layout`] infers it. `None` for events other than key presses and releases.
+    pub fn from_egui(event: &Event, platform: Platform) -> Option<KeyInput> {
+        let Event::Key { key, physical_key, modifiers, .. } = event else { return None };
+        let mut input = KeyInput::new(Mods::from_egui(modifiers, platform));
+        input.typed = Key::from_egui(*key);
+        input.physical = physical_key.and_then(Key::from_egui);
+        Some(input)
+    }
+}
+
+/// Whether a key press egui reported triggers `binding` on `platform`, on a layout about which
+/// nothing is known, for a press whose physical key is unknown. [`Layout::matches`] takes the
+/// whole press and the layout.
+///
+/// Besides an exact match:
+/// - Shift with a base key matches the shifted key egui reports (`Shift+;` matches `:`).
+/// - A shifted symbol bound without Shift matches when Shift is held to type it (`?`).
+/// - A binding on `=` matches `+` with or without Shift, and a binding on `+` matches
+///   `Shift+=`, so zoom keys work with and without Shift.
+pub fn matches(binding: &Chord, key: EguiKey, mods: &Modifiers, platform: Platform) -> bool {
+    let Some(pressed) = Key::from_egui(key) else { return false };
+    Layout::new().matches(binding, &KeyInput::new(Mods::from_egui(mods, platform)).with_typed(pressed), platform)
+}
+
+pub use crate::editor::DOUBLE_PRESS;
+
+/// A command a key press runs.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct Hit {
+    /// The command to run; for tools sharing the chord, the first of `cycle`.
+    pub command: CommandRef,
+    /// Tools of one group sharing the chord, in catalog order (the app picks the next one);
+    /// empty for a plain command.
+    pub cycle: Vec<CommandRef>,
+    /// The chord whose binding matched, with `double` set when the double binding ran.
+    pub trigger: Trigger,
+    /// Whether `trigger` is the chord the press means ([`Layout::resolve`]), the one the shortcut
+    /// recorder records. `false` when the press matched through a stand-in: a Shift binding on the
+    /// US base key (`Shift+;` for `:`), `+` and `=` standing for each other, or a digit-row
+    /// position's digit.
+    pub exact: bool,
+    /// The text of the Paste event that ran the command, or on the web of the Paste event that
+    /// came with the press that ran it.
+    pub pasted: Option<String>,
+}
+
+impl Hit {
+    fn from_lookup(lookup: Lookup, trigger: Trigger, exact: bool) -> Option<Hit> {
+        let (command, cycle) = match lookup {
+            Lookup::None => return None,
+            Lookup::Run(command) => (command, Vec::new()),
+            Lookup::Cycle(cycle) => (cycle.first()?.clone(), cycle),
+        };
+        Some(Hit { command, cycle, trigger, exact, pasted: None })
+    }
+}
+
+#[derive(Clone, Debug)]
+struct LastPress {
+    chord: Chord,
+    at: f64,
+    ran_double: bool,
+    /// The focused panel: a press in another panel never completes the pair.
+    panel: Option<String>,
+}
+
+/// Runs a keymap against egui's input, one call per frame before the UI reads its keys.
+///
+/// It reads key presses (repeats only when [`with_repeat`](Self::with_repeat) is on). A press
+/// that runs a command is removed from the events, together with the text it typed when it has
+/// no command modifier, so no widget sees it too. Other events stay.
+///
+/// On the desktop, egui-winit sends egui's Copy, Cut and Paste events in place of the key press
+/// for any chord of Cmd with C, X or V (Ctrl off macOS; on Windows also Shift+Delete, Ctrl+Insert
+/// and Shift+Insert). The web build sends the key press and then the event. For the plain
+/// clipboard chords (Cmd+C, Cmd+X, Cmd+V, Cmd+Insert, Shift+Delete, Shift+Insert), the events and
+/// their presses stay with the app unless [`with_clipboard_events`](Self::with_clipboard_events)
+/// is on, so bindings on those chords run only with it on. An event with more modifiers held
+/// counts as its chord, read from the frame's modifiers (Cmd+Shift+V), and runs that chord's
+/// binding; without one, it stays. On Windows, egui-winit also sends Cut for Ctrl+Shift+Delete
+/// and Copy for Ctrl+Shift+Insert, which read as Cmd+Shift+X and Cmd+Shift+C.
+///
+/// egui-winit sends no Paste event when the clipboard is empty or holds no text (an image), so a
+/// binding on Cmd+V, or on Cmd and V with more modifiers, cannot run then on the desktop.
+///
+/// While [`Active::typing`], the text field keeps, without lookup:
+/// - the plain clipboard chords' events and presses (other clipboard chords are looked up);
+/// - a press with a Text event of its own in the frame, since it typed that text. This covers
+///   AltGr: the browser on Windows reports AltGr+Q (`@` on a German layout) as Ctrl+Alt+Q, and
+///   the web build's text agent sends the `@` after it. egui-winit reports AltGr with neither Ctrl
+///   nor Alt. A Ctrl+Alt press without text is a command chord.
+///
+/// Other presses are looked up; the keymap's [`TypingRule`](crate::TypingRule) and
+/// [`text_editing_chords`](crate::text_editing_chords) leave plain keys and the text-editing chords
+/// (Cmd+Z, word moves) to the field.
+#[derive(Clone, Debug)]
+pub struct Dispatcher {
+    last: Option<LastPress>,
+    repeat: bool,
+    clipboard: bool,
+    /// Whether a press's Text event comes before it when no text field has focus, as eframe's
+    /// web build sends them.
+    text_first: bool,
+    layout: Layout,
+    /// Whether right Alt is held. egui-winit reports AltGr with neither Ctrl nor Alt, so its
+    /// presses would otherwise teach the layout as plain ones.
+    right_alt: bool,
+}
+
+/// eframe's web build sends a press's Text event first when no text field has focus.
+const TEXT_FIRST: bool = cfg!(target_arch = "wasm32");
+
+impl Default for Dispatcher {
+    fn default() -> Dispatcher {
+        Dispatcher { last: None, repeat: false, clipboard: false, text_first: TEXT_FIRST, layout: Layout::new(), right_alt: false }
+    }
+}
+
+impl Dispatcher {
+    pub fn new() -> Dispatcher {
+        Dispatcher::default()
+    }
+
+    /// Whether held keys run their command again on each repeat (off by default), so a held
+    /// arrow can nudge. Repeats never count toward a double press.
+    pub fn with_repeat(mut self, on: bool) -> Dispatcher {
+        self.repeat = on;
+        self
+    }
+
+    /// Whether egui's Copy, Cut and Paste events for the plain clipboard chords count as those
+    /// chords (Cmd+C, Cmd+X, Cmd+V; Shift+Delete and Shift+Insert for Cut and Paste with Shift
+    /// alone) outside text fields. Off by default: the events stay in egui's input for the app's
+    /// own handlers. With it on, an event that runs a command is removed, and a Paste event's text
+    /// moves to [`Hit::pasted`]. On the web, the key press runs the command and its clipboard
+    /// event goes with it the same way; when the press runs nothing, or the hit is declined, both
+    /// stay. An app that asks egui for a paste (`ViewportCommand::RequestPaste`) to run its paste
+    /// command gets a Paste event back, which with this on runs that command again.
+    pub fn with_clipboard_events(mut self, on: bool) -> Dispatcher {
+        self.clipboard = on;
+        self
+    }
+
+    /// Starts from what the platform reports about the keyboard layout. The dispatcher also
+    /// learns from what plain presses type ([`Layout::observe`]), and takes whether the layout
+    /// is Latin from egui whe

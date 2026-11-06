@@ -1,0 +1,83 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSE-APACHE.txt",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "lines": [
+        {
+          "line": 12,
+          "text": "   \"Licensor\" shall mean the copyright owner or entity authorized by"
+        },
+        {
+          "line": 13,
+          "text": "   the copyright owner that is granting the License."
+        },
+        {
+          "line": 37,
+          "text": "   copyright notice that is included in or attached to the work"
+        },
+        {
+          "line": 51,
+          "text": "   submitted to Licensor for inclusion in the Work by the copyright owner"
+        },
+        {
+          "line": 53,
+          "text": "   the copyright owner. For the purposes of this definition, \"submitted\""
+        },
+        {
+          "line": 60,
+          "text": "   designated in writing by the copyright owner as \"Not a Contribution.\""
+        },
+        {
+          "line": 66,
+          "text": "2. Grant of Copyright License. Subject to the terms and conditions of"
+        },
+        {
+          "line": 69,
+          "text": "   copyright license to reproduce, prepare Derivative Works of,"
+        },
+        {
+          "line": 101,
+          "text": "       that You distribute, all copyright, patent, trademark, and"
+        },
+        {
+          "line": 123,
+          "text": "   You may add Your own copyright statement to Your modifications and"
+        },
+        {
+          "line": 186,
+          "text": "   same \"printed page\" as the copyright notice for easier"
+        },
+        {
+          "line": 189,
+          "text": "Copyright [yyyy] [name of copyright owner]"
+        }
+      ]
+    },
+    {
+      "path": "LICENSE-MIT.txt",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "lines": [
+        {
+          "line": 11,
+          "text": "The above copyright notice and this permission notice"
+        },
+        {
+          "line": 19,
+          "text": "SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "6f502c35d714b9a50b02df3925f4296679e2dc5be8efe652f431c441eea61612",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2017 Thomas Keh."
+        }
+      ]
+    }
+  ]
+}

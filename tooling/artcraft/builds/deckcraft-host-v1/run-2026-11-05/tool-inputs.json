@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 1,
+  "baseImage": "docker.io/library/rust@sha256:be49948243566aa0ae465ae2786c4bab8cb5597084873b01d3db50dcebc70b18",
+  "archives": [
+    {
+      "id": "rust-std",
+      "url": "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-wasm32-unknown-unknown.tar.gz",
+      "bytes": 34937013,
+      "sha256": "fdc80d2da1effc88df0bae8503ad117d268a4854afb14a8e31fd1ef6df0aad17",
+      "members": [
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-APACHE",
+          "output": "legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-APACHE",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/COPYRIGHT",
+          "output": "legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/COPYRIGHT",
+          "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-MIT",
+          "output": "legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-MIT",
+          "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_demangle-9ea1fd13747588a0.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_demangle-9ea1fd13747588a0.rmeta",
+          "sha256": "677ef4aa0304fa2cb25817618adfb4a12d1b0208c4f0c26b9cbadff49d8888b3"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_unwind-92f8bb4a6c469002.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_unwind-92f8bb4a6c469002.rmeta",
+          "sha256": "22f3ae745d03a9c173e4952c3e694818f78a3426ca9e11b6954fccf4423b8e66"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_literal_escaper-b0f46920a889d912.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_literal_escaper-b0f46920a889d912.rmeta",
+          "sha256": "062b93082384bab4590c4c94d124fa3fb8c75712ed269a90ab57d20fc08f2c00"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_std-6068d5c494af0832.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_std-6068d5c494af0832.rmeta",
+          "sha256": "c2f394f7889b15030be8dc58936f98a4cd36cf464d164c06877df02c6c8eefc2"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libadler2-9e947446b7f6b482.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libadler2-9e947446b7f6b482.rmeta",
+          "sha256": "46238d0ceb3f7eaf7873890759dc6a8b4c4d85dc38b10c18cd0cba311e19e00e"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libproc_macro-1ef320e5a90e81c2.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libproc_macro-1ef320e5a90e81c2.rmeta",
+          "sha256": "17290f2eab0ce84b59bac4de578a741d4703140a0b4d2c50573299b4326e4dbd"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libdlmalloc-d93a4a60b619baf3.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libdlmalloc-d93a4a60b619baf3.rmeta",
+          "sha256": "e2822876620e903a015541585f926fdb798b995a5846fb43ba1c6a7db5165331"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libaddr2line-31b5894fc0b82494.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libaddr2line-31b5894fc0b82494.rmeta",
+          "sha256": "e6e1278016e8c88c85bf187ab104b2bb318d0239b97394151ee33b53f0be2947"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libminiz_oxide-cefb99931a25ca25.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libminiz_oxide-cefb99931a25ca25.rmeta",
+          "sha256": "d8f4d83de73d0fe1e94dfa384c211e14fe28cebb1cba442719ee6e35f9e830ef"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libsysroot-eb616c57c024a0f5.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libsysroot-eb616c57c024a0f5.rmeta",
+          "sha256": "052a333bd6cfb4c385e9d232bbe99196075baaea7b0e89e7d286d1dbce807a0f"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_abort-dd029e87cdb68d56.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_abort-dd029e87cdb68d56.rmeta",
+          "sha256": "0db426bc70622cc2271586f45702c91e8bdda080e509ec0645d638b3a832b7b1"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/liblibc-a3c73e917dfde4e6.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/liblibc-a3c73e917dfde4e6.rmeta",
+          "sha256": "b760d63026d6415bc433bfbc20e0497b40cbd012078afdc6e3e80aa871f0bd14"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libgetopts-5f1c3267982e5167.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libgetopts-5f1c3267982e5167.rmeta",
+          "sha256": "1f8de394bb84396b23225d63c2ecf240e221fbd9ab73c5cb4f557999548fe0ed"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libcfg_if-85f1fbe644584d09.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libcfg_if-85f1fbe644584d09.rmeta",
+          "sha256": "78924a13690c713f7099c13e143b40f6b69da0bf1bc889df3828bb04520e91c0"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libtest-465aec5d0602f6e9.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libtest-465aec5d0602f6e9.rmeta",
+          "sha256": "423d8d378a6ee6c26e285ee4efb973ca3de895184610ecf89ad1d2512dbf4953"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_alloc-f817ddeeaf4a731a.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_alloc-f817ddeeaf4a731a.rmeta",
+          "sha256": "d07615340e714b43409f55cddf6d0936eabe64327cfc21cf10465f984c87ac10"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libcore-a9f1907fcd7ae78a.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libcore-a9f1907fcd7ae78a.rmeta",
+          "sha256": "c59f6a3e451a60ec51eaaaf0742dec71cc7dc126312f2d2761fb54c2a986596a"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libobject-f3842dd3e11f84ba.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libobject-f3842dd3e11f84ba.rmeta",
+          "sha256": "c668730afb70dbf2966f13055b3a5a83dfab9034d7d03302c0793a475374aa8e"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libstd-ff219504bf6f71ca.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libstd-ff219504bf6f71ca.rmeta",
+          "sha256": "7bbc988467522e48843175ba858131b02283dbf62c3297204fdac01bbee13a07"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libstd_detect-4a8ba4cc3e52ae8b.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libstd_detect-4a8ba4cc3e52ae8b.rmeta",
+          "sha256": "f4a86ec5ab7836e4e1f120b852ebb1aa4a32e0385aee4918be822aa63dec9e15"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libmemchr-390e66b9c82fee7c.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libmemchr-390e66b9c82fee7c.rmeta",
+          "sha256": "de6e9e41081eef93cc1087b253e6ffc9fece221dbecd858d60739fe04898d360"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libunwind-ac2729c88228403d.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libunwind-ac2729c88228403d.rmeta",
+          "sha256": "599f1ba33f092c6f4f9f72e434f0ebd8431461a718e23c2f5f7fdf6cf7a7dcca"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libgimli-fe2bf0e27d517ecd.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libgimli-fe2bf0e27d517ecd.rmeta",
+          "sha256": "a8268a6257b1f0f36afddf568588462d201add1a7c6d9e32547a7bda73feb512"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_core-2fa5081e6e0caefd.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_core-2fa5081e6e0caefd.rmeta",
+          "sha256": "f9361ef5195f555de2ca7fdcbd557eabf933cf33e40551e52cd491c6f89894de"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libcompiler_builtins-7abd1d82b9fd7fae.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libcompiler_builtins-7abd1d82b9fd7fae.rmeta",
+          "sha256": "242327fa0ec3249874e5b4d2362adebed626294f54fa79486d12492b1afeb2d2"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libhashbrown-722ced2adb21adde.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libhashbrown-722ced2adb21adde.rmeta",
+          "sha256": "3c14c44d6e572c6181863323e0caefcacf3bc2088456422dcc34eff1fcc73fe4"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/liballoc-327f5b6ac931bc6f.rmeta",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/liballoc-327f5b6ac931bc6f.rmeta",
+          "sha256": "57c66e3a0e8ee06f031587d086a7e33c7d79e97ed40dd0d9c14ef14afa50a478"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_demangle-9ea1fd13747588a0.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_demangle-9ea1fd13747588a0.rlib",
+          "sha256": "691c2893eede1eedc0733b8c075225451beb4a9e14ffe13c8c31473e5a11cdcc"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_unwind-92f8bb4a6c469002.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_unwind-92f8bb4a6c469002.rlib",
+          "sha256": "8937983f3c166bd6b197d7e88657ca47ed278b4e4184112a0ff2e9eba1f73c65"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_literal_escaper-b0f46920a889d912.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_literal_escaper-b0f46920a889d912.rlib",
+          "sha256": "6f10cfc63bf91a8fd292444b4ed741fcf726fe37a17eff900afdad20b62794bf"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_std-6068d5c494af0832.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_std-6068d5c494af0832.rlib",
+          "sha256": "9df83b4eb27e3c06371c8f277a20ca75f5508771210257857f636c9344040fdf"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libadler2-9e947446b7f6b482.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libadler2-9e947446b7f6b482.rlib",
+          "sha256": "07fad3285e78543c2f7720a76ac618c68860a78f3180465ee948bc3bfcf4d04b"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libproc_macro-1ef320e5a90e81c2.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libproc_macro-1ef320e5a90e81c2.rlib",
+          "sha256": "aca66fce5741dcc7158d6c89dff8c697cb498dd06efef9e17b75d796205a84c1"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libdlmalloc-d93a4a60b619baf3.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libdlmalloc-d93a4a60b619baf3.rlib",
+          "sha256": "bb8b1b0ec2da2732e4a7362d469620294b429ca47f37c964280aea6ad93f3d59"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libaddr2line-31b5894fc0b82494.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libaddr2line-31b5894fc0b82494.rlib",
+          "sha256": "b7dda5c25813e22c0816ee2eda762ca798aac30bd23588a5a2ce5bddd6df43ad"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libminiz_oxide-cefb99931a25ca25.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libminiz_oxide-cefb99931a25ca25.rlib",
+          "sha256": "021ae7f06a769236c9276b2ae68a62868b6df5a12f3b1569fb1e786b657c5790"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libsysroot-eb616c57c024a0f5.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libsysroot-eb616c57c024a0f5.rlib",
+          "sha256": "15ebce0b534cdc1c55a1aee87d53b2a7a5c32d50a53cf0bc53f151126b52ad40"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_abort-dd029e87cdb68d56.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libpanic_abort-dd029e87cdb68d56.rlib",
+          "sha256": "a9224aa2d1f7857ee9c3a2774c2ae2b466c8c028a980cfd1badbb8641c684dde"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/liblibc-a3c73e917dfde4e6.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/liblibc-a3c73e917dfde4e6.rlib",
+          "sha256": "c455033be49972733d8b22ded646b29752eda47c4acf3477b55650961cf02024"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libgetopts-5f1c3267982e5167.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libgetopts-5f1c3267982e5167.rlib",
+          "sha256": "10fef6a71a4286d15b6b982b4511d6c8f22b7f678a08c42e8e1a8600b4bc5d18"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libcfg_if-85f1fbe644584d09.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libcfg_if-85f1fbe644584d09.rlib",
+          "sha256": "2feb48c6394cf8f7933b7ac6ce663901302e8d3cd9fa8a5e39c979ed97b44a17"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libtest-465aec5d0602f6e9.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libtest-465aec5d0602f6e9.rlib",
+          "sha256": "c910b1d30a57265ff465e9be040dfa97cfb9a314b70eb246266deb6f44b3adc1"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_alloc-f817ddeeaf4a731a.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_alloc-f817ddeeaf4a731a.rlib",
+          "sha256": "de3733a5597de11ce474439ef9f0190b717a8b6800baa3efc200aaf57a9169a6"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libcore-a9f1907fcd7ae78a.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libcore-a9f1907fcd7ae78a.rlib",
+          "sha256": "56d8a1a6273ca4748c9fcaa4830027d3aae05673c8f6858866192c35492259a6"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libobject-f3842dd3e11f84ba.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libobject-f3842dd3e11f84ba.rlib",
+          "sha256": "e9cc4897fd0378155c81393fda49bdeaa2b93e72ceb0e9b24ecface50051b738"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libstd-ff219504bf6f71ca.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libstd-ff219504bf6f71ca.rlib",
+          "sha256": "62314904685d54280c8325e03fcd1400d06a2a4fb81ed40c4822a5daf2db1c7f"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libstd_detect-4a8ba4cc3e52ae8b.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libstd_detect-4a8ba4cc3e52ae8b.rlib",
+          "sha256": "5f5df596a612a69a6481d20c0d15525b183e70bc3e050c5540bb17512d71a23f"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libmemchr-390e66b9c82fee7c.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libmemchr-390e66b9c82fee7c.rlib",
+          "sha256": "c642989b2d2eafc9357e79aabf6cbd7fb0fd0fd92a64f7f3d7f242352468120b"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libunwind-ac2729c88228403d.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libunwind-ac2729c88228403d.rlib",
+          "sha256": "4111a0ad1ee9728d572a0fda9210b7e08dd1a582ceb4196e5f151feac5079673"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libgimli-fe2bf0e27d517ecd.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libgimli-fe2bf0e27d517ecd.rlib",
+          "sha256": "4d9e447e5283a016a517518ddf2cfd0a2aa3599e4b564fbb364b990b74acb54a"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_core-2fa5081e6e0caefd.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/librustc_std_workspace_core-2fa5081e6e0caefd.rlib",
+          "sha256": "00ad014b8983003857c8c76dd08bda03f307e76e1e05a9b5941e5f9c9fbd5c77"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libcompiler_builtins-7abd1d82b9fd7fae.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libcompiler_builtins-7abd1d82b9fd7fae.rlib",
+          "sha256": "4d12a9af4c78ec95c109605a8dc9aad0038103b5e8699117723107eb6e1f991f"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/libhashbrown-722ced2adb21adde.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/libhashbrown-722ced2adb21adde.rlib",
+          "sha256": "ae180d4a7f22f95b1d0cef6282c05363c070f605951182eae97f086f4865f7cd"
+        },
+        {
+          "source": "rust-std-1.99.1-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown/lib/liballoc-327f5b6ac931bc6f.rlib",
+          "output": "wasm-sysroot/lib/rustlib/wasm32-unknown-unknown/lib/liballoc-327f5b6ac931bc6f.rlib",
+          "sha256": "a518d5ac00d92c0bc78fa8beaf4dfa5f6b1fbd052793ede5860d5098371f896e"
+        }
+      ]
+    },
+    {
+      "id": "trunk",
+      "url": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz",
+      "bytes": 8246205,
+      "sha256": "a67f4054b249fe9acc5fabc25de1aebf19783aca3ad6ff64bf34d7da44d0ea20",
+      "members": [
+        {
+          "source": "trunk",
+          "output": "bin/trunk",
+          "sha256": "22be59a5067bb43a390462d9a8db159fca1eac10085b815b2562114d935ba02a"
+        }
+      ]
+    },
+    {
+      "id": "wasm-bindgen",
+      "url": "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz",
+      "bytes": 11695824,
+      "sha256": "82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e",
+      "members": [
+        {
+          "source": "wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-MIT",
+          "output": "legal/wasm-bindgen/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-MIT",
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        },
+        {
+          "source": "wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-APACHE",
+          "output": "legal/wasm-bindgen/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "source": "wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/wasm-bindgen",
+          "output": "bin/wasm-bindgen",
+          "sha256": "fb59da714982a04273e9e4b09a85e523e5dd04de35b1a4a8b1641785ee7a71cf"
+        }
+      ]
+    },
+    {
+      "id": "binaryen",
+      "url": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz",
+      "bytes": 100461598,
+      "sha256": "e959f2170af4c20c552e9de3a0253704d6a9d2766e8fdb88e4d6ac4bae9388fe",
+      "members": [
+        {
+          "source": "binaryen-version_123/lib/libbinaryen.a",
+          "output": "binaryen-lib/libbinaryen.a",
+          "sha256": "dd33b04450b98c88cecbc9da591bdcca8c797e1634729b301005c948a60b9ceb"
+        },
+        {
+          "source": "binaryen-version_123/bin/wasm-opt",
+          "output": "bin/wasm-opt",
+          "sha256": "d66c6724c07334155720eb2def29c434dcaaf741ce859b4f7f389e22674f9c4a"
+        }
+      ]
+    }
+  ],
+  "bun": {
+    "version": "1.4.4",
+    "bytes": 107308936,
+    "sha256": "10702245766b225e70bbf6235fd6b47214fd94b4760d00ffaed8ab0df57ac235"
+  },
+  "hostExecutionOfDownloadedTools": false
+}

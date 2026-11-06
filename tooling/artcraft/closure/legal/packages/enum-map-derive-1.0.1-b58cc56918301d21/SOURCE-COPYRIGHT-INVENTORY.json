@@ -1,0 +1,187 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSES/Apache-2.0.txt",
+      "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+      "lines": [
+        {
+          "line": 11,
+          "text": "\"Licensor\" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License."
+        },
+        {
+          "line": 21,
+          "text": "\"Work\" shall mean the work of authorship, whether in Source or Object form, made available under the License, as indicated by a copyright notice that is included in or attached to the work (an example is provided in the Appendix below)."
+        },
+        {
+          "line": 25,
+          "text": "\"Contribution\" shall mean any work of authorship, including the original version of the Work and any modifications or additions to that Work or Derivative Works thereof, that is intentionally submitted to Licensor for inclusion in the Work by the copyright owner or by an individual or Legal Entity authorized to submit on behalf of the copyright owner. For the purposes of this definition, \"submitted\" means any form of electronic, verbal, or written communication sent to the Licensor or its representatives, including but not limited to communication on electronic mailing lists, source code control systems, and issue tracking systems that are managed by, or on behalf of, the Licensor for the purpose of discussing and improving the Work, but excluding communication that is conspicuously marked or otherwise designated in writing by the copyright owner as \"Not a Contribution.\""
+        },
+        {
+          "line": 29,
+          "text": "2. Grant of Copyright License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare Derivative Works of, publicly display, publicly perform, sublicense, and distribute the Work and such Derivative Works in Source or Object form."
+        },
+        {
+          "line": 39,
+          "text": "     (c) You must retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices from the Source form of the Work, excluding those notices that do not pertain to any part of the Derivative Works; and"
+        },
+        {
+          "line": 43,
+          "text": "     You may add Your own copyright statement to Your modifications and may provide additional or different license terms and conditions for use, reproduction, or distribution of Your modifications, or for any such Derivative Works as a whole, provided Your use, reproduction, and distribution of the Work otherwise complies with the conditions stated in this License."
+        },
+        {
+          "line": 59,
+          "text": "To apply the Apache License to your work, attach the following boilerplate notice, with the fields enclosed by brackets \"[]\" replaced with your own identifying information. (Don't include the brackets!)  The text should be enclosed in the appropriate comment syntax for the file format. We also recommend that a file or class name and description of purpose be included on the same \"printed page\" as the copyright notice for easier identification within third-party archives."
+        },
+        {
+          "line": 61,
+          "text": "Copyright [yyyy] [name of copyright owner]"
+        }
+      ]
+    },
+    {
+      "path": "LICENSES/CC0-1.0.txt",
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "lines": [
+        {
+          "line": 17,
+          "text": "exclusive Copyright and Related Rights (defined below) upon the creator"
+        },
+        {
+          "line": 35,
+          "text": "is an owner of Copyright and Related Rights in the Work, voluntarily"
+        },
+        {
+          "line": 37,
+          "text": "terms, with knowledge of his or her Copyright and Related Rights in the"
+        },
+        {
+          "line": 40,
+          "text": "1. Copyright and Related Rights. A Work made available under CC0 may be"
+        },
+        {
+          "line": 41,
+          "text": "protected by copyright and related or neighboring rights (\"Copyright and"
+        },
+        {
+          "line": 42,
+          "text": "Related Rights\"). Copyright and Related Rights include, but are not"
+        },
+        {
+          "line": 66,
+          "text": "Affirmer's Copyright and Related Rights and associated claims and causes"
+        },
+        {
+          "line": 86,
+          "text": "irrevocable and unconditional license to exercise Affirmer's Copyright and"
+        },
+        {
+          "line": 97,
+          "text": "will not (i) exercise any of his or her remaining Copyright and Related"
+        },
+        {
+          "line": 115,
+          "text": "    limitation any person's Copyright and Related Rights in the Work."
+        }
+      ]
+    },
+    {
+      "path": "LICENSES/MIT.txt",
+      "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+      "lines": [
+        {
+          "line": 3,
+          "text": "Copyright (c) <year> <copyright holders>"
+        },
+        {
+          "line": 7,
+          "text": "The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software."
+        },
+        {
+          "line": 9,
+          "text": "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+        }
+      ]
+    },
+    {
+      "path": "README.md",
+      "sha256": "44a05a5f0926f772191415c2d67070f4ba5de56917e219aa13e3f3afa7a6198c",
+      "lines": [
+        {
+          "line": 2,
+          "text": "SPDX-FileCopyrightText: 2022 Luna Borowska <luna@borowska.pw>"
+        },
+        {
+          "line": 4,
+          "text": "SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    },
+    {
+      "path": "src/derive_enum.rs",
+      "sha256": "f1162eae3f8e7e08cd7caed13cf0d6de12349ce840ac9bbbc37c63aab427077c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-FileCopyrightText: 2021 - 2023 Luna Borowska <luna@borowska.pw>"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-FileCopyrightText: 2021 Bruno Corrêa Zimmermann <brunoczim@gmail.com>"
+        },
+        {
+          "line": 4,
+          "text": "// SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    },
+    {
+      "path": "src/derive_struct.rs",
+      "sha256": "fcf13a95fb0bb83833de701fc4cba6a2545538b8135f05ceba1be33cbf11e682",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-FileCopyrightText: 2021 - 2022 Luna Borowska <luna@borowska.pw>"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-FileCopyrightText: 2021 Bruno Corrêa Zimmermann <brunoczim@gmail.com>"
+        },
+        {
+          "line": 4,
+          "text": "// SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "9af07bb6f77f3072c7a4198149976f5fbd6a08283414d0cb785985a17a3affcd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-FileCopyrightText: 2017 - 2022 Luna Borowska <luna@borowska.pw>"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-FileCopyrightText: 2018 hcpl <hcpl.prog@gmail.com>"
+        },
+        {
+          "line": 3,
+          "text": "// SPDX-FileCopyrightText: 2019 mara <vmedea@protonmail.com>"
+        },
+        {
+          "line": 4,
+          "text": "// SPDX-FileCopyrightText: 2021 Bruno Corrêa Zimmermann <brunoczim@gmail.com>"
+        },
+        {
+          "line": 5,
+          "text": "// SPDX-FileCopyrightText: 2021 Dietrich <dietrich@teilgedanken.de>"
+        },
+        {
+          "line": 7,
+          "text": "// SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    }
+  ]
+}

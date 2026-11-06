@@ -1,0 +1,257 @@
+# getrandom: system's random number generator
+
+[![Build Status]][GitHub Actions]
+[![Crate]][crates.io]
+[![Documentation]][docs.rs]
+[![Dependency Status]][deps.rs]
+[![Downloads]][crates.io]
+[![License]][LICENSE-MIT]
+
+`getrandom` is a Rust library for retrieving random data from (operating) system sources.
+
+It is assumed that the system always provides high-quality, cryptographically secure random
+data, ideally backed by hardware entropy sources. This crate derives its name from
+the Linux `getrandom` syscall but is cross-platform, roughly supporting the same set
+of platforms as Rust's `std` library.
+
+This is a low-level API. Most users should prefer using a higher-level random-number
+library like [`rand`].
+
+[`rand`]: https://crates.io/crates/rand
+
+## Examples
+
+```rust
+fn get_random_u128() -> Result<u128, getrandom::Error> {
+    let mut buf = [0u8; 16];
+    getrandom::fill(&mut buf)?;
+    Ok(u128::from_ne_bytes(buf))
+}
+```
+
+## Supported targets
+
+| Target             | Target Triple      | Implementation
+| ------------------ | ------------------ | --------------
+| Linux, Android     | `*‑linux‑*`        | [`getrandom`][1] system call if available, otherwise [`/dev/urandom`][2] after successfully polling `/dev/random`
+| Windows 10+        | `*‑windows‑*`      | [`ProcessPrng`]
+| Windows 7, 8       | `*-win7‑windows‑*` | [`RtlGenRandom`]
+| macOS              | `*‑apple‑darwin`   | [`getentropy`][3]
+| iOS, tvOS, watchOS | `*‑apple‑{ios,tvos,watchos}` | [`CCRandomGenerateBytes`]
+| FreeBSD            | `*‑freebsd`        | [`getrandom`][5]
+| OpenBSD            | `*‑openbsd`        | [`getentropy`][7]
+| NetBSD             | `*‑netbsd`         | [`getrandom`][16] if available, otherwise [`kern.arandom`][8]
+| Dragonfly BSD      | `*‑dragonfly`      | [`getrandom`][9]
+| Solaris            | `*‑solaris`        | [`getrandom`][11] with `GRND_RANDOM`
+| illumos            | `*‑illumos`        | [`getrandom`][12]
+| Fuchsia OS         | `*‑fuchsia`        | [`cprng_draw`]
+| Redox              | `*‑redox`          | `/dev/urandom`
+| Haiku              | `*‑haiku`          | `/dev/urandom` (identical to `/dev/random`)
+| Hermit             | `*-hermit`         | [`sys_read_entropy`]
+| Hurd               | `*-hurd-*`         | [`getrandom`][17]
+| SGX                | `x86_64‑*‑sgx`     | [`RDRAND`]
+| VxWorks            | `*‑wrs‑vxworks‑*`  | `randABytes` after checking entropy pool initialization with `randSecure`
+| Emscripten         | `*‑emscripten`     | [`getentropy`][13]
+| WASI 0.1           | `wasm32‑wasip1`    | [`random_get`]
+| WASI 0.2           | `wasm32‑wasip2`    | [`get-random-u64`]
+| SOLID              | `*-kmc-solid_*`    | `SOLID_RNG_SampleRandomBytes`
+| Nintendo 3DS       | `*-nintendo-3ds`   | [`getrandom`][18]
+| ESP-IDF            | `*‑espidf`         | [`esp_fill_random`] WARNING: see "Early Boot" section below
+| PS Vita            | `*-vita-*`         | [`getentropy`][19]
+| QNX Neutrino       | `*‑nto-qnx*`       | [`/dev/urandom`][14] (identical to `/dev/random`)
+| AIX                | `*-ibm-aix`        | [`/dev/urandom`][15]
+| Cygwin             | `*-cygwin`         | [`getrandom`][20] (based on [`RtlGenRandom`])
+| Motor OS           | `x86_64-unknown-motor` | [`RDRAND`]
+
+Pull Requests that add support for new targets to `getrandom` are always welcome.
+
+### WebAssembly support
+
+This crate fully supports the [WASI] and [Emscripten] targets. However, the `wasm32-unknown-unknown`
+and `wasm64-unknown-unknown` targets (i.e. the target used by `wasm-pack`)
+are not automatically supported since, from the target name alone, we cannot deduce
+which JavaScript interface should be used (or if JavaScript is available at all).
+
+We do not include support for these targets in the default configuration because our JS backend
+(supporting web browsers, web workers and Node.js v19 or later) requires [`wasm-bindgen`],
+**bloating `Cargo.lock`** and **potentially breaking builds** on non-web WASM platforms.
+
+To enable `getrandom`'s functionality on `wasm32/64-unknown-unknown` using
+[`Crypto.getRandomValues`] via [`wasm-bindgen`], enable the `wasm_js` crate feature.
+
+WARNING: We strongly recommend against enabling this feature in libraries (except for tests)
+since it is known to break non-Web WASM builds and further since the usage of `wasm-bindgen`
+causes significant bloat to `Cargo.lock` (on all targets).
+
+The only exception to this rule: if your crate already unconditionally depends on `wasm-bindgen`
+or `js-sys` on "unknown" WASM targets then it's acceptable to enable this feature unconditionally.
+
+### Opt-in backends
+
+`getrandom` also provides optional (opt-in) backends, which allow users to customize the source
+of randomness based on their specific needs:
+
+| Backend name        | Target               | Target Triple            | Implementation
+| ------------------- | -------------------- | ------------------------ | --------------
+| `linux_getrandom`   | Linux, Android       | `*‑linux‑*`              | [`getrandom`][1] system call (without `/dev/urandom` fallback). Bumps minimum supported Linux kernel version to 3.17 and Android API level to 23 (Marshmallow).
+| `linux_raw`         | Linux, Android       | `*‑linux‑*`              | Same as `linux_getrandom`, but uses raw `asm!`-based syscalls instead of `libc`.
+| `rdrand`            | x86, x86-64          | `x86_64-*`, `i686-*`     | [`RDRAND`] instruction
+| `rndr`              | AArch64              | `aarch64-*`              | [`RNDR`] register
+| `efi_rng`           | UEFI                 | `*-unknown‑uefi`         | [`EFI_RNG_PROTOCOL`] with `EFI_RNG_ALGORITHM_RAW` (requires `std` and Nightly compiler)
+| `windows_legacy`    | Windows              | `*-windows-*`            | [`RtlGenRandom`]
+| `custom`            | All targets          | `*`                      | User-provided custom implementation (see [custom backend])
+| `unsupported`       | All targets          | `*`                      | Always returns `Err(Error::UNSUPPORTED)` (see [unsupported backend])
+| `extern_impl`       | All targets          | `*`                      | Externally-provided custom implementation (see [externally implemented interface])
+
+Opt-in backends can be enabled using the `getrandom_backend` configuration flag.
+The flag can be set either by specifying the `rustflags` field in [`.cargo/config.toml`]:
+```toml
+# It's recommended to set the flag on a per-target basis:
+[target.'cfg(target_os = "linux")']
+rustflags = ['--cfg', 'getrandom_backend="linux_getrandom"']
+```
+
+Or by using the `RUSTFLAGS` environment variable:
+
+```sh
+RUSTFLAGS='--cfg getrandom_backend="linux_getrandom"' cargo build
+```
+
+Enabling an opt-in backend will replace the backend used by default. Doing this for
+an incorrect target (e.g. using `linux_getrandom` while compiling for a Windows target)
+will result in a compilation error. Be extremely careful while using opt-in backends,
+as incorrect configuration may result in vulnerable applications or applications
+that always panic.
+
+Note that using an opt-in backend in a library (e.g. for tests or benchmarks)
+WILL NOT have any effect on its downstream users.
+
+[`.cargo/config.toml`]: https://doc.rust-lang.org/cargo/reference/config.html
+
+### Raw Linux syscall support
+
+Currently the `linux_raw` backend supports only targets with stabilized `asm!` macro,
+i.e. `arm`, `aarch64`, `loongarch64`, `riscv32`, `riscv64`, `s390x`, `x86`, and `x86_64`.
+
+Note that the raw syscall backend may be slower than backends based on `libc::getrandom`,
+e.g. it does not implement vDSO optimizations and on `x86` it uses the infamously slow
+`int 0x80` instruction to perform syscall.
+
+### Custom backend
+
+If this crate does not support your target out of the box or you have to use
+a non-default entropy source, then you can provide a custom implementation.
+You need to enable the custom backend as described in the
+[opt-in backends][opt-in] section.
+
+Next, you need to define an `extern` function with the following signature:
+
+```rust
+use getrandom::Error;
+
+#[unsafe(no_mangle)]
+unsafe extern "Rust" fn __getrandom_v03_custom(
+    dest: *mut u8,
+    len: usize,
+) -> Result<(), Error> {
+    todo!()
+}
+```
+
+This function should, ideally, be defined in the root crate of your project,
+e.g. in your `main.rs`. This function MUST be defined only once for your
+project, i.e. upstream library crates SHOULD NOT define it outside of
+tests and benchmarks. Improper configuration of this backend may result
+in linking errors.
+
+The function accepts a pointer to a buffer that should be filled with random
+data and its length in bytes. Note that the buffer MAY be uninitialized.
+On success, the function should return `Ok(())` and fully fill the input buffer;
+otherwise, it should return an error value.
+
+While wrapping functions which work with byte slices you should fully initialize
+the buffer before passing it to the function:
+```rust
+use getrandom::Error;
+
+fn my_entropy_source(buf: &mut [u8]) -> Result<(), getrandom::Error> {
+    // ...
+    Ok(())
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "Rust" fn __getrandom_v03_custom(
+    dest: *mut u8,
+    len: usize,
+) -> Result<(), Error> {
+    let buf = unsafe {
+        // fill the buffer with zeros
+        core::ptr::write_bytes(dest, 0, len);
+        // create mutable byte slice
+        core::slice::from_raw_parts_mut(dest, len)
+    };
+    my_entropy_source(buf)
+}
+```
+
+### Externally Implemented Interface
+
+Using the nightly-only feature [`extern_item_impls`] it is possible to provide
+a custom backend for `getrandom`, even to override an existing first-party implementation.
+First, enable the `extern_impl` opt-in backend to allow usage of this nightly feature.
+Then, you may provide implementations for `fill_uninit`, `u32`, and/or `u64`
+with an attribute macro from the `implementation` module.
+
+[`extern_item_impls`]: https://github.com/rust-lang/rust/issues/125418
+
+```rust
+use core::mem::MaybeUninit;
+
+#[cfg(getrandom_backend = "extern_impl")]
+#[getrandom::implementation::fill_uninit]
+fn my_fill_uninit_implementation(
+    dest: &mut [MaybeUninit<u8>]
+) -> Result<(), getrandom::Error> {
+    // ...
+    Ok(())
+}
+```
+
+For further details on what a suitable implementation for `fill_uninit` may look
+like, see [custom backend].
+
+`getrandom` will provide a default implementation for `u32` and `u64`, but does
+not currently provide a default for `fill_uninit`, even if one is normally
+available for the current target. If no implementation is available,
+a compilation error will be raised with instructions for how to provide
+an implementation.
+
+### Unsupported backend
+
+In some rare scenarios, you might be compiling this crate for an unsupported
+target (e.g. `wasm32-unknown-unknown`), but this crate's functionality
+is not actually used by your code. If you are confident that `getrandom` is
+not used in your project, but it gets pulled nevertheless by one of your
+dependencies, then you can enable the `unsupported` backend, which always
+returns `Err(Error::UNSUPPORTED)`.
+
+### Platform Support
+
+This crate generally supports the same operating system and platform versions
+that the Rust standard library does. Additional targets may be supported using
+the opt-in custom backend.
+
+This means that as Rust drops support for old versions of operating systems
+(such as old Linux kernel versions, Android API levels, etc.) in stable releases,
+`getrandom` may create new patch releases that remove support for
+outdated platform versions.
+
+### `/dev/urandom` fallback on Linux and Android
+
+On Linux targets, the `/dev/urandom` fallback is present only if either `target_env`
+is `musl`, or `target_arch` is one of the following: `aarch64`, `arm`, `powerpc`,
+`powerpc64`, `s390x`, `x86`, `x86_64`. Other supported targets [require][platform-support]
+kernel versions that support the `getrandom` system call, so the fallback is not needed.
+
+On Android targets the fallback is present only for the following `target_arch`es:
+`aarch64`, `

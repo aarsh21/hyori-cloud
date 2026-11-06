@@ -1,0 +1,249 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+// Provider structs must be stable
+#![allow(clippy::exhaustive_structs, clippy::exhaustive_enums)]
+
+//! 🚧 \[Unstable\] Data provider struct definitions for this ICU4X component.
+//!
+//! <div class="stab unstable">
+//! 🚧 This code is considered unstable; it may change at any time, in breaking or non-breaking ways,
+//! including in SemVer minor releases. While the serde representation of data structs is guaranteed
+//! to be stable, their Rust representation might not be. Use with caution.
+//! </div>
+//!
+//! Read more about data providers: [`icu_provider`]
+
+pub mod names;
+
+#[cfg(feature = "alloc")]
+pub use names::{
+    PropertyNameLongCanonicalCombiningClassV1, PropertyNameShortCanonicalCombiningClassV1,
+};
+
+pub use names::{
+    PropertyNameLongBidiClassV1, PropertyNameLongEastAsianWidthV1,
+    PropertyNameLongGeneralCategoryV1, PropertyNameLongGraphemeClusterBreakV1,
+    PropertyNameLongHangulSyllableTypeV1, PropertyNameLongIndicConjunctBreakV1,
+    PropertyNameLongIndicSyllabicCategoryV1, PropertyNameLongJoiningGroupV1,
+    PropertyNameLongJoiningTypeV1, PropertyNameLongLineBreakV1, PropertyNameLongNumericTypeV1,
+    PropertyNameLongScriptV1, PropertyNameLongSentenceBreakV1,
+    PropertyNameLongVerticalOrientationV1, PropertyNameLongWordBreakV1,
+    PropertyNameParseBidiClassV1, PropertyNameParseCanonicalCombiningClassV1,
+    PropertyNameParseEastAsianWidthV1, PropertyNameParseGeneralCategoryMaskV1,
+    PropertyNameParseGeneralCategoryV1, PropertyNameParseGraphemeClusterBreakV1,
+    PropertyNameParseHangulSyllableTypeV1, PropertyNameParseIndicConjunctBreakV1,
+    PropertyNameParseIndicSyllabicCategoryV1, PropertyNameParseJoiningGroupV1,
+    PropertyNameParseJoiningTypeV1, PropertyNameParseLineBreakV1, PropertyNameParseNumericTypeV1,
+    PropertyNameParseScriptV1, PropertyNameParseSentenceBreakV1,
+    PropertyNameParseVerticalOrientationV1, PropertyNameParseWordBreakV1,
+    PropertyNameShortBidiClassV1, PropertyNameShortEastAsianWidthV1,
+    PropertyNameShortGeneralCategoryV1, PropertyNameShortGraphemeClusterBreakV1,
+    PropertyNameShortHangulSyllableTypeV1, PropertyNameShortIndicConjunctBreakV1,
+    PropertyNameShortIndicSyllabicCategoryV1, PropertyNameShortJoiningGroupV1,
+    PropertyNameShortJoiningTypeV1, PropertyNameShortLineBreakV1, PropertyNameShortNumericTypeV1,
+    PropertyNameShortScriptV1, PropertyNameShortSentenceBreakV1,
+    PropertyNameShortVerticalOrientationV1, PropertyNameShortWordBreakV1,
+};
+
+pub use crate::enum_values::GeneralCategoryULE;
+use crate::props::*;
+use crate::script::ScriptWithExt;
+use core::ops::RangeInclusive;
+use icu_collections::codepointinvlist::CodePointInversionList;
+use icu_collections::codepointinvliststringlist::CodePointInversionListAndStringList;
+use icu_collections::codepointtrie::{CodePointMapRange, CodePointTrie, TrieValue};
+use icu_provider::prelude::*;
+use zerofrom::ZeroFrom;
+use zerovec::{VarZeroVec, ZeroSlice};
+
+#[cfg(feature = "compiled_data")]
+#[derive(Debug)]
+/// Baked data
+///
+/// <div class="stab unstable">
+/// 🚧 This code is considered unstable; it may change at any time, in breaking or non-breaking ways,
+/// including in SemVer minor releases. In particular, the `DataProvider` implementations are only
+/// guaranteed to match with this version's `*_unstable` providers. Use with caution.
+/// </div>
+pub struct Baked;
+
+#[cfg(feature = "compiled_data")]
+#[allow(unused_imports)]
+const _: () = {
+    use icu_properties_data::*;
+    pub mod icu {
+        pub use crate as properties;
+        pub use icu_collections as collections;
+    }
+    make_provider!(Baked);
+    impl_property_binary_alnum_v1!(Baked);
+    impl_property_binary_alphabetic_v1!(Baked);
+    impl_property_binary_ascii_hex_digit_v1!(Baked);
+    impl_property_binary_basic_emoji_v1!(Baked);
+    impl_property_binary_bidi_control_v1!(Baked);
+    impl_property_binary_bidi_mirrored_v1!(Baked);
+    impl_property_binary_blank_v1!(Baked);
+    impl_property_binary_case_ignorable_v1!(Baked);
+    impl_property_binary_case_sensitive_v1!(Baked);
+    impl_property_binary_cased_v1!(Baked);
+    impl_property_binary_changes_when_casefolded_v1!(Baked);
+    impl_property_binary_changes_when_casemapped_v1!(Baked);
+    impl_property_binary_changes_when_lowercased_v1!(Baked);
+    impl_property_binary_changes_when_nfkc_casefolded_v1!(Baked);
+    impl_property_binary_changes_when_titlecased_v1!(Baked);
+    impl_property_binary_changes_when_uppercased_v1!(Baked);
+    impl_property_binary_dash_v1!(Baked);
+    impl_property_binary_default_ignorable_code_point_v1!(Baked);
+    impl_property_binary_deprecated_v1!(Baked);
+    impl_property_binary_diacritic_v1!(Baked);
+    impl_property_binary_emoji_component_v1!(Baked);
+    impl_property_binary_emoji_modifier_base_v1!(Baked);
+    impl_property_binary_emoji_modifier_v1!(Baked);
+    impl_property_binary_emoji_presentation_v1!(Baked);
+    impl_property_binary_emoji_v1!(Baked);
+    impl_property_binary_extended_pictographic_v1!(Baked);
+    impl_property_binary_extender_v1!(Baked);
+    impl_property_binary_full_composition_exclusion_v1!(Baked);
+    impl_property_binary_graph_v1!(Baked);
+    impl_property_binary_grapheme_base_v1!(Baked);
+    impl_property_binary_grapheme_extend_v1!(Baked);
+    impl_property_binary_grapheme_link_v1!(Baked);
+    impl_property_binary_hex_digit_v1!(Baked);
+    impl_property_binary_hyphen_v1!(Baked);
+    impl_property_binary_id_compat_math_continue_v1!(Baked);
+    impl_property_binary_id_compat_math_start_v1!(Baked);
+    impl_property_binary_id_continue_v1!(Baked);
+    impl_property_binary_id_start_v1!(Baked);
+    impl_property_binary_ideographic_v1!(Baked);
+    impl_property_binary_ids_binary_operator_v1!(Baked);
+    impl_property_binary_ids_trinary_operator_v1!(Baked);
+    impl_property_binary_ids_unary_operator_v1!(Baked);
+    impl_property_binary_join_control_v1!(Baked);
+    impl_property_binary_logical_order_exception_v1!(Baked);
+    impl_property_binary_lowercase_v1!(Baked);
+    impl_property_binary_math_v1!(Baked);
+    impl_property_binary_modifier_combining_mark_v1!(Baked);
+    impl_property_binary_nfc_inert_v1!(Baked);
+    impl_property_binary_nfd_inert_v1!(Baked);
+    impl_property_binary_nfkc_inert_v1!(Baked);
+    impl_property_binary_nfkd_inert_v1!(Baked);
+    impl_property_binary_noncharacter_code_point_v1!(Baked);
+    impl_property_binary_pattern_syntax_v1!(Baked);
+    impl_property_binary_pattern_white_space_v1!(Baked);
+    impl_property_binary_prepended_concatenation_mark_v1!(Baked);
+    impl_property_binary_print_v1!(Baked);
+    impl_property_binary_quotation_mark_v1!(Baked);
+    impl_property_binary_radical_v1!(Baked);
+    impl_property_binary_regional_indicator_v1!(Baked);
+    impl_property_binary_segment_starter_v1!(Baked);
+    impl_property_binary_sentence_terminal_v1!(Baked);
+    impl_property_binary_soft_dotted_v1!(Baked);
+    impl_property_binary_terminal_punctuation_v1!(Baked);
+    impl_property_binary_unified_ideograph_v1!(Baked);
+    impl_property_binary_uppercase_v1!(Baked);
+    impl_property_binary_variation_selector_v1!(Baked);
+    impl_property_binary_white_space_v1!(Baked);
+    impl_property_binary_xdigit_v1!(Baked);
+    impl_property_binary_xid_continue_v1!(Baked);
+    impl_property_binary_xid_start_v1!(Baked);
+    impl_property_enum_bidi_class_v1!(Baked);
+    impl_property_enum_bidi_mirroring_glyph_v1!(Baked);
+    impl_property_enum_canonical_combining_class_v1!(Baked);
+    impl_property_enum_east_asian_width_v1!(Baked);
+    impl_property_enum_general_category_v1!(Baked);
+    impl_property_enum_grapheme_cluster_break_v1!(Baked);
+    impl_property_enum_hangul_syllable_type_v1!(Baked);
+    impl_property_enum_indic_conjunct_break_v1!(Baked);
+    impl_property_enum_indic_syllabic_category_v1!(Baked);
+    impl_property_enum_joining_group_v1!(Baked);
+    impl_property_enum_joining_type_v1!(Baked);
+    impl_property_enum_line_break_v1!(Baked);
+    impl_property_enum_numeric_type_v1!(Baked);
+    impl_property_enum_script_v1!(Baked);
+    impl_property_enum_sentence_break_v1!(Baked);
+    impl_property_enum_vertical_orientation_v1!(Baked);
+    impl_property_enum_word_break_v1!(Baked);
+    impl_property_name_long_bidi_class_v1!(Baked);
+    #[cfg(feature = "alloc")]
+    impl_property_name_long_canonical_combining_class_v1!(Baked);
+    impl_property_name_long_east_asian_width_v1!(Baked);
+    impl_property_name_long_general_category_v1!(Baked);
+    impl_property_name_long_grapheme_cluster_break_v1!(Baked);
+    impl_property_name_long_hangul_syllable_type_v1!(Baked);
+    impl_property_name_long_indic_syllabic_category_v1!(Baked);
+    impl_property_name_long_indic_conjunct_break_v1!(Baked);
+    impl_property_name_long_joining_group_v1!(Baked);
+    impl_property_name_long_joining_type_v1!(Baked);
+    impl_property_name_long_line_break_v1!(Baked);
+    impl_property_name_long_numeric_type_v1!(Baked);
+    impl_property_name_long_script_v1!(Baked);
+    impl_property_name_long_sentence_break_v1!(Baked);
+    impl_property_name_long_vertical_orientation_v1!(Baked);
+    impl_property_name_long_word_break_v1!(Baked);
+    impl_property_name_parse_bidi_class_v1!(Baked);
+    impl_property_name_parse_canonical_combining_class_v1!(Baked);
+    impl_property_name_parse_east_asian_width_v1!(Baked);
+    impl_property_name_parse_general_category_mask_v1!(Baked);
+    impl_property_name_parse_general_category_v1!(Baked);
+    impl_property_name_parse_grapheme_cluster_break_v1!(Baked);
+    impl_property_name_parse_hangul_syllable_type_v1!(Baked);
+    impl_property_name_parse_indic_syllabic_category_v1!(Baked);
+    impl_property_name_parse_indic_conjunct_break_v1!(Baked);
+    impl_property_name_parse_joining_group_v1!(Baked);
+    impl_property_name_parse_joining_type_v1!(Baked);
+    impl_property_name_parse_line_break_v1!(Baked);
+    impl_property_name_parse_numeric_type_v1!(Baked);
+    impl_property_name_parse_script_v1!(Baked);
+    impl_property_name_parse_sentence_break_v1!(Baked);
+    impl_property_name_parse_vertical_orientation_v1!(Baked);
+    impl_property_name_parse_word_break_v1!(Baked);
+    impl_property_name_short_bidi_class_v1!(Baked);
+    #[cfg(feature = "alloc")]
+    impl_property_name_short_canonical_combining_class_v1!(Baked);
+    impl_property_name_short_east_asian_width_v1!(Baked);
+    impl_property_name_short_general_category_v1!(Baked);
+    impl_property_name_short_grapheme_cluster_break_v1!(Baked);
+    impl_property_name_short_hangul_syllable_type_v1!(Baked);
+    impl_property_name_short_indic_syllabic_category_v1!(Baked);
+    impl_property_name_short_indic_conjunct_break_v1!(Baked);
+    impl_property_name_short_joining_group_v1!(Baked);
+    impl_property_name_short_joining_type_v1!(Baked);
+    impl_property_name_short_line_break_v1!(Baked);
+    impl_property_name_short_numeric_type_v1!(Baked);
+    impl_property_name_short_script_v1!(Baked);
+    impl_property_name_short_sentence_break_v1!(Baked);
+    impl_property_name_short_vertical_orientation_v1!(Baked);
+    impl_property_name_short_word_break_v1!(Baked);
+    impl_property_script_with_extensions_v1!(Baked);
+};
+
+icu_provider::data_marker!(
+    /// `PropertyBinaryAlnumV1`
+    PropertyBinaryAlnumV1,
+    PropertyCodePointSet<'static>,
+    is_singleton = true
+);
+icu_provider::data_marker!(
+    /// `PropertyBinaryAlphabeticV1`
+    PropertyBinaryAlphabeticV1,
+    PropertyCodePointSet<'static>,
+    is_singleton = true
+);
+icu_provider::data_marker!(
+    /// `PropertyBinaryAsciiHexDigitV1`
+    PropertyBinaryAsciiHexDigitV1,
+    PropertyCodePointSet<'static>,
+    is_singleton = true
+);
+icu_provider::data_marker!(
+    /// `PropertyBinaryBidiControlV1`
+    PropertyBinaryBidiControlV1,
+    PropertyCodePointSet<'static>,
+    is_singleton = true
+);
+icu_provider::data_marker!(
+    /// `PropertyBinaryBidiMirroredV1`
+    PropertyBinaryBidiMirroredV1,
+    PropertyCod

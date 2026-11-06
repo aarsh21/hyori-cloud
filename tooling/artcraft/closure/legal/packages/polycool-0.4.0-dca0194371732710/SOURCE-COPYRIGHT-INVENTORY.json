@@ -1,0 +1,159 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "benches/cubic_roots.rs",
+      "sha256": "c41e10f8fc37c0cefec8a3add1e083bd8992bc67dca167210ae9a725975028ba",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "benches/eval.rs",
+      "sha256": "526fd093ac280eb2d3927089c8cd5883a6369849778cfb4e785dfa2411be45f5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "benches/quadratic_roots.rs",
+      "sha256": "906a1c52d58171c563e96a866e1afe813a2bb8255abe619ddfd9668f6ba5ea13",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/arbitrary.rs",
+      "sha256": "2b564a00c3ec33e9d5e63be3450ab55f9bdfbcb21ed89c22207d480e290224f0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/cubic.rs",
+      "sha256": "af61800891438c22f93dd4e603742c4ca7a890b074b550e68fad0ba7efbc3c73",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "670b111e46844f45240680d5de6937ad2a98bb63a13852dee8979b2a67f9f8cc",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/libm_polyfill.rs",
+      "sha256": "be30111929cc0d2593684f8694f0688a30756ae25fd266170934b37e8597029e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/poly_dyn.rs",
+      "sha256": "21f4a03f60775632dcd44f02bd04e0e696c4e520304281a28c2ab4423dc49f99",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/poly.rs",
+      "sha256": "627fb4cdf106636d1e76b9c7a184ad21c02a6e4d4d2df2c1d9d38065cb91911f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/quadratic.rs",
+      "sha256": "22b7a6f2dfa9da3786a7aea0fea39929961a67a099e6f78e768cefb624225895",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/yuksel.rs",
+      "sha256": "32f0bed1f99998c8ad404f643a26843939f72ffa63a1be056b986daaa00a0abb",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

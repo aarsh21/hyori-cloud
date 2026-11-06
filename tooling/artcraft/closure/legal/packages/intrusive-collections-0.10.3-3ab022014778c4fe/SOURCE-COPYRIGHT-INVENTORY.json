@@ -1,0 +1,133 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/adapter.rs",
+      "sha256": "de861a4bc7f05ccbaa7d900ff9355b41575407a829e785661425b1ffaad595df",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/key_adapter.rs",
+      "sha256": "ee6d8ab85ac451e02a55b0a3c99172bf4df56cceefcfdc91fa9bb9479b3df783",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "ee17553dade5b9f3907ed2c1c1bba32c7b64f426e29a2a5c141de1c86305c180",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/link_ops.rs",
+      "sha256": "6c2bf863b10e98114b967ee849a8a475a8dcc8cabc6f5fac5ebb98e1d55a5617",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/linked_list.rs",
+      "sha256": "ce4290aa8abc7de100d268e85af571eccfd6972bc6af1d0799202c2c4ba53c81",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/pointer_ops.rs",
+      "sha256": "512aea72e6401fc10fbc987ca9b4aba04a8c9c30496acedad13d874a7f8d4491",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/rbtree.rs",
+      "sha256": "308b9f67ad98114977b212aed535a6aa010770ec68f61a38d5f25eacbbfa980e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/singly_linked_list.rs",
+      "sha256": "9e456e06ef029b7216997c73599fcd6325d181d952c81bb43eb1c0706130b035",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    },
+    {
+      "path": "src/unsafe_ref.rs",
+      "sha256": "cb91b50b5dfd7f9832d318e900a3f37d39508d199638f0d0b3c14c6fd73e46cc",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        }
+      ]
+    },
+    {
+      "path": "src/xor_linked_list.rs",
+      "sha256": "228db2ab6ddf58828f66660e122c5ec1db83595bdfbbbb52eff88e65b6f56900",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Amanieu d'Antras"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Amari Robinson"
+        }
+      ]
+    }
+  ]
+}

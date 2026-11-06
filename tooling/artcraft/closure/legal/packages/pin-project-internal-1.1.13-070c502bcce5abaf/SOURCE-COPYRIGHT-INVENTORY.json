@@ -1,0 +1,85 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/error.rs",
+      "sha256": "5aaab68710be59753782cfbb81dd97d61fe2a2e1dace83dce42812d2a867681e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "f8eab90ce92544fa4e17ccc91b0e6144e4e4a640c1fb92ba8645144b7bd1b8b0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/pin_project/args.rs",
+      "sha256": "9141e1222e9ca4222b228912cefa2dfc09ab5ec5dc4461b9887abeacd9027432",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/pin_project/attribute.rs",
+      "sha256": "df639fe00ee51de986058fc6493f531a2ec44c36d45a0c997372ac2a0d7f31c3",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/pin_project/derive.rs",
+      "sha256": "5f20dd1ffe424cdfebc7b582c1fc3944f2cfead7acc76a49026a5f2bbffe753a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/pin_project/mod.rs",
+      "sha256": "cf033c5090a7002ab2c8c26876abb53ecaea5429fc40d984dbf8832150d18acd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/pinned_drop.rs",
+      "sha256": "08d45e0f9402b27790b7d733ce6ed04ace95c1cd9624f80b12044b75832cfd43",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/utils.rs",
+      "sha256": "b6f7a235b5a9bf14db691b45620f55a13c805b78b0c49f2dcc369dbc5c3158fd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

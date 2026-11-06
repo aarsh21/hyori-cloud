@@ -1,0 +1,61 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "benches/benches.rs",
+      "sha256": "066d361583f911883791fd313c02556a2faf2854470dbbae328a6513ae035bb6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2025 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "be8917e1a821806c0ce7a392564c72731a5f7d02155429a37b08571ad246a0bf",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2025 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "tests/emoji-test.txt",
+      "sha256": "1d8a944f88d7952f7ef7c5167fef3c67995bcae24543949710231b03a201acda",
+      "lines": [
+        {
+          "line": 5096,
+          "text": "00A9 FE0F                                              ; fully-qualified     # ©️ E0.6 copyright"
+        },
+        {
+          "line": 5097,
+          "text": "00A9                                                   ; unqualified         # © E0.6 copyright"
+        }
+      ]
+    },
+    {
+      "path": "tests/tests.rs",
+      "sha256": "10c40454f79c2b66ea99d2924df62c8afc3e13fb8cea835883d3c458b8076204",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2025 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    }
+  ]
+}

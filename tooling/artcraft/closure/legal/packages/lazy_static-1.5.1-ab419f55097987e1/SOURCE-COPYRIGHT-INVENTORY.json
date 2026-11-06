@@ -1,0 +1,35 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/core_lazy.rs",
+      "sha256": "dfb195f44a62b19a32542297edfd281bc40837e48905603dfec20d62b12711d0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 lazy-static.rs Developers"
+        }
+      ]
+    },
+    {
+      "path": "src/inline_lazy.rs",
+      "sha256": "cd8a9babcc3af7d0d39f9874dc575a1da000f0d6048a66296f3ca197c2c00b46",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 lazy-static.rs Developers"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "9478f4130a4dca55df412267b892717047555e3da4d23ea4eae24c5e40b5e027",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 lazy-static.rs Developers"
+        }
+      ]
+    }
+  ]
+}

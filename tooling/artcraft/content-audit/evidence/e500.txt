@@ -1,0 +1,384 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+use crate::DataError;
+use crate::DataLocale;
+use crate::DynamicDataMarker;
+use crate::buf::BufferMarker;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+use core::fmt::Debug;
+use core::marker::PhantomData;
+#[cfg(feature = "alloc")]
+use core::ops::Deref;
+use yoke::cartable_ptr::CartableOptionPointer;
+use yoke::*;
+
+#[cfg(feature = "alloc")]
+#[cfg(not(feature = "sync"))]
+use alloc::rc::Rc as SelectedRc;
+#[cfg(feature = "alloc")]
+#[cfg(feature = "sync")]
+use alloc::sync::Arc as SelectedRc;
+
+/// A response object containing metadata about the returned data.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[non_exhaustive]
+pub struct DataResponseMetadata {
+    /// The resolved locale of the returned data, if locale fallbacking was performed.
+    pub locale: Option<DataLocale>,
+    /// The format of the buffer for buffer-backed data, if known (for example, JSON).
+    pub buffer_format: Option<crate::buf::BufferFormat>,
+    /// An optional checksum. This can be used to ensure consistency across different markers.
+    pub checksum: Option<u64>,
+}
+
+impl DataResponseMetadata {
+    /// Sets the checksum.
+    pub fn with_checksum(self, checksum: u64) -> Self {
+        Self {
+            checksum: Some(checksum),
+            ..self
+        }
+    }
+}
+
+/// A container for data payloads returned from a data provider.
+///
+/// [`DataPayload`] is built on top of the [`yoke`] framework, which allows for cheap, zero-copy
+/// operations on data via the use of self-references.
+///
+/// The type of the data stored in [`DataPayload`] is determined by the [`DynamicDataMarker`] type parameter.
+///
+/// ## Accessing the data
+///
+/// To get a reference to the data inside [`DataPayload`], use [`DataPayload::get()`]. If you need
+/// to store the data for later use, you need to store the [`DataPayload`] itself, since `get` only
+/// returns a reference with an ephemeral lifetime.
+///
+/// ## Mutating the data
+///
+/// To modify the data stored in a [`DataPayload`], use [`DataPayload::with_mut()`].
+///
+/// ## Transforming the data to a different type
+///
+/// To transform a [`DataPayload`] to a different type backed by the same data store (cart), use
+/// [`DataPayload::map_project()`] or one of its sister methods.
+///
+/// # Cargo feature: `sync`
+///
+/// By default, the payload uses non-concurrent reference counting internally, and hence is neither
+/// [`Sync`] nor [`Send`]; if these traits are required, the `sync` Cargo feature can be enabled.
+///
+/// # Examples
+///
+/// Basic usage, using the `HelloWorldV1` marker:
+///
+/// ```
+/// use icu_provider::hello_world::*;
+/// use icu_provider::prelude::*;
+/// use std::borrow::Cow;
+///
+/// let payload = DataPayload::<HelloWorldV1>::from_owned(HelloWorld {
+///     message: Cow::Borrowed("Demo"),
+/// });
+///
+/// assert_eq!("Demo", payload.get().message);
+/// ```
+pub struct DataPayload<M: DynamicDataMarker>(pub(crate) DataPayloadInner<M>);
+
+/// A container for data payloads with storage for something else.
+///
+/// The type parameter `O` is stored as part of the interior enum, leading to
+/// better stack size optimization. `O` can be as large as the [`DataPayload`]
+/// minus two usizes without impacting stack size.
+///
+/// # Examples
+///
+/// Create and use [`DataPayloadOr`]:
+///
+/// ```
+/// use icu_locale_core::data_locale;
+/// use icu_provider::DataPayloadOr;
+/// use icu_provider::hello_world::*;
+/// use icu_provider::prelude::*;
+///
+/// let response: DataResponse<HelloWorldV1> = HelloWorldProvider
+///     .load(DataRequest {
+///         id: DataIdentifierBorrowed::for_locale(&data_locale!("de")),
+///         ..Default::default()
+///     })
+///     .expect("Loading should succeed");
+///
+/// let payload_some =
+///     DataPayloadOr::<HelloWorldV1, ()>::from_payload(response.payload);
+/// let payload_none = DataPayloadOr::<HelloWorldV1, ()>::from_other(());
+///
+/// assert_eq!(
+///     payload_some.get(),
+///     Ok(&HelloWorld {
+///         message: "Hallo Welt".into()
+///     })
+/// );
+/// assert_eq!(payload_none.get(), Err(&()));
+/// ```
+///
+/// Stack size comparison:
+///
+/// ```
+/// use icu_provider::prelude::*;
+/// use icu_provider::DataPayloadOr;
+///
+/// const W: usize = size_of::<usize>();
+///
+/// // Data struct is 3 usizes:
+/// icu_provider::data_marker!(SampleV1, [usize; 3]);
+///
+/// // DataPayload adds a usize for a total of 4 usizes:
+/// assert_eq!(W * 4, size_of::<DataPayload<SampleV1>>());
+///
+/// // Option<DataPayload> balloons to 5 usizes:
+/// assert_eq!(W * 5, size_of::<Option<DataPayload<SampleV1>>>());
+///
+/// // But, using DataPayloadOr is the same size as DataPayload:
+/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, ()>>());
+///
+/// // The largest optimized Other type is two usizes smaller than the DataPayload:
+/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, [usize; 1]>>());
+/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, [usize; 2]>>());
+/// assert_eq!(W * 5, size_of::<DataPayloadOr<SampleV1, [usize; 3]>>());
+/// ```
+pub struct DataPayloadOr<M: DynamicDataMarker, O>(pub(crate) DataPayloadOrInner<M, O>);
+
+pub(crate) enum DataPayloadInner<M: DynamicDataMarker> {
+    Yoke(Yoke<M::DataStruct, CartableOptionPointer<CartInner>>),
+    StaticRef(&'static M::DataStruct),
+}
+
+pub(crate) enum DataPayloadOrInner<M: DynamicDataMarker, O> {
+    Yoke(Yoke<M::DataStruct, CartableOptionPointer<CartInner>>),
+    Inner(DataPayloadOrInnerInner<M, O>),
+}
+
+pub(crate) enum DataPayloadOrInnerInner<M: DynamicDataMarker, O> {
+    StaticRef(&'static M::DataStruct),
+    Other(O),
+}
+
+/// The type of the "cart" that is used by [`DataPayload`].
+///
+/// This type is public but the inner cart type is private. To create a
+/// [`Yoke`] with this cart, use [`Cart::try_make_yoke`]. Then, convert
+/// it to a [`DataPayload`] with [`DataPayload::from_yoked_buffer`].
+#[derive(Clone, Debug)]
+pub struct Cart(#[allow(dead_code)] CartInner);
+
+/// The actual cart type (private typedef).
+#[cfg(feature = "alloc")]
+pub(crate) type CartInner = SelectedRc<Box<[u8]>>;
+#[cfg(not(feature = "alloc"))]
+pub(crate) type CartInner = &'static ();
+
+// Safety: Rc, Arc, and () are CloneableCart, and our impl delegates.
+unsafe impl CloneableCart for Cart {}
+
+#[cfg(feature = "alloc")]
+impl Deref for Cart {
+    type Target = Box<[u8]>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+// Safety: both Rc and Arc are StableDeref, and our impl delegates.
+#[cfg(feature = "alloc")]
+unsafe impl stable_deref_trait::StableDeref for Cart {}
+
+impl Cart {
+    #[cfg(feature = "alloc")]
+    /// Creates a `Yoke<Y, Option<Cart>>` from owned bytes by applying `f`.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    pub fn try_make_yoke<Y, F, E>(cart: Box<[u8]>, f: F) -> Result<Yoke<Y, Option<Self>>, E>
+    where
+        for<'a> Y: Yokeable<'a>,
+        F: FnOnce(&[u8]) -> Result<<Y as Yokeable>::Output, E>,
+    {
+        Yoke::try_attach_to_cart(SelectedRc::new(cart), |b| f(b))
+            // Safety: The cart is only wrapped, no data is leaked
+            .map(|yoke| unsafe { yoke.replace_cart(Cart) })
+            .map(Yoke::wrap_cart_in_option)
+    }
+
+    /// Helper function to convert `Yoke<Y, Option<Cart>>` to `Yoke<Y, Option<CartInner>>`.
+    #[inline]
+    pub(crate) fn unwrap_cart<Y>(yoke: Yoke<Y, Option<Cart>>) -> Yoke<Y, Option<CartInner>>
+    where
+        for<'a> Y: Yokeable<'a>,
+    {
+        // Safety: `Cart` has one field and we are removing it from the newtype,
+        // and we are preserving it in the new cart, unwrapping it from the newtype.
+        unsafe { yoke.replace_cart(|option_cart| option_cart.map(|cart| cart.0)) }
+    }
+}
+
+impl<M> Debug for DataPayload<M>
+where
+    M: DynamicDataMarker,
+    for<'a> &'a <M::DataStruct as Yokeable<'a>>::Output: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.get().fmt(f)
+    }
+}
+
+impl<M, O> Debug for DataPayloadOr<M, O>
+where
+    M: DynamicDataMarker,
+    for<'a> &'a <M::DataStruct as Yokeable<'a>>::Output: Debug,
+    O: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.get()
+            .map(|v| Debug::fmt(&v, f))
+            .unwrap_or_else(|v| Debug::fmt(v, f))
+    }
+}
+
+/// Cloning a [`DataPayload`] is generally a cheap operation.
+/// See notes in the `Clone` impl for [`Yoke`].
+///
+/// # Examples
+///
+/// ```no_run
+/// use icu_provider::hello_world::*;
+/// use icu_provider::prelude::*;
+///
+/// let resp1: DataPayload<HelloWorldV1> = todo!();
+/// let resp2 = resp1.clone();
+/// ```
+impl<M> Clone for DataPayload<M>
+where
+    M: DynamicDataMarker,
+    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(match &self.0 {
+            DataPayloadInner::Yoke(yoke) => DataPayloadInner::Yoke(yoke.clone()),
+            DataPayloadInner::StaticRef(r) => DataPayloadInner::StaticRef(*r),
+        })
+    }
+}
+
+impl<M, O> Clone for DataPayloadOr<M, O>
+where
+    M: DynamicDataMarker,
+    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Clone,
+    O: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(match &self.0 {
+            DataPayloadOrInner::Yoke(yoke) => DataPayloadOrInner::Yoke(yoke.clone()),
+            DataPayloadOrInner::Inner(DataPayloadOrInnerInner::StaticRef(r)) => {
+                DataPayloadOrInner::Inner(DataPayloadOrInnerInner::StaticRef(*r))
+            }
+            DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(o)) => {
+                DataPayloadOrInner::Inner(DataPayloadOrInnerInner::Other(o.clone()))
+            }
+        })
+    }
+}
+
+impl<M> PartialEq for DataPayload<M>
+where
+    M: DynamicDataMarker,
+    for<'a> <M::DataStruct as Yokeable<'a>>::Output: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+impl<M, O> PartialEq for DataPayloadOr<M, O>
+where
+    M: DynamicDataMarker,
+    for<'a> <M::DataStruct as Yokeable<'a>>::Output: PartialEq,
+    O: Eq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        match (self.get(), other.get()) {
+            (Ok(x), Ok(y)) => x == y,
+            (Err(x), Err(y)) => x == y,
+            _ => false,
+        }
+    }
+}
+
+impl<M> Eq for DataPayload<M>
+where
+    M: DynamicDataMarker,
+    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Eq,
+{
+}
+
+impl<M, O> Eq for DataPayloadOr<M, O>
+where
+    M: DynamicDataMarker,
+    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Eq,
+    O: Eq,
+{
+}
+
+#[test]
+fn test_clone_eq() {
+    use crate::hello_world::*;
+    let p1 = DataPayload::<HelloWorldV1>::from_static_str("Demo");
+    let p2 = p1.clone();
+    assert_eq!(p1, p2);
+
+    let p1 = DataPayloadOr::<HelloWorldV1, usize>::from_payload(p1);
+    let p2 = p1.clone();
+    assert_eq!(p1, p2);
+
+    let p3 = DataPayloadOr::<HelloWorldV1, usize>::from_other(555);
+    let p4 = p3.clone();
+    assert_eq!(p3, p4);
+
+    let p5 = DataPayloadOr::<HelloWorldV1, usize>::from_other(666);
+    assert_ne!(p3, p5);
+    assert_ne!(p4, p5);
+
+    assert_ne!(p1, p3);
+    assert_ne!(p1, p4);
+    assert_ne!(p1, p5);
+    assert_ne!(p2, p3);
+    assert_ne!(p2, p4);
+    assert_ne!(p2, p5);
+}
+
+impl<M> DataPayload<M>
+where
+    M: DynamicDataMarker,
+{
+    /// Convert a fully owned (`'static`) data struct into a [`DataPayload`].
+    ///
+    /// This constructor creates `'static` payloads.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use icu_provider::hello_world::*;
+    /// use icu_provider::prelude::*;
+    /// use std::borrow::Cow;
+    ///
+    /// let local_struct = HelloWorld {
+    ///     message: Cow::Owned("example".to_owned()),
+    /// };
+    ///
+    /// let payload = DataPayload::<HelloWorldV1>::from_owned(local_struct.clone());
+    ///
+    /// assert_eq!(payload.get(), &local_struct);
+    /// ```
+    #[inline]
+    pub fn from_owned(data: M::DataStruct) -> Self {
+        Self(DataPayloadInner::Yoke(
+            Yoke::new_owned(data

@@ -1,0 +1,125 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/array.rs",
+      "sha256": "543888ecdf0feea536b777c209715ffb32948a9356a915db6b94543f0b0c3b76",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2021 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/builder.rs",
+      "sha256": "6222841ce4507b4c00bf5cd8de82242546d075245bf31f275933426fce4459c7",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/endian_scalar.rs",
+      "sha256": "df2449abbaafa829f78f42eea826d89942639f5be2bab6f80c8a3ad261114571",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/follow.rs",
+      "sha256": "deaf5e8e1f0b384919a7bf92bb442fd81a5a1e21529883f0bc24a5dd7727a1c1",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/get_root.rs",
+      "sha256": "c3004412c507b4337946a3b464f94c6b0f64b614d9c2fb81c438257e933febd3",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2020 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "160aa9e087593377993d258de9a47f0375b964cbbdf3f7f871c422842fc86a0b",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/primitives.rs",
+      "sha256": "df5f8ffc6d7b91715657df12f4f8bbbf27d989a17a8df3a7153a7e6ff2aa5ce0",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/push.rs",
+      "sha256": "3fb19641405aa45b2e7c48a82930020498ccc0cd5be975e3c312fa3b6a001885",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/table.rs",
+      "sha256": "ce7158cc47dcd1a4812b08ff8975bf38cafbb1b82d4130346dd7943ef7e3cbaf",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/vector.rs",
+      "sha256": "c2b853ef373530c51f8b401424f8a46dd207729921932acf37303bad13012723",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/vtable_writer.rs",
+      "sha256": "b195b7a6094a917b3ad8525da0730ad845293946eb0e1f5aec6418fa1cd63048",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    },
+    {
+      "path": "src/vtable.rs",
+      "sha256": "3d6186b8f0d4102ae904d56da4ba5f872db722a37c2f9412134a037ce91bb97d",
+      "lines": [
+        {
+          "line": 2,
+          "text": " * Copyright 2018 Google Inc. All rights reserved."
+        }
+      ]
+    }
+  ]
+}

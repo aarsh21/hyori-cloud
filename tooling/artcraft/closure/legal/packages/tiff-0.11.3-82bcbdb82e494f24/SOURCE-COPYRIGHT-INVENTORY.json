@@ -1,0 +1,35 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "examples/tiff-ls.rs",
+      "sha256": "fcd5d6bbce607efe71c3feadc3663641951573484893f042bf3686208f377238",
+      "lines": [
+        {
+          "line": 86,
+          "text": "            tiff::tags::Tag::Copyright => \"Copyright\","
+        }
+      ]
+    },
+    {
+      "path": "src/tags.rs",
+      "sha256": "c95500037f237d9d0e4b09fd9bea777fb3f648d4c10e007a678ee7c9e32acdb4",
+      "lines": [
+        {
+          "line": 146,
+          "text": "    Copyright = 33_432,"
+        }
+      ]
+    },
+    {
+      "path": "tests/benches/README.md",
+      "sha256": "61c5580a4c667cfe0cb2e63597f84b84e34a3424202d6e3e53954d4c273189f7",
+      "lines": [
+        {
+          "line": 1,
+          "text": "Copyrights:"
+        }
+      ]
+    }
+  ]
+}

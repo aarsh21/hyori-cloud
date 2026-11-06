@@ -1,0 +1,474 @@
+{
+  "schemaVersion": 1,
+  "deployable": false,
+  "fullNoticeAuditComplete": false,
+  "compilerGeneratedNoticeAuditComplete": false,
+  "protectedMarksCleared": false,
+  "legalOpinion": false,
+  "records": [
+    {
+      "id": "pdf:vendor/hayro-interpret/src/font/blob.rs",
+      "member": "vendor/hayro-interpret/src/font/blob.rs",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "0.txt",
+      "bytes": 17586,
+      "sha256": "248d746ceeb6a776b05f6d11dd427d9dcf09a9d2912d86651d10154c0467fe3d"
+    },
+    {
+      "id": "pdf:vendor/hayro-interpret/src/font/standard_font.rs",
+      "member": "vendor/hayro-interpret/src/font/standard_font.rs",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "1.txt",
+      "bytes": 32360,
+      "sha256": "30437a43d979595df55a22ca8fec2c42786b0b81378e73a177dcc35bf0fbc14f"
+    },
+    {
+      "id": "pdf:vendor/hayro-interpret/src/font/generated/standard.rs",
+      "member": "vendor/hayro-interpret/src/font/generated/standard.rs",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "2.txt",
+      "bytes": 3544,
+      "sha256": "9094acd2e4b0404104b48b46b28b34bf2a35ae938685ab4a4d2e17ab26bc999e"
+    },
+    {
+      "id": "pdf:vendor/hayro-interpret/src/font/generated/symbol.rs",
+      "member": "vendor/hayro-interpret/src/font/generated/symbol.rs",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "3.txt",
+      "bytes": 4948,
+      "sha256": "3b0b7cc198c484fed14c867f033b82ff51257380dcaa72add3e87cd800afe615"
+    },
+    {
+      "id": "pdf:vendor/hayro-interpret/src/font/generated/zapf_dings.rs",
+      "member": "vendor/hayro-interpret/src/font/generated/zapf_dings.rs",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "4.txt",
+      "bytes": 4451,
+      "sha256": "b3ef29c609b22be4119b4f21a847c9bb7450e2d0155889d9590bca3835d0aba3"
+    },
+    {
+      "id": "pdf:vendor/hayro-interpret/Cargo.toml",
+      "member": "vendor/hayro-interpret/Cargo.toml",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "5.txt",
+      "bytes": 2973,
+      "sha256": "cdb6fc309585747b98c029d2e2d48f31bc06595871aa3cce041786e5f78f61bf"
+    },
+    {
+      "id": "pdf:vendor/hayro-interpret/assets/LICENSE_FOXIT",
+      "member": "vendor/hayro-interpret/assets/LICENSE_FOXIT",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "6.txt",
+      "bytes": 1553,
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+    },
+    {
+      "id": "font:Sans",
+      "member": "vendor/hayro-interpret/assets/FoxitSans.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "7.txt",
+      "bytes": 15025,
+      "sha256": "a02339e95d20db14cbdfc1c6baf359cd36a091d5434925c3a4040f60e1a1af9e"
+    },
+    {
+      "id": "font:SansBold",
+      "member": "vendor/hayro-interpret/assets/FoxitSansBold.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "8.txt",
+      "bytes": 16344,
+      "sha256": "7bdfa36de1d5757dcfaf8b8a4be95c6e41c40fa70dbed9d78bf979a7b9959054"
+    },
+    {
+      "id": "font:SansItalic",
+      "member": "vendor/hayro-interpret/assets/FoxitSansItalic.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "9.txt",
+      "bytes": 16339,
+      "sha256": "7751cbefeda351708dae8c4a88db043411bc39ab2ae2097685da845d4d16f307"
+    },
+    {
+      "id": "font:SansBoldItalic",
+      "member": "vendor/hayro-interpret/assets/FoxitSansBoldItalic.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "10.txt",
+      "bytes": 16418,
+      "sha256": "555ce45924338e2e4b32821910221ce85da691fd59a9723c4c971a7c5627fc8b"
+    },
+    {
+      "id": "font:Serif",
+      "member": "vendor/hayro-interpret/assets/FoxitSerif.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "11.txt",
+      "bytes": 19469,
+      "sha256": "4f57d2b9d884af8f907bf22df6019b52d86cbf6214fdbd02b1ae05472a543f35"
+    },
+    {
+      "id": "font:SerifBold",
+      "member": "vendor/hayro-interpret/assets/FoxitSerifBold.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "12.txt",
+      "bytes": 19395,
+      "sha256": "0bdf4b04e964139818d51eda03d566ba999fc3ba2421b1c6c51f9dc969022e80"
+    },
+    {
+      "id": "font:SerifItalic",
+      "member": "vendor/hayro-interpret/assets/FoxitSerifItalic.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "13.txt",
+      "bytes": 21227,
+      "sha256": "610ae0687198045c4db5d1a6650fd5e92536631706382eb8b72e38df578d0ae9"
+    },
+    {
+      "id": "font:SerifBoldItalic",
+      "member": "vendor/hayro-interpret/assets/FoxitSerifBoldItalic.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "14.txt",
+      "bytes": 20733,
+      "sha256": "a406cac82583bf98175cb62c87ed5e95c45fbb34eece63a10b0a13e793cb2e10"
+    },
+    {
+      "id": "font:Fixed",
+      "member": "vendor/hayro-interpret/assets/FoxitFixed.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "15.txt",
+      "bytes": 17597,
+      "sha256": "b6c8fe53f134b8b6d4578cd2d544df4cee9624c4efa8d51a560fb40ea296101b"
+    },
+    {
+      "id": "font:FixedBold",
+      "member": "vendor/hayro-interpret/assets/FoxitFixedBold.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "16.txt",
+      "bytes": 18055,
+      "sha256": "f1b7159702973f54fc86254ea38bcf3712b2a736eb3a0995751e9f4bb45ad603"
+    },
+    {
+      "id": "font:FixedItalic",
+      "member": "vendor/hayro-interpret/assets/FoxitFixedItalic.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "17.txt",
+      "bytes": 18746,
+      "sha256": "5007faf8320fa1fcc08b8894b356ad976f60b992ba29ee5272578bbdebaf3876"
+    },
+    {
+      "id": "font:FixedBoldItalic",
+      "member": "vendor/hayro-interpret/assets/FoxitFixedBoldItalic.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "18.txt",
+      "bytes": 19151,
+      "sha256": "8a000945843bd31add06aee63bf9fd41b7578b4f3242a4b7cd46349ad9d24d4d"
+    },
+    {
+      "id": "font:Symbol",
+      "member": "vendor/hayro-interpret/assets/FoxitSymbol.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "19.txt",
+      "bytes": 16729,
+      "sha256": "47967d055530e7357088a08403115425643ec2cdfd6201ba8af0fbd7116c1539"
+    },
+    {
+      "id": "font:Dingbats",
+      "member": "vendor/hayro-interpret/assets/FoxitDingbats.pfb",
+      "source": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0#51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "path": "20.txt",
+      "bytes": 29513,
+      "sha256": "845c752392b6c914fb989c75a08b7792b88f542d2499042ef2889f8c814a16ed"
+    },
+    {
+      "id": "read-fonts:src/ps/cff/font.rs",
+      "member": "src/ps/cff/font.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "21.txt",
+      "bytes": 44708,
+      "sha256": "de00945b6d49a11299a637f317314d163a777892f5ad160bd7c9e10dbece5f6c"
+    },
+    {
+      "id": "read-fonts:src/ps/cff.rs",
+      "member": "src/ps/cff.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "22.txt",
+      "bytes": 231,
+      "sha256": "20d684b168d26c8b79254706ef4676817199786ac29a2d5d6b11a8e92e57f75c"
+    },
+    {
+      "id": "read-fonts:src/ps/string.rs",
+      "member": "src/ps/string.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "23.txt",
+      "bytes": 8349,
+      "sha256": "6069b0c3d4b9fc6009c577e08dcb818708ad54b40ecf60537b36382c0f6e2718"
+    },
+    {
+      "id": "read-fonts:src/ps/cs.rs",
+      "member": "src/ps/cs.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "24.txt",
+      "bytes": 85575,
+      "sha256": "5e89963c05fd8c2a9a7cbd9034739365543a540599ba92946733cdfd80a4216a"
+    },
+    {
+      "id": "read-fonts:src/ps/encoding.rs",
+      "member": "src/ps/encoding.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "25.txt",
+      "bytes": 11496,
+      "sha256": "e920155448f0c6dbd06d5afd4980758d1fd8f3df2e3247d6b1cf104015f315bc"
+    },
+    {
+      "id": "read-fonts:src/ps/agl.rs",
+      "member": "src/ps/agl.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "26.txt",
+      "bytes": 15099,
+      "sha256": "4f1a5dc5e7003031ff788803df0729b8d632b81af6f1d3e8c5648e006bcf257d"
+    },
+    {
+      "id": "read-fonts:data/glyphlist.txt",
+      "member": "data/glyphlist.txt",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "27.txt",
+      "bytes": 78059,
+      "sha256": "7bca3e2431753d85e6c6617707bec21396af7110199e746a3b75e01f0ace2346"
+    },
+    {
+      "id": "read-fonts:LICENSE-MIT",
+      "member": "LICENSE-MIT",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "28.txt",
+      "bytes": 1065,
+      "sha256": "7b4c9a3946dfcea7967582760e963e27799e225dcf20565c8ef55324bb017427"
+    },
+    {
+      "id": "read-fonts:LICENSE-APACHE",
+      "member": "LICENSE-APACHE",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.44.0.crate#d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8",
+      "path": "29.txt",
+      "bytes": 9701,
+      "sha256": "eba684204073ed715c4abb48129acdfd2bff8ae48339e6a7da3b341d3027b7f0"
+    },
+    {
+      "id": "skrifa:src/lib.rs",
+      "member": "src/lib.rs",
+      "source": "https://static.crates.io/crates/skrifa/skrifa-0.47.0.crate#526e654b303ff4ad73a5a40b25de2b3ce3d039c5e3b6da5f89ae6e57004cb40f",
+      "path": "30.txt",
+      "bytes": 2652,
+      "sha256": "58ec3caebee28d82ed6ea36f6b12d3359145b1ba4755b69d99538fddd82ddb1f"
+    },
+    {
+      "id": "skrifa:Cargo.toml",
+      "member": "Cargo.toml",
+      "source": "https://static.crates.io/crates/skrifa/skrifa-0.47.0.crate#526e654b303ff4ad73a5a40b25de2b3ce3d039c5e3b6da5f89ae6e57004cb40f",
+      "path": "31.txt",
+      "bytes": 1683,
+      "sha256": "bbe82e378f770b4996c543153dc7b21ca15379e12a3557a1370c94ee4bf73584"
+    },
+    {
+      "id": "chromium/pdfium:commit-observation",
+      "member": "0.txt",
+      "source": "https://api.github.com/repos/chromium/pdfium/commits/HEAD",
+      "path": "32.txt",
+      "bytes": 14524,
+      "sha256": "39e9219f35502f22d98776404153bd83a1bf547cf7db2dba08e1d8c384d2e882"
+    },
+    {
+      "id": "chromium/pdfium:LICENSE",
+      "member": "1.txt",
+      "source": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE",
+      "path": "33.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "id": "chromium/pdfium:AUTHORS",
+      "member": "2.txt",
+      "source": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/AUTHORS",
+      "path": "34.txt",
+      "bytes": 2403,
+      "sha256": "b061b2c78cb90179f1ab1f939f3f75cabb0d6f9d071c34327c361c08bc532ee8"
+    },
+    {
+      "id": "chromium/pdfium:core/fpdfapi/font/cpdf_fontencoding.cpp",
+      "member": "3.txt",
+      "source": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/core/fpdfapi/font/cpdf_fontencoding.cpp",
+      "path": "35.txt",
+      "bytes": 76726,
+      "sha256": "297fa9008bd56a9d98cc80f1a5b50efd4d21173580bb61c2116a199b7ec167e9"
+    },
+    {
+      "id": "chromium/pdfium:core/fpdfapi/font/cpdf_fontencoding.h",
+      "member": "4.txt",
+      "source": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/core/fpdfapi/font/cpdf_fontencoding.h",
+      "path": "36.txt",
+      "bytes": 1808,
+      "sha256": "7f92c3c0534c253162083e064340c9bbc9ad26b20bca5e3c51ff0c4df39475fc"
+    },
+    {
+      "id": "chromium/pdfium:core/fxge/fx_font.cpp",
+      "member": "5.txt",
+      "source": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/core/fxge/fx_font.cpp",
+      "path": "37.txt",
+      "bytes": 5410,
+      "sha256": "aab63336d4f8bb049cb0e0b5f97a223db85a46f2112a575c55285e21ccf23a24"
+    },
+    {
+      "id": "matplotlib/matplotlib:commit-observation",
+      "member": "6.txt",
+      "source": "https://api.github.com/repos/matplotlib/matplotlib/commits/HEAD",
+      "path": "38.txt",
+      "bytes": 6007,
+      "sha256": "b1849eccc162178f7e6bdbb0546a1c9e1a26ee3fb1a271d4b826daf03a71ef33"
+    },
+    {
+      "id": "matplotlib/matplotlib:lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
+      "member": "7.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
+      "path": "39.txt",
+      "bytes": 828,
+      "sha256": "311bfca694884d86006fb96de443b0f4359635921b95fc6c161bb94d013b7292"
+    },
+    {
+      "id": "matplotlib/matplotlib:lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica.afm",
+      "member": "8.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica.afm",
+      "path": "40.txt",
+      "bytes": 74292,
+      "sha256": "db772f2830fb6d000907791d8d26a12524d96943a9a739e520ee855c6b25c96f"
+    },
+    {
+      "id": "adobe-agl-glyphlist",
+      "member": "9.txt",
+      "source": "https://raw.githubusercontent.com/adobe-type-tools/agl-aglfn/4036a9ca80a62f64f9de4f7321a9a045ad0ecfd6/glyphlist.txt",
+      "path": "41.txt",
+      "bytes": 78060,
+      "sha256": "a3b2f61ced9f3644cc0d4ecde5c59df34ca286c689d9484a43a710a81c466789"
+    },
+    {
+      "id": "research-catalog:42",
+      "member": "sources.json",
+      "source": "local-public-research-catalog",
+      "path": "42.txt",
+      "bytes": 3385,
+      "sha256": "95df2acb3ab171e0c453046fc55cdb716a28513e85325753e38f263d99096244"
+    },
+    {
+      "id": "afm:Helvetica",
+      "member": "Helvetica.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica.afm",
+      "path": "43.txt",
+      "bytes": 74292,
+      "sha256": "db772f2830fb6d000907791d8d26a12524d96943a9a739e520ee855c6b25c96f"
+    },
+    {
+      "id": "afm:Helvetica-Bold",
+      "member": "Helvetica-Bold.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica-Bold.afm",
+      "path": "44.txt",
+      "bytes": 69269,
+      "sha256": "8b697881c8ee617a177f6f2e2bbc88570b9fd2b9f0e89ecfc0f5507878f988fc"
+    },
+    {
+      "id": "afm:Helvetica-Oblique",
+      "member": "Helvetica-Oblique.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica-Oblique.afm",
+      "path": "45.txt",
+      "bytes": 74392,
+      "sha256": "8556038366f9da4aad6d5782ce68afdb96d6d7261da64652f8b5e519110dd91b"
+    },
+    {
+      "id": "afm:Helvetica-BoldOblique",
+      "member": "Helvetica-BoldOblique.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica-BoldOblique.afm",
+      "path": "46.txt",
+      "bytes": 69365,
+      "sha256": "526e4eeaa2b5d435cbb7cba3ff42285a473ce132aa1caddb39b48a52cc10aaf6"
+    },
+    {
+      "id": "afm:Times-Roman",
+      "member": "Times-Roman.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-Roman.afm",
+      "path": "47.txt",
+      "bytes": 60460,
+      "sha256": "86136b527a5acee0c3283d56a6b68fc6a3d60982eb3bb0fb6cc54e83ecc8d77a"
+    },
+    {
+      "id": "afm:Times-Bold",
+      "member": "Times-Bold.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-Bold.afm",
+      "path": "48.txt",
+      "bytes": 64251,
+      "sha256": "7104e6af62c53f029013fb0641a81e31c98589c8f27b5ea6289b25b092c74321"
+    },
+    {
+      "id": "afm:Times-Italic",
+      "member": "Times-Italic.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-Italic.afm",
+      "path": "49.txt",
+      "bytes": 66328,
+      "sha256": "6cae69b92329193fd85082f0c89ad7a318df8fb5c939d7efe5343f88ab09473c"
+    },
+    {
+      "id": "afm:Times-BoldItalic",
+      "member": "Times-BoldItalic.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-BoldItalic.afm",
+      "path": "50.txt",
+      "bytes": 59642,
+      "sha256": "a7358e772726e91aa87015a001563926ad33dc5a7b2eea9680b34cc78aba385c"
+    },
+    {
+      "id": "afm:Courier",
+      "member": "Courier.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier.afm",
+      "path": "51.txt",
+      "bytes": 15335,
+      "sha256": "31d72adad79910126b22a5579ec9e179eee86674ecebe3fcff6f76916193af0e"
+    },
+    {
+      "id": "afm:Courier-Bold",
+      "member": "Courier-Bold.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier-Bold.afm",
+      "path": "52.txt",
+      "bytes": 15333,
+      "sha256": "b080c323e07cd956770b4988fe61c5213099ecf567dfb00860cbf50ab1d7e2c1"
+    },
+    {
+      "id": "afm:Courier-Oblique",
+      "member": "Courier-Oblique.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier-Oblique.afm",
+      "path": "53.txt",
+      "bytes": 15441,
+      "sha256": "bd1426e63d6c4d4378862713d4f71567d3fd0d34d41e11337cf5ea514cd56611"
+    },
+    {
+      "id": "afm:Courier-BoldOblique",
+      "member": "Courier-BoldOblique.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier-BoldOblique.afm",
+      "path": "54.txt",
+      "bytes": 15399,
+      "sha256": "ce0eb54286c3dd853d5017c25e6be684135a14a9e8fb18fcb18d1bd91a607cbc"
+    },
+    {
+      "id": "afm:Symbol",
+      "member": "Symbol.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Symbol.afm",
+      "path": "55.txt",
+      "bytes": 9740,
+      "sha256": "3f951aa17af8cb4aa1e1288c6b9baa8a30d3e990ebdbe8cf9a3d5acabcb9f771"
+    },
+    {
+      "id": "afm:ZapfDingbats",
+      "member": "ZapfDingbats.txt",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/ZapfDingbats.afm",
+      "path": "56.txt",
+      "bytes": 9527,
+      "sha256": "66e3a6b7d19c2a87e374eabc92a84f86d00884ec242f6ad3253999c408c56a40"
+    },
+    {
+      "id": "research-catalog:57",
+      "member": "sources.json",
+      "source": "local-public-research-catalog",
+      "path": "57.txt",
+      "bytes": 5157,
+      "sha256": "30683e6ab79a388a4c16e49fee86817395d8b5027c01ef48727a0c62a8692f33"
+    }
+  ]
+}

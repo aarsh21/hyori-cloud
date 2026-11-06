@@ -1,0 +1,330 @@
+// Copyright 2015 The Servo Project Developers. See the
+// COPYRIGHT file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+//! This crate implements the [Unicode Bidirectional Algorithm][tr9] for display of mixed
+//! right-to-left and left-to-right text.  It is written in safe Rust, compatible with the
+//! current stable release.
+//!
+//! ## Example
+//!
+//! ```rust
+//! # #[cfg(feature = "hardcoded-data")] {
+//! use unicode_bidi::BidiInfo;
+//!
+//! // This example text is defined using `concat!` because some browsers
+//! // and text editors have trouble displaying bidi strings.
+//! let text = concat![
+//!   "א",
+//!   "ב",
+//!   "ג",
+//!   "a",
+//!   "b",
+//!   "c",
+//! ];
+//!
+//! // Resolve embedding levels within the text.  Pass `None` to detect the
+//! // paragraph level automatically.
+//! let bidi_info = BidiInfo::new(&text, None);
+//!
+//! // This paragraph has embedding level 1 because its first strong character is RTL.
+//! assert_eq!(bidi_info.paragraphs.len(), 1);
+//! let para = &bidi_info.paragraphs[0];
+//! assert_eq!(para.level.number(), 1);
+//! assert_eq!(para.level.is_rtl(), true);
+//!
+//! // Re-ordering is done after wrapping each paragraph into a sequence of
+//! // lines. For this example, I'll just use a single line that spans the
+//! // entire paragraph.
+//! let line = para.range.clone();
+//!
+//! let display = bidi_info.reorder_line(para, line);
+//! assert_eq!(display, concat![
+//!   "a",
+//!   "b",
+//!   "c",
+//!   "ג",
+//!   "ב",
+//!   "א",
+//! ]);
+//! # } // feature = "hardcoded-data"
+//! ```
+//!
+//! # Features
+//!
+//! - `std`: Enabled by default, but can be disabled to make `unicode_bidi`
+//!   `#![no_std]` + `alloc` compatible.
+//! - `hardcoded-data`: Enabled by default. Includes hardcoded Unicode bidi data and more convenient APIs.
+//! - `serde`: Adds [`serde::Serialize`] and [`serde::Deserialize`]
+//!   implementations to relevant types.
+//!
+//! [tr9]: <http://www.unicode.org/reports/tr9/>
+
+#![no_std]
+// We need to link to std to make doc tests work on older Rust versions
+#[cfg(feature = "std")]
+extern crate std;
+#[macro_use]
+extern crate alloc;
+#[cfg(feature = "smallvec")]
+extern crate smallvec;
+
+pub mod data_source;
+pub mod deprecated;
+pub mod format_chars;
+pub mod level;
+pub mod utf16;
+
+mod char_data;
+mod explicit;
+mod implicit;
+mod prepare;
+
+pub use crate::char_data::{BidiClass, UNICODE_VERSION};
+pub use crate::data_source::BidiDataSource;
+pub use crate::level::{Level, LTR_LEVEL, RTL_LEVEL};
+pub use crate::prepare::{LevelRun, LevelRunVec};
+
+#[cfg(feature = "hardcoded-data")]
+pub use crate::char_data::{bidi_class, HardcodedBidiData};
+
+use alloc::borrow::Cow;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::char;
+use core::cmp;
+use core::iter::repeat;
+use core::ops::Range;
+use core::str::CharIndices;
+#[cfg(feature = "smallvec")]
+use smallvec::SmallVec;
+
+use crate::format_chars as chars;
+use crate::BidiClass::*;
+
+/// Trait that abstracts over a text source for use by the bidi algorithms.
+/// We implement this for str (UTF-8) and for [u16] (UTF-16, native-endian).
+/// (For internal unicode-bidi use; API may be unstable.)
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait TextSource<'text>: private::Sealed {
+    type CharIter: Iterator<Item = char>;
+    type CharIndexIter: Iterator<Item = (usize, char)>;
+    type IndexLenIter: Iterator<Item = (usize, usize)>;
+
+    /// Return the length of the text in code units.
+    #[doc(hidden)]
+    fn len(&self) -> usize;
+
+    /// Get the character at a given code unit index, along with its length in code units.
+    /// Returns None if index is out of range, or points inside a multi-code-unit character.
+    /// Returns REPLACEMENT_CHARACTER for any unpaired surrogates in UTF-16.
+    #[doc(hidden)]
+    fn char_at(&self, index: usize) -> Option<(char, usize)>;
+
+    /// Return a subrange of the text, indexed by code units.
+    /// (We don't implement all of the Index trait, just the minimum we use.)
+    #[doc(hidden)]
+    fn subrange(&self, range: Range<usize>) -> &Self;
+
+    /// An iterator over the text returning Unicode characters,
+    /// REPLACEMENT_CHAR for invalid code units.
+    #[doc(hidden)]
+    fn chars(&'text self) -> Self::CharIter;
+
+    /// An iterator over the text returning (index, char) tuples,
+    /// where index is the starting code-unit index of the character,
+    /// and char is its Unicode value (or REPLACEMENT_CHAR if invalid).
+    #[doc(hidden)]
+    fn char_indices(&'text self) -> Self::CharIndexIter;
+
+    /// An iterator over the text returning (index, length) tuples,
+    /// where index is the starting code-unit index of the character,
+    /// and length is its length in code units.
+    #[doc(hidden)]
+    fn indices_lengths(&'text self) -> Self::IndexLenIter;
+
+    /// Number of code units the given character uses.
+    #[doc(hidden)]
+    fn char_len(ch: char) -> usize;
+}
+
+mod private {
+    pub trait Sealed {}
+
+    // Implement for str and [u16] only.
+    impl Sealed for str {}
+    impl Sealed for [u16] {}
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Direction {
+    Ltr,
+    Rtl,
+    Mixed,
+}
+
+/// Bidi information about a single paragraph
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParagraphInfo {
+    /// The paragraphs boundaries within the text, as byte indices.
+    ///
+    /// TODO: Shrink this to only include the starting index?
+    pub range: Range<usize>,
+
+    /// The paragraph embedding level.
+    ///
+    /// <http://www.unicode.org/reports/tr9/#BD4>
+    pub level: Level,
+}
+
+impl ParagraphInfo {
+    /// Gets the length of the paragraph in the source text.
+    pub fn len(&self) -> usize {
+        self.range.end - self.range.start
+    }
+}
+
+/// Initial bidi information of the text.
+///
+/// Contains the text paragraphs and `BidiClass` of its characters.
+#[derive(PartialEq, Debug)]
+pub struct InitialInfo<'text> {
+    /// The text
+    pub text: &'text str,
+
+    /// The BidiClass of the character at each byte in the text.
+    /// If a character is multiple bytes, its class will appear multiple times in the vector.
+    pub original_classes: Vec<BidiClass>,
+
+    /// The boundaries and level of each paragraph within the text.
+    pub paragraphs: Vec<ParagraphInfo>,
+}
+
+impl<'text> InitialInfo<'text> {
+    /// Find the paragraphs and BidiClasses in a string of text.
+    ///
+    /// <http://www.unicode.org/reports/tr9/#The_Paragraph_Level>
+    ///
+    /// Also sets the class for each First Strong Isolate initiator (FSI) to LRI or RLI if a strong
+    /// character is found before the matching PDI.  If no strong character is found, the class will
+    /// remain FSI, and it's up to later stages to treat these as LRI when needed.
+    ///
+    /// The `hardcoded-data` Cargo feature (enabled by default) must be enabled to use this.
+    #[cfg_attr(feature = "flame_it", flamer::flame)]
+    #[cfg(feature = "hardcoded-data")]
+    pub fn new(text: &str, default_para_level: Option<Level>) -> InitialInfo<'_> {
+        Self::new_with_data_source(&HardcodedBidiData, text, default_para_level)
+    }
+
+    /// Find the paragraphs and BidiClasses in a string of text, with a custom [`BidiDataSource`]
+    /// for Bidi data. If you just wish to use the hardcoded Bidi data, please use [`InitialInfo::new()`]
+    /// instead (enabled with tbe default `hardcoded-data` Cargo feature)
+    ///
+    /// <http://www.unicode.org/reports/tr9/#The_Paragraph_Level>
+    ///
+    /// Also sets the class for each First Strong Isolate initiator (FSI) to LRI or RLI if a strong
+    /// character is found before the matching PDI.  If no strong character is found, the class will
+    /// remain FSI, and it's up to later stages to treat these as LRI when needed.
+    #[cfg_attr(feature = "flame_it", flamer::flame)]
+    pub fn new_with_data_source<'a, D: BidiDataSource>(
+        data_source: &D,
+        text: &'a str,
+        default_para_level: Option<Level>,
+    ) -> InitialInfo<'a> {
+        InitialInfoExt::new_with_data_source(data_source, text, default_para_level).base
+    }
+}
+
+/// Extended version of InitialInfo (not public API).
+#[derive(PartialEq, Debug)]
+struct InitialInfoExt<'text> {
+    /// The base InitialInfo for the text, recording its paragraphs and bidi classes.
+    base: InitialInfo<'text>,
+
+    /// Parallel to base.paragraphs, records whether each paragraph is "pure LTR" that
+    /// requires no further bidi processing (i.e. there are no RTL characters or bidi
+    /// control codes present), and whether any bidi isolation controls are present.
+    flags: Vec<ParagraphInfoFlags>,
+}
+
+#[derive(PartialEq, Debug)]
+struct ParagraphInfoFlags {
+    is_pure_ltr: bool,
+    has_isolate_controls: bool,
+}
+
+impl<'text> InitialInfoExt<'text> {
+    /// Find the paragraphs and BidiClasses in a string of text, with a custom [`BidiDataSource`]
+    /// for Bidi data. If you just wish to use the hardcoded Bidi data, please use [`InitialInfo::new()`]
+    /// instead (enabled with tbe default `hardcoded-data` Cargo feature)
+    ///
+    /// <http://www.unicode.org/reports/tr9/#The_Paragraph_Level>
+    ///
+    /// Also sets the class for each First Strong Isolate initiator (FSI) to LRI or RLI if a strong
+    /// character is found before the matching PDI.  If no strong character is found, the class will
+    /// remain FSI, and it's up to later stages to treat these as LRI when needed.
+    #[cfg_attr(feature = "flame_it", flamer::flame)]
+    pub fn new_with_data_source<'a, D: BidiDataSource>(
+        data_source: &D,
+        text: &'a str,
+        default_para_level: Option<Level>,
+    ) -> InitialInfoExt<'a> {
+        let mut paragraphs = Vec::<ParagraphInfo>::new();
+        let mut flags = Vec::<ParagraphInfoFlags>::new();
+        let (original_classes, _, _, _) = compute_initial_info(
+            data_source,
+            text,
+            default_para_level,
+            Some((&mut paragraphs, &mut flags)),
+        );
+
+        InitialInfoExt {
+            base: InitialInfo {
+                text,
+                original_classes,
+                paragraphs,
+            },
+            flags,
+        }
+    }
+}
+
+/// Implementation of initial-info computation for both BidiInfo and ParagraphBidiInfo.
+/// To treat the text as (potentially) multiple paragraphs, the caller should pass the
+/// pair of optional outparam arrays to receive the ParagraphInfo and pure-ltr flags
+/// for each paragraph. Passing None for split_paragraphs will ignore any paragraph-
+/// separator characters in the text, treating it just as a single paragraph.
+/// Returns the array of BidiClass values for each code unit of the text, along with
+/// the embedding level and pure-ltr flag for the *last* (or only) paragraph.
+fn compute_initial_info<'a, D: BidiDataSource, T: TextSource<'a> + ?Sized>(
+    data_source: &D,
+    text: &'a T,
+    default_para_level: Option<Level>,
+    mut split_paragraphs: Option<(&mut Vec<ParagraphInfo>, &mut Vec<ParagraphInfoFlags>)>,
+) -> (Vec<BidiClass>, Level, bool, bool) {
+    let mut original_classes = Vec::with_capacity(text.len());
+
+    // The stack contains the starting code unit index for each nested isolate we're inside.
+    #[cfg(feature = "smallvec")]
+    let mut isolate_stack = SmallVec::<[usize; 8]>::new();
+    #[cfg(not(feature = "smallvec"))]
+    let mut isolate_stack = Vec::new();
+
+    debug_assert!(
+        if let Some((ref paragraphs, ref flags)) = split_paragraphs {
+            paragraphs.is_empty() && flags.is_empty()
+        } else {
+            true
+        }
+    );
+
+    let mut para_start = 0;
+    let mut para_level = default_para_level;
+
+    // Per-paragraph flag: can subsequent processing be skipped? Set to false if any
+    // RTL characters or bidi control characters are encountered in the par

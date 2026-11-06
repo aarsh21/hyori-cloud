@@ -1,0 +1,75 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/codebook.rs",
+      "sha256": "c492da42ffbfd71d039a644d5303ed9000f3895393a6254bebc493b135044fd9",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/common.rs",
+      "sha256": "6f9b4c594f5f5517736d85aa1923441db7cf8278a26ebfd6b00794dbdfe47ec3",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/dsp.rs",
+      "sha256": "344f9b71da20f2080b1e049aef264e24d4add3c7e370158c03655f2baf01dedd",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/floor.rs",
+      "sha256": "8b2fedec670306702cdd3b5c594de0960273d0b829956fddbffa6316a61b1503",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "c5ce337b92289f0ea3f3937c71586e89129c252a7259bbb83a1da814ca03844d",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/residue.rs",
+      "sha256": "4ff68cf97c5f747cde0845ad9f41b255db38974dcba0ef957d3339542e2365bd",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/window.rs",
+      "sha256": "a2cc1504a9b5f201104664e775a60beba3cb61fc416c89b6525aa0b326e864e7",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/pdf/src/metrics.rs",
+      "sha256": "23280e513a74c7bda7f613fe63dae7964479cf59d8c291d5fc5f5100945b2130",
+      "lines": [
+        {
+          "line": 7,
+          "text": "//! without charge, with or without modification, provided that all copyright notices are retained;"
+        }
+      ]
+    }
+  ]
+}

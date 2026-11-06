@@ -1,0 +1,10 @@
+{
+  "artifactVersion": "0.14.1-hyori-host.2",
+  "protocol": 1,
+  "finalFreezeVerified": true,
+  "crates": 575,
+  "inputs": 1876,
+  "changedFiles": 23,
+  "hostJavaScriptSha256": "cbaf952ff39f19859ee90cf04d7839eb4a7dc6bf61fbfc650b718c25e01be0c6",
+  "sourceCargoLockSha256": "91594bc6b91f1501b9bd1330e46cfaa262b8c757359880786dbe098e8fc1ace4"
+}

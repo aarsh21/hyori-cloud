@@ -1,0 +1,343 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "ad8b14108d47cbcbb2ae80ba3acdb8c5099b8aaea65a759e8b0c8d17ab0f122a",
+      "lines": [
+        {
+          "line": 24,
+          "text": "    \"COPYRIGHT\","
+        }
+      ]
+    },
+    {
+      "path": "README.md",
+      "sha256": "ab7d9cdea0789c9f3dfa3beeac277cbabd96cda62041aee8a2872346fac39974",
+      "lines": [
+        {
+          "line": 182,
+          "text": "[COPYRIGHT](https://github.com/hsivonen/encoding_rs/blob/main/COPYRIGHT)."
+        },
+        {
+          "line": 641,
+          "text": "* Remove year from copyright notices. (No features or bug fixes.)"
+        }
+      ]
+    },
+    {
+      "path": "src/ascii.rs",
+      "sha256": "fff21e34b75d82f804533f339aa3fec03f9c04cb08a73486bb054d3c3cc78e97",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 486,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/big5.rs",
+      "sha256": "91ac0af749d49bb80bf472b343e1c782666dea5e00a1ad70f21799d2ffce67a2",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 263,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/euc_jp.rs",
+      "sha256": "7b33ebe0ff2e389ad08a76bd910efacc9dc1bb21512a5352d067c4d504814e94",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 343,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/euc_kr.rs",
+      "sha256": "40804ca888a71e7e181481415c1f4b5edfe9f95b419f4b623ae6d224291a2a2e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 361,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/gb18030_2022.rs",
+      "sha256": "3c2e06492c5e00fcd39515e4af4c560d8cee5c31e7a7e388db682bc9ee33ee32",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft)."
+        },
+        {
+          "line": 6,
+          "text": "// 1. Redistributions of source code must retain the above copyright notice, this"
+        },
+        {
+          "line": 9,
+          "text": "// 2. Redistributions in binary form must reproduce the above copyright notice,"
+        },
+        {
+          "line": 13,
+          "text": "// 3. Neither the name of the copyright holder nor the names of its"
+        },
+        {
+          "line": 17,
+          "text": "// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\""
+        },
+        {
+          "line": 20,
+          "text": "// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE"
+        }
+      ]
+    },
+    {
+      "path": "src/gb18030.rs",
+      "sha256": "d7996393b4a7d6f3c3f588339c52fadfa6c0f9a63af5f60ad42549f2cb6ef73a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 578,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/handles.rs",
+      "sha256": "d8867395e9b5dba942554173c0c8cc99a390dcac27749927fa55e4172114b248",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        }
+      ]
+    },
+    {
+      "path": "src/iso_2022_jp.rs",
+      "sha256": "59cd5a573d5bc7be5af5406ded93e57c5c21d8861193f5ff4fbe9fd4e3d6b057",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 730,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "7e129f02c254d7bd33e37d8951164a7c9e25fa284557ab4704859bc58c2f7e80",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 14,
+          "text": "// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft)."
+        },
+        {
+          "line": 19,
+          "text": "// 1. Redistributions of source code must retain the above copyright notice, this"
+        },
+        {
+          "line": 22,
+          "text": "// 2. Redistributions in binary form must reproduce the above copyright notice,"
+        },
+        {
+          "line": 26,
+          "text": "// 3. Neither the name of the copyright holder nor the names of its"
+        },
+        {
+          "line": 30,
+          "text": "// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\""
+        },
+        {
+          "line": 33,
+          "text": "// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE"
+        },
+        {
+          "line": 72,
+          "text": "//! [`COPYRIGHT`](https://github.com/hsivonen/encoding_rs/blob/main/COPYRIGHT)"
+        },
+        {
+          "line": 5301,
+          "text": "    // Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/macros.rs",
+      "sha256": "31561408cae84bc419855deaaba61180ce7272e10fab1f0f09cf1aa1278ca66b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        }
+      ]
+    },
+    {
+      "path": "src/mem.rs",
+      "sha256": "db5dca6f98f4a7b2f60e1b5c928db31873b366d084fd2a3a70c2feb6681c501d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 2028,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/replacement.rs",
+      "sha256": "7660b34a53f8c1ca2bdfa0e51e843ec28326950952ad8bc96569feb93ac62308",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 73,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/shift_jis.rs",
+      "sha256": "8b545e99c2b6dfd30e023d17374771bf55c914c58a69d31a61c64257c2e962e7",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 304,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/simd_funcs.rs",
+      "sha256": "b6a7f664796c091bfc3cef3446baec4428e054f32af565f0e691fa80e1d7846a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        }
+      ]
+    },
+    {
+      "path": "src/single_byte.rs",
+      "sha256": "d517b684d3c0a406c7af4ed0d306851b2a9501974939a1ed68fadcc2890b6149",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 555,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/test_labels_names.rs",
+      "sha256": "23a2e11b02b3b8d15fb5613a625e3edb2c61e70e3c581abfd638719a4088200d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/testing.rs",
+      "sha256": "f59e671e95a98a56f6b573e8c6be4d71e670bf52f7e20eb1605d990aafa1894e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        }
+      ]
+    },
+    {
+      "path": "src/utf_16.rs",
+      "sha256": "3213505d590748a7e1347b7c51d601689c1c2b4ae9db48f90786ebc337610889",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 201,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/utf_8.rs",
+      "sha256": "cacfc0df6b610d51814584870435759cae7b4fd256935582d7d62c3db288579b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 991,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    },
+    {
+      "path": "src/variant.rs",
+      "sha256": "e9a6d6a72bc766e9f33f180c3cffa3d0b46d9c28662c33af999e6622145f856d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        }
+      ]
+    },
+    {
+      "path": "src/x_user_defined.rs",
+      "sha256": "567806b2a33b96dd1362f460deb61e8cee59479cd56cbc965db412da2e2ef520",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 200,
+          "text": "// Any copyright to the test code below this comment is dedicated to the"
+        }
+      ]
+    }
+  ]
+}

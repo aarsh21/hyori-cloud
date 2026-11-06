@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/datetime.rs",
+      "sha256": "51d74f979a2be2440c9f7cf1ce28c74154e91f02cf5f7552bc4b077144d3f3b7",
+      "lines": [
+        {
+          "line": 5,
+          "text": "// Copyright (c) 2016 The humantime Developers"
+        }
+      ]
+    }
+  ]
+}

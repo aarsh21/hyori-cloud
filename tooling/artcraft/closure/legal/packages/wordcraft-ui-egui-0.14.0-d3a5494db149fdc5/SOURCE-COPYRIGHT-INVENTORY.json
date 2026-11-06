@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/ui-egui/src/dialogs/dialogs_insert/symbol.rs",
+      "sha256": "8580dc4c4473eda1982bd87622c48e1874960329dd89663a48abf1dc55572536",
+      "lines": [
+        {
+          "line": 95,
+          "text": "    (\"Copyright\", '\\u{00A9}', None),"
+        }
+      ]
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/dispatch.rs",
+      "sha256": "08d10e6de24225156e7abf5de7a1caf319caba214740bfa3afaf6b7e87f0892b",
+      "lines": [
+        {
+          "line": 1096,
+          "text": "            ui.label(egui::RichText::new(tl!(\"MIT OR Apache-2.0. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors.\")).small().weak());"
+        }
+      ]
+    }
+  ]
+}

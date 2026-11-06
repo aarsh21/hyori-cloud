@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "artifactVersion": "0.14.1-hyori-host.2",
+  "sourceArchiveSha256": "6e03f2e9532c0102ec01d8be8bba556a0191ee11d5ca64412a5b48457afddfb7",
+  "originalCommit": "ee39ff67816d0039143ec7c98ea604cefe0cd2e5",
+  "sourceCargoLockSha256": "91594bc6b91f1501b9bd1330e46cfaa262b8c757359880786dbe098e8fc1ace4",
+  "exactSourceReplayVerified": true,
+  "completedDriverCommands": [
+    {
+      "id": "rustc",
+      "status": 0,
+      "elapsedMs": 88
+    },
+    {
+      "id": "cargo-build",
+      "status": 0,
+      "elapsedMs": 384764
+    },
+    {
+      "id": "metadata",
+      "status": 0,
+      "elapsedMs": 600
+    },
+    {
+      "id": "normal-tree",
+      "status": 0,
+      "elapsedMs": 287
+    },
+    {
+      "id": "host-tree",
+      "status": 0,
+      "elapsedMs": 288
+    },
+    {
+      "id": "trunk",
+      "status": 0,
+      "elapsedMs": 590954
+    }
+  ],
+  "containerExitStatus": null,
+  "containerAttachmentCompletionObserved": false,
+  "collectionNote": "Original session/attachment ended without a container-result record. All six actual driver commands, including Cargo and Trunk, recorded exit 0 and complete outputs; container exit status is not fabricated.",
+  "sourceMembers": 756,
+  "changedFiles": [
+    {
+      "path": "apps/deckcraft-web/index.html",
+      "before": "5ff552301bfde3d5d369c93ad1a7a886f7aa639c021692269677c12f68e132be",
+      "after": "45593497479b5a06c0c125b2f10d2e48e37f6e359309c68071ef224779350131"
+    },
+    {
+      "path": "apps/deckcraft-web/src/main.rs",
+      "before": "191cf6b07d914fcbcd15bcca55bb5e9606779b24ace7d5622c2a1dc8422f3223",
+      "after": "2ad3df461670061de18c66bcb297d2f3e6aa7b61b5d79649e108be46ec4812a4"
+    },
+    {
+      "path": "apps/deckcraft-web/src/web.rs",
+      "before": "20826f67b279adf4ec3c730d1be063d8a00e2223bcc23d8cad3b6b342105349b",
+      "after": "010e674e818a7cd1a989accb087aadee27f5a611ae96dd7e64374743ed0d4d07"
+    },
+    {
+      "path": "crates/engine/src/cmd/file.rs",
+      "before": "bb7223f475a3424051d511b48e845d5230c76f22f427fddb21c72d798d8bc566",
+      "after": "15f93dd5bc7b2ba1839ed7808e1a16a1a3cd9b4cb406aad1d57ad15e36f8ef88"
+    },
+    {
+      "path": "crates/engine/src/lib.rs",
+      "before": "5f9bfddf317c43c3ccc51a82b3fdca56ccd27420e5d68d9935fbae02d813175f",
+      "after": "b3775d2ae93d82647066390476082cf207475af1146152cc3e763dca0856731d"
+    },
+    {
+      "path": "crates/engine/src/links.rs",
+      "before": "a60b41637788503857504beeea799836bb5191ce20de8d2dc3ff621da3e56357",
+      "after": "24aefca55c38695138db335a904fe1def79491d020f295cf4fbccbcb4f561dd4"
+    },
+    {
+      "path": "crates/ui-egui/src/app/commands.rs",
+      "before": "5f8476a99a14407adb81f641c169ec3182250047a84cd0ee4b030417a6e98914",
+      "after": "f71033dab93324a264eefb1a2aef95508515cfb39f5f0f3127760aa73befe0f8"
+    },
+    {
+      "path": "crates/ui-egui/src/app/files.rs",
+      "before": "7b6fdf0aa8ae65f273c694d94f7d76d78f8d4ce4aa91aa5c2b2760bf61ffb2b3",
+      "after": "5ff9009e43f252476422f123aef18dec262361fefdef48fca79711af1639f5ab"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/files.rs",
+      "before": "47eb50c1c9ca56e8c85f56b0d07094ccca2ec66620ff46246e7b31018b8fadb6",
+      "after": "b51662f81176e33489cff3fe965a25f819bff943111bfcd196281ead08938b25"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/info.rs",
+      "before": "2b892f93b3452529cb4a239e5031fe768f507f904d11e2224bdb4eda8e933f5c",
+      "after": "11779539ee55bb28e3bcae004e8281a21dfcc9af7553a7fa2265bf19cf3069ad"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/print.rs",
+      "before": "5431bac51489c514ce9ccf14ef1a958b5dff195657745d622c38b8c15e4f922d",
+      "after": "e62d20cbd6018830aed1ef66a0b981ef3ad0a418046ea3321104b913cf6ca281"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs.rs",
+      "before": "1872e13592f1347937570cda1dd104e091b768faa096e900aa79698c97b6ffe0",
+      "after": "6ca7feab3fe392f2814772d3571ee3b8087442b3868c693d54395a4cb91a514e"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/about.rs",
+      "before": "8f24be71ea1ffda27e1f4dae8912b59375d41dfd6574511c6a6d69e157a3e240",
+      "after": "49f492bd1ab69fc8765a6f29b1e6648ade2065f36fc56d31bcf06b8c80b61404"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/find.rs",
+      "before": "ed2e84bf82f59a8168e87d8bd8d05593a88eddeca4c7f2b21bfdece3b099fbd3",
+      "after": "722017d5f7ded3128513cbd050eeac092fad54c9cf4d05edc44f37e1b665f5ad"
+    },
+    {
+      "path": "crates/ui-egui/src/lib.rs",
+      "before": "cb666e312fc84a2eea533a9971f2f62fec0cf62b843f6ef8f203f5631836cfe2",
+      "after": "cea782ebaa56dc0c0d59570e81d4261a8b3d3de203d8edd9735c01e23d183396"
+    },
+    {
+      "path": "crates/ui-egui/src/menus.rs",
+      "before": "295efa42e529e80dabae527647b50367e16c6c1a8b283e4deeabe2b372b12600",
+      "after": "e255204e9bcf3ee942607653968c5d6186ad7b043f1d4681cecae5071bdbe4e8"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon/title_bar.rs",
+      "before": "709ee60846db52727234221012161c89c109bbd41e20626d33bef14eade12068",
+      "after": "983ae8a2fdba72f51aa99d0730eb081a60f93140659312afb392c008098fa634"
+    },
+    {
+      "path": "crates/ui-egui/src/services.rs",
+      "before": "30ff46f32738612c20f927f8610db493f6fe837498b57b2b087cc12ce43ce42d",
+      "after": "3d2a27e00cd53bc77685fb2a80db374f1b250f426dd63c285c3e6f8d1c5eed0f"
+    },
+    {
+      "path": "crates/ui-egui/src/show/presenter.rs",
+      "before": "291cf781e3e7587481413d5bca6992e651a725c64be5d84009625eb75c6b43c8",
+      "after": "9e7d721270fa66dec16b709e5671e07c81e4f02ec4f8afef98a922a39fe5bbaf"
+    },
+    {
+      "path": "apps/deckcraft-web/src/host.rs",
+      "before": null,
+      "after": "692b7b79caca36f25df214fd1c72ab51f182ca5bd9de047b7d0f389e99ccdc00"
+    },
+    {
+      "path": "apps/deckcraft-web/hyori-host.js",
+      "before": null,
+      "after": "cbaf952ff39f19859ee90cf04d7839eb4a7dc6bf61fbfc650b718c25e01be0c6"
+    },
+    {
+      "path": "apps/deckcraft-web/hyori-mark.ico",
+      "before": null,
+      "after": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "assets/hyori-mark.png",
+      "before": null,
+      "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    }
+  ],
+  "frozenAuthorSources": [
+    {
+      "path": "tooling/artcraft/patches/deckcraft-host-v2/host-protocol.ts",
+      "bytes": 11138,
+      "sha256": "f7bf019e06c1ed1e724619f280ae9a35d11821184c1f8c1d729cc43a3190f97b"
+    },
+    {
+      "path": "tooling/artcraft/patches/deckcraft-host-v2/host-entry.ts",
+      "bytes": 2091,
+      "sha256": "fd1ab3faa1a5dbdcdbfa1e1798bff13f695c9d3c5f3664d30782b3fd6f804c49"
+    },
+    {
+      "path": "scripts/artcraft/deckcraft-marks.ts",
+      "bytes": 8942,
+      "sha256": "66d5551183bd469f03b2a868091bbf706ab3f67ec62906c3e0d47314d3f729cd"
+    },
+    {
+      "path": "scripts/artcraft/deckcraft-patch.ts",
+      "bytes": 8262,
+      "sha256": "9db379ed0971e5c7ced82b9fc0dab4e3c121a3eea28fc4322df3a09dafd677ee"
+    },
+    {
+      "path": "scripts/artcraft/deckcraft-build.ts",
+      "bytes": 10842,
+      "sha256": "29b150ae5c89fb12ab89b869defc523e8181232e521e93407449c0f3a6d27567"
+    }
+  ],
+  "reusedHyoriInputs": {
+    "faviconSha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85",
+    "iconSha256": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+  },
+  "protocolJavaScriptChangedFromV1": true,
+  "protocolJavaScriptSha256": "cbaf952ff39f19859ee90cf04d7839eb4a7dc6bf61fbfc650b718c25e01be0c6",
+  "finalFunctionalCorrections": [
+    "PPTX Ctrl+S defaults to an explicit native .deckcraft copy, never overwrites the import",
+    "Read-only replacement stays rejected; explicit authorized Save As remains possible"
+  ],
+  "protocol": 1,
+  "rustHostVersion": "0.14.1-hyori-host.2",
+  "legalBytesUnchanged": true,
+  "marks": {
+    "owner": "Opus exact source patch",
+    "productPresentation": "Hyori Presentations",
+    "sourceReplacementVerified": true,
+    "builtInThemeIdentifier": "DeckCraft retained as a compatibility/theme identifier, not the modified product name",
+    "unusedOriginalBrandSourceAssets": "Not included as runtime payloads; original source provenance is preserved, no blanket byte-search absence claim",
+    "renderedBrowserApproval": false
+  },
+  "content": {
+    "sfntInstances": 7,
+    "exactFontHashesUnchanged": true,
+    "sharedEframeSnippetUnchanged": true,
+    "fullNoticeAuditComplete": false,
+    "compilerGeneratedNoticeAuditComplete": false,
+    "legalOpinion": false
+  },
+  "actualSdkBackendIntegration": false,
+  "realBrowserWasmRoundTrip": false,
+  "pptxFidelityVerified": false
+}

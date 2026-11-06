@@ -1,0 +1,1035 @@
+{
+  "schemaVersion": 1,
+  "deployable": false,
+  "fullNoticeAuditComplete": false,
+  "compilerGeneratedNoticeAuditComplete": false,
+  "legalOpinion": false,
+  "entries": [
+    {
+      "path": "conditions/e0.txt",
+      "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1",
+      "bytes": 1068,
+      "source": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSE-MIT",
+      "member": "rust-LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1.txt",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "bytes": 9723,
+      "source": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSE-APACHE",
+      "member": "rust-LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e2.txt",
+      "sha256": "f5062c9a188d81dfe66b56db4182dcf9e4b17c0d9b0d311a8e20b3a1b075c443",
+      "bytes": 1995,
+      "source": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/LICENSES/Unicode-3.0.txt",
+      "member": "rust-LICENSES_Unicode-3.0.txt",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e3.txt",
+      "sha256": "ab6eec6caf0fa5775e411c7a8bc6a45c4ef2956b0980b157ab74fc5cd62a928b",
+      "bytes": 15078,
+      "source": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/LICENSE.txt",
+      "member": "rust-library_compiler-builtins_LICENSE.txt",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e4.txt",
+      "sha256": "3823dda7cf046602f4b4e77ec8e227863dc4736037cc85bb33d9f19febe16bb7",
+      "bytes": 14088,
+      "source": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/libm/LICENSE.txt",
+      "member": "rust-library_compiler-builtins_libm_LICENSE.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e6.txt",
+      "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
+      "bytes": 1057,
+      "source": "https://raw.githubusercontent.com/wasm-bindgen/wasm-bindgen/165586f854c852bcbc4d14d8a75a0a0e0d0abc12/LICENSE-MIT",
+      "member": "wasm-bindgen-LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e7.txt",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847,
+      "source": "https://raw.githubusercontent.com/wasm-bindgen/wasm-bindgen/165586f854c852bcbc4d14d8a75a0a0e0d0abc12/LICENSE-APACHE",
+      "member": "wasm-bindgen-LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e8.txt",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "bytes": 1023,
+      "source": "https://raw.githubusercontent.com/trunk-rs/trunk/8ec159c52dcaf661e6950bb71d7f62ab24558164/LICENSE-MIT",
+      "member": "trunk-LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e9.txt",
+      "sha256": "64c0d02491e16eced74826440ecd2bcf7722d37fa586faf457b2494293afbffe",
+      "bytes": 11535,
+      "source": "https://raw.githubusercontent.com/WebAssembly/binaryen/6a6e08057c07ea4792a2ddcacfffc4d49ceea7fc/LICENSE",
+      "member": "binaryen-LICENSE",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e13.txt",
+      "sha256": "55c6959261d5cc6c6234c7e636383c2d1ea65b21abcddc181fad1c8a2d2bea5b",
+      "bytes": 1102,
+      "source": "https://raw.githubusercontent.com/storytold/craft-i18n/9205108cfdced5177706264038848b68b2422d2b/LICENSE-MIT",
+      "member": "wordcraft-craft-i18n-LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e14.txt",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174,
+      "source": "https://raw.githubusercontent.com/storytold/craft-i18n/9205108cfdced5177706264038848b68b2422d2b/LICENSE-APACHE",
+      "member": "wordcraft-craft-i18n-LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e17.txt",
+      "sha256": "47c0cccbeec7e8614548cc485588b28149e7874188df5f41b36efebcee285c87",
+      "bytes": 3734,
+      "source": "git-storytold-egui-6d518fc799681571963842f95b55a6b68431b15a",
+      "member": "crates/epaint_default_fonts/fonts/Hack-Regular.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e19.txt",
+      "sha256": "2f0015108d68627bd788d313f529c21ff4da2c2c42a5e1f3883acc83480f9002",
+      "bytes": 4673,
+      "source": "git-storytold-egui-6d518fc799681571963842f95b55a6b68431b15a",
+      "member": "crates/epaint_default_fonts/fonts/UFL.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e21.txt",
+      "sha256": "b9d2c1d909aa149996fd4c91dcb92b2362a04431640c1d200959da94caf8cde1",
+      "bytes": 1069,
+      "source": "git-storytold-egui-6d518fc799681571963842f95b55a6b68431b15a",
+      "member": "crates/epaint_default_fonts/fonts/emoji-icon-font-mit-license.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e23.txt",
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "bytes": 4301,
+      "source": "git-storytold-egui-6d518fc799681571963842f95b55a6b68431b15a",
+      "member": "crates/epaint_default_fonts/fonts/OFL.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e26.txt",
+      "sha256": "8c02263c5d73d40544f9ed91e30c4e947407057a3cc430d7b786189aeceff6df",
+      "bytes": 4384,
+      "source": "https://raw.githubusercontent.com/storytold/craft-fonts/b076417b5880bd4154bd22f00695b1d28c6bea83/fonts/noto-sans-georgian/OFL.txt",
+      "member": "craft-fonts-georgian-OFL",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e29.txt",
+      "sha256": "56af9b9c6715597e458284a474dc118a50a4150e9d547c70f7b4a33c3e6a9328",
+      "bytes": 4486,
+      "source": "wordcraft-source",
+      "member": "assets/fonts/OFL-SourceSans3.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e34.txt",
+      "sha256": "c21d7293d87b6d7ab1d0229a2f55b77f33a7613a6a4e66f6693d68d7d8d09464",
+      "bytes": 4491,
+      "source": "wordcraft-source",
+      "member": "assets/fonts/OFL-SourceSerif4.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e40.txt",
+      "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+      "bytes": 4380,
+      "source": "wordcraft-source",
+      "member": "assets/fonts/OFL-Inter.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e44.txt",
+      "sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+      "bytes": 4399,
+      "source": "wordcraft-source",
+      "member": "assets/fonts/OFL-JetBrainsMono.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e70.txt",
+      "sha256": "6f090277c00af96651ce6dbcc38ff1591047a3bffef486e80b6a32e8276a8201",
+      "bytes": 4443,
+      "source": "pdfcraft-source",
+      "member": "assets/fonts/OFL-DancingScript.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "EMBEDDED-FONT-COPYRIGHTS.txt",
+      "sha256": "1efe589d7f7de78ec80d8dfed3d42ce6adf882c4b5ed8a351e8923de4342522b",
+      "bytes": 38346,
+      "source": "actual-five-WASM-binaries",
+      "member": "embedded-font-copyrights",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e82.txt",
+      "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
+      "bytes": 2195,
+      "source": "crate-icu_properties_data-2.3.0",
+      "member": "LICENSE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e83.txt",
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+      "bytes": 6552,
+      "source": "earlier-verified-CC0-evidence",
+      "member": "licenses/pdfcraft/supplement/hayro-icc/CC0-1.0.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e85.txt",
+      "sha256": "18e08f782f3d7a7772cc201a9e7286e4f8fffd686508e2af8bef952f17e87987",
+      "bytes": 2526,
+      "source": "wordcraft-source",
+      "member": "assets/hyphenation/de.pat#complete-leading-comment-block",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e90.txt",
+      "sha256": "a0b140b91a8599bdeffc4af2dea64c6d95baf19c8b2528fec7541e2772f23c24",
+      "bytes": 3251,
+      "source": "wordcraft-source",
+      "member": "assets/hyphenation/it.pat#complete-leading-comment-block",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e92.txt",
+      "sha256": "79306ff1d6bf6f186b91238e422c9e5ebae0f841b050f166ec558b48555b3e86",
+      "bytes": 3548,
+      "source": "wordcraft-source",
+      "member": "assets/hyphenation/pl.pat#complete-leading-comment-block",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e94.txt",
+      "sha256": "b97287be8d51f6de6c1f007f18741d574ea1adce4c4084ff7c4fc4917312bcb4",
+      "bytes": 3278,
+      "source": "wordcraft-source",
+      "member": "assets/hyphenation/pt.pat#complete-leading-comment-block",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e100.txt",
+      "sha256": "fc257de83c44ae49e4aad1cf777b886794be3ac9c8d00c010ef55935d5bbeba5",
+      "bytes": 1101,
+      "source": "wordcraft-source",
+      "member": "LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e126.txt",
+      "sha256": "90e96fef569474cd526350e716e4b05dd32f179ca96d39d61e6b928485e35406",
+      "bytes": 1101,
+      "source": "deckcraft-source",
+      "member": "LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e140.txt",
+      "sha256": "cd7032ea33b71427f188e34ffb4aee9d6868a57fd196037c5c8b2be03a2a0352",
+      "bytes": 1100,
+      "source": "pdfcraft-source",
+      "member": "LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e143.txt",
+      "sha256": "0f33f48e7a96cd359d4e4e5b11424b13cebeb59cc70c77928186695e4173585c",
+      "bytes": 2256,
+      "source": "pdfcraft-source",
+      "member": "docs/brand/LICENSE-brand.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e144.txt",
+      "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+      "bytes": 3208,
+      "source": "pdfcraft-source",
+      "member": "assets/icons/LICENSE-lucide.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e147.txt",
+      "sha256": "95ca92f5f8ea5231f1580b3a2a799e8260af3114b900e1def5355a7f44bcf60c",
+      "bytes": 1092,
+      "source": "git-storytold-egui-6d518fc799681571963842f95b55a6b68431b15a",
+      "member": "LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e148.txt",
+      "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+      "bytes": 10850,
+      "source": "git-storytold-egui-6d518fc799681571963842f95b55a6b68431b15a",
+      "member": "LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e150.txt",
+      "sha256": "742665db9c8e1bc72603c6d319ca3e90b83bd6d95202f0cd4ef11068a07a9c29",
+      "bytes": 1453,
+      "source": "pdfcraft-source",
+      "member": "vendor/hayro-cmap/assets/LICENSE.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e151.txt",
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
+      "bytes": 1553,
+      "source": "pdfcraft-source",
+      "member": "vendor/hayro-interpret/assets/LICENSE_FOXIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e281.txt",
+      "sha256": "838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50",
+      "bytes": 1501,
+      "source": "crate-encoding_rs-0.8.42",
+      "member": "LICENSE-WHATWG",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e522.txt",
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+      "bytes": 10173,
+      "source": "crate-naga-30.0.1",
+      "member": "legal/packages/naga-30.0.1-57763484aea5a9be/LICENSE.APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e523.txt",
+      "sha256": "dc0d97139e8205818c703741c7be7cb3b96888bd5917b8d6fc6133731e403c21",
+      "bytes": 1078,
+      "source": "crate-naga-30.0.1",
+      "member": "legal/packages/naga-30.0.1-57763484aea5a9be/LICENSE.MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e708.txt",
+      "sha256": "65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071",
+      "bytes": 1079,
+      "source": "crate-rfd-0.17.2",
+      "member": "legal/packages/rfd-0.17.2-1a584e30da9762a3/LICENSE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e709.txt",
+      "sha256": "ae26bc7b1bc91fb8648f6a298decbb1a77090a56c9d04e2c23b8365e5f54acb5",
+      "bytes": 1074,
+      "source": "crate-rfd-0.17.2",
+      "member": "legal/packages/rfd-0.17.2-1a584e30da9762a3/src/backend/xdg_desktop_portal/window_identifier/LICENSE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1087.txt",
+      "sha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8",
+      "bytes": 1072,
+      "source": "modified-build-verified-zod",
+      "member": "zod-4.5.4/LICENSE",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1089.txt",
+      "sha256": "ed4475eacf972c9584aa335001c59dfa646eb222549b928ffd6aefd4c805b41a",
+      "bytes": 2263,
+      "source": "wordcraft-source",
+      "member": "docs/brand/LICENSE-brand.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1090.txt",
+      "sha256": "a87109bbb1ad43ca3920a5d7ff3806863b7e8470a73f4ded97a1447ac93333f5",
+      "bytes": 1101,
+      "source": "gridcraft-source",
+      "member": "LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1093.txt",
+      "sha256": "d60f1608b31dde193c34e4afb5d922d2c700ead06c4bb3735959334a09b1ff2c",
+      "bytes": 2263,
+      "source": "gridcraft-source",
+      "member": "docs/brand/LICENSE-brand.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1095.txt",
+      "sha256": "c5ad8e77d0dd8939161b4c4eca7aaba2437d6340c29e7809fa4679f0f2a82f62",
+      "bytes": 2263,
+      "source": "deckcraft-source",
+      "member": "docs/brand/LICENSE-brand.txt",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1097.txt",
+      "sha256": "861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17",
+      "bytes": 665,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/adler2-2.0.1/LICENSE-0BSD",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1098.txt",
+      "sha256": "553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583",
+      "bytes": 566,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/shlex-1.3.0/LICENSE-APACHE",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1099.txt",
+      "sha256": "35242e7a83f69875e6edeff02291e688c97caafe2f8902e4e19b49d3e78b4cab",
+      "bytes": 9724,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/rand_xorshift-0.4.0/LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1100.txt",
+      "sha256": "8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb",
+      "bytes": 10860,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/adler2-2.0.1/LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1101.txt",
+      "sha256": "69fef7b0f322a65554156141f2bc6256ed0bb78cba7e49f0d8829d7ec4ee62cd",
+      "bytes": 10851,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/moto-rt-0.16.4/LICENSE-APACHE",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1102.txt",
+      "sha256": "6df43f6f4b5d4587f3d8d71e45532c688fd168afa5fe89d571cb32fa09c4ef51",
+      "bytes": 10282,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/rand_core-0.9.5/LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1103.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/portable-simd/LICENSE-APACHE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1104.txt",
+      "sha256": "b1181a40b2a7b25cf66fd01481713bc1005df082c53ef73e851e55071b102744",
+      "bytes": 856,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/foldhash-0.2.0/LICENSE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1105.txt",
+      "sha256": "4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b",
+      "bytes": 1213,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/miniz_oxide-0.9.1/LICENSE",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1107.txt",
+      "sha256": "4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1",
+      "bytes": 1092,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/shlex-1.3.0/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1108.txt",
+      "sha256": "209fbbe0ad52d9235e37badf9cadfe4dbdc87203179c0899e738b39ade42177b",
+      "bytes": 1117,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/rand_xorshift-0.4.0/LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1109.txt",
+      "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0",
+      "bytes": 1071,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/gimli-0.34.0/LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1110.txt",
+      "sha256": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
+      "bytes": 1060,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/hashbrown-0.17.1/LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1111.txt",
+      "sha256": "e99d88d232bf57d70f0fb87f6b496d44b6653f99f8a63d250a54c61ea4bcde40",
+      "bytes": 1069,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/addr2line-0.27.1/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1112.txt",
+      "sha256": "0b74dfa0bcee5c420c6b7f67b4b2658f9ab8388c97b8e733975f2cecbdd668a6",
+      "bytes": 1064,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/object-0.39.1/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1113.txt",
+      "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f",
+      "bytes": 1081,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/memchr-2.8.3/LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1114.txt",
+      "sha256": "a7c936ff1ed8fa340172d42a98185afee078f818e907da69f3a8e336b1623b4b",
+      "bytes": 1075,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/moto-rt-0.16.4/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1115.txt",
+      "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+      "bytes": 1071,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/getopts-0.2.24/LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1116.txt",
+      "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e",
+      "bytes": 1066,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/libc-0.2.189/LICENSE-MIT",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1117.txt",
+      "sha256": "eb07d497d26e6d68fbc76e793f5e5c9cfa197df2a580e47383569c287a55edf9",
+      "bytes": 1071,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/portable-simd/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1118.txt",
+      "sha256": "29662666b44dff84977b46e05642cdef910bc3a93a17b5fd86e632bafa59cf21",
+      "bytes": 1071,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/stdarch/crates/core_arch/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1119.txt",
+      "sha256": "8bc20184c0ddf3006df05e89fdf7193b33dbe4c751ae59d6bb1835f71bbe70da",
+      "bytes": 1076,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/stdarch/crates/intrinsic-test/LICENSE-MIT",
+      "scope": "audit"
+    },
+    {
+      "path": "conditions/e1120.txt",
+      "sha256": "0a54e647fe54104658b5e563c04c6f9edf251710e47bce692e0bd990a4ddaa39",
+      "bytes": 984,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/miniz_oxide-0.9.1/LICENSE-ZLIB.md",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1121.txt",
+      "sha256": "799e9ca9d179295ef372f25d3769cdda7d25bb2668add6a6a1e22d1e4c678b8d",
+      "bytes": 1212,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/miniz_oxide-0.9.1/LICENSE-MIT.md",
+      "scope": "legacy"
+    },
+    {
+      "path": "conditions/e1122.txt",
+      "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+      "bytes": 12243,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/vendor/wasip3-0.7.0+wasi-0.3.0/LICENSE-Apache-2.0_WITH_LLVM-exception",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1123.txt",
+      "sha256": "a10b1a81999d6e187cc65a869b53fcc2168bbd62b4b8ffb7b932726ddb2a5081",
+      "bytes": 691,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log10.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1124.txt",
+      "sha256": "9df863b170b09a6983d5e84051c1b5aff9d0b8a3e9398ba06792b2fbfde02f9c",
+      "bytes": 2351,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/j0.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1125.txt",
+      "sha256": "7f8d2f7a5d15b2856ba4af0fb589812b84fbae701d6ad099a3f63fd27bf9e71e",
+      "bytes": 2424,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/j1.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1126.txt",
+      "sha256": "f2725aea021a0df4e03f39966b97f275c146522b6380a30f883919820adbdf60",
+      "bytes": 435,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/expm1.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1127.txt",
+      "sha256": "447611d164938ed31b2ab7db1a0f3a884126444c37c58d3ab184ddfe88e67108",
+      "bytes": 678,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log2.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1128.txt",
+      "sha256": "02552e5f14ecd5d6ed4c022f38c88890f2e11e5722751f039032638ab3c663c4",
+      "bytes": 1503,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/atan2.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1129.txt",
+      "sha256": "da28bd93659d512cba362af000b10121e71e63ef135f3ba398a05f376e90bc7e",
+      "bytes": 468,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/rem_pio2.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1130.txt",
+      "sha256": "8553c5aa4bf0eb5a8d46085a28271a84572b739f003383c2ee9967f122208b47",
+      "bytes": 1423,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/exp2.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1131.txt",
+      "sha256": "8b96b75f42c2319887a8f8a25a0dfe058539ef538d2e0741115b9804ceb61c51",
+      "bytes": 509,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/approx/cbrtf64.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1132.txt",
+      "sha256": "16cd38a2d4dd0bf4b8a51ab4bd8779856a38d7ac96d4f8a3b092d8c707b0a021",
+      "bytes": 381,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/rem_pio2_large.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1133.txt",
+      "sha256": "38a62e94ec64429d40e70621dcd7177d1d87c90acbc87dc1b197cbba1de18536",
+      "bytes": 471,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log10f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1134.txt",
+      "sha256": "efdb29f5f1cc9488e9fbc277e943258c80a7b0b26750d05dc19b45434f619036",
+      "bytes": 516,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/j0f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1135.txt",
+      "sha256": "16f0f987fed994bc4597d3bf2dd136c3bc59d7f8b839572e9fac23020ce2a02e",
+      "bytes": 516,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/j1f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1136.txt",
+      "sha256": "600c0e0c50dcd5ce98c3d57f4ac1bb6068df9b0515edfdd6f3657a2b8d954c97",
+      "bytes": 519,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/expm1f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1137.txt",
+      "sha256": "a1df834bda4484057cc771bc06d8421c3b1b4fc545f4e7504d02550f12e358ac",
+      "bytes": 469,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log2f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1138.txt",
+      "sha256": "24e7fb6b73a5c519659bb305a4e668e8459d9cab949c9cde283b570d29d77a64",
+      "bytes": 519,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/atan2f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1139.txt",
+      "sha256": "9d069a99afc9de8f5bd9542fc5008be137db26f0737cf7ac753a7483e5cf9041",
+      "bytes": 567,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/rem_pio2f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1140.txt",
+      "sha256": "d9f4ab9d6379a978daaf6507f1a6b77abb9b8178af56f761a93ba460392f7844",
+      "bytes": 1421,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/exp2f.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1141.txt",
+      "sha256": "c9c0a35502ede5e105aa60388a3716bd442a917826ec4162c20667469dbe7d6e",
+      "bytes": 517,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/erff.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1142.txt",
+      "sha256": "411464ab5cc8c73d1d7463c0aeeeb2921ed5444128b3def0890c1f12cdd99b83",
+      "bytes": 517,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/logf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1143.txt",
+      "sha256": "32af7958518d0c3d2854d114f793823817fe691aae1ee15100367632b6644e1d",
+      "bytes": 549,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/tanf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1144.txt",
+      "sha256": "27006a66c7cca5c5609cef546c8cee2a4f71948bc58a80bd16b7a1a08fa9b522",
+      "bytes": 423,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/k_tanf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1145.txt",
+      "sha256": "2d62693c8c430a0c4d05aea7698c47834c994aa72c94482c9aba4ae6ab5bc431",
+      "bytes": 518,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/atanf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1146.txt",
+      "sha256": "b6a2605352aea5dd02e594be2282448e0f9b2b26e3ef9c17120d608068fa6c48",
+      "bytes": 549,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/sinf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1147.txt",
+      "sha256": "4d91f8ae114d8de8c4c1973c3485ee0707c2a35b7dc2e7e774ba7ef96681dd01",
+      "bytes": 611,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/k_sinf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1148.txt",
+      "sha256": "04c1bd3e3351c1ee1510eb097e5bdf009ea0387a92c9fc7448c106f0af4f6a99",
+      "bytes": 518,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/asinf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1149.txt",
+      "sha256": "1a07949cc89ca12f71d5aecb1854a084f5c63e29e34bafeda5bed76bb1f41bf6",
+      "bytes": 516,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/jnf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1150.txt",
+      "sha256": "2cedca6545a7daf07dcb06545c86ad286f5cf5f8f3211ea7bff1b5ac43cf9b64",
+      "bytes": 436,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log1pf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1151.txt",
+      "sha256": "8b9631512fe1312a7a7483c4ef576186dfa191154ae0780c6c30a2ae7e47b8a1",
+      "bytes": 517,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/expf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1152.txt",
+      "sha256": "565eff8b979411888b4fc163ba49daf7ad9beba47ee485942f032edcefd17948",
+      "bytes": 380,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/erf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1153.txt",
+      "sha256": "b678cacff093c1956507564f4b9ad9a1951cfb46cb87aebd88ee2031b25f9667",
+      "bytes": 549,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/cosf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1154.txt",
+      "sha256": "af1ce9c4ebd2414987b2b2815595ce1c007d9981688c5b74ad216f034f15a2ee",
+      "bytes": 622,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/k_cosf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1155.txt",
+      "sha256": "26f635e6704ab557c488f52d4bcf04448189831625e3877867528f73fdd6336c",
+      "bytes": 518,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/acosf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1156.txt",
+      "sha256": "b6a2605352aea5dd02e594be2282448e0f9b2b26e3ef9c17120d608068fa6c48",
+      "bytes": 549,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/sincosf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1157.txt",
+      "sha256": "709082ccdab6291906c65f4e24b8537219e8e4183e4afba2cf6ce947e03ff5ed",
+      "bytes": 604,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/cbrtf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1158.txt",
+      "sha256": "c2cea7fd53f3e641956d2c9d32b6d1e96bf2c8e69130a2427566e7fe8ffb18f9",
+      "bytes": 517,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/powf.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1159.txt",
+      "sha256": "94da31fdbc97679e778714103f7f232cefe52633253ff58ba3b6cf3cc501ed81",
+      "bytes": 2550,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1160.txt",
+      "sha256": "6db8d9a9db0a9a4a0da02d23eb30c3ad54ebc6cdf5ee9851a93c01fc88009acb",
+      "bytes": 2276,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/compiler-builtins/src/probestack.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1161.txt",
+      "sha256": "eed3ddbe9a813731dbc46d1c7de836086f31ce6022a4f76ea032bc311f8342fb",
+      "bytes": 429,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/tan.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1162.txt",
+      "sha256": "951052015ab2bb3e50b56e918d5925c01c27480a7db44b1ad5f9b10988f7b465",
+      "bytes": 1888,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/k_tan.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1163.txt",
+      "sha256": "50e6ecc74e0208f1f3a2a29b9e4cf2a7629ae681353032a6db55e52c424f2d4b",
+      "bytes": 1307,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/atan.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1164.txt",
+      "sha256": "77ed8e6418a5dc262e9bd63ccebce7e9aaf6881cbe682d00d7db425024192efd",
+      "bytes": 429,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/sin.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1165.txt",
+      "sha256": "0b440c42f760e089d0bc76710790c2e0b7efa4314212bf30ae6a3adf704b6ce0",
+      "bytes": 427,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/k_sin.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1166.txt",
+      "sha256": "16e4c9d33a06c014651a46f607bc777d8f92cb625aeebca97fbf2efb6441a8c5",
+      "bytes": 1546,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/asin.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1167.txt",
+      "sha256": "716300eada77aa92846d1879f25fb204506581658b46286419af3c942b57394a",
+      "bytes": 1312,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/jn.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1168.txt",
+      "sha256": "2749569e3881bbf6491a7140ad7d9ebe76f36d17758f59b70e87e12fa74f8de1",
+      "bytes": 2047,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/log1p.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1169.txt",
+      "sha256": "89e56efd8d8a30105cf1909dce819219491039c66061bcccc1484fda190df98b",
+      "bytes": 2401,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/exp.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1170.txt",
+      "sha256": "d79fbf7519f03a4d4063f020e28282eb1c7216feed60fb41113a81c42d646a5e",
+      "bytes": 3281,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/lgamma_r.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1171.txt",
+      "sha256": "2a57d54e54a045a877e0dd27e5ae53a7d88092329c68213aac87e81789687ee2",
+      "bytes": 522,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/lgammaf_r.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1172.txt",
+      "sha256": "b7cd2c72320a62dc4080895af92772e2ed1b83513fdd7fbfcac7d63d536f72cd",
+      "bytes": 429,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/cos.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1173.txt",
+      "sha256": "295652e546289d034affd02f181bac977ae12d9d511ed109ee9272c3aa1dc148",
+      "bytes": 427,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/k_cos.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1174.txt",
+      "sha256": "00e4450ab1ffd72751892acf5f406e6ef14dc25e31b9d2409091c27805a41153",
+      "bytes": 1194,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/acos.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1175.txt",
+      "sha256": "f4aaef4b13468ac8664a46469257e4d00b045f5e56d890a51757cca5c50304ae",
+      "bytes": 433,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/sincos.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1176.txt",
+      "sha256": "01ade33c4b848d17f54b496030dc66050fb922abd81e37acd68ed071199cc57c",
+      "bytes": 493,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/hypot.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1177.txt",
+      "sha256": "a5c5a65dc98299230e91637e9723a089267b3718c3576d072e7fe209834e9bab",
+      "bytes": 174,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/cbrt.rs",
+      "scope": "audit"
+    },
+    {
+      "path": "runtime-source-notices/e1178.txt",
+      "sha256": "cabb0f6a426ded440f6f4ae2579cdd3daddd4f00bb22c0022189e091dd84f7f8",
+      "bytes": 2441,
+      "source": "https://static.rust-lang.org/dist/2026-10-15/rust-src-1.99.1.tar.gz",
+      "member": "library/compiler-builtins/libm/src/math/pow.rs",
+      "scope": "audit"
+    }
+  ],
+  "incomplete": [],
+  "remaining": "Integrate and verify notice delivery together with resolution of the audit's rights/provenance/marks gates before enabling distribution."
+}

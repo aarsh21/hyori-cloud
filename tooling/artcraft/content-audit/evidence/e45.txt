@@ -1,0 +1,39 @@
+{
+  "offset": 14604460,
+  "bytes": 411639,
+  "sha256": "f61b717936a0301d7c11b4c03e5cdb5ec43393259d3b2b3fee575d93ae248bad",
+  "names": [
+    {
+      "id": 0,
+      "text": "Copyright 2016 The Inter Project Authors"
+    },
+    {
+      "id": 1,
+      "text": "Inter"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "4.001;git-9221beed3;RSMS;Inter-Regular"
+    },
+    {
+      "id": 4,
+      "text": "Inter Regular"
+    },
+    {
+      "id": 6,
+      "text": "Inter-Regular"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+    },
+    {
+      "id": 14,
+      "text": "http://scripts.sil.org/OFL"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "syntheticNativeInputSha256": "953416e28f240c7dde04af1eec880dbb59ef3ae7ab9ed35e552f98a868a9bc80",
+  "savedNativeOutputSha256": "650adf55cd59bcbf70050a0525c6f84da11e6967a8a9daf9e34ec1481df215b0",
+  "savedSlides": 2,
+  "retainedNewerDirtyState": true,
+  "downloadAttempts": 0,
+  "realWasmExecuted": true,
+  "nativeReopenedInWasm": true,
+  "reopenedSlides": 3,
+  "reopenedNativeOutputSha256": "566a4df97017153cc8fef7aa06898df7e6e56ad1a1d34503448a2269c6ccdeed",
+  "cloudPersistenceVerified": false,
+  "pptxFidelityVerified": false
+}

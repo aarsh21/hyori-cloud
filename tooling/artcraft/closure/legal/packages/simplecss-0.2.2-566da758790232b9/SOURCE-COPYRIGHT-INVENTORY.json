@@ -1,0 +1,159 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "examples/parse.rs",
+      "sha256": "6439b8d0257865d1351645856c54586a6e44ba119eb28ab37e6be3c2c23f0de5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "examples/select.rs",
+      "sha256": "4a18448eeac79fd59540f1f86af514524a0fb474f87c755508efa7319f0f05e5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "36389e726cf7c266026a22202ce79d1b3131f22a65443b1a070999694bdb0852",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/selector.rs",
+      "sha256": "f1283a29b37232ee9fb8f9715da9d564d96c309e59e770e5fdddff6f9cae006e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/stream.rs",
+      "sha256": "b9750b32e474dd7d69430c9ed7e848df6ceb5fe52a0da20159d6d1274dfeee8e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "tests/declaration_tokenizer.rs",
+      "sha256": "b2ffc1d4a84ae740dfd6fba873b3b32604a7d445d9ab8ddb3927e7103ae0b04b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "tests/select.rs",
+      "sha256": "180301f547fe7dc44efdc26e27cee4df7ffb0a19372f79ef22b6d75c5e85b6cf",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "tests/selector_tokenizer.rs",
+      "sha256": "45c32806e8857bd6cf560d4c787aa6fb872f40505159a2643a254c664ec85ec9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "tests/specificity.rs",
+      "sha256": "f3d2c6532238602d616073c321313013fc1965af8df79b8cf6d49a7ad1073378",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "tests/stylesheet.rs",
+      "sha256": "ebef9d5edef430fa44032e86a276b9f4d06a5eb3b25a47b7acb1e03a68218429",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "tests/warnings.rs",
+      "sha256": "b93bb7e1ac75575aeb19302de8570738576e7c4aae8b4ef9a8b6d0c5b9330a6f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the SimpleCSS Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

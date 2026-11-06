@@ -1,0 +1,23 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/hazmat/libm.rs",
+      "sha256": "2997608c2a41a5e0f9d63d9024eb6845a2214f0e85cbc96559ec69ed554b9de3",
+      "lines": [
+        {
+          "line": 9,
+          "text": " * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved."
+        },
+        {
+          "line": 167,
+          "text": "/* SPDX-License-Identifier: MIT"
+        },
+        {
+          "line": 202,
+          "text": "/* SPDX-License-Identifier: MIT"
+        }
+      ]
+    }
+  ]
+}

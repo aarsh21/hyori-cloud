@@ -1,0 +1,19 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/redact/src/type3_tables.rs",
+      "sha256": "877dc499cf6d7de42598b8a04774a0be90e1f00bda028c85a080c50c0b57c939",
+      "lines": [
+        {
+          "line": 303,
+          "text": "    (169, b\"copyright\"),"
+        },
+        {
+          "line": 531,
+          "text": "    (169, b\"copyright\"),"
+        }
+      ]
+    }
+  ]
+}

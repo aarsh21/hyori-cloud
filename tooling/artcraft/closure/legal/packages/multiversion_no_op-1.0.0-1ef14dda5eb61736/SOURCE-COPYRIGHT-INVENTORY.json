@@ -1,0 +1,29 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "2badb9d2be52a57af8124d21ff2d4ae4da5043ae2ae6e7d10b3d0fac64ca9405",
+      "lines": [
+        {
+          "line": 14,
+          "text": "Apache-2.0 OR MIT; the file named `COPYRIGHT`."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "86e7ee192be576d746a1e830d01526bb1e0a74757705964a1a8591d184c0b0ea",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation"
+        },
+        {
+          "line": 32,
+          "text": "//! Apache-2.0 OR MIT; the file named `COPYRIGHT`."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "offset": 6965100,
+  "bytes": 261868,
+  "sha256": "e5a4ee6a3d87bb9024796be390c6771e2a0eb1883dae25effaf57ca01668e24b",
+  "names": [
+    {
+      "id": 0,
+      "text": "© 2014 - 2023 Adobe (http://www.adobe.com/), with Reserved Font Name ‘Source’."
+    },
+    {
+      "id": 1,
+      "text": "Source Serif 4"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "4.005;ADBO;SourceSerif4-Regular;ADOBE"
+    },
+    {
+      "id": 4,
+      "text": "Source Serif 4"
+    },
+    {
+      "id": 6,
+      "text": "SourceSerif4-Regular"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL. This Font Software is distributed on an ‘AS IS’ BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the SIL Open Font License for the specific language, permissions and limitations governing your use of this Font Software."
+    },
+    {
+      "id": 14,
+      "text": "http://scripts.sil.org/OFL"
+    }
+  ]
+}

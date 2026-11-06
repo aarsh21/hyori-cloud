@@ -1,0 +1,194 @@
+=== src/aac/codebooks.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/common.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/cpe.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/dsp.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/ics/gain.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/ics/ltp.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/ics/mod.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/ics/pulse.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/ics/tns.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/mod.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/aac/window.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/adts.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/common.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// Previous Author: Kostya Shishkov <kostya.shiskov@gmail.com>
+//
+// This source file includes code originally written for the NihAV
+// project. With the author's permission, it has been relicensed for,
+// and ported to the Symphonia project.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== src/lib.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+=== tests/tests.rs ===
+[No leading copyright/MPL notice in this upstream file; see package metadata.]

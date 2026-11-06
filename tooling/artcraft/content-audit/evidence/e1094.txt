@@ -1,0 +1,1 @@
+{"asset":"deckcraft-b8fcbb36ecec0385.ico","sha256":"ceb73e008aa2cdf4d05d6375da32c5536a2bc2637bee59cdf441e2f9f792a9cd","sourceMembers":["assets/app-icon/deckcraft.ico"]}

@@ -1,0 +1,307 @@
+//! Drawing the dialog: header, table, detail pane, conflict bar, messages and footer.
+//!
+//! Widgets are created in focus order (§2.10 of the dialog plan): set row, Show, Filter, Search,
+//! ⌨, table, detail pane, conflict bar, footer. egui's Tab order is creation order, so the bars
+//! under the table are drawn last even though their height is needed first: the view uses last
+//! frame's height and asks egui to discard a frame whose height changed.
+
+use std::ops::Range;
+use std::sync::Arc;
+
+use craft_ui::ComboBox;
+use craft_ui::buttons::{IconButton, IconButtonStyle};
+use craft_ui::layout::{ResizeHandle, SplitAxis, SplitSize, split_rect};
+use craft_ui::tabs::{self, Tab};
+use egui::Galley;
+use egui::accesskit::Live;
+use egui::text::{LayoutJob, TextFormat, TextWrapping};
+use egui::{
+    Align, Button, Color32, EventFilter, Id, Key as EguiKey, Label, Layout, Modifiers, Painter, Rect, Response, RichText, Role, ScrollArea, Sense,
+    Stroke, StrokeKind, TextEdit, TextStyle, Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, pos2, vec2,
+};
+
+use crate::chord::Trigger;
+use crate::command::CommandRef;
+use crate::keymap::{Binding, MAX_BINDINGS, Problem};
+use crate::scope::Scope;
+use crate::ui::capture;
+use crate::ui::rows::{AreaId, Filter, FixedLine, Line, Row};
+use crate::ui::state::{Answer, DialogState, Env, Prompt, Recording, Target, binding_error};
+use crate::ui::style::{self, DialogStyle};
+use crate::ui::text::{trigger_text, visual_around};
+
+#[path = "keyboard.rs"]
+pub(crate) mod keyboard;
+#[path = "review.rs"]
+mod review;
+#[path = "sets.rs"]
+mod sets;
+
+/// Below this width the detail pane goes under the table.
+const NARROW: f32 = 720.0;
+/// Smallest table or detail pane when dragging the divider.
+const SPLIT_MIN: f32 = 120.0;
+/// Icon buttons in rows and bars.
+const ICON: f32 = 20.0;
+/// Padding inside a chip.
+const CHIP_PAD: f32 = 5.0;
+const CHIP_GAP: f32 = 4.0;
+/// The detail pane's New Shortcut field.
+const FIELD_W: f32 = 160.0;
+/// The widest Show, Filter or Set combo box; longer names are cut with "…".
+const COMBO_MAX: f32 = 200.0;
+/// Search field width.
+const SEARCH_MIN: f32 = 120.0;
+const SEARCH_MAX: f32 = 240.0;
+
+/// One frame of the dialog body inside `ui`'s available rectangle.
+pub(crate) fn body(ui: &mut Ui, env: &mut Env, state: &mut DialogState) {
+    let style = env.options.style.unwrap_or_else(|| DialogStyle::from_visuals(ui.visuals()));
+    let icons = style::icon_buttons(ui.visuals());
+    let row_h = ui.text_style_height(&TextStyle::Body) + 6.0;
+    let base = ui.scope_id().with("craft_keymap_shortcuts");
+    let mut d = Draw { env, state, style, icons, base, row_h };
+    d.keys(ui);
+    d.layout(ui);
+}
+
+struct Draw<'s, 'e> {
+    env: &'s mut Env<'e>,
+    state: &'s mut DialogState,
+    style: DialogStyle,
+    icons: IconButtonStyle,
+    base: Id,
+    row_h: f32,
+}
+
+fn fill(source: String, args: &[(&str, &str)]) -> String {
+    craft_i18n::fmt(&source, args)
+}
+
+/// What a click in the table asked for, applied after the rows are drawn.
+enum RowAction {
+    Select(CommandRef),
+    Record(CommandRef, Option<Binding>, usize),
+    Reset(CommandRef),
+    Toggle(String),
+}
+
+impl Draw<'_, '_> {
+    // ---- Text ----
+
+    /// The dialog's string, translated (logical order: for accessibility labels and `fill`).
+    fn ui(&self, source: &str) -> String {
+        self.env.text.ui(source).into_owned()
+    }
+
+    /// Display order for drawn text.
+    fn vis(&self, s: &str) -> String {
+        self.env.text.visual(s)
+    }
+
+    fn rtl(&self) -> bool {
+        self.env.text.rtl()
+    }
+
+    /// Parts in logical order, each already in display order, put into display order: reversed in
+    /// a right-to-left interface, where the path separator ` › ` becomes ` ‹ `.
+    fn ordered<T>(&self, mut parts: Vec<(String, T)>) -> Vec<(String, T)> {
+        if self.rtl() {
+            parts.reverse();
+            for (s, _) in &mut parts {
+                if s == PATH_SEP {
+                    *s = " ‹ ".into();
+                }
+            }
+        }
+        parts
+    }
+
+    /// [`ordered`](Self::ordered) parts as one string.
+    fn joined(&self, parts: Vec<String>) -> String {
+        self.ordered(parts.into_iter().map(|s| (s, ())).collect()).into_iter().map(|(s, ())| s).collect()
+    }
+
+    /// Display-order `parts` on one line within `width`, cut with "…" when they do not fit: at
+    /// the end, or at the start in a right-to-left interface, where the logical end of the text is
+    /// on the left. Returns the galley and whether it was cut.
+    fn one_line(&self, painter: &Painter, parts: &[(String, TextFormat)], width: f32) -> (Arc<Galley>, bool) {
+        let width = width.max(0.0);
+        let job = |skip: usize| {
+            let mut job = LayoutJob::default();
+            if let (true, Some((_, f))) = (skip > 0, parts.first()) {
+                job.append("…", 0.0, f.clone());
+            }
+            let mut left = skip;
+            for (s, f) in parts {
+                let n = s.chars().count();
+                if left >= n {
+                    left -= n;
+                    continue;
+                }
+                let start = s.char_indices().nth(left).map_or(s.len(), |(i, _)| i);
+                left = 0;
+                job.append(&s[start..], 0.0, f.clone());
+            }
+            job
+        };
+        let full = painter.layout_job(job(0));
+        if full.size().x <= width + 0.5 {
+            return (full, false);
+        }
+        if !self.rtl() {
+            let mut cut = job(0);
+            cut.wrap = TextWrapping::truncate_at_width(width);
+            return (painter.layout_job(cut), true);
+        }
+        // The fewest characters to drop from the start so that "…" and the rest fit.
+        let total: usize = parts.iter().map(|(s, _)| s.chars().count()).sum();
+        let (mut lo, mut hi) = (1, total);
+        while lo < hi {
+            let mid = (lo + hi) / 2;
+            if painter.layout_job(job(mid)).size().x <= width + 0.5 { hi = mid } else { lo = mid + 1 }
+        }
+        (painter.layout_job(job(lo)), true)
+    }
+
+    /// `s` in display order with `chord`, text inside it, left as it is: chord text never goes
+    /// through [`Text::visual`](crate::ui::Text::visual).
+    fn vis_chord(&self, s: &str, chord: &str) -> String {
+        visual_around(self.env.text, s, chord)
+    }
+
+    /// `text` after a ⚠, in display order.
+    fn warned(&self, text: String) -> String {
+        self.joined(vec!["⚠".into(), " ".into(), text])
+    }
+
+    /// Horizontal placement inside `rect`, mirrored in a right-to-left interface.
+    fn mirror(&self, rect: Rect) -> Mirror {
+        Mirror { on: self.rtl(), sum: rect.min.x + rect.max.x }
+    }
+
+    fn chord(&self, t: &Trigger) -> String {
+        trigger_text(self.env.text, t, self.env.keymap.platform())
+    }
+
+    fn scope_name(&self, s: &Scope) -> String {
+        if s.is_app() { self.ui("Application") } else { self.env.text.segment(s.as_str()).into_owned() }
+    }
+
+    /// A binding as text, with its scope when that is not the command's home scope.
+    fn binding_text(&self, b: &Binding, home: Option<&Scope>) -> String {
+        let chord = self.chord(&b.trigger);
+        match &b.scope {
+            Some(s) if Some(s) != home => fill(self.ui("{chord} ({scope})"), &[("chord", &chord), ("scope", &self.scope_name(s))]),
+            _ => chord,
+        }
+    }
+
+    /// A menu path in display order: "File › Export", "Export ‹ File" right to left.
+    fn path_text(&self, path: &[String]) -> String {
+        let mut parts = Vec::new();
+        for (i, s) in path.iter().enumerate() {
+            if i > 0 {
+                parts.push(PATH_SEP.to_string());
+            }
+            parts.push(self.vis(&self.env.text.segment(s)));
+        }
+        self.joined(parts)
+    }
+
+    fn label_of(&self, command: &CommandRef) -> String {
+        self.env.keymap.bindable(command).map_or_else(|| command.id.clone(), |b| self.env.text.command(b).into_owned())
+    }
+
+    /// "press keys", or the chord waiting for a second press.
+    fn recording_text(&self) -> String {
+        match self.state.recording.as_ref().and_then(|r| r.waiting.as_ref()) {
+            Some((t, _)) => {
+                let chord = self.chord(t);
+                self.vis_chord(&fill(self.ui("{chord} (press again for a double press)"), &[("chord", &chord)]), &chord)
+            }
+            None => self.ui("press keys"),
+        }
+    }
+
+    /// Reports a control to [`Options::on_widget`](crate::ui::Options::on_widget).
+    fn tag(&self, id: impl FnOnce() -> String, rect: Rect, label: &str) {
+        if let Some(f) = &self.env.options.on_widget {
+            f(&id(), rect, label);
+        }
+    }
+
+    fn button(&self, ui: &mut Ui, enabled: bool, text: &str, id: &str) -> bool {
+        let r = ui.add_enabled(enabled, Button::new(self.vis(text)));
+        self.tag(|| id.to_string(), r.rect, text);
+        r.clicked()
+    }
+
+    /// The width a [`Button`] with `text` takes.
+    fn button_width(&self, ui: &Ui, text: &str) -> f32 {
+        let pad = ui.spacing().button_padding.x * 2.0;
+        let g = WidgetText::from(self.vis(text)).into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Button);
+        (g.size().x + pad).max(ui.spacing().interact_size.x)
+    }
+
+    fn icon_button(&self, ui: &mut Ui, label: &str, selected: bool, paint: fn(&Painter, Rect, Color32)) -> Response {
+        IconButton::new(label, Vec2::splat(ICON), &self.icons).selected(selected).show(ui, |ui, rect, color| paint(ui.painter(), rect, color))
+    }
+
+    /// A row control: clickable and labeled but not a Tab stop (the table is one).
+    fn row_button(&self, ui: &mut Ui, rect: Rect, id: Id, label: &str, enabled: bool, paint: fn(&Painter, Rect, Color32)) -> Response {
+        let resp = ui.interact(rect, id, if enabled { Sense::CLICK } else { Sense::hover() });
+        resp.widget_info(|| WidgetInfo::labeled(Role::Button, enabled, label));
+        let v = if !enabled {
+            self.icons.normal
+        } else if resp.is_pointer_button_down_on() {
+            self.icons.pressed.unwrap_or(self.icons.hovered)
+        } else if resp.hovered() {
+            self.icons.hovered
+        } else {
+            self.icons.normal
+        };
+        if v.fill != Color32::TRANSPARENT {
+            ui.painter().rect_filled(rect, self.icons.corner_radius, v.fill);
+        }
+        let color = if enabled { v.icon } else { self.style.dim.gamma_multiply(0.6) };
+        paint(ui.painter(), rect, color);
+        resp
+    }
+
+    /// Marks a text field of the dialog, so Escape, Enter, Undo and Delete leave it alone.
+    fn text_field(&mut self, r: &Response) {
+        if r.has_focus() {
+            self.state.text_focus = true;
+        }
+    }
+
+    fn recording_target(&self) -> Option<&Target> {
+        self.state.recording.as_ref().map(|r: &Recording| &r.target)
+    }
+
+    // ---- Keys when nothing records ----
+
+    /// Escape, Undo/Redo and Enter (§2.5). Keys while recording were taken by `DialogState::input`.
+    fn keys(&mut self, ui: &Ui) {
+        if self.state.is_recording() {
+            return;
+        }
+        let text_focus = self.state.text_focus;
+        let popup = egui::Popup::is_any_open(ui.ctx());
+        if !text_focus && !popup && ui.input_mut(|i| i.consume_key(Modifiers::NONE, EguiKey::Escape)) {
+            if self.state.typing.take().is_some() {
+                self.state.type_error = None;
+            } else {
+                self.state.escape(self.env);
+            }
+            return;
+        }
+        if text_focus || !self.env.options.editable || self.state.modal() {
+            return;
+        }
+        let mac = self.env.keymap.platform().is_mac();
+        let (undo, redo) = ui.input_mut(|i| {
+            let redo = i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, EguiKey::Z) || (!mac && i.consume_key(Modifiers::COMMAND, EguiKey::Y));
+            let undo = !redo && i.consume_key(Modifiers::COMMAND, EguiKey::Z);
+            (undo, re

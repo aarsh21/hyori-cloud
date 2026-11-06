@@ -1,0 +1,14 @@
+=== examples/basic-interleaved.rs ===
+[No leading copyright/MPL notice in this upstream file; see package metadata.]
+
+=== examples/getting-started.rs ===
+[No leading copyright/MPL notice in this upstream file; see package metadata.]
+
+=== src/lib.rs ===
+// Symphonia
+// Copyright (c) 2019-2022 The Project Symphonia Developers.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+

@@ -1,0 +1,23 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSE.txt",
+      "sha256": "25a0874d15e7c834a47c3adc80901edb2219759254992023ef1010c3065413d5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "Copyright 2022 Dietrich Epp"
+        },
+        {
+          "line": 10,
+          "text": "The above copyright notice and this permission notice shall be included in all"
+        },
+        {
+          "line": 16,
+          "text": "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,778 @@
+0deckcraft-web v0.14.1 (<deckcraft-source>/apps/deckcraft-web)\t\tMIT OR Apache-2.0
+1deckcraft-engine v0.14.1 (<deckcraft-source>/crates/engine)\t\tMIT OR Apache-2.0
+2chrono v0.4.45\talloc,std\tMIT OR Apache-2.0
+3num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0
+4libm v0.2.16\tarch,default\tMIT
+4autocfg v1.5.1\t\tApache-2.0 OR MIT
+2deckcraft-color v0.14.1 (<deckcraft-source>/crates/color)\t\tMIT OR Apache-2.0
+3serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0
+4serde_core v1.0.229\talloc,rc,result,std\tMIT OR Apache-2.0
+4serde_derive v1.0.229 (proc-macro)\tdefault\tMIT OR Apache-2.0
+5proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0
+6unicode-ident v1.0.26\t\t(MIT OR Apache-2.0) AND Unicode-3.0
+5quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0
+6proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+5syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0
+6proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6unicode-ident v1.0.26\t\t(MIT OR Apache-2.0) AND Unicode-3.0
+2deckcraft-fonts v0.14.1 (<deckcraft-source>/crates/fonts)\t\tMIT OR Apache-2.0
+3epaint_default_fonts v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tdefault,monochrome_emoji_fonts\t(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0
+3harfrust v0.13.3\tdefault,std\tMIT
+4bitflags v2.13.2\t\tMIT OR Apache-2.0
+4bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT
+5bytemuck_derive v1.12.1 (proc-macro)\t\tZlib OR Apache-2.0 OR MIT
+6proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+4once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+4read-fonts v0.43.3\texperimental_font_api,std\tMIT OR Apache-2.0
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5font-types v0.12.6\tbytemuck,std\tMIT OR Apache-2.0
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+4smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0
+5serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+3kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT
+4arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+4polycool v0.4.0\tstd\tMIT OR Apache-2.0
+5arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+4serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+4smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+3log v0.4.34\talloc,std\tMIT OR Apache-2.0
+3skrifa v0.47.0\tautohint_shaping,default,std\tMIT OR Apache-2.0
+4bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+4read-fonts v0.44.0\tstd\tMIT OR Apache-2.0
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5font-types v0.12.6\tbytemuck,std\tMIT OR Apache-2.0 (*)
+5once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+3unicode-bidi v0.3.18\tdefault,hardcoded-data,std\tMIT OR Apache-2.0
+2deckcraft-format v0.14.1 (<deckcraft-source>/crates/format)\t\tMIT OR Apache-2.0
+3deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0
+4deckcraft-color v0.14.1 (<deckcraft-source>/crates/color)\t\tMIT OR Apache-2.0 (*)
+4deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0
+5kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+5serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+4serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+4serde_json v1.0.154\tdefault,float_roundtrip,std\tMIT OR Apache-2.0
+5itoa v1.0.18\t\tMIT OR Apache-2.0
+5memchr v2.8.3\talloc,default,std\tUnlicense OR MIT
+5serde_core v1.0.229\talloc,rc,result,std\tMIT OR Apache-2.0
+5zmij v1.0.23\t\tMIT
+4thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0
+5thiserror-impl v2.0.21 (proc-macro)\t\tMIT OR Apache-2.0
+6proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+4unicode-segmentation v1.13.3\t\tMIT OR Apache-2.0
+3serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+3serde_json v1.0.154\tdefault,float_roundtrip,std\tMIT OR Apache-2.0 (*)
+3thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3zip v3.0.0\t_deflate-any,deflate,deflate-flate2,deflate-flate2-zlib-rs,deflate-zopfli,zopfli\tMIT
+4crc32fast v1.5.2\tdefault,std\tMIT OR Apache-2.0
+5cfg-if v1.0.5\t\tMIT OR Apache-2.0
+4flate2 v1.1.10\tany_impl,any_zlib,default,miniz_oxide,runtime_detection,rust_backend,zlib-rs\tMIT OR Apache-2.0
+5crc32fast v1.5.2\tdefault,std\tMIT OR Apache-2.0 (*)
+5miniz_oxide v0.9.1\tdefault,simd,simd-adler32,with-alloc\tMIT OR Zlib OR Apache-2.0
+6adler2 v2.0.1\t\t0BSD OR MIT OR Apache-2.0
+6simd-adler32 v0.3.10\tconst-generics,default,std\tMIT
+5zlib-rs v0.6.8\trust-allocator,std\tZlib
+4indexmap v2.14.2\tdefault,std\tApache-2.0 OR MIT
+5equivalent v1.0.2\t\tApache-2.0 OR MIT
+5hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0
+6foldhash v0.2.0\tstd\tZlib
+4memchr v2.8.3\talloc,default,std\tUnlicense OR MIT
+4zopfli v0.8.3\tdefault,gzip,std,zlib\tApache-2.0
+5bumpalo v3.20.3\tdefault\tMIT OR Apache-2.0
+5crc32fast v1.5.2\tdefault,std\tMIT OR Apache-2.0 (*)
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5simd-adler32 v0.3.10\tconst-generics,default,std\tMIT
+2deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-media v0.14.1 (<deckcraft-source>/crates/media)\t\tMIT OR Apache-2.0
+3deckcraft-av1 v0.14.1 (<deckcraft-source>/crates/av1)\tdefault,threads\tMIT OR Apache-2.0
+4deckcraft-bitstream v0.14.1 (<deckcraft-source>/crates/bitstream)\t\tMIT OR Apache-2.0
+5craft-media v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\tbitstream,isobmff,matroska\tMIT OR Apache-2.0
+6thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+4rayon v1.12.0\t\tMIT OR Apache-2.0
+5either v1.19.0\tstd,use_std\tMIT OR Apache-2.0
+5rayon-core v1.13.0\t\tMIT OR Apache-2.0
+6crossbeam-deque v0.8.8\tdefault,std\tMIT OR Apache-2.0
+7crossbeam-epoch v0.9.21\talloc,std\tMIT OR Apache-2.0
+8crossbeam-utils v0.8.23\tdefault,std\tMIT OR Apache-2.0
+7crossbeam-utils v0.8.23\tdefault,std\tMIT OR Apache-2.0
+6crossbeam-utils v0.8.23\tdefault,std\tMIT OR Apache-2.0
+4thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3deckcraft-h264 v0.14.1 (<deckcraft-source>/crates/h264)\tdefault,threads\tMIT OR Apache-2.0
+4deckcraft-bitstream v0.14.1 (<deckcraft-source>/crates/bitstream)\t\tMIT OR Apache-2.0 (*)
+4rayon v1.12.0\t\tMIT OR Apache-2.0 (*)
+4thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3deckcraft-hevc v0.14.1 (<deckcraft-source>/crates/hevc)\tdefault,threads\tMIT OR Apache-2.0
+4deckcraft-bitstream v0.14.1 (<deckcraft-source>/crates/bitstream)\t\tMIT OR Apache-2.0 (*)
+4rayon v1.12.0\t\tMIT OR Apache-2.0 (*)
+4thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3deckcraft-isobmff v0.14.1 (<deckcraft-source>/crates/isobmff)\t\tMIT OR Apache-2.0
+4craft-media v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\tbitstream,isobmff,matroska\tMIT OR Apache-2.0 (*)
+3deckcraft-matroska v0.14.1 (<deckcraft-source>/crates/matroska)\t\tMIT OR Apache-2.0
+4craft-media v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\tbitstream,isobmff,matroska\tMIT OR Apache-2.0 (*)
+3deckcraft-ogg v0.14.1 (<deckcraft-source>/crates/ogg)\t\tMIT OR Apache-2.0
+3deckcraft-opus v0.14.1 (<deckcraft-source>/crates/opus)\t\tMIT OR Apache-2.0
+3deckcraft-vp9 v0.14.1 (<deckcraft-source>/crates/vp9)\tdefault,threads\tMIT OR Apache-2.0
+4deckcraft-bitstream v0.14.1 (<deckcraft-source>/crates/bitstream)\t\tMIT OR Apache-2.0 (*)
+4rayon v1.12.0\t\tMIT OR Apache-2.0 (*)
+4thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3image v0.25.10\tbmp,gif,jpeg,png,tiff,webp\tMIT OR Apache-2.0
+4bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+4byteorder-lite v0.1.0\tdefault,std\tUnlicense OR MIT
+4color_quant v1.1.0\t\tMIT
+4gif v0.14.2\tcolor_quant,default,raii_no_panic,std\tMIT OR Apache-2.0
+5color_quant v1.1.0\t\tMIT
+5weezl v0.1.12\talloc,default,std\tMIT OR Apache-2.0
+4image-webp v0.2.4\t\tMIT OR Apache-2.0
+5byteorder-lite v0.1.0\tdefault,std\tUnlicense OR MIT
+5quick-error v2.0.1\t\tMIT/Apache-2.0
+4moxcms v0.8.1\tavx,avx_luts,avx_shaper_fixed_point_paths,avx_shaper_paths,default,lut,neon,neon_luts,neon_shaper_fixed_point_paths,neon_shaper_paths,sse,sse_luts,sse_shaper_fixed_point_paths,sse_shaper_paths\tBSD-3-Clause OR Apache-2.0
+5num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0 (*)
+5pxfm v0.1.30\t\tBSD-3-Clause OR Apache-2.0
+4num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0 (*)
+4png v0.18.1\t\tMIT OR Apache-2.0
+5bitflags v2.13.2\t\tMIT OR Apache-2.0
+5crc32fast v1.5.2\tdefault,std\tMIT OR Apache-2.0 (*)
+5fdeflate v0.3.7\t\tMIT OR Apache-2.0
+6simd-adler32 v0.3.10\tconst-generics,default,std\tMIT
+5flate2 v1.1.10\tany_impl,any_zlib,default,miniz_oxide,runtime_detection,rust_backend,zlib-rs\tMIT OR Apache-2.0 (*)
+5miniz_oxide v0.8.9\tdefault,simd,simd-adler32,with-alloc\tMIT OR Zlib OR Apache-2.0
+6adler2 v2.0.1\t\t0BSD OR MIT OR Apache-2.0
+6simd-adler32 v0.3.10\tconst-generics,default,std\tMIT
+4tiff v0.11.3\tdefault,deflate,fax,jpeg,lzw\tMIT
+5fax v0.2.7\t\tMIT
+5flate2 v1.1.10\tany_impl,any_zlib,default,miniz_oxide,runtime_detection,rust_backend,zlib-rs\tMIT OR Apache-2.0 (*)
+5half v2.7.1\talloc,default,num-traits,std\tMIT OR Apache-2.0
+6cfg-if v1.0.5\t\tMIT OR Apache-2.0
+6num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0 (*)
+6zerocopy v0.8.61\tderive,simd,zerocopy-derive\tBSD-2-Clause OR Apache-2.0 OR MIT
+7zerocopy-derive v0.8.61 (proc-macro)\t\tBSD-2-Clause OR Apache-2.0 OR MIT
+8proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+8quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+8syn v2.0.119\tclone-impls,default,derive,full,parsing,printing,proc-macro\tMIT OR Apache-2.0
+9proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+9quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+9unicode-ident v1.0.26\t\t(MIT OR Apache-2.0) AND Unicode-3.0
+5quick-error v2.0.1\t\tMIT/Apache-2.0
+5weezl v0.1.12\talloc,default,std\tMIT OR Apache-2.0
+5zune-jpeg v0.5.15\tdefault,neon,std,x86\tMIT OR Apache-2.0 OR Zlib
+6zune-core v0.5.3\tstd\tMIT OR Apache-2.0 OR Zlib
+4zune-core v0.5.3\tstd\tMIT OR Apache-2.0 OR Zlib
+4zune-jpeg v0.5.15\tdefault,neon,std,x86\tMIT OR Apache-2.0 OR Zlib (*)
+3log v0.4.34\talloc,std\tMIT OR Apache-2.0
+3symphonia v0.5.5\taac,adpcm,aiff,alac,caf,flac,isomp4,mkv,mp1,mp2,mp3,ogg,pcm,symphonia-bundle-flac,symphonia-bundle-mp3,symphonia-codec-aac,symphonia-codec-adpcm,symphonia-codec-alac,symphonia-codec-pcm,symphonia-codec-vorbis,symphonia-format-caf,symphonia-format-isomp4,symphonia-format-mkv,symphonia-format-ogg,symphonia-format-riff,vorbis,wav\tMPL-2.0
+4lazy_static v1.5.1\t\tMIT OR Apache-2.0
+4symphonia-bundle-flac v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0
+6arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+6bitflags v1.3.2\tdefault\tMIT/Apache-2.0
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6lazy_static v1.5.1\t\tMIT OR Apache-2.0
+6log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-metadata v0.5.5\t\tMPL-2.0
+6encoding_rs v0.8.42\talloc,default\t(Apache-2.0 OR MIT) AND BSD-3-Clause
+7cfg-if v1.0.5\t\tMIT OR Apache-2.0
+7multiversion_no_op v1.0.0 (proc-macro)\t\tApache-2.0 OR MIT
+7scopeguard v1.2.0\t\tMIT OR Apache-2.0
+7rustversion v1.0.23 (proc-macro)\t\tMIT OR Apache-2.0
+6lazy_static v1.5.1\t\tMIT OR Apache-2.0
+6log v0.4.34\talloc,std\tMIT OR Apache-2.0
+6symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-utils-xiph v0.5.5\t\tMPL-2.0
+6symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+6symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+4symphonia-bundle-mp3 v0.5.5\tmp1,mp2,mp3\tMPL-2.0
+5lazy_static v1.5.1\t\tMIT OR Apache-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+4symphonia-codec-aac v0.5.5\t\tMPL-2.0
+5lazy_static v1.5.1\t\tMIT OR Apache-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+4symphonia-codec-adpcm v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+4symphonia-codec-alac v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+4symphonia-codec-pcm v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+4symphonia-codec-vorbis v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-utils-xiph v0.5.5\t\tMPL-2.0 (*)
+4symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+4symphonia-format-caf v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+4symphonia-format-isomp4 v0.5.5\t\tMPL-2.0
+5encoding_rs v0.8.42\talloc,default\t(Apache-2.0 OR MIT) AND BSD-3-Clause (*)
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+5symphonia-utils-xiph v0.5.5\t\tMPL-2.0 (*)
+4symphonia-format-mkv v0.5.5\t\tMPL-2.0
+5lazy_static v1.5.1\t\tMIT OR Apache-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+5symphonia-utils-xiph v0.5.5\t\tMPL-2.0 (*)
+4symphonia-format-ogg v0.5.5\t\tMPL-2.0
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+5symphonia-utils-xiph v0.5.5\t\tMPL-2.0 (*)
+4symphonia-format-riff v0.5.5\taiff,wav\tMPL-2.0
+5extended v0.1.0\t\tMIT
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5symphonia-core v0.5.5\tdefault\tMPL-2.0 (*)
+5symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+4symphonia-metadata v0.5.5\t\tMPL-2.0 (*)
+3thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+2deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-pdf v0.14.1 (<deckcraft-source>/crates/pdf)\t\tMIT OR Apache-2.0
+3craft-pdf v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\twrite,write-simple-text\tMIT OR Apache-2.0
+4krilla v0.8.2 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\traster-images,simple-text\tMIT OR Apache-2.0
+5base64 v0.22.1\talloc,default,std\tMIT OR Apache-2.0
+5bumpalo v3.20.3\tdefault\tMIT OR Apache-2.0
+5flate2 v1.1.10\tany_impl,any_zlib,default,miniz_oxide,runtime_detection,rust_backend,zlib-rs\tMIT OR Apache-2.0 (*)
+5float-cmp v0.9.0\tdefault,num-traits,ratio\tMIT
+6num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0 (*)
+5gif v0.14.2\tcolor_quant,default,raii_no_panic,std\tMIT OR Apache-2.0 (*)
+5image-webp v0.2.4\t\tMIT OR Apache-2.0 (*)
+5imagesize v0.14.0\taesprite,bmp,dds,default,exr,farbfeld,gif,hdr,heif,ico,ilbm,jpeg,jxl,ktx2,mod,png,pnm,psd,qoi,tga,tiff,vtf,webp\tMIT
+5indexmap v2.14.2\tdefault,std\tApache-2.0 OR MIT (*)
+5pdf-writer v0.15.0\t\tMIT OR Apache-2.0
+6bitflags v2.13.2\t\tMIT OR Apache-2.0
+6itoa v1.0.18\t\tMIT OR Apache-2.0
+6memchr v2.8.3\talloc,default,std\tUnlicense OR MIT
+6ryu v1.0.23\t\tApache-2.0 OR BSL-1.0
+5png v0.18.1\t\tMIT OR Apache-2.0 (*)
+5rustc-hash v2.1.3\tdefault,std\tApache-2.0 OR MIT
+5rustybuzz v0.20.1\tdefault,std\tMIT
+6bitflags v2.13.2\t\tMIT OR Apache-2.0
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6core_maths v0.1.1\t\tMIT
+7libm v0.2.16\tarch,default\tMIT
+6log v0.4.34\talloc,std\tMIT OR Apache-2.0
+6smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+6ttf-parser v0.25.1\tapple-layout,core_maths,glyph-names,no-std-float,opentype-layout,std,variable-fonts\tMIT OR Apache-2.0
+7core_maths v0.1.1\t\tMIT (*)
+6unicode-bidi-mirroring v0.4.0\t\tMIT/Apache-2.0
+6unicode-ccc v0.4.0\t\tMIT/Apache-2.0
+6unicode-properties v0.1.4\temoji,general-category\tMIT/Apache-2.0
+6unicode-script v0.5.8\t\tMIT OR Apache-2.0
+5siphasher v1.0.4\tdefault,std\tMIT OR Apache-2.0
+5skrifa v0.42.1\tautohint_shaping,default,std\tMIT OR Apache-2.0
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6read-fonts v0.39.2\tdefault,std\tMIT OR Apache-2.0
+7bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+7font-types v0.11.3\tbytemuck,std\tMIT OR Apache-2.0
+8bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5subsetter v0.2.6\tdefault,variable-fonts\tMIT OR Apache-2.0
+6kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+6rustc-hash v2.1.3\tdefault,std\tApache-2.0 OR MIT
+6skrifa v0.42.1\tautohint_shaping,default,std\tMIT OR Apache-2.0 (*)
+6write-fonts v0.48.1\tdefault\tMIT OR Apache-2.0
+7font-types v0.11.3\tbytemuck,std\tMIT OR Apache-2.0 (*)
+7indexmap v2.14.2\tdefault,std\tApache-2.0 OR MIT (*)
+7kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+7log v0.4.34\talloc,std\tMIT OR Apache-2.0
+7read-fonts v0.39.2\tdefault,std\tMIT OR Apache-2.0 (*)
+5tiny-skia-path v0.12.0\tdefault,std\tBSD-3-Clause
+6arrayref v0.3.9\t\tBSD-2-Clause
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6strict-num v0.1.1\t\tMIT
+5xmp-writer v0.3.3\tdefault,pdfa\tMIT OR Apache-2.0
+5yoke v0.8.3\talloc,default,derive,serde,zerofrom\tUnicode-3.0
+6stable_deref_trait v1.2.1\talloc\tMIT OR Apache-2.0
+6yoke-derive v0.8.4 (proc-macro)\t\tUnicode-3.0
+7proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+7quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+7syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+7synstructure v0.14.0\tdefault,proc-macro\tMIT
+8proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+8quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+8syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+6zerofrom v0.1.8\talloc,derive\tUnicode-3.0
+7zerofrom-derive v0.1.8 (proc-macro)\t\tUnicode-3.0
+8proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+8quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+8syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+8synstructure v0.14.0\tdefault,proc-macro\tMIT (*)
+5zune-jpeg v0.5.15\tdefault,neon,std,x86\tMIT OR Apache-2.0 OR Zlib (*)
+4thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3deckcraft-fonts v0.14.1 (<deckcraft-source>/crates/fonts)\t\tMIT OR Apache-2.0 (*)
+3deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+3deckcraft-render v0.14.1 (<deckcraft-source>/crates/render)\t\tMIT OR Apache-2.0
+4deckcraft-anim v0.14.1 (<deckcraft-source>/crates/anim)\t\tMIT OR Apache-2.0
+5deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0 (*)
+5deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+5serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+4deckcraft-color v0.14.1 (<deckcraft-source>/crates/color)\t\tMIT OR Apache-2.0 (*)
+4deckcraft-fonts v0.14.1 (<deckcraft-source>/crates/fonts)\t\tMIT OR Apache-2.0 (*)
+4deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0 (*)
+4deckcraft-metafile v0.14.1 (<deckcraft-source>/crates/metafile)\t\tMIT OR Apache-2.0
+5image v0.25.10\tbmp,gif,jpeg,png,tiff,webp\tMIT OR Apache-2.0 (*)
+5kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+5thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+4deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+4deckcraft-text v0.14.1 (<deckcraft-source>/crates/text)\t\tMIT OR Apache-2.0
+5chrono v0.4.45\talloc,std\tMIT OR Apache-2.0 (*)
+5deckcraft-color v0.14.1 (<deckcraft-source>/crates/color)\t\tMIT OR Apache-2.0 (*)
+5deckcraft-fonts v0.14.1 (<deckcraft-source>/crates/fonts)\t\tMIT OR Apache-2.0 (*)
+5deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0 (*)
+5deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+5unicode-bidi v0.3.18\tdefault,hardcoded-data,std\tMIT OR Apache-2.0
+5unicode-linebreak v0.1.5\t\tApache-2.0
+5unicode-segmentation v1.13.3\t\tMIT OR Apache-2.0
+4image v0.25.10\tbmp,gif,jpeg,png,tiff,webp\tMIT OR Apache-2.0 (*)
+4kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+4log v0.4.34\talloc,std\tMIT OR Apache-2.0
+4skrifa v0.47.0\tautohint_shaping,default,std\tMIT OR Apache-2.0 (*)
+4vello_common v0.2.0\tpng,std\tApache-2.0 OR MIT
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5fearless_simd v0.4.1\tstd\tApache-2.0 OR MIT
+5guillotiere v0.7.0\t\tMIT/Apache-2.0
+6euclid v0.22.14\t\tMIT OR Apache-2.0
+7num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0 (*)
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5peniko v0.6.1\tbytemuck,std\tApache-2.0 OR MIT
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6color v0.3.3\tbytemuck,std\tApache-2.0 OR MIT
+7bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+6linebender_resource_handle v0.1.1\tstd\tApache-2.0 OR MIT
+6smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5png v0.18.1\t\tMIT OR Apache-2.0 (*)
+5smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+4vello_cpu v0.2.0\tdefault,f32_pipeline,png,std,text,u8_pipeline\tApache-2.0 OR MIT
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5glifo v0.3.0\tpng,std\tApache-2.0 OR MIT
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6foldhash v0.2.0\tstd\tZlib
+6hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+6log v0.4.34\talloc,std\tMIT OR Apache-2.0
+6peniko v0.6.1\tbytemuck,std\tApache-2.0 OR MIT (*)
+6png v0.18.1\t\tMIT OR Apache-2.0 (*)
+6skrifa v0.44.0\tautohint_shaping,std\tMIT OR Apache-2.0
+7bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+7read-fonts v0.41.0\texperimental_font_api,std\tMIT OR Apache-2.0
+8bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+8font-types v0.12.6\tbytemuck,std\tMIT OR Apache-2.0 (*)
+8once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+6smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+6vello_common v0.2.0\tpng,std\tApache-2.0 OR MIT (*)
+5hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+5png v0.18.1\t\tMIT OR Apache-2.0 (*)
+5vello_common v0.2.0\tpng,std\tApache-2.0 OR MIT (*)
+3deckcraft-text v0.14.1 (<deckcraft-source>/crates/text)\t\tMIT OR Apache-2.0 (*)
+3kurbo v0.13.1\tdefault,serde,std\tApache-2.0 OR MIT (*)
+3log v0.4.34\talloc,std\tMIT OR Apache-2.0
+3serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+3thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+2deckcraft-pptx v0.14.1 (<deckcraft-source>/crates/pptx)\t\tMIT OR Apache-2.0
+3deckcraft-color v0.14.1 (<deckcraft-source>/crates/color)\t\tMIT OR Apache-2.0 (*)
+3deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0 (*)
+3deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+3log v0.4.34\talloc,std\tMIT OR Apache-2.0
+3quick-xml v0.41.0\tdefault\tMIT
+4memchr v2.8.3\talloc,default,std\tUnlicense OR MIT
+3thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3zip v3.0.0\t_deflate-any,deflate,deflate-flate2,deflate-flate2-zlib-rs,deflate-zopfli,zopfli\tMIT (*)
+2deckcraft-render v0.14.1 (<deckcraft-source>/crates/render)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-text v0.14.1 (<deckcraft-source>/crates/text)\t\tMIT OR Apache-2.0 (*)
+2i_overlay v9.1.0\tdefault\tMIT OR Apache-2.0
+3i_float v5.0.0\tcore,default\tMIT
+4libm v0.2.16\tarch,default\tMIT
+3i_key_sort v0.12.0\tdefault\tMIT
+3i_shape v5.0.0\t\tMIT
+4i_float v5.0.0\tcore,default\tMIT (*)
+3i_tree v0.20.0\t\tMIT
+2image v0.25.10\tbmp,gif,jpeg,png,tiff,webp\tMIT OR Apache-2.0 (*)
+2js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0
+3cfg-if v1.0.5\t\tMIT OR Apache-2.0
+3futures-util v0.3.34\talloc,slab,std\tMIT OR Apache-2.0
+4futures-core v0.3.34\talloc,std\tMIT OR Apache-2.0
+4futures-task v0.3.34\talloc,std\tMIT OR Apache-2.0
+4pin-project-lite v0.2.17\t\tApache-2.0 OR MIT
+4slab v0.4.12\tstd\tMIT
+3wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0
+4cfg-if v1.0.5\t\tMIT OR Apache-2.0
+4once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+4wasm-bindgen-macro v0.2.129 (proc-macro)\t\tMIT OR Apache-2.0
+5quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+5wasm-bindgen-macro-support v0.2.129\t\tMIT OR Apache-2.0
+6bumpalo v3.20.3\tdefault\tMIT OR Apache-2.0
+6proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+6wasm-bindgen-shared v0.2.129\t\tMIT OR Apache-2.0
+7unicode-ident v1.0.26\t\t(MIT OR Apache-2.0) AND Unicode-3.0
+4wasm-bindgen-shared v0.2.129\t\tMIT OR Apache-2.0
+5unicode-ident v1.0.26\t\t(MIT OR Apache-2.0) AND Unicode-3.0
+4rustversion v1.0.23 (proc-macro)\t\tMIT OR Apache-2.0
+2log v0.4.34\talloc,std\tMIT OR Apache-2.0
+2serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+2serde_json v1.0.154\tdefault,float_roundtrip,std\tMIT OR Apache-2.0 (*)
+2thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+1deckcraft-ui-egui v0.14.1 (<deckcraft-source>/crates/ui-egui)\t\tMIT OR Apache-2.0
+2craft-ui v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\tdefault\tMIT OR Apache-2.0
+3craft-fonts-build v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\t\tMIT OR Apache-2.0
+3craft-i18n v0.1.0 (https://github.com/storytold/craft-libs?rev=c5a1cbfb5f9049f9270955caffb5bee5997aebf7#c5a1cbfb)\t\tMIT OR Apache-2.0
+4fixed_decimal v0.7.3\t\tUnicode-3.0
+5displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0
+6proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+6syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+5smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5writeable v0.6.4\talloc,default\tUnicode-3.0
+4icu_decimal v2.3.0\talloc,serde\tUnicode-3.0
+5displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+5fixed_decimal v0.7.3\t\tUnicode-3.0 (*)
+5icu_locale_core v2.3.0\talloc,zerovec\tUnicode-3.0
+6displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+6litemap v0.8.3\talloc,serde\tUnicode-3.0
+7serde_core v1.0.229\talloc,rc,result,std\tMIT OR Apache-2.0
+6tinystr v0.8.4\talloc,zerovec\tUnicode-3.0
+7displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+7zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0
+8serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+8yoke v0.8.3\talloc,default,derive,serde,zerofrom\tUnicode-3.0 (*)
+8zerofrom v0.1.8\talloc,derive\tUnicode-3.0 (*)
+8zerovec-derive v0.11.6 (proc-macro)\t\tUnicode-3.0
+9proc-macro2 v1.0.107\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+9quote v1.0.47\tdefault,proc-macro\tMIT OR Apache-2.0 (*)
+9syn v3.0.6\tclone-impls,default,derive,extra-traits,fold,full,parsing,printing,proc-macro,visit,visit-mut\tMIT OR Apache-2.0 (*)
+6writeable v0.6.4\talloc,default\tUnicode-3.0
+6zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0
+6displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+6icu_locale_core v2.3.0\talloc,zerovec\tUnicode-3.0 (*)
+6postcard v1.1.3\t\tMIT OR Apache-2.0
+7cobs v0.3.0\t\tMIT OR Apache-2.0
+8thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+7serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+6serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+6stable_deref_trait v1.2.1\talloc\tMIT OR Apache-2.0
+6writeable v0.6.4\talloc,default\tUnicode-3.0
+6yoke v0.8.3\talloc,default,derive,serde,zerofrom\tUnicode-3.0 (*)
+6zerofrom v0.1.8\talloc,derive\tUnicode-3.0 (*)
+6zerotrie v0.2.5\talloc,litemap,serde,yoke,zerofrom,zerovec\tUnicode-3.0
+7displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+7litemap v0.8.3\talloc,serde\tUnicode-3.0 (*)
+7serde_core v1.0.229\talloc,rc,result,std\tMIT OR Apache-2.0
+7yoke v0.8.3\talloc,default,derive,serde,zerofrom\tUnicode-3.0 (*)
+7zerofrom v0.1.8\talloc,derive\tUnicode-3.0 (*)
+7zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+6zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+5serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+5writeable v0.6.4\talloc,default\tUnicode-3.0
+5zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+4icu_locale_core v2.3.0\talloc,zerovec\tUnicode-3.0 (*)
+4icu_locale_fallback v2.3.0\tcompiled_data\tUnicode-3.0
+5icu_locale_core v2.3.0\talloc,zerovec\tUnicode-3.0 (*)
+5icu_locale_fallback_data v2.3.0\t\tUnicode-3.0
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+5potential_utf v0.1.6\talloc,writeable,zerovec\tUnicode-3.0
+6writeable v0.6.4\talloc,default\tUnicode-3.0
+6zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+5tinystr v0.8.4\talloc,zerovec\tUnicode-3.0 (*)
+5zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+4icu_normalizer v2.3.0\tcompiled_data,default,utf16_iter,utf8_iter\tUnicode-3.0
+5icu_collections v2.3.0\t\tUnicode-3.0
+6displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+6potential_utf v0.1.6\talloc,writeable,zerovec\tUnicode-3.0 (*)
+6utf8_iter v1.0.4\t\tApache-2.0 OR MIT
+6yoke v0.8.3\talloc,default,derive,serde,zerofrom\tUnicode-3.0 (*)
+6zerofrom v0.1.8\talloc,derive\tUnicode-3.0 (*)
+6zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+5icu_normalizer_data v2.3.0\t\tUnicode-3.0
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+5smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5utf16_iter v1.0.5\t\tApache-2.0 OR MIT
+5utf8_iter v1.0.4\t\tApache-2.0 OR MIT
+5write16 v1.0.0\talloc\tApache-2.0 OR MIT
+5zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+4icu_plurals v2.3.0\tserde\tUnicode-3.0
+5displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+5fixed_decimal v0.7.3\t\tUnicode-3.0 (*)
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+5serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+5zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+4icu_properties v2.3.0\tcompiled_data,default\tUnicode-3.0
+5displaydoc v0.2.7 (proc-macro)\t\tMIT OR Apache-2.0 (*)
+5icu_collections v2.3.0\t\tUnicode-3.0 (*)
+5icu_locale_core v2.3.0\talloc,zerovec\tUnicode-3.0 (*)
+5icu_properties_data v2.3.0\t\tUnicode-3.0
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+5zerotrie v0.2.5\talloc,litemap,serde,yoke,zerofrom,zerovec\tUnicode-3.0 (*)
+5zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+4icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+4icu_provider_adapters v2.3.0\t\tUnicode-3.0
+5icu_locale_fallback v2.3.0\tcompiled_data\tUnicode-3.0 (*)
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+4icu_provider_blob v2.3.0\t\tUnicode-3.0
+5icu_provider v2.3.1\talloc,baked,deserialize_postcard_1,serde,sync\tUnicode-3.0 (*)
+5postcard v1.1.3\t\tMIT OR Apache-2.0 (*)
+5serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+5writeable v0.6.4\talloc,default\tUnicode-3.0
+5zerotrie v0.2.5\talloc,litemap,serde,yoke,zerofrom,zerovec\tUnicode-3.0 (*)
+5zerovec v0.11.8\talloc,derive,serde,yoke\tUnicode-3.0 (*)
+4log v0.4.34\talloc,std\tMIT OR Apache-2.0
+4sys-locale v0.3.2\tjs,js-sys,wasm-bindgen,web-sys\tMIT OR Apache-2.0
+5js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+5wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+5web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0
+6js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+6wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+4unicode-bidi v0.3.18\tdefault,hardcoded-data,std\tMIT OR Apache-2.0
+4writeable v0.6.4\talloc,default\tUnicode-3.0
+3egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,monochrome_emoji_fonts,web_file\tMIT OR Apache-2.0
+4accesskit v0.25.1\t\tMIT OR Apache-2.0
+5uuid v1.27.0\t\tApache-2.0 OR MIT
+4ahash v0.8.12\tno-rng,std\tMIT OR Apache-2.0
+5cfg-if v1.0.5\t\tMIT OR Apache-2.0
+5once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+5zerocopy v0.8.61\tderive,simd,zerocopy-derive\tBSD-2-Clause OR Apache-2.0 OR MIT (*)
+5version_check v0.9.5\t\tMIT/Apache-2.0
+4bitflags v2.13.2\t\tMIT OR Apache-2.0
+4emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck\tMIT OR Apache-2.0
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+4epaint v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,epaint_default_fonts,monochrome_emoji_fonts\tMIT OR Apache-2.0
+5ahash v0.8.12\tno-rng,std\tMIT OR Apache-2.0 (*)
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5ecolor v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck\tMIT OR Apache-2.0
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck\tMIT OR Apache-2.0 (*)
+5emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck\tMIT OR Apache-2.0 (*)
+5epaint_default_fonts v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tdefault,monochrome_emoji_fonts\t(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0
+5font-types v0.12.6\tbytemuck,std\tMIT OR Apache-2.0 (*)
+5harfrust v0.12.0\tdefault,std\tMIT
+6bitflags v2.13.2\t\tMIT OR Apache-2.0
+6bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+6read-fonts v0.41.0\texperimental_font_api,std\tMIT OR Apache-2.0 (*)
+6smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5nohash-hasher v0.2.0\tdefault,std\tApache-2.0 OR MIT
+5parking_lot v0.12.5\tdefault\tMIT OR Apache-2.0
+6lock_api v0.4.14\tatomic_usize,default\tMIT OR Apache-2.0
+7scopeguard v1.2.0\t\tMIT OR Apache-2.0
+6parking_lot_core v0.9.12\t\tMIT OR Apache-2.0
+7cfg-if v1.0.5\t\tMIT OR Apache-2.0
+7smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5profiling v1.0.18\t\tMIT OR Apache-2.0
+5self_cell v1.3.0\t\tApache-2.0 OR GPL-2.0-only
+5skrifa v0.44.0\tautohint_shaping,std\tMIT OR Apache-2.0 (*)
+5smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5unicode-bidi v0.3.18\tdefault,hardcoded-data,std\tMIT OR Apache-2.0
+5unicode-general-category v1.1.0\t\tApache-2.0
+5unicode-properties v0.1.4\temoji,general-category\tMIT/Apache-2.0
+5unicode-segmentation v1.13.3\t\tMIT OR Apache-2.0
+5vello_cpu v0.2.0\tdefault,f32_pipeline,png,std,text,u8_pipeline\tApache-2.0 OR MIT (*)
+4itertools v0.15.0\tdefault,use_alloc,use_std\tMIT OR Apache-2.0
+5either v1.19.0\tstd,use_std\tMIT OR Apache-2.0
+4log v0.4.34\talloc,std\tMIT OR Apache-2.0
+4nohash-hasher v0.2.0\tdefault,std\tApache-2.0 OR MIT
+4profiling v1.0.18\t\tMIT OR Apache-2.0
+4smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+4unicode-segmentation v1.13.3\t\tMIT OR Apache-2.0
+4web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+3epaint v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,epaint_default_fonts,monochrome_emoji_fonts\tMIT OR Apache-2.0 (*)
+3js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+3log v0.4.34\talloc,std\tMIT OR Apache-2.0
+3skrifa v0.44.0\tautohint_shaping,std\tMIT OR Apache-2.0 (*)
+3wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+3wasm-bindgen-futures v0.4.79\tdefault,std\tMIT OR Apache-2.0
+4js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+4wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+3web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+2deckcraft-anim v0.14.1 (<deckcraft-source>/crates/anim)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-color v0.14.1 (<deckcraft-source>/crates/color)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-engine v0.14.1 (<deckcraft-source>/crates/engine)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-fonts v0.14.1 (<deckcraft-source>/crates/fonts)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-geom v0.14.1 (<deckcraft-source>/crates/geom)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-media v0.14.1 (<deckcraft-source>/crates/media)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-model v0.14.1 (<deckcraft-source>/crates/model)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-render v0.14.1 (<deckcraft-source>/crates/render)\t\tMIT OR Apache-2.0 (*)
+2deckcraft-text v0.14.1 (<deckcraft-source>/crates/text)\t\tMIT OR Apache-2.0 (*)
+2egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,monochrome_emoji_fonts,web_file\tMIT OR Apache-2.0 (*)
+2log v0.4.34\talloc,std\tMIT OR Apache-2.0
+2serde v1.0.229\talloc,default,derive,rc,serde_derive,std\tMIT OR Apache-2.0 (*)
+2serde_json v1.0.154\tdefault,float_roundtrip,std\tMIT OR Apache-2.0 (*)
+2web-time v1.1.0\t\tMIT OR Apache-2.0
+3js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+3wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+2serde_json v1.0.154\tdefault,float_roundtrip,std\tMIT OR Apache-2.0
+3itoa v1.0.18\t\tMIT OR Apache-2.0
+3memchr v2.8.3\talloc,std\tUnlicense OR MIT
+3serde_core v1.0.229\talloc,std\tMIT OR Apache-2.0
+3zmij v1.0.23\t\tMIT
+2toml v1.1.6+spec-1.1.0\tdefault,display,parse,serde,std\tMIT OR Apache-2.0
+3serde_core v1.0.229\talloc,std\tMIT OR Apache-2.0
+3serde_spanned v1.1.1\talloc,serde,std\tMIT OR Apache-2.0
+4serde_core v1.0.229\talloc,std\tMIT OR Apache-2.0
+3toml_datetime v1.1.1+spec-1.1.0\talloc,serde,std\tMIT OR Apache-2.0
+4serde_core v1.0.229\talloc,std\tMIT OR Apache-2.0
+3toml_parser v1.1.3+spec-1.1.0\talloc,std\tMIT OR Apache-2.0
+4winnow v1.0.4\t\tMIT
+3toml_writer v1.1.2+spec-1.1.0\talloc,std\tMIT OR Apache-2.0
+3winnow v1.0.4\t\tMIT
+1eframe v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\taccesskit,default_fonts,wgpu,wgpu_no_default_features\tMIT OR Apache-2.0
+2ahash v0.8.12\tno-rng,std\tMIT OR Apache-2.0 (*)
+2bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+2document-features v0.2.12 (proc-macro)\tdefault\tMIT OR Apache-2.0
+3litrs v1.0.0\t\tMIT OR Apache-2.0
+2egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,monochrome_emoji_fonts,web_file\tMIT OR Apache-2.0 (*)
+2egui-wgpu v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tcapture,default,fragile-send-sync-non-atomic-wasm,macos-window-resize-jitter-fix\tMIT OR Apache-2.0
+3ahash v0.8.12\tno-rng,std\tMIT OR Apache-2.0 (*)
+3bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+3document-features v0.2.12 (proc-macro)\tdefault\tMIT OR Apache-2.0 (*)
+3egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,monochrome_emoji_fonts,web_file\tMIT OR Apache-2.0 (*)
+3epaint v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,epaint_default_fonts,monochrome_emoji_fonts\tMIT OR Apache-2.0 (*)
+3log v0.4.34\talloc,std\tMIT OR Apache-2.0
+3profiling v1.0.18\t\tMIT OR Apache-2.0
+3thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+3type-map v0.5.1\t\tMIT/Apache-2.0
+4rustc-hash v2.1.3\tdefault,std\tApache-2.0 OR MIT
+3web-time v1.1.0\t\tMIT OR Apache-2.0 (*)
+3wgpu v30.0.1\tdefault,dx12,fragile-send-sync-non-atomic-wasm,gles,metal,parking_lot,std,vulkan,web,webgl,webgpu,wgpu-core,wgsl\tMIT OR Apache-2.0
+4arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+4bitflags v2.13.2\t\tMIT OR Apache-2.0
+4bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+4cfg-if v1.0.5\t\tMIT OR Apache-2.0
+4document-features v0.2.12 (proc-macro)\tdefault\tMIT OR Apache-2.0 (*)
+4hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+4js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+4log v0.4.34\talloc,std\tMIT OR Apache-2.0
+4parking_lot v0.12.5\tdefault\tMIT OR Apache-2.0 (*)
+4profiling v1.0.18\t\tMIT OR Apache-2.0
+4raw-window-handle v0.6.2\talloc,std\tMIT OR Apache-2.0 OR Zlib
+4smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+4static_assertions v1.1.0\t\tMIT OR Apache-2.0
+4wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+4wasm-bindgen-futures v0.4.79\tdefault,std\tMIT OR Apache-2.0 (*)
+4web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+4wgpu-core v30.0.1\tdefault,dx12,fragile-send-sync-non-atomic-wasm,gles,metal,std,vulkan,webgl,wgpu-core-deps-wasm,wgsl\tMIT OR Apache-2.0
+5arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+5bit-set v0.10.0\t\tApache-2.0 OR MIT
+6bit-vec v0.9.1\t\tApache-2.0 OR MIT
+5bit-vec v0.9.1\t\tApache-2.0 OR MIT
+5bitflags v2.13.2\t\tMIT OR Apache-2.0
+5bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+5document-features v0.2.12 (proc-macro)\tdefault\tMIT OR Apache-2.0 (*)
+5hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+5indexmap v2.14.2\tdefault,std\tApache-2.0 OR MIT (*)
+5log v0.4.34\talloc,std\tMIT OR Apache-2.0
+5naga v30.0.1\tdefault,glsl-out,wgsl-in\tMIT OR Apache-2.0
+6arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+6bit-set v0.10.0\t\tApache-2.0 OR MIT (*)
+6bitflags v2.13.2\t\tMIT OR Apache-2.0
+6cfg-if v1.0.5\t\tMIT OR Apache-2.0
+6codespan-reporting v0.13.1\t\tApache-2.0
+7unicode-width v0.2.2\tcjk,default\tMIT OR Apache-2.0
+6half v2.7.1\talloc,default,num-traits,std\tMIT OR Apache-2.0 (*)
+6hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+6indexmap v2.14.2\tdefault,std\tApache-2.0 OR MIT (*)
+6libm v0.2.16\tarch,default\tMIT
+6log v0.4.34\talloc,std\tMIT OR Apache-2.0
+6naga-types v30.0.1\tstd\tMIT OR Apache-2.0
+7hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+7indexmap v2.14.2\tdefault,std\tApache-2.0 OR MIT (*)
+7rustc-hash v1.1.0\t\tApache-2.0/MIT
+7thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+6num-traits v0.2.19\tdefault,libm,std\tMIT OR Apache-2.0 (*)
+6once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+6rustc-hash v1.1.0\t\tApache-2.0/MIT
+6thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+6unicode-ident v1.0.26\t\t(MIT OR Apache-2.0) AND Unicode-3.0
+6cfg_aliases v0.2.2\t\tMIT
+5naga-types v30.0.1\tstd\tMIT OR Apache-2.0 (*)
+5once_cell v1.21.4\talloc,race,std\tMIT OR Apache-2.0
+5parking_lot v0.12.5\tdefault\tMIT OR Apache-2.0 (*)
+5profiling v1.0.18\t\tMIT OR Apache-2.0
+5raw-window-handle v0.6.2\talloc,std\tMIT OR Apache-2.0 OR Zlib
+5rustc-hash v1.1.0\t\tApache-2.0/MIT
+5smallvec v1.16.2\tconst_generics,const_new,serde,union,write\tMIT OR Apache-2.0 (*)
+5thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+5wgpu-core-deps-wasm v30.0.1\twebgl\tMIT OR Apache-2.0
+6wgpu-hal v30.0.1\tfragile-send-sync-non-atomic-wasm,gles\tMIT OR Apache-2.0
+7arrayvec v0.7.8\tdefault,std\tMIT OR Apache-2.0
+7bitflags v2.13.2\t\tMIT OR Apache-2.0
+7bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+7cfg-if v1.0.5\t\tMIT OR Apache-2.0
+7glow v0.17.0\t\tMIT OR Apache-2.0 OR Zlib
+8js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+8slotmap v1.1.1\tdefault,std\tZlib
+9version_check v0.9.5\t\tMIT/Apache-2.0
+8wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+8web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+7hashbrown v0.17.1\tdefault-hasher,inline-more,raw-entry\tMIT OR Apache-2.0 (*)
+7js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+7log v0.4.34\talloc,std\tMIT OR Apache-2.0
+7naga v30.0.1\tdefault,glsl-out,wgsl-in\tMIT OR Apache-2.0 (*)
+7naga-types v30.0.1\tstd\tMIT OR Apache-2.0 (*)
+7parking_lot v0.12.5\tdefault\tMIT OR Apache-2.0 (*)
+7profiling v1.0.18\t\tMIT OR Apache-2.0
+7raw-window-handle v0.6.2\talloc,std\tMIT OR Apache-2.0 OR Zlib
+7static_assertions v1.1.0\t\tMIT OR Apache-2.0
+7thiserror v2.0.21\tdefault,std\tMIT OR Apache-2.0 (*)
+7wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+7web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+7wgpu-naga-bridge v30.0.1\t\tMIT OR Apache-2.0
+8naga v30.0.1\tdefault,glsl-out,wgsl-in\tMIT OR Apache-2.0 (*)
+8wgpu-types v30.0.1\tfragile-send-sync-non-atomic-wasm,std,web\tMIT OR Apache-2.0
+9bitflags v2.13.2\t\tMIT OR Apache-2.0
+9bytemuck v1.25.2\tbytemuck_derive,derive,extern_crate_alloc,min_const_generics\tZlib OR Apache-2.0 OR MIT (*)
+9js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+9log v0.4.34\talloc,std\tMIT OR Apache-2.0
+9naga-types v30.0.1\tstd\tMIT OR Apache-2.0 (*)
+9raw-window-handle v0.6.2\talloc,std\tMIT OR Apache-2.0 OR Zlib
+9static_assertions v1.1.0\t\tMIT OR Apache-2.0
+9web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+7wgpu-types v30.0.1\tfragile-send-sync-non-atomic-wasm,std,web\tMIT OR Apache-2.0 (*)
+7cfg_aliases v0.2.2\t\tMIT
+5wgpu-hal v30.0.1\tfragile-send-sync-non-atomic-wasm,gles\tMIT OR Apache-2.0 (*)
+5wgpu-naga-bridge v30.0.1\t\tMIT OR Apache-2.0 (*)
+5wgpu-types v30.0.1\tfragile-send-sync-non-atomic-wasm,std,web\tMIT OR Apache-2.0 (*)
+5cfg_aliases v0.2.2\t\tMIT
+4wgpu-hal v30.0.1\tfragile-send-sync-non-atomic-wasm,gles\tMIT OR Apache-2.0 (*)
+4wgpu-types v30.0.1\tfragile-send-sync-non-atomic-wasm,std,web\tMIT OR Apache-2.0 (*)
+4cfg_aliases v0.2.2\t\tMIT
+2image v0.25.10\tbmp,gif,jpeg,png,tiff,webp\tMIT OR Apache-2.0 (*)
+2js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+2log v0.4.34\talloc,std\tMIT OR Apache-2.0
+2parking_lot v0.12.5\tdefault\tMIT OR Apache-2.0 (*)
+2percent-encoding v2.3.2\talloc,default,std\tMIT OR Apache-2.0
+2profiling v1.0.18\t\tMIT OR Apache-2.0
+2raw-window-handle v0.6.2\talloc,std\tMIT OR Apache-2.0 OR Zlib
+2send_wrapper v0.6.0\t\tMIT/Apache-2.0
+2static_assertions v1.1.0\t\tMIT OR Apache-2.0
+2wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+2web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+2web-time v1.1.0\t\tMIT OR Apache-2.0 (*)
+2wgpu v30.0.1\tdefault,dx12,fragile-send-sync-non-atomic-wasm,gles,metal,parking_lot,std,vulkan,web,webgl,webgpu,wgpu-core,wgsl\tMIT OR Apache-2.0 (*)
+1egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)\tbytemuck,default_fonts,monochrome_emoji_fonts,web_file\tMIT OR Apache-2.0 (*)
+1js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+1log v0.4.34\talloc,std\tMIT OR Apache-2.0
+1rfd v0.17.2\tdefault,pollster,wayland,wayland-backend,wayland-client,wayland-protocols,xdg-portal\tMIT
+2js-sys v0.3.106\tdefault,std,unsafe-eval\tMIT OR Apache-2.0 (*)
+2log v0.4.34\talloc,std\tMIT OR Apache-2.0
+2raw-window-handle v0.6.2\talloc,std\tMIT OR Apache-2.0 OR Zlib
+2wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+2wasm-bindgen-futures v0.4.79\tdefault,std\tMIT OR Apache-2.0 (*)
+2web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
+1serde_json v1.0.154\tdefault,float_roundtrip,std\tMIT OR Apache-2.0 (*)
+1wasm-bindgen v0.2.129\tdefault,std\tMIT OR Apache-2.0 (*)
+1wasm-bindgen-futures v0.4.79\tdefault,std\tMIT OR Apache-2.0 (*)
+1web-sys v0.3.106\tAddEventListenerOptions,AngleInstancedArrays,BinaryType,Blob,BlobPropertyBag,CanvasRenderingContext2d,Clipboard,ClipboardEvent,ClipboardItem,CompositionEvent,CssStyleDeclaration,DataTransfer,DataTransferItem,DataTransferItemList,Document,DocumentFragment,DomRect,DomRectReadOnly,DragEvent,Element,Event,EventListener,EventTarget,ExtBlendMinmax,ExtColorBufferFloat,ExtColorBufferHalfFloat,ExtDisjointTimerQuery,ExtFragDepth,ExtSRgb,ExtShaderTextureLod,ExtTextureFilterAnisotropic,File,FileList,FileReader,FocusEvent,FocusOptions,HtmlAnchorElement,HtmlButtonElement,HtmlCanvasElement,HtmlElement,HtmlImageElement,HtmlInputElement,HtmlMediaElement,HtmlVideoElement,ImageBitmap,ImageData,InputEvent,KeyboardEvent,Location,MediaQueryList,MediaQueryListEvent,MouseEvent,Navigator,Node,NodeList,OesElementIndexUint,OesStandardDerivatives,OesTextureFloat,OesTextureFloatLinear,OesTextureHalfFloat,OesTextureHalfFloatLinear,OesVertexArrayObject,OffscreenCanvas,OvrMultiview2,Performance,PointerEvent,RequestInit,ResizeObserver,ResizeObserverBoxOptions,ResizeObserverEntry,ResizeObserverOptions,ResizeObserverSize,Response,ShadowRoot,Storage,TextMetrics,Touch,TouchEvent,TouchList,UiEvent,Url,UserActivation,VideoFrame,WebGl2RenderingContext,WebGlActiveInfo,WebGlBuffer,WebGlFramebuffer,WebGlProgram,WebGlQuery,WebGlRenderbuffer,WebGlRenderingContext,WebGlSampler,WebGlShader,WebGlShaderPrecisionFormat,WebGlSync,WebGlTexture,WebGlTransformFeedback,WebGlUniformLocation,WebGlVertexArrayObject,WebglColorBufferFloat,WebglCompressedTextureAstc,WebglCompressedTextureEtc,WebglCompressedTextureEtc1,WebglCompressedTexturePvrtc,WebglCompressedTextureS3tc,WebglCompressedTextureS3tcSrgb,WebglDebugRendererInfo,WebglDebugShaders,WebglDepthTexture,WebglDrawBuffers,WebglLoseContext,WheelEvent,Window,WorkerGlobalScope,WorkerNavigator,console,default,std\tMIT OR Apache-2.0 (*)
