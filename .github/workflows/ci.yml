@@ -129,7 +129,7 @@ jobs:
           rust: "true"
           rust-cache: test
       - name: Compile the service fixture tests while the decoder image builds
-        run: bun run test:rust-services --shard ${{ matrix.shard }}/4 --no-run
+        run: bun scripts/check-rust.ts --services --shard ${{ matrix.shard }}/4 --no-run
       - uses: ./.github/actions/media-image
         with:
           phase: wait
