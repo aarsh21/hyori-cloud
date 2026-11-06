@@ -1,0 +1,31 @@
+# A development Hyori instance behind one portal. See scripts/dev-stack.ts.
+# The first start builds the Rust server and the web host, which takes a few minutes.
+services:
+  hyori-db:
+    command: bun --no-env-file scripts/dev-stack.ts db
+    port: 25432
+    platforms: [linux]
+  hyori-storage:
+    command: bun --no-env-file scripts/dev-stack.ts storage
+    port: 29000
+    platforms: [linux]
+  hyori-server:
+    command: bun --no-env-file scripts/dev-stack.ts server
+    port: 23003
+    health: /health/ready
+    platforms: [linux]
+    env:
+      APP_ORIGIN: ${services.hyori.publicURL}
+  hyori-web:
+    command: bun --no-env-file scripts/dev-stack.ts web
+    port: 23001
+    platforms: [linux]
+    env:
+      APP_ORIGIN: ${services.hyori.publicURL}
+  hyori:
+    command: bun --no-env-file scripts/dev-stack.ts gateway
+    health: /healthz
+    platforms: [linux]
+    portal:
+      title: Hyori Cloud
+      description: Development instance. The setup token is in `amp orb service logs hyori-server`.

@@ -54,6 +54,40 @@ install_rust() {
   fi
 }
 
+install_postgres() {
+  # The dev instance in .amp/services.yaml runs PostgreSQL 17, the version Compose and CI use.
+  if [[ -x /usr/lib/postgresql/17/bin/postgres ]]; then
+    echo "    already installed"
+    return
+  fi
+  local codename
+  codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+  sudo install -d /usr/share/postgresql-common/pgdg
+  sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+  echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${codename}-pgdg main" |
+    sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends postgresql-17
+}
+
+install_rustfs() {
+  # The release Compose pins; verified against its published SHA-256 before use.
+  local version="1.0.0-alpha.85"
+  local sha256="7354b44549d95bb11f564f65bc0df5f9dbb9edc97b6d009dd25306c3a26ab6c9"
+  local target="$HOME/opt/rustfs"
+  if [[ -x "$target/rustfs" ]] && "$target/rustfs" --version | grep -qF "$version"; then
+    echo "    rustfs $version present"
+    return
+  fi
+  local archive
+  archive="$(mktemp -d)/rustfs.zip"
+  curl -fsSL -o "$archive" "https://github.com/rustfs/rustfs/releases/download/${version}/rustfs-linux-x86_64-musl-v${version}.zip"
+  echo "$sha256  $archive" | sha256sum --check --quiet
+  mkdir -p "$target"
+  unzip -o -q "$archive" -d "$target"
+  rm -rf "$(dirname "$archive")"
+}
+
 copy_env_templates() {
   # Development-only web host config; never overwrite an existing file.
   [ -f apps/web/.env ] || cp -- apps/web/.env.example apps/web/.env
@@ -65,6 +99,8 @@ if [[ -f rust-toolchain.toml ]]; then
   step "Rust toolchain" install_rust
   step "Cargo graph" cargo fetch --locked
 fi
+step "PostgreSQL 17" install_postgres
+step "RustFS" install_rustfs
 step "Web env file" copy_env_templates
 step "Workspace dependencies" bun install --frozen-lockfile
 step "Architecture checker dependencies" npm --prefix tooling/fernando-lint ci --no-audit --no-fund
