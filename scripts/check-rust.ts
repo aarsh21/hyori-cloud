@@ -2,7 +2,14 @@ import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { rustBuildConfig } from "./rust-build-config.ts";
 
-const { values } = parseArgs({ options: { services: { type: "boolean", default: false } } });
+const { values } = parseArgs({
+  options: {
+    services: { type: "boolean", default: false },
+    // CI runs the default gates in parallel jobs; without --only every gate runs.
+    only: { type: "string", multiple: true },
+  },
+});
+
 const build = rustBuildConfig();
 
 // These read a built ArtCraft bundle, which only exists where one was assembled; say so rather than abort.
@@ -59,7 +66,12 @@ const commands = values.services
       ["test", "--workspace", "--locked"],
     ];
 
-for (const args of commands) {
+const only = values.only;
+const selected = only ? commands.filter((args) => only.includes(args[0] ?? "")) : commands;
+
+if (selected.length === 0) throw new Error(`No cargo gate matches --only ${only?.join(", ")}`);
+
+for (const args of selected) {
   process.stdout.write(`cargo ${args.join(" ")}\n`);
 
   const result = spawnSync(build.executable, args, {
