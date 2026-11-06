@@ -9,7 +9,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import baseAuthority from "../../tooling/artcraft/runtime-all4-v2.json" with { type: "json" };
@@ -28,8 +28,41 @@ import {
 } from "./transport-sidecars.ts";
 
 const toolingRoot = fileURLToPath(new URL("../../tooling/artcraft/", import.meta.url));
-const authorityName = "runtime-native-v3.json";
-const receiptRoot = "builds/native-host-v3";
+const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
+
+/**
+ * Committed authority revisions, oldest first. A revision is never rewritten: bundles it identifies
+ * keep verifying, here and in the server, which compiles every revision in. `record` and `assemble`
+ * only ever write the last one.
+ */
+const revisions = [
+  {
+    authority: "runtime-native-v3.json",
+    receiptRoot: "builds/native-host-v3",
+    bundle: "runtime-all4-native-v3",
+    handoff: "runtime-all4-native-v3.json",
+    replaces: {
+      authority: "tooling/artcraft/runtime-all4-transport-v2.json",
+      manifestSha256: "8427b8b393061473dcb70807f9758ecd0735115366e98871630a231bd172513d",
+      stillAcceptedByServer: true,
+    },
+  },
+  {
+    authority: "runtime-native-v3-r2.json",
+    receiptRoot: "builds/native-host-v3-r2",
+    bundle: "runtime-all4-native-v3-r2",
+    handoff: "runtime-all4-native-v3-r2.json",
+    replaces: {
+      authority: "tooling/artcraft/runtime-all4-native-v3.json",
+      manifestSha256: "5697833f6137cd3595b8609ee098d94cb21a32ce65e76077ad72a2f59a1d26db",
+      stillAcceptedByServer: true,
+    },
+  },
+] as const;
+
+type Revision = (typeof revisions)[number];
+
+const current = revisions[revisions.length - 1]!;
 const legalRoot = "legal/native-host-v3";
 const bridge = "hyori-correlated-host-v2";
 const maxFiles = 10000;
@@ -62,7 +95,7 @@ export const nativeAuthoritySchema = z
     schemaVersion: z.literal(1),
     bridge: z.literal(bridge),
     protocol: z.literal(2),
-    receiptRoot: z.literal(receiptRoot),
+    receiptRoot: z.enum(revisions.map((revision) => revision.receiptRoot)),
     apps: z
       .array(
         z
@@ -97,7 +130,7 @@ async function exists(path: string) {
 
 /** Copies each completed evidence receipt into the repository and writes the authority, once. */
 export async function recordNativeAuthority(evidenceRoot: string) {
-  const authorityPath = join(toolingRoot, authorityName);
+  const authorityPath = join(toolingRoot, current.authority);
 
   if (await exists(authorityPath)) throw new Error("Refusing to overwrite native v3 authority");
   const apps: Authority["apps"] = [];
@@ -118,7 +151,7 @@ export async function recordNativeAuthority(evidenceRoot: string) {
     )
       throw new Error(`Native ${app} receipt differs from its evidence`);
 
-    const target = join(toolingRoot, receiptRoot, app);
+    const target = join(toolingRoot, current.receiptRoot, app);
     await mkdir(target, { recursive: true });
 
     for (const [name, bytes] of [
@@ -144,7 +177,7 @@ export async function recordNativeAuthority(evidenceRoot: string) {
     schemaVersion: 1,
     bridge,
     protocol: 2,
-    receiptRoot,
+    receiptRoot: current.receiptRoot,
     apps,
   });
 
@@ -153,10 +186,13 @@ export async function recordNativeAuthority(evidenceRoot: string) {
   return authority;
 }
 
-/** Reads the committed authority and every committed receipt it pins. */
-async function committedAuthority() {
-  const bytes = await readFile(join(toolingRoot, authorityName));
+/** Reads a committed authority revision and every committed receipt it pins. */
+async function committedAuthority(revision: Revision) {
+  const bytes = await readFile(join(toolingRoot, revision.authority));
   const authority = nativeAuthoritySchema.parse(JSON.parse(bytes.toString()));
+
+  if (authority.receiptRoot !== revision.receiptRoot)
+    throw new Error(`${revision.authority} names another revision's receipts`);
 
   const receipts = new Map<
     string,
@@ -164,15 +200,16 @@ async function committedAuthority() {
   >();
 
   for (const entry of authority.apps) {
-    const root = join(toolingRoot, receiptRoot, entry.app);
+    const root = join(toolingRoot, revision.receiptRoot, entry.app);
     const files = new Map<string, Buffer>();
 
     for (const name of ["receipt.json", "build-manifest.json", "source-summary.json"])
       files.set(name, await readFile(join(root, name)));
     const receipt = receiptSchema.parse(JSON.parse(files.get("receipt.json")!.toString()));
 
+    // Only the current revision names the versions this checkout composes.
     if (
-      entry.artifactVersion !== nativeArtifactVersions[entry.app] ||
+      (revision === current && entry.artifactVersion !== nativeArtifactVersions[entry.app]) ||
       sha256(files.get("receipt.json")!) !== entry.receiptSha256 ||
       sha256(files.get("build-manifest.json")!) !== entry.buildManifestSha256 ||
       sha256(files.get("source-summary.json")!) !== entry.sourceSummarySha256 ||
@@ -202,11 +239,21 @@ Changes from the tagged upstream source: direct native host methods, correlated 
 - build-manifest.json and receipt.json: tools, commands, artifact hashes.
 - host-bridge-legal/: licences of the JavaScript packages compiled into the host bridge.
 - tool-legal/: Rust standard library and build tool licences.
-
+${hostedChanges[app]}
 Dependency notices are unchanged from the upstream graph and are in ../../NOTICE-INDEX.md.
 `,
   );
 }
+
+/** What a revision changed beyond the shared native host work, per app. */
+const hostedChanges: Record<(typeof nativeApps)[number], string> = {
+  wordcraft:
+    "\nInside the Hyori host, the upstream Share button and account avatar are not drawn: Hyori owns sharing and the account. Standalone use keeps both.\n",
+  gridcraft: "",
+  pdfcraft: "",
+  deckcraft:
+    "\nThe Light/Dark toggle keeps one icon in both themes. Inter Regular and Bold (SIL OFL 1.1, unmodified) are embedded through upstream's own craft-fonts build input, so presentations draw in their theme font; font-legal/inter/ has the licence and pinned source.\n",
+};
 
 const upstreamNames = {
   wordcraft: "WordCraft",
@@ -221,7 +268,8 @@ This bundle contains Hyori Documents, Hyori Spreadsheets, Hyori PDF and Hyori Pr
 
 - [Shared dependency notices](NOTICE-INDEX.md) and [adopted AFM/AGL/PDFium evidence](adopted-data/ADOPTION.md).
 - Each modified build: native-host-v3/<app>/MODIFICATIONS.md, with complete changed source and original upstream legal files.
-- The earlier modified DeckCraft .2 record (deckcraft-host-v2/) stays because .3 builds on its host engine changes.
+- The earlier modified DeckCraft .2 record (deckcraft-host-v2/) stays because later Deck builds compose over its host engine changes.
+- Hyori Presentations embeds the Inter typeface (SIL OFL 1.1): native-host-v3/deckcraft/font-legal/inter/.
 
 Deployable means verified static-asset composition only, not legal advice or product-launch acceptance.
 `);
@@ -258,22 +306,91 @@ function nativeHeaders(path: string) {
     : derived;
 }
 
-/** Assembles a new manifest-v2 bundle with the four native v3 editors and gzip sidecars. */
+/**
+ * The committed handoff for a revision's bundle. Everything in it derives from the manifest and the
+ * authority, so `assemble` writes it and `check` regenerates it byte for byte.
+ */
+function handoffReceipt(
+  revision: Revision,
+  authority: Authority,
+  manifestBytes: Buffer,
+  manifest: { assets: { bytes: number }[]; transportSidecars: { bytes: number }[] },
+) {
+  const bundleRoot = `tooling/artcraft/.generated/${revision.bundle}`;
+  const total = (files: { bytes: number }[]) => files.reduce((sum, file) => sum + file.bytes, 0);
+
+  const receipt = {
+    schemaVersion: 1,
+    kind: "all-four-native-host-v3-runtime-handoff",
+    bundleRoot,
+    manifest: runtimeManifestName,
+    runtimeManifestSchemaVersion: 2,
+    manifestBytes: manifestBytes.length,
+    manifestSha256: sha256(manifestBytes),
+    assetFiles: manifest.assets.length,
+    assetBytes: total(manifest.assets),
+    transportSidecarFiles: manifest.transportSidecars.length,
+    transportSidecarBytes: total(manifest.transportSidecars),
+    encoder: "gzip-level6-mtime0-os255-v1",
+    fileMode: "0444",
+    directoryMode: "0555",
+    mountPath: "/artcraft",
+    requiresReadOnlyMount: true,
+    authority: `tooling/artcraft/${revision.authority}`,
+    legalBase: {
+      authority: "tooling/artcraft/runtime-all4-v2.json",
+      manifestSha256: baseAuthority.manifestSha256,
+      reused: "every legal/ file except RUNTIME-NOTICE-INDEX.md",
+    },
+    replaces: revision.replaces,
+    editors: authority.apps.map((entry) => ({
+      app: entry.app,
+      version: entry.artifactVersion,
+      role: "current",
+      bridge,
+      protocol: 2,
+      assetUrl: `/artcraft/${entry.app}/${entry.artifactVersion}/index.html?host=parent`,
+      payloadSha256: entry.payloadSha256,
+      wasmSha256: entry.wasmSha256,
+    })),
+    deploymentScope: "verified-static-assets-only-not-product-launch-or-legal-clearance",
+    legalOpinion: false,
+    fullNoticeAuditComplete: false,
+    compilerGeneratedNoticeAuditComplete: false,
+    productIntegrationVerified: false,
+    allFourLaunchReady: false,
+    check: `bun scripts/artcraft/native-v3-runtime.ts check ${bundleRoot} <manifestSha256>`,
+  };
+
+  return Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`);
+}
+
+/**
+ * Assembles the current revision's manifest-v2 bundle with the four native editors and gzip
+ * sidecars, then writes its committed handoff receipt.
+ */
 export async function createNativeRuntime(
   destination: string,
   baseRoot: string,
   evidenceRoot: string,
 ) {
   const output = resolve(destination);
+  const bundle = join(toolingRoot, ".generated", current.bundle);
+  const handoffPath = join(toolingRoot, current.handoff);
 
-  if (await exists(output)) throw new Error("Refusing to overwrite native runtime destination");
+  // The handoff names one bundle path, so the bundle can only be assembled there.
+  if (output !== bundle)
+    throw new Error(`The current native bundle belongs at ${relative(repositoryRoot, bundle)}`);
+
+  if ((await exists(output)) || (await exists(handoffPath)))
+    throw new Error("Refusing to overwrite the native runtime bundle or its handoff");
   await checkRuntimeBundle(resolve(baseRoot), baseAuthority.manifestSha256);
 
   const base = z
     .object({ assets: z.array(record) })
     .parse(JSON.parse((await readAcquisitionFile(baseRoot, runtimeManifestName)).toString()));
 
-  const { authority, bytes: authorityBytes, receipts } = await committedAuthority();
+  const { authority, bytes: authorityBytes, receipts } = await committedAuthority(current);
   const files = new Map<string, Buffer>();
 
   for (const asset of base.assets) {
@@ -303,7 +420,7 @@ export async function createNativeRuntime(
       throw new Error(`Evidence for ${entry.app} differs from its committed receipt`);
 
     for (const asset of buildManifest.assets) {
-      const legal = /^(modified-source|original-legal|host-bridge-legal|tool-legal)\//u.test(
+      const legal = /^(modified-source|original-legal|host-bridge-legal|tool-legal|font-legal)\//u.test(
         asset.path,
       );
 
@@ -426,6 +543,9 @@ export async function createNativeRuntime(
     await setModes(staging, true);
     await checkNativeRuntime(staging, sha256(manifestBytes));
     await rename(staging, output);
+    await writeFile(handoffPath, handoffReceipt(current, authority, manifestBytes, manifest), {
+      flag: "wx",
+    });
   } catch (cause) {
     await setModes(staging, false);
     await rm(staging, { recursive: true, force: true });
@@ -434,6 +554,7 @@ export async function createNativeRuntime(
 
   return {
     bundleRoot: output,
+    handoff: relative(repositoryRoot, handoffPath),
     manifestBytes: manifestBytes.length,
     manifestSha256: sha256(manifestBytes),
     assetFiles: assets.length,
@@ -474,7 +595,18 @@ export async function checkNativeRuntime(root: string, expectedSha256: string) {
     })
     .parse(JSON.parse(bytes.toString()));
 
-  const { authority, bytes: authorityBytes, receipts } = await committedAuthority();
+  // The bundle carries exactly one committed authority revision; that one identifies it.
+  const carried = await readAcquisitionFile(root, `${legalRoot}/authority.json`);
+  let revision: Revision | undefined;
+
+  for (const candidate of revisions) {
+    const path = join(toolingRoot, candidate.authority);
+
+    if ((await exists(path)) && (await readFile(path)).equals(carried)) revision = candidate;
+  }
+
+  if (!revision) throw new Error("Native runtime carries no committed authority revision");
+  const { authority, bytes: authorityBytes, receipts } = await committedAuthority(revision);
   const inventory = new Map(manifest.assets.map((asset) => [asset.path, asset]));
 
   if (inventory.size !== manifest.assets.length) throw new Error("Duplicate native runtime asset");
@@ -534,8 +666,24 @@ export async function checkNativeRuntime(root: string, expectedSha256: string) {
       sidecar.original,
     );
 
+  // A committed handoff for this exact manifest must be what the manifest and authority derive.
+  const handoffPath = join(toolingRoot, revision.handoff);
+  let handoff = "not committed for this manifest";
+
+  if (await exists(handoffPath)) {
+    const committed = await readFile(handoffPath);
+
+    if (JSON.parse(committed.toString()).manifestSha256 === expectedSha256) {
+      if (!committed.equals(handoffReceipt(revision, authority, bytes, manifest)))
+        throw new Error(`${revision.handoff} differs from the bundle it hands off`);
+      handoff = `verified ${revision.handoff}`;
+    }
+  }
+
   return {
     manifestSha256: expectedSha256,
+    authority: revision.authority,
+    handoff,
     verifiedFiles: seen,
     editors: manifest.editors.map(({ app, version }) => ({ app, version })),
   };
@@ -553,7 +701,7 @@ if (import.meta.main) {
     result = await checkNativeRuntime(resolve(args[0]!), args[1]!);
   else
     throw new Error(
-      "Usage: bun scripts/artcraft/native-v3-runtime.ts record EVIDENCE_ROOT | assemble NEW_ROOT VERIFIED_ALL4_V2_BASE EVIDENCE_ROOT | check ROOT MANIFEST_SHA256",
+      `Usage: bun scripts/artcraft/native-v3-runtime.ts record EVIDENCE_ROOT | assemble tooling/artcraft/.generated/${current.bundle} VERIFIED_ALL4_V2_BASE EVIDENCE_ROOT | check ROOT MANIFEST_SHA256`,
     );
 
   console.log(JSON.stringify(result, null, 2));
