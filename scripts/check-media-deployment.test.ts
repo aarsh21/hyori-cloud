@@ -42,10 +42,7 @@ const configuration = z.object({
 test("backend image compiles against the authoritative ArtCraft version pins", async () => {
   const dockerfile = await Bun.file(new URL("../apps/server/Dockerfile", import.meta.url)).text();
   expect(dockerfile).toContain(
-    "COPY tooling/artcraft/manifest.json ./tooling/artcraft/manifest.json",
-  );
-  expect(dockerfile).toContain(
-    "COPY tooling/artcraft/runtime-deckcraft-v2.json ./tooling/artcraft/runtime-deckcraft-v2.json",
+    "COPY tooling/artcraft/manifest.json tooling/artcraft/runtime-deckcraft-v2.json tooling/artcraft/runtime-native-v3*.json ./tooling/artcraft/",
   );
 });
 
