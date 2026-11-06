@@ -14,6 +14,7 @@ export default defineConfig({
       "apps/web/.tanstack/**",
       "apps/web/src/routeTree.gen.ts",
       "apps/web/src/env.ts",
+      "packages/api/src/generated/**",
       "tooling/artcraft/capabilities-v1/native-clock-probe/driver.js",
     ],
     jsPlugins: [
@@ -70,6 +71,7 @@ export default defineConfig({
       "apps/web/.tanstack/**",
       "apps/web/src/routeTree.gen.ts",
       "apps/web/src/env.ts",
+      "packages/api/src/generated/**",
       "tooling/artcraft/capabilities-v1/native-clock-probe/driver.js",
     ],
     singleQuote: false,
