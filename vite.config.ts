@@ -58,6 +58,7 @@ export default defineConfig({
       "tooling/anti-slop/src/**",
       ".agents/skills/design-taste-frontend-v2-experimental/**",
       ".agents/skills/brandkit/**",
+      ".claude/skills/rust-best-practices/**",
       ".cache/**",
       "apps/web/.output/**",
       "apps/web/dist/**",
