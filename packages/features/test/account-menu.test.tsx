@@ -1,5 +1,6 @@
 import { afterEach, describe, expect } from "bun:test";
 import { copyText } from "@hyori-cloud/ui/lib/browser";
+import { readSingleKeyShortcuts } from "@hyori-cloud/ui/lib/single-key-shortcuts";
 import { CurrentUserProvider } from "#features/auth/react/current-user.tsx";
 import { AccountMenu } from "#features/cloud/react/account-menu.tsx";
 import { CloudNavigationProvider } from "#features/cloud/react/cloud-navigation.tsx";
@@ -98,5 +99,23 @@ describe("sign out", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     await waitFor(() => expect(api.callsTo("auth.logout")).toHaveLength(2));
+  });
+});
+
+describe("single-key shortcuts", () => {
+  test("can be turned off, and stay off for this browser", async () => {
+    mount(<AccountSurface />, createFakeApi({}));
+
+    await openAccountMenu();
+
+    const setting = await screen.findByRole("menuitemcheckbox", { name: "Single-key shortcuts" });
+
+    expect(setting.getAttribute("aria-checked")).toBe("true");
+    expect(readSingleKeyShortcuts()).toBe(true);
+
+    fireEvent.click(setting);
+
+    await waitFor(() => expect(setting.getAttribute("aria-checked")).toBe("false"));
+    expect(readSingleKeyShortcuts()).toBe(false);
   });
 });

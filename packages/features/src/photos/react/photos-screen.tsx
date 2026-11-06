@@ -4,14 +4,14 @@ import { PageBody, PageSection } from "@hyori-cloud/ui/components/app-shell";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { MediaGridSkeleton } from "@hyori-cloud/ui/components/media-grid";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
+import { thumbnailProgressSummary } from "#features/photos/photo-derivative.ts";
 import { PhotoSourcesDialog } from "#features/photos/react/photo-sources-dialog.tsx";
 import { PhotoTimeline } from "#features/photos/react/photo-timeline.tsx";
 import { PhotosBar } from "#features/photos/react/photos-bar.tsx";
 import { PhotosSetup } from "#features/photos/react/photos-setup.tsx";
 import type { PhotoSourcesValue } from "#features/photos/react/source-selection.tsx";
 import { usePhotoSources, usePhotoTimeline } from "#features/photos/react/use-photos.ts";
-import { OfflineState } from "#features/shared/react/offline-state.tsx";
-import { QueryFailure } from "#features/shared/react/query-failure.tsx";
+import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 
 export function PhotosScreen() {
   const sources = usePhotoSources();
@@ -22,7 +22,7 @@ export function PhotosScreen() {
         <PhotosBar />
         <PageBody>
           <PageSection>
-            <PhotosSourcesWaiting sources={sources} />
+            <QueryWaiting resource={sources} pending={<MediaGridSkeleton />} />
           </PageSection>
         </PageBody>
       </>
@@ -43,16 +43,6 @@ export function PhotosScreen() {
   return <PhotosLibrary saved={sources.data} />;
 }
 
-function PhotosSourcesWaiting({ sources }: { sources: ReturnType<typeof usePhotoSources> }) {
-  if (sources.error !== null) {
-    return <QueryFailure error={sources.error} onRetry={() => sources.refetch()} />;
-  }
-
-  if (sources.fetchStatus === "paused") return <OfflineState />;
-
-  return <MediaGridSkeleton />;
-}
-
 function PhotosLibrary({ saved }: { saved: PhotoSourcesValue }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const timeline = usePhotoTimeline();
@@ -60,6 +50,7 @@ function PhotosLibrary({ saved }: { saved: PhotoSourcesValue }) {
   return (
     <>
       <PhotosBar
+        status={thumbnailProgressSummary(timeline.data?.pages ?? [])}
         actions={
           <Button variant="ghost" onClick={() => setSourcesOpen(true)}>
             <SlidersHorizontal aria-hidden />

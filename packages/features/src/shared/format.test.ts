@@ -3,7 +3,9 @@ import {
   BYTES_PER_GB,
   endOfLocalDayIso,
   formatBytes,
+  formatRecentDate,
   formatUsage,
+  localDateInputValue,
 } from "#features/shared/format.ts";
 
 test("formats sizes without false precision", () => {
@@ -23,4 +25,17 @@ test("expiry covers the chosen local day", () => {
   const local = new Date(iso);
   expect(local.getDate()).toBe(15);
   expect(local.getHours()).toBe(23);
+});
+
+test("recent dates shorten as they get closer, without ever being ambiguous", () => {
+  const now = new Date(2026, 10, 5, 15, 0);
+
+  expect(formatRecentDate(new Date(2026, 10, 5, 9, 30).toISOString(), now)).toContain("9:30");
+  expect(formatRecentDate(new Date(2026, 10, 4, 23, 59).toISOString(), now)).toBe("Yesterday");
+  expect(formatRecentDate(new Date(2026, 2, 8, 12).toISOString(), now)).not.toContain("2026");
+  expect(formatRecentDate(new Date(2025, 2, 8, 12).toISOString(), now)).toContain("2025");
+});
+
+test("a date input's value is the local calendar day", () => {
+  expect(localDateInputValue(new Date(2026, 0, 5, 23, 59))).toBe("2026-01-05");
 });

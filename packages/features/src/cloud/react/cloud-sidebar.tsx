@@ -18,6 +18,7 @@ import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { formatCloudPath, type CloudLocation } from "#features/cloud/cloud-path.ts";
 import { AccountMenu } from "#features/cloud/react/account-menu.tsx";
+import { preloadCloudLocation } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { CLOUD_SECTIONS } from "#features/cloud/react/cloud-sections.ts";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
 
@@ -42,6 +43,8 @@ function CloudNavItem({
           <AppLink
             href={formatCloudPath(destination)}
             onNavigate={navigatePath}
+            onPointerEnter={() => preloadCloudLocation(destination)}
+            onFocus={() => preloadCloudLocation(destination)}
             aria-current={current ? "page" : undefined}
           />
         }

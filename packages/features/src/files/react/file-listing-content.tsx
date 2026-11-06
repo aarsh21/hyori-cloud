@@ -16,18 +16,32 @@ import {
   ItemTileLabel,
 } from "@hyori-cloud/ui/components/item-collection";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
+import { VirtualItems } from "@hyori-cloud/ui/components/virtual-items";
 import { useFileActionPending, useFileActions } from "#features/files/react/file-actions.tsx";
 import { FileEntryMenu } from "#features/files/react/file-entry-menu.tsx";
 import { FileEntryTarget } from "#features/files/react/file-entry-target.tsx";
 import { FileTypeIcon } from "#features/files/react/file-type-icon.tsx";
-import { formatBytes, formatDate } from "#features/shared/format.ts";
+import { NoSize } from "#features/files/react/no-size.tsx";
+import { formatBytes, formatDateTime, formatRecentDate } from "#features/shared/format.ts";
 
 export type FileLayout = "list" | "grid";
 
 function entryMeta(entry: FileEntry) {
   return entry.kind === "folder"
-    ? formatDate(entry.updatedAt)
-    : `${formatBytes(entry.size)} · ${formatDate(entry.updatedAt)}`;
+    ? formatRecentDate(entry.updatedAt)
+    : `${formatBytes(entry.size)} · ${formatRecentDate(entry.updatedAt)}`;
+}
+
+function entryKey(entry: FileEntry) {
+  return entry.id;
+}
+
+function renderRow(entry: FileEntry) {
+  return <FileRow entry={entry} />;
+}
+
+function renderTile(entry: FileEntry) {
+  return <FileTile entry={entry} />;
 }
 
 export function FileListingContent({
@@ -72,18 +86,18 @@ export function FileListingContent({
             <ItemTableHeaderCell className="text-right">Size</ItemTableHeaderCell>
             <ItemTableHeaderCell />
           </ItemTableHeader>
-          <ItemTableBody aria-label={label}>
-            {entries.map((entry) => (
-              <FileRow key={entry.id} entry={entry} />
-            ))}
-          </ItemTableBody>
+          <VirtualItems
+            items={entries}
+            itemKey={entryKey}
+            list={<ItemTableBody aria-label={label} />}
+          >
+            {renderRow}
+          </VirtualItems>
         </ItemTable>
       ) : (
-        <ItemGrid aria-label={label}>
-          {entries.map((entry) => (
-            <FileTile key={entry.id} entry={entry} />
-          ))}
-        </ItemGrid>
+        <VirtualItems items={entries} itemKey={entryKey} list={<ItemGrid aria-label={label} />}>
+          {renderTile}
+        </VirtualItems>
       )}
     </ItemNavigation>
   );
@@ -106,9 +120,11 @@ function FileRow({ entry }: { entry: FileEntry }) {
           </ItemName>
         </FileEntryTarget>
       </ItemTableCell>
-      <ItemTableDetailCell>{formatDate(entry.updatedAt)}</ItemTableDetailCell>
+      <ItemTableDetailCell title={formatDateTime(entry.updatedAt)}>
+        {formatRecentDate(entry.updatedAt)}
+      </ItemTableDetailCell>
       <ItemTableDetailCell className="text-right">
-        {entry.kind === "folder" ? "—" : formatBytes(entry.size)}
+        {entry.kind === "folder" ? <NoSize /> : formatBytes(entry.size)}
       </ItemTableDetailCell>
       <ItemTableCell className="overflow-visible">
         <ItemActionSlot>

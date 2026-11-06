@@ -7,7 +7,7 @@ import {
   AlertDialogTitle,
 } from "@hyori-cloud/ui/components/alert-dialog";
 import { Button } from "@hyori-cloud/ui/components/button";
-import { Field } from "@hyori-cloud/ui/components/field";
+import { Field, Form } from "@hyori-cloud/ui/components/field";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { Label } from "@hyori-cloud/ui/components/label";
 import { useState } from "@hyori-cloud/lib/react";
@@ -45,37 +45,44 @@ function DeleteUserConfirmation({ user, onDeleted }: { user: AdminUser; onDelete
         This removes the account and every file they own. Files they uploaded to other people’s
         folders stay with those owners.
       </AlertDialogDescription>
-      <Field>
-        <Label htmlFor="delete-confirm">Type {user.email} to confirm</Label>
-        <Input
-          id="delete-confirm"
-          value={confirmation}
-          onChange={(event) => setConfirmation(event.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </Field>
-      <MutationFailure error={deleteUser.error} />
-      <AlertDialogFooter>
-        <AlertDialogClose render={<Button variant="ghost" type="button" />}>
-          Cancel
-        </AlertDialogClose>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={confirmation !== user.email}
-          pending={deleteUser.isPending}
-          pendingLabel="Deleting…"
-          onClick={() =>
-            deleteUser.mutate(
-              { userId: user.id, confirmEmail: confirmation },
-              { onSuccess: onDeleted },
-            )
-          }
-        >
-          Delete account and files
-        </Button>
-      </AlertDialogFooter>
+      {/* The submit stays disabled until the email matches, which also blocks Enter until then. */}
+      <Form
+        onValues={() =>
+          deleteUser.mutate(
+            { userId: user.id, confirmEmail: confirmation },
+            { onSuccess: onDeleted },
+          )
+        }
+      >
+        <Field>
+          <Label htmlFor="delete-confirm" className="block leading-snug wrap-anywhere">
+            Type {user.email} to confirm
+          </Label>
+          <Input
+            id="delete-confirm"
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.target.value)}
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+        </Field>
+        <MutationFailure error={deleteUser.error} />
+        <AlertDialogFooter>
+          <AlertDialogClose render={<Button variant="ghost" type="button" />}>
+            Cancel
+          </AlertDialogClose>
+          <Button
+            type="submit"
+            variant="destructive"
+            disabled={confirmation !== user.email}
+            pending={deleteUser.isPending}
+            pendingLabel="Deleting…"
+          >
+            Delete account and files
+          </Button>
+        </AlertDialogFooter>
+      </Form>
     </>
   );
 }

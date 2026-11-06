@@ -26,8 +26,7 @@ import { QuotaDialog } from "#features/admin/react/quota-dialog.tsx";
 import { useAdminUsers } from "#features/admin/react/use-admin.ts";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { LoadMore } from "#features/shared/react/load-more.tsx";
-import { OfflineState } from "#features/shared/react/offline-state.tsx";
-import { QueryFailure } from "#features/shared/react/query-failure.tsx";
+import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 
 export type AdminUser = OutputOf<RPC["admin"]["users"]>["items"][number];
@@ -61,13 +60,7 @@ function AdminUsers() {
 
   function renderBody() {
     if (users.data === undefined) {
-      if (users.error !== null) {
-        return <QueryFailure error={users.error} onRetry={() => users.refetch()} />;
-      }
-
-      if (users.fetchStatus === "paused") return <OfflineState />;
-
-      return <ItemTableSkeleton rows={4} />;
+      return <QueryWaiting resource={users} pending={<ItemTableSkeleton rows={4} />} />;
     }
 
     return (

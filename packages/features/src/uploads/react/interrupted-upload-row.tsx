@@ -6,30 +6,44 @@ import { FilePicker } from "@hyori-cloud/ui/components/file-picker";
 import type { FilePickerHandle } from "@hyori-cloud/ui/components/file-picker";
 import { TransferItem } from "@hyori-cloud/ui/components/transfer-tray";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
-import { formatBytes } from "#features/shared/format.ts";
+import { UploadIntentTag } from "#features/uploads/react/upload-intent-tag.tsx";
 import { useUploadQueue } from "#features/uploads/react/uploads-provider.tsx";
+import { describeCancelFailure } from "#features/uploads/upload-failure-copy.ts";
 
 type InterruptedUpload = Extract<UploadEntry, { state: "interrupted" }>;
 
-// An error here is either a wrong file reselection or a discard the server didn't confirm.
+// The file to choose goes by its own name on this device, which a new version's target may not share.
 function interruptedDetail({ checkpoint, error }: InterruptedUpload) {
-  if (error === null) return `Interrupted · ${formatBytes(checkpoint.file.size)}`;
+  const localName = checkpoint.file.name;
+
+  if (error === null) return `Interrupted. Choose “${localName}” again to continue.`;
+
+  if (error.code === "SDK_FILE_MISMATCH") {
+    return `That isn’t the same file. Choose “${localName}”, unchanged, to continue.`;
+  }
+
   const copy = describeCloudError(error);
 
-  return copy.detail ?? copy.title;
+  // A saved upload that can no longer be resumed, which was refused before any request.
+  if (error.code === "SDK_VALIDATION") return copy.detail ?? copy.title;
+
+  // Otherwise a discard the server didn't confirm.
+  return describeCancelFailure(error, copy);
 }
 
 /** After a reload the browser no longer holds the file, so resuming means choosing it again. */
 export function InterruptedUploadRow({ entry }: { entry: InterruptedUpload }) {
-  const { id, checkpoint, error, cancelling = false } = entry;
+  const { id, intent, error, cancelling = false } = entry;
   const queue = useUploadQueue();
   const picker = useRef<FilePickerHandle>(null);
-  const name = checkpoint.file.name;
+  const { name } = intent;
 
   return (
     <TransferItem
       name={name}
+      tag={<UploadIntentTag intent={intent} />}
       tone={error === null ? "default" : "destructive"}
+      wrapDetail={!cancelling}
       detail={cancelling ? "Cancelling…" : interruptedDetail(entry)}
       actions={
         <>

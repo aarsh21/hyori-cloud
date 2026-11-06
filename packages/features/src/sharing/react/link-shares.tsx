@@ -9,7 +9,7 @@ import { Label } from "@hyori-cloud/ui/components/label";
 import { PasswordInput } from "@hyori-cloud/ui/components/password-input";
 import { Tag } from "@hyori-cloud/ui/components/tag";
 import { InlineText, Row, SectionHeading, Stack, Text } from "@hyori-cloud/ui/components/text";
-import { endOfLocalDayIso, formatDate } from "#features/shared/format.ts";
+import { endOfLocalDayIso, formatDate, localDateInputValue } from "#features/shared/format.ts";
 import { formText, optionalFormText } from "#features/shared/form-values.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 import { ShareRoleSelect } from "#features/sharing/react/share-role-select.tsx";
@@ -20,10 +20,12 @@ import { SHARE_ROLE_LABELS } from "#features/sharing/share-roles.ts";
 /** Access stays restricted until someone explicitly creates a link. */
 export function LinkShares({
   itemId,
+  itemName,
   inheritsAccess,
   shares,
 }: {
   itemId: string;
+  itemName: string;
   /** Sharing on a parent folder reaches this item too, and this list only shows its direct links. */
   inheritsAccess: boolean;
   shares: readonly Share[];
@@ -39,6 +41,9 @@ export function LinkShares({
   // or list refresh mustn't lose the only chance to copy this one. It ends with the dialog's popup.
   const [issued, setIssued] = useState<{ readonly id: string; readonly url: string } | null>(null);
   const issuedUrl = issued?.url ?? null;
+  const confirmingRevoke = shares.find((share) => share.id === confirmingRevokeId);
+  // A date input's minimum, read once: an already-past expiry would make a link that never works.
+  const [today] = useState(() => localDateInputValue(new Date()));
 
   function closeComposer() {
     setComposing(false);
@@ -121,11 +126,12 @@ export function LinkShares({
             </Field>
             <Field className="min-w-0 flex-1">
               <Label htmlFor="link-expires">Expires (optional)</Label>
-              <Input id="link-expires" name="expires" type="date" />
+              <Input id="link-expires" name="expires" type="date" min={today} />
             </Field>
           </Stack>
           <FieldDescription>
-            These can’t be changed later. Revoke and create a new link instead.
+            Passwords need at least 8 characters. Neither can be changed later: revoke the link and
+            create a new one instead.
           </FieldDescription>
           <MutationFailure error={create.error} />
           <Row className="justify-end gap-2">
@@ -157,6 +163,11 @@ export function LinkShares({
       <MutationFailure error={revoke.error} />
       <RevokeLinkDialog
         open={confirmingRevokeId !== null}
+        linkName={
+          confirmingRevoke === undefined
+            ? `link to “${itemName}”`
+            : `${SHARE_ROLE_LABELS[confirmingRevoke.role]} link to “${itemName}”`
+        }
         pending={revoke.isPending}
         onOpenChange={(next) => {
           if (!next) setConfirmingRevokeId(null);

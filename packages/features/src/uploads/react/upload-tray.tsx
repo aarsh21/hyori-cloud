@@ -47,6 +47,8 @@ export function UploadTray() {
           variant="ghost"
           aria-label={collapsed ? "Show uploads" : "Hide uploads"}
           aria-expanded={!collapsed}
+          // The open tray shows for itself, so its toggle doesn't stay filled like an open menu.
+          className="not-hover:aria-expanded:bg-transparent not-hover:aria-expanded:text-muted-foreground"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronLeft className="rotate-90" /> : <ChevronDown />}
@@ -66,9 +68,9 @@ export function UploadTray() {
 function UploadRow({ entry }: { entry: UploadEntry }) {
   switch (entry.state) {
     case "waiting":
-      return <WaitingUploadRow id={entry.id} name={entry.file.name} />;
+      return <WaitingUploadRow id={entry.id} intent={entry.intent} />;
     case "started":
-      return <StartedUploadRow id={entry.id} name={entry.name} task={entry.task} />;
+      return <StartedUploadRow id={entry.id} task={entry.task} retryQueued={entry.retryQueued} />;
     case "interrupted":
       return <InterruptedUploadRow entry={entry} />;
   }

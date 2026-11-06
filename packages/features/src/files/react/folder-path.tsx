@@ -1,4 +1,4 @@
-import { createContext, use } from "@hyori-cloud/lib/react";
+import { createContext, useContext } from "@hyori-cloud/lib/react";
 
 type FolderPath = (folderId: string | null) => string;
 
@@ -8,7 +8,7 @@ const FolderPathContext = createContext<FolderPath | null>(null);
 export const FolderPathProvider = FolderPathContext;
 
 export function useFolderPath(): FolderPath {
-  const folderPath = use(FolderPathContext);
+  const folderPath = useContext(FolderPathContext);
 
   if (folderPath === null) throw new Error("useFolderPath requires FolderPathProvider.");
 

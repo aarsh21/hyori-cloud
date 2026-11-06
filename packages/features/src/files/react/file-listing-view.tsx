@@ -8,8 +8,7 @@ import { FileListingContent } from "#features/files/react/file-listing-content.t
 import type { FileLayout } from "#features/files/react/file-listing-content.tsx";
 import type { FileListing } from "#features/files/react/use-file-listing.ts";
 import { LoadMore } from "#features/shared/react/load-more.tsx";
-import { OfflineState } from "#features/shared/react/offline-state.tsx";
-import { QueryFailure } from "#features/shared/react/query-failure.tsx";
+import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 
 /** Data first: anything already loaded stays on screen through refreshes and their failures. */
@@ -29,13 +28,12 @@ export function FileListingView({
   empty: ReactNode;
 }) {
   if (listing.data === undefined) {
-    if (listing.error !== null) {
-      return <QueryFailure error={listing.error} onRetry={() => listing.refetch()} />;
-    }
-
-    if (listing.fetchStatus === "paused") return <OfflineState />;
-
-    return layout === "list" ? <ItemTableSkeleton /> : <ItemGridSkeleton />;
+    return (
+      <QueryWaiting
+        resource={listing}
+        pending={layout === "list" ? <ItemTableSkeleton /> : <ItemGridSkeleton />}
+      />
+    );
   }
 
   return (

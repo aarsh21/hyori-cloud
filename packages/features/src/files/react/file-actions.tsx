@@ -1,19 +1,23 @@
+import { normalizeClientError } from "@hyori-cloud/client-sdk";
 import type { FileEntry } from "@hyori-cloud/client-sdk";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
-import { createContext, use, useId, useState } from "@hyori-cloud/lib/react";
+import { createContext, useContext, useId, useRef, useState } from "@hyori-cloud/lib/react";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { toast } from "@hyori-cloud/ui/components/sonner";
+import { useDisposeOnUnmount } from "@hyori-cloud/ui/hooks/use-dispose-on-unmount";
 import { FileDialogs } from "#features/files/react/file-dialogs.tsx";
 import { DOWNLOAD_MUTATION_KEY, useDownloadFile } from "#features/files/react/use-download-file.ts";
 import { useRestoreFile, useTrashFile } from "#features/files/react/use-file-mutations.ts";
 import { usePendingItemActions } from "#features/files/react/use-pending-item-actions.ts";
 import { useFileActionErrors } from "#features/files/react/use-file-action-errors.ts";
 import { isMediaType } from "#features/shared/format.ts";
+import { describeCloudError } from "#features/shared/cloud-error.ts";
 import type { CloudError } from "#features/shared/cloud-error.ts";
 
 export type FileDialog =
   | { readonly kind: "createFolder" }
   | { readonly kind: "rename"; readonly id: string }
+  | { readonly kind: "replace"; readonly id: string }
   // Moving removes the row from this listing while the dialog is still waiting on the result, so
   // this dialog holds its own target instead of looking it up.
   | { readonly kind: "move"; readonly entry: FileEntry }
@@ -68,12 +72,18 @@ export function FileActionsProvider({
   const scope = { fileActionsOwner: useId() };
   const download = useDownloadFile(scope);
   const trash = useTrashFile(scope);
-  const restore = useRestoreFile(scope);
+  // Unscoped: an Undo's failure belongs to its toast, which names the file and can try again.
+  const restore = useRestoreFile();
   const { mutate: requestDownload } = download;
   const { mutateAsync: requestTrash } = trash;
   const { mutateAsync: requestRestore } = restore;
   const failure = useFileActionErrors(scope);
   const { pendingIds, isDownloading, isTrashing } = usePendingItemActions();
+  const ownerMounted = useRef(true);
+
+  useDisposeOnUnmount(() => {
+    ownerMounted.current = false;
+  });
 
   // Cleared rather than hidden: a dialog left behind in another folder, or for a target that's gone,
   // must not reopen by itself when that folder or item comes back.
@@ -92,12 +102,12 @@ export function FileActionsProvider({
   }
 
   function restoreOnce(entry: FileEntry) {
-    failure.clearFor(mutation.files.restore.key, entry.id);
-    void requestRestore({ id: entry.id }).catch(() =>
+    void requestRestore({ id: entry.id }).catch((error) => {
       toast.error(`Couldn’t restore “${entry.name}”`, {
+        description: describeCloudError(normalizeClientError(error)).title,
         action: { label: "Try again", onClick: () => restoreOnce(entry) },
-      }),
-    );
+      });
+    });
   }
 
   const actions: FileActions = {
@@ -117,7 +127,11 @@ export function FileActionsProvider({
             action: { label: "Undo", onClick: () => restoreOnce(entry) },
           }),
         )
-        .catch(() => toast.error(`Couldn’t move “${entry.name}” to Trash`));
+        .catch(() => {
+          // The page's notice already says this while it's on screen. Only someone who has moved on
+          // needs telling here, and they also need to know which file it was.
+          if (!ownerMounted.current) toast.error(`Couldn’t move “${entry.name}” to Trash`);
+        });
     },
   };
 
@@ -138,7 +152,7 @@ export function FileActionsProvider({
 }
 
 export function useFileActions(): FileActions {
-  const actions = use(FileActionsContext);
+  const actions = useContext(FileActionsContext);
 
   if (actions === null) throw new Error("useFileActions requires FileActionsProvider.");
 
@@ -146,11 +160,11 @@ export function useFileActions(): FileActions {
 }
 
 export function useFileActionPending(id: string): boolean {
-  return use(PendingActionsContext).has(id);
+  return useContext(PendingActionsContext).has(id);
 }
 
 export function useFileActionFailure(): ActionFailure {
-  const failure = use(ActionFailureContext);
+  const failure = useContext(ActionFailureContext);
 
   if (failure === null) throw new Error("useFileActionFailure requires FileActionsProvider.");
 

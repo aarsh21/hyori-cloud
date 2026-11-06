@@ -9,7 +9,15 @@ import {
 } from "#features/shared/react/access-recovery.tsx";
 
 /** Blocking failure for a region with no retained data. Recovery depends on what actually failed. */
-export function QueryFailure({ error, onRetry }: { error: CloudError; onRetry: () => void }) {
+export function QueryFailure({
+  error,
+  retrying = false,
+  onRetry,
+}: {
+  error: CloudError;
+  retrying?: boolean;
+  onRetry: () => void;
+}) {
   const recovery = useAccessRecovery(error);
   const copy = recovery ?? describeCloudError(error);
 
@@ -21,7 +29,12 @@ export function QueryFailure({ error, onRetry }: { error: CloudError; onRetry: (
       description={copy.detail}
       action={
         recovery === null ? (
-          <Button variant="outline" onClick={() => onRetry()}>
+          <Button
+            variant="outline"
+            pending={retrying}
+            pendingLabel="Trying again…"
+            onClick={() => onRetry()}
+          >
             Try again
           </Button>
         ) : (

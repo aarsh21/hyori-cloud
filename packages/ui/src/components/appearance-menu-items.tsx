@@ -22,30 +22,15 @@ export function AppearanceMenuItems() {
           if (value === "light" || value === "dark" || value === "system") setPreference(value);
         }}
       >
-        <DropdownMenuRadioItem
-          value="light"
-          disabled={preference === undefined}
-          closeOnClick
-          className="coarse:min-h-10"
-        >
+        <DropdownMenuRadioItem value="light" disabled={preference === undefined} closeOnClick>
           <SunIcon aria-hidden />
           Light
         </DropdownMenuRadioItem>
-        <DropdownMenuRadioItem
-          value="dark"
-          disabled={preference === undefined}
-          closeOnClick
-          className="coarse:min-h-10"
-        >
+        <DropdownMenuRadioItem value="dark" disabled={preference === undefined} closeOnClick>
           <MoonIcon aria-hidden />
           Dark
         </DropdownMenuRadioItem>
-        <DropdownMenuRadioItem
-          value="system"
-          disabled={preference === undefined}
-          closeOnClick
-          className="coarse:min-h-10"
-        >
+        <DropdownMenuRadioItem value="system" disabled={preference === undefined} closeOnClick>
           <MonitorIcon aria-hidden />
           System
         </DropdownMenuRadioItem>

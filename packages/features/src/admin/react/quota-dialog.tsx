@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@hyori-cloud/ui/components/dialog";
-import { Field, Form } from "@hyori-cloud/ui/components/field";
+import { Field, FieldDescription, Form } from "@hyori-cloud/ui/components/field";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { Label } from "@hyori-cloud/ui/components/label";
 import type { AdminUser } from "#features/admin/react/admin-screen.tsx";
@@ -66,7 +66,12 @@ export function QuotaDialog({
                 step="any"
                 required
                 defaultValue={Number((user.quotaBytes / BYTES_PER_GB).toFixed(2))}
+                aria-describedby="quota-gb-hint"
               />
+              <FieldDescription id="quota-gb-hint">
+                Below what they’re using, nothing is deleted, but they can’t add more until they
+                free up space.
+              </FieldDescription>
             </Field>
             <MutationFailure error={setQuota.error} />
           </DialogBody>

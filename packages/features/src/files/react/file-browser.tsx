@@ -23,8 +23,11 @@ import {
 } from "@hyori-cloud/ui/components/segmented-control";
 import { InlineText, Row } from "@hyori-cloud/ui/components/text";
 import { useDocumentKeydown } from "@hyori-cloud/ui/hooks/use-document-keydown";
+import { useItemLayout } from "@hyori-cloud/ui/hooks/use-item-layout";
+import { useSingleKeyShortcuts } from "@hyori-cloud/ui/hooks/use-single-key-shortcuts";
 import { isAppShortcut } from "@hyori-cloud/ui/lib/browser";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
+import { useAvailableEditors } from "#features/editors/react/use-available-editors.ts";
 import {
   countBarFilters,
   hasActiveFilters,
@@ -38,7 +41,6 @@ import {
   useFileActions,
 } from "#features/files/react/file-actions.tsx";
 import { FileFilterBar } from "#features/files/react/file-filter-bar.tsx";
-import type { FileLayout } from "#features/files/react/file-listing-content.tsx";
 import { FileListingView } from "#features/files/react/file-listing-view.tsx";
 import { FolderPathProvider } from "#features/files/react/folder-path.tsx";
 import { useFileListing } from "#features/files/react/use-file-listing.ts";
@@ -91,7 +93,9 @@ export function FileBrowser({
   folderPath,
   empty,
 }: FileBrowserProps) {
-  const [layout, setLayout] = useState<FileLayout>("list");
+  // Resolve the default open action alongside the listing, not after its rows arrive.
+  useAvailableEditors();
+  const [layout, setLayout] = useItemLayout();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { filters, patch, clear } = useBrowserFilters(parentId);
 
@@ -100,6 +104,7 @@ export function FileBrowser({
   const queue = useUploadQueue();
   const picker = useRef<FilePickerHandle>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const shortcutsEnabled = useSingleKeyShortcuts();
 
   const firstPage = listing.data?.pages[0];
   const folder = firstPage?.folder ?? null;
@@ -138,7 +143,7 @@ export function FileBrowser({
               className="min-w-0 flex-1 md:w-56 md:flex-none"
               label={`Search ${searchScope} by name`}
               placeholder={`Search ${searchScope}`}
-              shortcut="/"
+              shortcut={shortcutsEnabled ? "/" : undefined}
               value={filters.search}
               onCommit={(search) => patch({ search })}
             />
@@ -169,7 +174,8 @@ export function FileBrowser({
         </PageBar>
         {filtersOpen ? <FileFilterBar filters={filters} onChange={patch} onClear={clear} /> : null}
         <DropZone disabled={!canCreate} label={`Drop to upload to ${title}`} onFiles={addFiles}>
-          <PageBody>
+          {/* Keyed so entering a folder starts at its top instead of the last one's scroll offset. */}
+          <PageBody key={parentId}>
             <PageSection>
               <ActionFailureNotice />
               <FileListingView
@@ -260,7 +266,7 @@ function CreateFolderButton() {
     <Button
       variant="outline"
       aria-label="New folder"
-      className="max-md:size-8 max-md:px-0 max-md:coarse:size-10"
+      className="max-md:size-8 max-md:px-0 max-md:coarse:size-11"
       onClick={() => openDialog({ kind: "createFolder" })}
     >
       <FolderPlus aria-hidden />

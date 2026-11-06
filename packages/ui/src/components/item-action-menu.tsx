@@ -12,11 +12,19 @@ import { EllipsisIcon } from "lucide-react";
 import * as React from "react";
 
 /** The per-row overflow menu. Its trigger joins the collection's roving tab stop. */
-function ItemActionMenu({ label, children }: { label: string; children: React.ReactNode }) {
+function ItemActionMenu({
+  label,
+  onOpenChange,
+  children,
+}: {
+  label: string;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
+}) {
   const tabIndex = useItemTabIndex();
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
         data-item-action
         tabIndex={tabIndex}

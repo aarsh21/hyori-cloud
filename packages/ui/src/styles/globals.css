@@ -10,6 +10,8 @@
 
 @custom-variant coarse (@media (pointer: coarse));
 
+@custom-variant fine (@media (hover: hover) and (pointer: fine));
+
 :root {
   /* Porcelain: warm, opaque surfaces separated by hairlines. See DESIGN.md. */
   --background: oklch(0.95 0.009 85);
@@ -169,6 +171,13 @@
   body {
     @apply bg-background font-sans text-foreground;
     -webkit-tap-highlight-color: transparent;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--input) transparent;
+  }
+  ::selection {
+    background: oklch(from var(--foreground) l c h / 16%);
   }
 
   /* Reduced motion keeps comprehension-aiding fades and removes every positional transition. */

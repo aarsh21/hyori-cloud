@@ -6,7 +6,11 @@ import { Label } from "@hyori-cloud/ui/components/label";
 import { PickerList, PickerRow, PickerRowLabel } from "@hyori-cloud/ui/components/picker-list";
 import { Switch } from "@hyori-cloud/ui/components/switch";
 import { Tag } from "@hyori-cloud/ui/components/tag";
-import { InlineText, Row, Stack, Text } from "@hyori-cloud/ui/components/text";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@hyori-cloud/ui/components/segmented-control";
+import { InlineText, Row, SectionHeading, Stack, Text } from "@hyori-cloud/ui/components/text";
 import { FolderPickerHeader } from "#features/files/react/folder-picker-header.tsx";
 import { FolderPickerState } from "#features/files/react/folder-picker-state.tsx";
 import { useFolderBrowser } from "#features/files/react/use-folder-browser.ts";
@@ -42,11 +46,13 @@ export function useSourcesDraft(saved: PhotoSourcesValue) {
 
 export type SourcesDraft = ReturnType<typeof useSourcesDraft>;
 
+type SourceRoot = "files" | "shared";
+
 export function SourceSelection({ draft }: { draft: SourcesDraft }) {
-  const browser = useFolderBrowser();
-  const { value } = draft;
-  const selectedCount = value.folderIds.length;
-  const selectedFolderIds = new Set(value.folderIds);
+  const [chosenRoot, setChosenRoot] = useState<SourceRoot>("files");
+  const { allMyFiles } = draft.value;
+  // Everything of one's own is already included, so only what's shared is left to choose from.
+  const root = allMyFiles ? "shared" : chosenRoot;
 
   return (
     <Stack className="gap-3">
@@ -59,51 +65,80 @@ export function SourceSelection({ draft }: { draft: SourcesDraft }) {
         </Stack>
         <Switch
           id="photos-all-files"
-          checked={value.allMyFiles}
+          checked={allMyFiles}
           onCheckedChange={(checked) => draft.setAllMyFiles(checked)}
         />
       </Row>
-      {value.allMyFiles ? null : (
-        <Stack className="gap-1.5">
-          <FolderPickerHeader
-            title={browser.breadcrumbs.at(-1)?.name ?? "Choose folders"}
-            canGoBack={browser.folderId !== null}
-            onBack={() => browser.open(browser.parentOf)}
-          />
-          <PickerList aria-label="Folders">
-            {browser.folders.map((folder) => (
-              <PickerRow key={folder.id}>
-                <PickerRowLabel>
-                  <Checkbox
-                    checked={selectedFolderIds.has(folder.id)}
-                    onCheckedChange={(checked) => draft.toggleFolder(folder.id, checked)}
-                  />
-                  <Folder aria-hidden className="fill-folder/25 text-folder" />
-                  <InlineText truncate>{folder.name}</InlineText>
-                  {browser.folderId === null && folder.name.toLowerCase() === "pictures" ? (
-                    <Tag>Suggested</Tag>
-                  ) : null}
-                </PickerRowLabel>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={`Open ${folder.name}`}
-                  onClick={() => browser.open(folder.id)}
-                >
-                  <ChevronRight />
-                </Button>
-              </PickerRow>
-            ))}
-            <FolderPickerState listing={browser.listing} isEmpty={browser.folders.length === 0} />
-          </PickerList>
-          <Text size="xs" tone="muted" numeric>
-            {selectedCount === 0
-              ? "Subfolders and future uploads are included automatically."
-              : `${selectedCount} ${selectedCount === 1 ? "folder" : "folders"} selected, including subfolders and future uploads.`}
-          </Text>
-        </Stack>
+      {allMyFiles ? (
+        <SectionHeading>Also include folders shared with you</SectionHeading>
+      ) : (
+        <SegmentedControl
+          className="self-start"
+          label="Folders to choose from"
+          value={chosenRoot}
+          onValueChange={setChosenRoot}
+        >
+          <SegmentedControlItem value="files" label="My folders">
+            My folders
+          </SegmentedControlItem>
+          <SegmentedControlItem value="shared" label="Shared with me">
+            Shared with me
+          </SegmentedControlItem>
+        </SegmentedControl>
       )}
+      {/* Keyed so each root starts at its own top rather than inside the other's folder. */}
+      <SourceFolderPicker key={root} draft={draft} root={root} />
+    </Stack>
+  );
+}
+
+function SourceFolderPicker({ draft, root }: { draft: SourcesDraft; root: SourceRoot }) {
+  const browser = useFolderBrowser(null, root);
+  const selectedFolderIds = new Set(draft.value.folderIds);
+  const selectedCount = draft.value.folderIds.length;
+
+  return (
+    <Stack className="gap-1.5">
+      <FolderPickerHeader
+        title={browser.breadcrumbs.at(-1)?.name ?? "Choose folders"}
+        canGoBack={browser.folderId !== null}
+        onBack={() => browser.open(browser.parentOf)}
+      />
+      <PickerList aria-label="Folders">
+        {browser.folders.map((folder) => (
+          <PickerRow key={folder.id}>
+            <PickerRowLabel>
+              <Checkbox
+                checked={selectedFolderIds.has(folder.id)}
+                onCheckedChange={(checked) => draft.toggleFolder(folder.id, checked)}
+              />
+              <Folder aria-hidden className="fill-folder/25 text-folder" />
+              <InlineText truncate>{folder.name}</InlineText>
+              {root === "files" &&
+              browser.folderId === null &&
+              folder.name.toLowerCase() === "pictures" ? (
+                <Tag>Suggested</Tag>
+              ) : null}
+            </PickerRowLabel>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Open ${folder.name}`}
+              onClick={() => browser.open(folder.id)}
+            >
+              <ChevronRight />
+            </Button>
+          </PickerRow>
+        ))}
+        <FolderPickerState listing={browser.listing} isEmpty={browser.folders.length === 0} />
+      </PickerList>
+      <Text size="xs" tone="muted" numeric>
+        {selectedCount === 0
+          ? "Subfolders and future uploads are included automatically."
+          : `${selectedCount} ${selectedCount === 1 ? "folder" : "folders"} selected, including subfolders and future uploads.`}
+        {root === "shared" ? " If sharing ends, those photos leave your timeline." : null}
+      </Text>
     </Stack>
   );
 }

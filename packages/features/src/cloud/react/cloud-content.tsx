@@ -1,19 +1,34 @@
-import { Button } from "@hyori-cloud/ui/components/button";
 import { File as FileIcon } from "@hyori-cloud/lib/icons";
+import { lazy, Suspense } from "@hyori-cloud/lib/react";
+import { Button } from "@hyori-cloud/ui/components/button";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
-import { AdminScreen } from "#features/admin/react/admin-screen.tsx";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { useNavigateTo } from "#features/cloud/react/cloud-navigation.tsx";
-import { FilesScreen } from "#features/files/react/files-screen.tsx";
-import { SharedScreen } from "#features/files/react/shared-screen.tsx";
-import { TrashScreen } from "#features/files/react/trash-screen.tsx";
-import { AlbumScreen } from "#features/photos/react/album-screen.tsx";
-import { AlbumsScreen } from "#features/photos/react/albums-screen.tsx";
-import { PhotosScreen } from "#features/photos/react/photos-screen.tsx";
+import { CloudScreenFallback } from "#features/cloud/react/cloud-screen-fallback.tsx";
+import {
+  loadAdminScreen,
+  loadAlbumScreen,
+  loadAlbumsScreen,
+  loadFilesScreen,
+  loadPhotosScreen,
+  loadSharedScreen,
+  loadTrashScreen,
+} from "#features/cloud/react/cloud-screen-loaders.ts";
 
-type ShellLocation = Exclude<CloudLocation, { section: "invite" | "publicShare" }>;
+const FilesScreen = lazy(async () => ({ default: (await loadFilesScreen()).FilesScreen }));
+const SharedScreen = lazy(async () => ({ default: (await loadSharedScreen()).SharedScreen }));
+const TrashScreen = lazy(async () => ({ default: (await loadTrashScreen()).TrashScreen }));
+const PhotosScreen = lazy(async () => ({ default: (await loadPhotosScreen()).PhotosScreen }));
+const AlbumsScreen = lazy(async () => ({ default: (await loadAlbumsScreen()).AlbumsScreen }));
+const AlbumScreen = lazy(async () => ({ default: (await loadAlbumScreen()).AlbumScreen }));
+const AdminScreen = lazy(async () => ({ default: (await loadAdminScreen()).AdminScreen }));
 
-export function CloudContent({ location }: { location: ShellLocation }) {
+type ShellLocation = Exclude<
+  CloudLocation,
+  { section: "invite" | "publicShare" | "publicEditor" | "editor" }
+>;
+
+function CloudSection({ location }: { location: ShellLocation }) {
   switch (location.section) {
     case "files":
       return <FilesScreen folderId={location.folderId} />;
@@ -36,6 +51,14 @@ export function CloudContent({ location }: { location: ShellLocation }) {
   location satisfies never;
 
   return null;
+}
+
+export function CloudContent({ location }: { location: ShellLocation }) {
+  return (
+    <Suspense fallback={<CloudScreenFallback location={location} />}>
+      <CloudSection location={location} />
+    </Suspense>
+  );
 }
 
 function NotFoundState() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeProvider, useTheme } from "next-themes";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 
 export type Appearance = "light" | "dark" | "system";
 
@@ -39,6 +39,19 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       {children}
     </ThemeProvider>
   );
+}
+
+/** Synchronizes an external host surface with the existing appearance owner, without owning its lifecycle. */
+export function AppearanceObserver({ onChange }: { onChange: (appearance: Appearance) => void }) {
+  const { preference, resolved } = useAppearance();
+
+  // An embedded imperative surface cannot consume React context itself. No cache, protocol,
+  // or save lifecycle lives here; resolved changes reapply System after an OS appearance change.
+  useEffect(() => {
+    if (preference !== undefined) onChange(preference);
+  }, [preference, resolved, onChange]);
+
+  return null;
 }
 
 /** The server snapshot also runs on the first hydration render, never reading browser state. */

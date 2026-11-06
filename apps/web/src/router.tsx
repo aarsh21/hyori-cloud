@@ -1,6 +1,8 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 
 import { getAppRuntime } from "@/app/runtime";
+import AppError from "@/components/app-error";
+import AppNotFound from "@/components/app-not-found";
 import Loader from "@/components/loader";
 import { routeTree } from "@/routeTree.gen";
 
@@ -11,7 +13,8 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 0,
     context: getAppRuntime(),
     defaultPendingComponent: () => <Loader />,
-    defaultNotFoundComponent: () => <div>Not Found</div>,
+    defaultErrorComponent: () => <AppError />,
+    defaultNotFoundComponent: () => <AppNotFound />,
   });
 
   return router;

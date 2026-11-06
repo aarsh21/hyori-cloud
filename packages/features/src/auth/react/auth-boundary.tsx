@@ -7,8 +7,7 @@ import { CurrentUserProvider } from "#features/auth/react/current-user.tsx";
 import { LoginScreen } from "#features/auth/react/login-screen.tsx";
 import { SetupScreen } from "#features/auth/react/setup-screen.tsx";
 import { useAuthStatus } from "#features/auth/react/use-auth-status.ts";
-import { OfflineState } from "#features/shared/react/offline-state.tsx";
-import { QueryFailure } from "#features/shared/react/query-failure.tsx";
+import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 
 /**
  * Data first: a failed background refresh keeps the signed-in app on screen. An unreachable
@@ -28,21 +27,14 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   return (
     <FocusLayout>
       <Wordmark />
-      {status.error !== null ? (
-        <QueryFailure error={status.error} onRetry={() => status.refetch()} />
-      ) : (
-        <AuthWaiting paused={status.fetchStatus === "paused"} />
-      )}
+      <QueryWaiting
+        resource={status}
+        pending={
+          <Row className="min-h-9">
+            <Spinner />
+          </Row>
+        }
+      />
     </FocusLayout>
-  );
-}
-
-function AuthWaiting({ paused }: { paused: boolean }) {
-  if (paused) return <OfflineState />;
-
-  return (
-    <Row className="min-h-9">
-      <Spinner />
-    </Row>
   );
 }

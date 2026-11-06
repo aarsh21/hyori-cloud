@@ -12,6 +12,7 @@ import { formText } from "#features/shared/form-values.ts";
 import { AccessRecoveryProvider } from "#features/shared/react/access-recovery.tsx";
 import type { AccessRecoveryPolicy } from "#features/shared/react/access-recovery.tsx";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
+import { PublicEditor } from "#features/sharing/react/public-editor.tsx";
 import { PublicSharedItem } from "#features/sharing/react/public-shared-item.tsx";
 import { useResolveShare, useUnlockShare } from "#features/sharing/react/use-shares.ts";
 import { UploadsProvider } from "#features/uploads/react/uploads-provider.tsx";
@@ -23,15 +24,31 @@ import { UploadsProvider } from "#features/uploads/react/uploads-provider.tsx";
  * The upload queue sits above every state below. Asking for a password again must not dispose
  * anonymous uploads, whose only copy of each file is the reference this queue holds.
  */
-export function PublicShareScreen({ token, folderId }: { token: string; folderId: string | null }) {
+export function PublicShareScreen({
+  token,
+  folderId,
+  editingFileId,
+}: {
+  token: string;
+  folderId: string | null;
+  editingFileId: string | null;
+}) {
   return (
     <UploadsProvider scope={null}>
-      <PublicShareAccess token={token} folderId={folderId} />
+      <PublicShareAccess token={token} folderId={folderId} editingFileId={editingFileId} />
     </UploadsProvider>
   );
 }
 
-function PublicShareAccess({ token, folderId }: { token: string; folderId: string | null }) {
+function PublicShareAccess({
+  token,
+  folderId,
+  editingFileId,
+}: {
+  token: string;
+  folderId: string | null;
+  editingFileId: string | null;
+}) {
   const resolve = useResolveShare();
   const reopen = useResolveShare();
   const unlock = useUnlockShare();
@@ -143,7 +160,11 @@ function PublicShareAccess({ token, folderId }: { token: string; folderId: strin
 
   return (
     <AccessRecoveryProvider value={recoveryPolicy}>
-      <PublicSharedItem token={token} folderId={folderId} item={resolved.item} />
+      {editingFileId === null ? (
+        <PublicSharedItem token={token} folderId={folderId} item={resolved.item} />
+      ) : (
+        <PublicEditor token={token} fileId={editingFileId} item={resolved.item} />
+      )}
     </AccessRecoveryProvider>
   );
 }

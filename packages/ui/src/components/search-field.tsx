@@ -55,7 +55,7 @@ function SearchField({
     <search
       data-slot="search-field"
       className={cn(
-        "group/search relative flex h-8 min-w-0 items-center rounded-lg border border-input bg-card transition-[background-color,border-color,box-shadow] duration-150 focus-within:border-ring focus-within:bg-card focus-within:ring-2 focus-within:ring-ring/25 coarse:h-10",
+        "group/search relative flex h-8 min-w-0 items-center rounded-lg border border-input bg-card transition-[background-color,border-color,box-shadow] duration-150 focus-within:border-ring focus-within:bg-card focus-within:ring-2 focus-within:ring-ring/25 coarse:h-11",
         className,
       )}
     >
@@ -68,6 +68,7 @@ function SearchField({
         ref={inputRef}
         type="search"
         aria-label={label}
+        aria-keyshortcuts={shortcut}
         placeholder={placeholder}
         value={draft}
         autoComplete="off"
@@ -86,7 +87,7 @@ function SearchField({
             else clear();
           }
         }}
-        className="h-full w-full min-w-0 bg-transparent pr-8 pl-8 text-[13px] outline-none placeholder:text-muted-foreground coarse:text-base [&::-webkit-search-cancel-button]:hidden"
+        className="h-full w-full min-w-0 bg-transparent pr-8 pl-8 text-[13px] outline-none placeholder:text-muted-foreground coarse:-my-px coarse:h-11 coarse:text-base [&::-webkit-search-cancel-button]:hidden"
       />
       {draft === "" && shortcut !== undefined ? (
         <Kbd className="pointer-events-none absolute right-1.5 group-focus-within/search:hidden">
@@ -98,7 +99,7 @@ function SearchField({
           type="button"
           aria-label="Clear search"
           onClick={clear}
-          className="absolute right-1 grid size-6 place-items-center rounded-sm text-muted-foreground outline-none after:absolute after:-inset-1.5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-1 grid size-6 place-items-center rounded-sm text-muted-foreground outline-none after:absolute after:-inset-1.5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:after:-inset-2.5"
         >
           <XIcon aria-hidden strokeWidth={1.75} className="size-3.5" />
         </button>

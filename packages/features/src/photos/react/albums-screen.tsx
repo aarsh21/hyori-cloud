@@ -30,8 +30,7 @@ import { PhotosBar } from "#features/photos/react/photos-bar.tsx";
 import { useAlbums, useCreateAlbum } from "#features/photos/react/use-photos.ts";
 import { formText } from "#features/shared/form-values.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
-import { OfflineState } from "#features/shared/react/offline-state.tsx";
-import { QueryFailure } from "#features/shared/react/query-failure.tsx";
+import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 
 type Album = OutputOf<RPC["photos"]["albums"]>["items"][number];
@@ -42,13 +41,7 @@ export function AlbumsScreen() {
 
   function renderBody() {
     if (albums.data === undefined) {
-      if (albums.error !== null) {
-        return <QueryFailure error={albums.error} onRetry={() => albums.refetch()} />;
-      }
-
-      if (albums.fetchStatus === "paused") return <OfflineState />;
-
-      return <ItemGridSkeleton tiles={6} />;
+      return <QueryWaiting resource={albums} pending={<ItemGridSkeleton tiles={6} />} />;
     }
 
     return (

@@ -25,13 +25,21 @@ const decodeInput = Schema.decodeUnknownSync(
       Schema.Boolean,
       Schema.Null,
       Schema.Array(Schema.String),
+      // An editor's explicit destination.
+      Schema.Struct({ parentId: Schema.Union(Schema.String, Schema.Null) }),
     ),
   }),
 );
 
 export type RequestInput = ReturnType<typeof decodeInput>;
 
-type ApiCode = "auth.required" | "access.denied" | "service.unavailable" | "resource.conflict";
+type ApiCode =
+  | "auth.required"
+  | "access.denied"
+  | "input.invalid"
+  | "resource.notFound"
+  | "resource.conflict"
+  | "service.unavailable";
 
 export class ApiFailure {
   constructor(
@@ -43,15 +51,27 @@ export class ApiFailure {
 type Handlers = Record<string, (input: RequestInput) => object | Promise<object>>;
 
 /** Real SDK and Query behavior over a scripted transport. Unscripted operations fail the request. */
+/**
+ * What every suite would otherwise script for itself: an editor's session ending as it unmounts,
+ * which the server answers the same way whatever it finds. Still recorded like any other call.
+ */
+const ALWAYS_ANSWERED = new Map([["editors.close", () => ({ success: true })]]);
+
 export function createFakeApi(handlers: Handlers) {
   const calls: { readonly operation: string; readonly input: RequestInput }[] = [];
 
   const fetch: FetchCapability = async (_url, init) => {
-    const request = decodeRequest(await new Response(init?.body).json());
+    // A file's bytes, not an operation: the SDK asked for a URL an operation gave it.
+    if (init?.body === undefined || init.body === null) return new Response("file bytes");
+
+    // A part's bytes on their way to a storage URL, which isn't an operation either.
+    if (init.method === "PUT") return new Response(null, { status: 200 });
+
+    const request = decodeRequest(await new Response(init.body).json());
     const input = decodeInput(request.input);
 
     calls.push({ operation: request.operation, input });
-    const handler = handlers[request.operation];
+    const handler = handlers[request.operation] ?? ALWAYS_ANSWERED.get(request.operation);
 
     if (handler === undefined) throw new Error(`Unscripted operation: ${request.operation}`);
 
