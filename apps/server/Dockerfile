@@ -14,21 +14,26 @@ COPY apps/media-worker ./apps/media-worker
 COPY crates/storage ./crates/storage
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM chef AS builder
+FROM chef AS cook
 ARG CARGO_BUILD_JOBS=2
 COPY rust-toolchain.toml ./
 COPY --from=planner /app/recipe.json recipe.json
 RUN icu_version="$(pkg-config --modversion icu-uc)" \
     && CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS}" RUST_ICU_MAJOR_VERSION_NUMBER="${icu_version%%.*}" cargo chef cook --release --locked --recipe-path recipe.json --bin hyori-server
+
+FROM cook AS builder
+ARG CARGO_BUILD_JOBS=2
 COPY Cargo.toml Cargo.lock ./
 COPY apps/server ./apps/server
 COPY apps/media-worker ./apps/media-worker
 COPY crates/storage ./crates/storage
 # The server compiles these editor authorities in with include_str!.
 COPY tooling/artcraft/manifest.json tooling/artcraft/runtime-deckcraft-v2.json tooling/artcraft/runtime-native-v3*.json ./tooling/artcraft/
+# Dropping target keeps this per-commit layer small in the build cache.
 RUN icu_version="$(pkg-config --modversion icu-uc)" \
     && CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS}" RUST_ICU_MAJOR_VERSION_NUMBER="${icu_version%%.*}" cargo build --release --locked --bin hyori-server \
-    && cp target/release/hyori-server /usr/local/bin/hyori-server
+    && cp target/release/hyori-server /usr/local/bin/hyori-server \
+    && rm -rf target
 
 FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS runtime
 RUN apt-get update \

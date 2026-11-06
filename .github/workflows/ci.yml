@@ -52,6 +52,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
+      - name: Build the actual web app and its generated route tree
+        run: bun run --cwd apps/web build
       - name: Verify private deployment and decoder isolation configuration
         run: bun run test:deployment
       - name: Test product behavior and actual Node host transport
@@ -76,6 +78,8 @@ jobs:
           rust-cache: dev
           save-rust-cache: "true"
           architecture-checker: "true"
+      - name: Build the actual web app and its generated route tree
+        run: bun run --cwd apps/web build
       - name: Verify public SDK and Query contracts
         run: bun run check:query
       - name: Reject drift in Rust-derived client contracts
@@ -108,8 +112,13 @@ jobs:
         run: bun run check:rust --only test
 
   rust-services:
+    name: rust-services (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/media-image
@@ -119,6 +128,8 @@ jobs:
         with:
           rust: "true"
           rust-cache: test
+      - name: Compile the service fixture tests while the decoder image builds
+        run: bun run test:rust-services --shard ${{ matrix.shard }}/4 --no-run
       - uses: ./.github/actions/media-image
         with:
           phase: wait
@@ -126,7 +137,7 @@ jobs:
         env:
           HYORI_MEDIA_TEST_IMAGE: hyori-media-ci:${{ github.sha }}
           RUST_TEST_THREADS: "1"
-        run: bun run test:rust-services
+        run: bun run test:rust-services --shard ${{ matrix.shard }}/4
 
   rust-sdk:
     name: rust-sdk (${{ matrix.suite }})
@@ -146,6 +157,9 @@ jobs:
         with:
           rust: "true"
           rust-cache: dev
+      # The harnesses' cargo build then only checks freshness; editors-sdk starts its timeout before it.
+      - name: Build the debug server the harness drives
+        run: RUST_ICU_MAJOR_VERSION_NUMBER="$(pkg-config --modversion icu-uc | cut -d. -f1)" cargo build --locked --bin hyori-server
       - if: matrix.suite == 'media-sdk'
         uses: ./.github/actions/media-image
         with:

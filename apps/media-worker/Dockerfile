@@ -11,17 +11,22 @@ COPY apps/media-worker ./apps/media-worker
 COPY crates/storage ./crates/storage
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM chef AS builder
+FROM chef AS cook
 ARG CARGO_BUILD_JOBS=2
 COPY rust-toolchain.toml ./
 COPY --from=planner /app/recipe.json recipe.json
 RUN CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS}" cargo chef cook --release --locked --recipe-path recipe.json -p hyori-media-worker
+
+FROM cook AS builder
+ARG CARGO_BUILD_JOBS=2
 COPY Cargo.toml Cargo.lock ./
 COPY apps/server ./apps/server
 COPY apps/media-worker ./apps/media-worker
 COPY crates/storage ./crates/storage
+# Dropping target keeps this per-commit layer small in the build cache.
 RUN CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS}" cargo build --release --locked -p hyori-media-worker \
-    && cp target/release/hyori-media-worker /usr/local/bin/hyori-media-worker
+    && cp target/release/hyori-media-worker /usr/local/bin/hyori-media-worker \
+    && rm -rf target
 
 FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS runtime
 ARG FFMPEG_PACKAGE_VERSION=7:7.1.5-0+deb13u1
