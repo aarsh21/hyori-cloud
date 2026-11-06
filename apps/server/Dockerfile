@@ -8,8 +8,8 @@ COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY apps/server ./apps/server
 COPY apps/media-worker ./apps/media-worker
 COPY crates/storage ./crates/storage
-COPY tooling/artcraft/manifest.json ./tooling/artcraft/manifest.json
-COPY tooling/artcraft/runtime-deckcraft-v2.json ./tooling/artcraft/runtime-deckcraft-v2.json
+# The server compiles these editor authorities in with include_str!.
+COPY tooling/artcraft/manifest.json tooling/artcraft/runtime-deckcraft-v2.json tooling/artcraft/runtime-native-v3*.json ./tooling/artcraft/
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     icu_version="$(pkg-config --modversion icu-uc)" \
