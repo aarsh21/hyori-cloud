@@ -12,6 +12,8 @@ import { createElement } from "@hyori-cloud/lib/react";
 import { act, create } from "react-test-renderer";
 import type { ReactTestRenderer } from "react-test-renderer";
 import { fakeAPI, user } from "#client-sdk-test/fake-api";
+import type { UploadCheckpoint } from "@hyori-cloud/client-sdk";
+import { replacementAPI } from "#client-sdk-test/replacement-fake-api";
 
 // The public provider composition is real; API/storage are explicit fakes.
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -305,6 +307,78 @@ describe("derived Query acceptance", () => {
     queue.dispose();
     sdk.dispose();
   });
+
+  for (const attempt of ["first", "retry", "resume"] as const) {
+    test(`replacement ${attempt} completion reconciles Query without a client decorator`, async () => {
+      const api = replacementAPI();
+
+      if (attempt === "retry") api.failComplete("service.unavailable");
+      const sdk = createClient({ fetch: api.fetch });
+      const client = configuredClient();
+      const key = sdk.query.files.list.getKey({});
+      client.setQueryData(key, { items: [], folder: null, breadcrumbs: [], nextCursor: null });
+      let saved: readonly UploadCheckpoint[] = [];
+
+      const store = {
+        read: () => saved,
+        write: (value: readonly UploadCheckpoint[]) => {
+          saved = value;
+        },
+      };
+
+      let queue = createQueryUploadQueue(sdk, client, store);
+
+      const file = new File(["1234567"], "edited.docx", {
+        type: "application/test",
+        lastModified: 42,
+      });
+
+      queue.replace({ file, parentId: null, target: { id: "report_id", name: "report.docx" } });
+      let row = queue.getEntries()[0];
+
+      if (row?.state !== "started") throw new Error("Replacement did not start");
+
+      if (attempt === "resume") {
+        const task = row.task;
+        task.subscribe(() => {
+          if (task.getSnapshot().uploadedBytes === 3) task.pause();
+        });
+      }
+
+      await row.task.result.catch(() => undefined);
+
+      if (attempt !== "first") {
+        expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+
+        if (attempt === "retry") {
+          api.failComplete(null);
+          queue.retry(row.id);
+        } else {
+          queue.dispose();
+          queue = createQueryUploadQueue(sdk, client, store);
+          const interrupted = queue.getEntries()[0]!;
+          expect(interrupted.intent.kind).toBe("replacement");
+          queue.resume(interrupted.id, file);
+          row = queue.getEntries()[0];
+
+          if (row?.state !== "started") throw new Error("Replacement did not resume");
+        }
+
+        await row.task.result;
+      }
+
+      expect(row.task.intent).toMatchObject({
+        kind: "replacement",
+        targetId: "report_id",
+        name: "report.docx",
+      });
+      expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+      expect(api.begins).toHaveLength(1);
+      expect(saved).toEqual([]);
+      queue.dispose();
+      sdk.dispose();
+    });
+  }
 
   test("credential mutations replace previous identity even when refresh fails", async () => {
     const api = fakeAPI();

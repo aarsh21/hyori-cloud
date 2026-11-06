@@ -17,7 +17,11 @@ import { encodeOperationInput } from "#client-sdk/transport";
 import { operationPrefix } from "#client-sdk/operation-key";
 import { setOperationMutationDefaults } from "#client-sdk/mutation-defaults";
 
-export type RequestOptions = { readonly signal?: AbortSignal };
+export type RequestOptions = {
+  readonly signal?: AbortSignal;
+  /** Small, bounded cleanup already admitted before disposal may finish during page exit. */
+  readonly keepalive?: boolean;
+};
 
 type PayloadArguments<I> = undefined extends I ? [input?: I] : [input: I];
 

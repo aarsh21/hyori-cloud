@@ -44,6 +44,7 @@ function controlledTask(name: string) {
   };
 
   const task: UploadTask = {
+    intent: { kind: "new", name },
     result: promise,
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
@@ -321,6 +322,7 @@ describe("public vanilla upload queue with explicit task fakes", () => {
       state: "interrupted",
       id: checkpoint.uploadId,
       checkpoint,
+      intent: { kind: "legacy", name: "hello.txt" },
       cancelling: false,
       error: failure,
     });

@@ -49,7 +49,8 @@ export function createTransport(options: TransportOptions) {
   const request = async (url: string, init: RequestInit = {}) => {
     if (lifetime.signal.aborted)
       throw new SDKError("SDK_DISPOSED", "This SDK client has been disposed.");
-    const signal = init.signal ? AbortSignal.any([init.signal, lifetime.signal]) : lifetime.signal;
+    const scope = init.keepalive ? AbortSignal.timeout(10_000) : lifetime.signal;
+    const signal = init.signal ? AbortSignal.any([init.signal, scope]) : scope;
 
     try {
       signal.throwIfAborted();
@@ -79,20 +80,29 @@ export function createTransport(options: TransportOptions) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ operation: declaration.rpc._tag, input: encodedInput }),
         signal: requestOptions?.signal,
+        keepalive: requestOptions?.keepalive,
       });
 
-      const envelope = await response
-        .json()
-        .then(decodeEnvelope)
-        .catch((cause) => {
-          if (requestOptions?.signal?.aborted || lifetime.signal.aborted)
-            throw new SDKError("SDK_CANCELLED", "The operation was cancelled.", { cause });
+      const body = await response.text().catch((cause) => {
+        if (
+          requestOptions?.signal?.aborted ||
+          (!requestOptions?.keepalive && lifetime.signal.aborted)
+        )
+          throw new SDKError("SDK_CANCELLED", "The operation was cancelled.", { cause });
+        throw normalizeError(cause);
+      });
+
+      const envelope = (() => {
+        try {
+          return decodeEnvelope(JSON.parse(body));
+        } catch (cause) {
           throw new SDKError(
             "SDK_PROTOCOL",
             `The server returned an invalid RPC envelope (${response.status}).`,
             { cause },
           );
-        });
+        }
+      })();
 
       if (!envelope.ok) {
         const declaredError = Schema.decodeUnknownSync(

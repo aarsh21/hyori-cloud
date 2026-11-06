@@ -30,6 +30,9 @@ function mutationPolicy<D extends OperationDeclaration>(
 
   return async (result: Success<D>) => {
     if (operation.resetCache) {
+      // Removing records does not cancel their executing observers or lifecycle callbacks.
+      // It also prevents late old-identity results from reappearing in the shared cache.
+      queryClient.getMutationCache().clear();
       await queryClient.cancelQueries();
       // Keep mounted identity observers, replacing their data before any fallible refresh.
       queryClient.removeQueries({ predicate: (query) => !tags.has(String(query.queryKey[1])) });

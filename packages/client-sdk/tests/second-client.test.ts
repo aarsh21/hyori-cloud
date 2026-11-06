@@ -162,7 +162,7 @@ describe("public non-React SDK with explicit fake API (not real storage evidence
     const api = fakeAPI();
     const sdkClient = createClient({ fetch: api.fetch });
     await expect(
-      sdkClient.rpc.files.createFolder({ parentId: null, name: "" }),
+      sdkClient.rpc.files.list({ limit: 0 }),
     ).rejects.toHaveProperty("code", "SDK_VALIDATION");
     expect(api.calls).toHaveLength(0);
     api.malformed(true);

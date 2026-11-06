@@ -14,6 +14,10 @@ export { uploadMutationOptions } from "#client-sdk/react/upload-mutation-options
 
 export { createQueryUploadQueue } from "#client-sdk/react/create-query-upload-queue";
 
+export { createQueryEditorBackend } from "#client-sdk/react/create-query-editor-backend";
+
+export { useEditorSession } from "#client-sdk/react/use-editor-session";
+
 export { useUploadEntries, useUploadSummary } from "#client-sdk/react/use-upload-queue";
 
 export type { Query, Mutation } from "#client-sdk/product-types";
