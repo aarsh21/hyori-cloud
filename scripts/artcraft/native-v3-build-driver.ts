@@ -35,6 +35,10 @@ const environment = {
   LANG: "C.UTF-8",
 };
 
+// Deck embeds the pinned Inter faces through upstream's own craft-fonts build input.
+if (app === "deckcraft")
+  Object.assign(environment, { CRAFT_FONTS_DIR: `${root}/input/craft-fonts` });
+
 async function run(id: string, command: string[]) {
   await writeFile(
     `${root}/output/${id}.command.json`,

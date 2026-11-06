@@ -9,6 +9,7 @@ import { patchNativeChrome } from "./native-chrome-patch.ts";
 import { nativeArtifactVersions, patchNativeFrame } from "./native-frame-patch.ts";
 import { patchNativeMethods } from "./native-methods-patch.ts";
 import { patchNativeMarks } from "./native-v3-marks.ts";
+import { patchNativePolish } from "./native-v3-polish.ts";
 import { patchPdfNativeHookup } from "./pdf-native-hookup.ts";
 import { patchWordNativeHookup } from "./word-native-hookup.ts";
 
@@ -167,6 +168,11 @@ export async function composeNativeSource(
 
   files = patchNativeMarks(files, app, { favicon: authored.favicon, icon: authored.icon });
   stages.push("marks-removed");
+
+  if (app === "wordcraft" || app === "deckcraft") {
+    files = patchNativePolish(files, app).files;
+    stages.push("hyori-host-polish");
+  }
 
   if (!files.get("Cargo.lock")?.equals(original.get("Cargo.lock")!))
     throw new Error(`${app} composition changed Cargo.lock`);

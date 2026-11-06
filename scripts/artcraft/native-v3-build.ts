@@ -2,6 +2,7 @@ import { cp, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
 import pins from "../../tooling/artcraft/builds/deckcraft-host-v1/tool-pins.json" with { type: "json" };
+import deckFonts from "../../tooling/artcraft/patches/native-host-v3/deck-fonts.json" with { type: "json" };
 import { readToolArchive, sha256 } from "./evidence-bytes.ts";
 import {
   composeNativeSource,
@@ -52,7 +53,12 @@ export async function prepareNativeBuild(
   publicCache: string,
   tools: string,
   archivePath: string,
+  fontsDirectory?: string,
 ) {
+  // Deck embeds Inter through upstream's own craft-fonts build input; no other app takes fonts.
+  if ((app === "deckcraft") !== (fontsDirectory !== undefined))
+    throw new Error("Deck needs the verified craft-fonts directory, and only Deck takes one");
+
   await mkdir(destination);
   const input = join(destination, "input");
 
@@ -122,7 +128,12 @@ export async function prepareNativeBuild(
   const repositories = new Set(
     lock.package.flatMap((pkg) =>
       pkg.source?.startsWith("git+")
-        ? [new URL(pkg.source.slice(4)).pathname.split("/").at(-1)!.replace(/\.git$/u, "")]
+        ? [
+            new URL(pkg.source.slice(4)).pathname
+              .split("/")
+              .at(-1)!
+              .replace(/\.git$/u, ""),
+          ]
         : [],
     ),
   );
@@ -168,6 +179,56 @@ export async function prepareNativeBuild(
 
   for (const [path, body] of authored.hostLegal) await retain(`legal/host-bridge/${path}`, body);
 
+  let embeddedFonts: typeof deckFonts | null = null;
+
+  if (fontsDirectory !== undefined) {
+    const verified = async (path: string, expected: string) => {
+      const bytes = await readFile(join(fontsDirectory, path));
+
+      if (sha256(bytes) !== expected) throw new Error(`Font input differs from its pin: ${path}`);
+
+      return bytes;
+    };
+
+    const license = await verified(deckFonts.licenseFile, deckFonts.licenseSha256);
+
+    // Only the pinned faces, through craft-fonts' own manifest format; the main manifest is empty.
+    const rows = deckFonts.faces.map(
+      (face) =>
+        `${face.family} | ${face.style} | ${face.path} | Latn | ${deckFonts.license} | ${deckFonts.licenseFile} | ${face.sha256} | ${deckFonts.upstream}`,
+    );
+
+    for (const face of deckFonts.faces) {
+      const bytes = await verified(face.path, face.sha256);
+
+      if (bytes.length !== face.bytes) throw new Error(`Font input size differs: ${face.path}`);
+      await retain(`craft-fonts/${face.path}`, bytes);
+    }
+
+    await retain(`craft-fonts/${deckFonts.licenseFile}`, license);
+    await retain(
+      "craft-fonts/fonts/latin-manifest.txt",
+      Buffer.from(`# Hyori: the pinned Inter faces only (deck-fonts.json)\n${rows.join("\n")}\n`),
+    );
+    await retain(
+      "craft-fonts/fonts/manifest.txt",
+      Buffer.from("# Hyori: no Japanese, symbol or RTL faces are embedded in this web build\n"),
+    );
+    await retain("legal/fonts/inter/OFL.txt", license);
+    await retain(
+      "legal/fonts/inter/SOURCE.md",
+      Buffer.from(`# Inter (embedded in Hyori Presentations)
+
+${deckFonts.faces.map((face) => `- ${face.family} ${face.style}: \`${face.path}\`, ${face.bytes} bytes, SHA-256 \`${face.sha256}\``).join("\n")}
+
+Source: ${deckFonts.source.repository} at ${deckFonts.source.commit} (${deckFonts.source.pinnedBy}), byte-identical to ${deckFonts.upstream}.
+
+${deckFonts.copyright}. Licensed under the SIL Open Font License, Version 1.1 (${deckFonts.license}); see OFL.txt. The font files are unmodified.
+`),
+    );
+    embeddedFonts = deckFonts;
+  }
+
   const driver = await Bun.build({
     entrypoints: ["scripts/artcraft/native-v3-build-driver.ts"],
     target: "bun",
@@ -192,6 +253,7 @@ export async function prepareNativeBuild(
     stages: composed.stages,
     paletteCssSha256: composed.paletteCssSha256,
     hostJavaScriptSha256: composed.hostJavaScriptSha256,
+    embeddedFonts,
     // Complete final-vs-tagged delta across every stage.
     patchedFiles: composed.changes,
     crates,
@@ -210,11 +272,11 @@ export async function prepareNativeBuild(
 }
 
 if (import.meta.main) {
-  const [, , app, destination, cache, tools, source] = process.argv;
+  const [, , app, destination, cache, tools, source, fonts] = process.argv;
 
-  if (!app || !destination || !cache || !tools || !source || process.argv.length !== 7)
+  if (!app || !destination || !cache || !tools || !source || process.argv.length > 8)
     throw new Error(
-      "Usage: bun scripts/artcraft/native-v3-build.ts APP NEW_STAGING PUBLIC_CARGO_HOME PINNED_TOOLS VERIFIED_SOURCE_TAR_GZ",
+      "Usage: bun scripts/artcraft/native-v3-build.ts APP NEW_STAGING PUBLIC_CARGO_HOME PINNED_TOOLS VERIFIED_SOURCE_TAR_GZ [CRAFT_FONTS_DIR, Deck only]",
     );
 
   console.log(
@@ -225,6 +287,7 @@ if (import.meta.main) {
         resolve(cache),
         resolve(tools),
         resolve(source),
+        fonts === undefined ? undefined : resolve(fonts),
       ),
     ),
   );

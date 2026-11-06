@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { nativeArtifactVersions } from "./native-frame-patch.ts";
 import { nativeProductNames, patchNativeMarks } from "./native-v3-marks.ts";
+import { nativePolishedApps, patchNativePolish } from "./native-v3-polish.ts";
 import {
   composeNativeSource,
   nativeApps,
@@ -24,6 +25,11 @@ test("marks patch fails closed on a missing upstream anchor", () => {
     expect(() => patchNativeMarks(empty, app, marks)).toThrow();
 });
 
+test("hosted polish fails closed on a missing upstream anchor", () => {
+  for (const app of nativePolishedApps)
+    expect(() => patchNativePolish(new Map([["Cargo.lock", Buffer.from("lock")]]), app)).toThrow();
+});
+
 for (const app of nativeApps)
   test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
     `${app} v3 composition connects the host, removes upstream marks and keeps legal bytes and locks`,
@@ -38,7 +44,23 @@ for (const app of nativeApps)
       const result = await composeNativeSource(app, original, await nativeAuthoredInputs());
 
       expect(result.version).toBe(nativeArtifactVersions[app]);
-      expect(result.stages.at(-1)).toBe("marks-removed");
+      const polished = nativePolishedApps.some((name) => name === app);
+
+      expect(result.stages.slice(-2)).toEqual(
+        polished ? ["marks-removed", "hyori-host-polish"] : [result.stages.at(-2), "marks-removed"],
+      );
+
+      const ui = (path: string) => result.files.get(`crates/ui-egui/src/${path}`)!.toString();
+
+      if (app === "wordcraft") {
+        // Hyori owns sharing and the account: both upstream controls are drawn only standalone.
+        expect(ui("ribbon.rs")).toContain("if !hosted {\n                        let (share_size, share_text) =");
+        expect(ui("chrome.rs")).toContain(
+          "if app.native_host_intents.is_none() {\n                    let (r, resp) = ui.allocate_exact_size(vec2(control_h, control_h), Sense::click());",
+        );
+      }
+
+      if (app === "deckcraft") expect(ui("ribbon/title_bar.rs")).not.toContain("Icon::Sparkle");
 
       for (const [path, body] of snapshot) expect(original.get(path)!.equals(body)).toBe(true);
 

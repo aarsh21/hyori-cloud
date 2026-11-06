@@ -1,10 +1,10 @@
 import { sha256 } from "./evidence-bytes.ts";
 
 export const nativeArtifactVersions = {
-  wordcraft: "0.14.0-hyori-host.1",
+  wordcraft: "0.14.0-hyori-host.2",
   gridcraft: "0.15.0-hyori-host.1",
   pdfcraft: "0.17.0-hyori-host.1",
-  deckcraft: "0.14.1-hyori-host.3",
+  deckcraft: "0.14.1-hyori-host.4",
 } as const;
 
 interface NativeFrameInputs {

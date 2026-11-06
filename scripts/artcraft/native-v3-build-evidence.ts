@@ -29,6 +29,17 @@ const planSchema = z.object({
   stages: z.array(z.string()),
   paletteCssSha256: z.string(),
   hostJavaScriptSha256: z.string(),
+  embeddedFonts: z
+    .object({
+      source: z.object({ repository: z.string(), commit: z.string() }).loose(),
+      license: z.string(),
+      faces: z.array(
+        z.object({ family: z.string(), style: z.string(), sha256: z.string() }).loose(),
+      ),
+    })
+    .loose()
+    .nullable()
+    .optional(),
   patchedFiles: z.array(
     z.object({ path: z.string(), before: z.string().nullable(), after: z.string() }),
   ),
@@ -85,7 +96,10 @@ export async function collectNativeEvidence(
     commands.push({ id, ...result });
 
     for (const suffix of ["command.json", "result.json", "stdout", "stderr"])
-      await retain(`commands/${id}.${suffix}`, await readFile(join(stageRoot, `output/${id}.${suffix}`)));
+      await retain(
+        `commands/${id}.${suffix}`,
+        await readFile(join(stageRoot, `output/${id}.${suffix}`)),
+      );
   }
 
   for (const input of plan.files) {
@@ -97,7 +111,8 @@ export async function collectNativeEvidence(
 
   const lock = await readFile(join(stageRoot, "output/Cargo.lock"));
 
-  if (sha256(lock) !== plan.sourceCargoLockSha256) throw new Error("Built lock changed from tagged source");
+  if (sha256(lock) !== plan.sourceCargoLockSha256)
+    throw new Error("Built lock changed from tagged source");
 
   // The dependency graph must equal the one whose notices the shared legal tree already carries.
   const root = `/hyori-native-v3/${app}/work/source`;
@@ -107,13 +122,23 @@ export async function collectNativeEvidence(
     JSON.parse(await readFile(join(stageRoot, "output/metadata.stdout"), "utf8")),
   );
 
-  const normal = parseTargetTree(await readFile(join(stageRoot, "output/normal-tree.stdout"), "utf8"), metadata);
-  const hostIds = hostInclusiveIds(await readFile(join(stageRoot, "output/host-tree.stdout"), "utf8"), metadata);
+  const normal = parseTargetTree(
+    await readFile(join(stageRoot, "output/normal-tree.stdout"), "utf8"),
+    metadata,
+  );
+
+  const hostIds = hostInclusiveIds(
+    await readFile(join(stageRoot, "output/host-tree.stdout"), "utf8"),
+    metadata,
+  );
+
   const closure = await checkClosureEvidence();
   const recorded = closure.manifest.apps.find((entry) => entry.app === app);
 
   if (!recorded || normalize(JSON.stringify(normal)) !== JSON.stringify(recorded.normal))
-    throw new Error("Modified build graph differs from the noticed upstream graph; review required");
+    throw new Error(
+      "Modified build graph differs from the noticed upstream graph; review required",
+    );
 
   if (
     JSON.stringify(hostIds.map(normalize).sort()) !==
@@ -129,14 +154,16 @@ export async function collectNativeEvidence(
   for (const changed of plan.patchedFiles) {
     const bytes = await readFile(join(stageRoot, "input/source", changed.path));
 
-    if (sha256(bytes) !== changed.after) throw new Error(`Modified source changed: ${changed.path}`);
+    if (sha256(bytes) !== changed.after)
+      throw new Error(`Modified source changed: ${changed.path}`);
     await retain(`modified-source/${changed.path}`, bytes);
   }
 
   for (const path of originalLegalPaths) {
     const bytes = await readFile(join(stageRoot, "input/source", path));
 
-    if (!original.get(path)?.equals(bytes)) throw new Error(`Original legal bytes changed: ${path}`);
+    if (!original.get(path)?.equals(bytes))
+      throw new Error(`Original legal bytes changed: ${path}`);
     await retain(`original-legal/${path}`, bytes);
   }
 
@@ -154,6 +181,8 @@ export async function collectNativeEvidence(
   }
 
   await copyTree(join(stageRoot, "input/legal/host-bridge"), "host-bridge-legal");
+
+  if (plan.embeddedFonts) await copyTree(join(stageRoot, "input/legal/fonts"), "font-legal");
   await copyTree(join(tools, "legal"), "tool-legal");
   await copyTree(join(stageRoot, "output/dist"), "artifact");
 
@@ -185,6 +214,8 @@ export async function collectNativeEvidence(
     stages: plan.stages,
     paletteCssSha256: plan.paletteCssSha256,
     hostJavaScriptSha256: plan.hostJavaScriptSha256,
+    // Absent for apps that embed no fonts: JSON omits undefined.
+    embeddedFonts: plan.embeddedFonts ?? undefined,
     changedFiles: plan.patchedFiles,
     originalLegalBytesUnchanged: originalLegalPaths.map((path) => ({
       path,
@@ -233,9 +264,16 @@ export async function collectNativeEvidence(
     files,
   };
 
-  await writeFile(join(output, "receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`, { flag: "wx" });
+  await writeFile(join(output, "receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`, {
+    flag: "wx",
+  });
 
-  return { app, version: plan.artifactVersion, wasm: wasm[0], payloadSha256: receipt.payloadSha256 };
+  return {
+    app,
+    version: plan.artifactVersion,
+    wasm: wasm[0],
+    payloadSha256: receipt.payloadSha256,
+  };
 }
 
 if (import.meta.main) {
@@ -248,7 +286,12 @@ if (import.meta.main) {
 
   console.log(
     JSON.stringify(
-      await collectNativeEvidence(resolve(stage), resolve(output), resolve(tools), resolve(archive)),
+      await collectNativeEvidence(
+        resolve(stage),
+        resolve(output),
+        resolve(tools),
+        resolve(archive),
+      ),
       null,
       2,
     ),
