@@ -10,8 +10,10 @@ import {
   EDITOR_VIEWPORT,
   editDocument,
   inBundle,
+  inNativeEditor,
   openFromRow,
   openSharedItem,
+  OPENED_CLEAN,
   operationCount,
   promptRefused,
   rowIn,
@@ -42,6 +44,35 @@ const savedRequest = (run: CoreRun, operation: string) =>
     .filter((record) => record.operation === operation)
     .map((record) => /"saveId":"([^"]+)"/.exec(record.rpcBody ?? "")?.[1]);
 
+/**
+ * How many versions this check may have made: exactly one for a legacy editor. A protocol 2
+ * editor's background saves may land before and after the one under test, so it made at least
+ * one and at most one per save the server confirmed since `from` in the trace. A save confirmed
+ * twice (a retry finding a lost reply) is one save, and a save of unchanged bytes adds none.
+ */
+async function versionsMade(run: CoreRun, page: Page, from: number) {
+  if (!(await inNativeEditor(run, page))) return { least: 1, most: 1 };
+
+  const confirmed = new Set(
+    run.front.trace
+      .slice(from)
+      .filter((record) => record.operation === "editors.completeSave" && record.status === 200)
+      .map((record) => /"saveId":"([^"]+)"/.exec(record.rpcBody ?? "")?.[1]),
+  );
+
+  return { least: 1, most: confirmed.size };
+}
+
+async function assertVersionsMade(
+  page: Page,
+  name: string,
+  { least, most }: { least: number; most: number },
+) {
+  const count = await assertEarlierVersions(page, name, least, "at least");
+
+  assert.ok(count <= most, `${name} has ${count} earlier versions, more than ${most} saves made`);
+}
+
 async function folderWith(run: CoreRun, folder: string, paths: readonly string[]) {
   const { context, page } = await ownerPage(run, { viewport: EDITOR_VIEWPORT });
 
@@ -61,8 +92,13 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
     const staleTop = await openFromRow(stale, name);
     const newerTop = await openFromRow(newer, name);
 
+    const traceStart = run.front.trace.length;
+
     await editDocument(newer, item, newerTop, THEIRS);
     await saveWithKeyboard(run, newer);
+
+    const versions = await versionsMade(run, newer, traceStart);
+
     await closeEditor(newer);
 
     const theirs = await downloadRow(newer, name);
@@ -79,7 +115,7 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
       sha256Of(theirs),
       "the file after the refused save",
     );
-    await assertEarlierVersions(newer, name, 1);
+    await assertVersionsMade(newer, name, versions);
 
     await barButton(stale, "Open latest version").click();
 
@@ -106,13 +142,14 @@ async function saveFailureRetried(run: CoreRun, item: EditorCase, page: Page, pa
   await page.goto(`${run.origin}${path}`, { waitUntil: "domcontentloaded" });
 
   const top = await openFromRow(page, name);
-
-  await editDocument(page, item, top, RETRIED);
+  const traceStart = front.trace.length;
 
   const prepares = savedRequest(run, "editors.prepareSave").length;
   const completed = operationCount(front, "editors.completeSave", 200);
 
+  // Before the edit: a protocol 2 editor starts its own save as soon as it has one.
   front.refuse((record) => record.operation === "editors.prepareSave", 503, 1);
+  await editDocument(page, item, top, RETRIED);
   await page.keyboard.press("Control+s");
   await barStatus(page, /^Not saved$/).waitFor({ timeout: 60_000 });
   await barButton(page, "Download my version").waitFor();
@@ -124,12 +161,16 @@ async function saveFailureRetried(run: CoreRun, item: EditorCase, page: Page, pa
 
   const attempts = savedRequest(run, "editors.prepareSave").slice(prepares);
 
+  // Only the refused save has to come back under its own ID; a protocol 2 editor may go on to
+  // save later edits in the background, under new ones.
   assert.ok(attempts.length >= 2, "there was no second attempt");
-  assert.equal(new Set(attempts).size, 1, "a retry reused the same save ID");
+  assert.equal(attempts[1], attempts[0], "a retry reused the same save ID");
+
+  const versions = await versionsMade(run, page, traceStart);
 
   await closeEditor(page);
   assertHoldsEdit(item, await downloadRow(page, name), RETRIED);
-  await assertEarlierVersions(page, name, 1);
+  await assertVersionsMade(page, name, versions);
 }
 
 /** The commit may land while its reply is lost. Retrying has to find it, not make another. */
@@ -140,12 +181,13 @@ async function lostReplyRetried(run: CoreRun, item: EditorCase, page: Page, path
   await page.goto(`${run.origin}${path}`, { waitUntil: "domcontentloaded" });
 
   const top = await openFromRow(page, name);
-
-  await editDocument(page, item, top, RETRIED);
+  const traceStart = front.trace.length;
 
   const completed = operationCount(front, "editors.completeSave", 200);
 
+  // Before the edit: a protocol 2 editor starts its own save as soon as it has one.
   front.abandonRequest((record) => record.operation === "editors.completeSave", 1500, true);
+  await editDocument(page, item, top, RETRIED);
   await page.keyboard.press("Control+s");
   await barStatus(page, /^Not saved$/).waitFor({ timeout: 60_000 });
   await barButton(page, "Retry save").click();
@@ -160,9 +202,11 @@ async function lostReplyRetried(run: CoreRun, item: EditorCase, page: Page, path
       .map((record) => record.outcome),
   );
 
+  const versions = await versionsMade(run, page, traceStart);
+
   await closeEditor(page);
   assertHoldsEdit(item, await downloadRow(page, name), RETRIED);
-  await assertEarlierVersions(page, name, 1);
+  await assertVersionsMade(page, name, versions);
 }
 
 async function recoveryForEveryEditor(run: CoreRun, cases: EditorCases) {
@@ -204,7 +248,7 @@ async function recoveryForEveryEditor(run: CoreRun, cases: EditorCases) {
 async function unsavedWorkIsProtected(run: CoreRun, cases: EditorCases) {
   if (!inBundle(run, "wordcraft")) return;
 
-  const { report, front } = run;
+  const { front } = run;
   const name = "no-loss.docx";
 
   const { context, page, folderPath } = await folderWith(run, "Editor no loss", [
@@ -212,6 +256,31 @@ async function unsavedWorkIsProtected(run: CoreRun, cases: EditorCases) {
   ]);
 
   const top = await openFromRow(page, name);
+  // A protocol 2 editor saves on its own, so its work stays unsaved only while saves are refused.
+  const native = await inNativeEditor(run, page);
+  const unsaved = native ? /^Not saved$/ : "Unsaved changes";
+
+  if (native) front.refuse((record) => record.operation === "editors.prepareSave", 503, Infinity);
+
+  try {
+    await unsavedWorkChecks(run, page, folderPath, name, top, unsaved, cases);
+  } finally {
+    front.clearFaults();
+  }
+
+  await context.close();
+}
+
+async function unsavedWorkChecks(
+  run: CoreRun,
+  page: Page,
+  folderPath: string,
+  name: string,
+  top: number,
+  unsaved: RegExp | string,
+  cases: EditorCases,
+) {
+  const { report, front } = run;
 
   await editDocument(page, cases.word, top, MINE);
 
@@ -224,14 +293,14 @@ async function unsavedWorkIsProtected(run: CoreRun, cases: EditorCases) {
 
     await confirmation.getByRole("button", { name: "Keep editing" }).click();
     await confirmation.waitFor({ state: "detached" });
-    await barStatus(page, "Unsaved changes").waitFor();
+    await barStatus(page, unsaved).waitFor();
   });
 
   await report.check("Back asks first, and refusing stays in the document", async () => {
     assert.equal(await promptRefused(page, () => page.evaluate(() => history.back())), "confirm");
     await page.waitForTimeout(500);
     assert.match(new URL(page.url()).pathname, /\/edit\//);
-    await barStatus(page, "Unsaved changes").waitFor();
+    await barStatus(page, unsaved).waitFor();
   });
 
   await report.check("refusing to leave keeps the session open on the server", () => {
@@ -243,7 +312,7 @@ async function unsavedWorkIsProtected(run: CoreRun, cases: EditorCases) {
       await promptRefused(page, () => page.close({ runBeforeUnload: true })),
       "beforeunload",
     );
-    await barStatus(page, "Unsaved changes").waitFor();
+    await barStatus(page, unsaved).waitFor();
   });
 
   await report.check("refusing to close the tab keeps the session open too", () => {
@@ -270,8 +339,6 @@ async function unsavedWorkIsProtected(run: CoreRun, cases: EditorCases) {
     await waitForEditor(page, "All changes saved");
     await untilOperation(front, "editors.close", closes + 1);
   });
-
-  await context.close();
 }
 
 /** An explicit choice of folder, and cancelling one, on a source that can't be replaced in place. */
@@ -298,11 +365,32 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
   const original = sha256Of(await downloadRow(page, name));
   let copyName = "";
 
-  await report.check("a PPTX's first save asks where the native copy goes", async () => {
-    const top = await openFromRow(page, name);
+  const native =
+    run.editorBundle?.editors.some(({ app, protocol }) => app === "deckcraft" && protocol === 2) ===
+    true;
 
-    await editDocument(page, item, top, COPIED);
-    await page.keyboard.press("Control+s");
+  // A protocol 2 editor knows a PPTX is copy-only when it opens, and offers the copy itself;
+  // a legacy one finds out on the first save, which then fails over to asking. Either way a
+  // cancelled destination leaves the work unsaved, to retry.
+  await report.check("a PPTX's first save asks where the native copy goes", async () => {
+    const top = await openFromRow(
+      page,
+      name,
+      native ? "Save a copy to keep changes" : "All changes saved",
+    );
+
+    if (native) {
+      await item.edit(page, top, COPIED);
+      await barButton(page, "Save a copy").click();
+      await page
+        .getByRole("dialog", { name: "Save a copy" })
+        .getByRole("button", { name: "Continue" })
+        .click();
+    } else {
+      await editDocument(page, item, top, COPIED);
+      await page.keyboard.press("Control+s");
+    }
+
     await page.getByRole("heading", { name: /^Save “.*” to…$/ }).waitFor({ timeout: 30_000 });
   });
 
@@ -325,7 +413,9 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
     await dialog.getByText(copies).first().waitFor();
     await dialog.getByRole("button", { name: "Save here" }).click();
     await dialog.waitFor({ state: "detached" });
-    await barStatus(page, "All changes saved").waitFor({ timeout: 90_000 });
+    await untilOperation(front, "editors.completeSave", completed + 1);
+
+    if (!native) await barStatus(page, "All changes saved").waitFor({ timeout: 90_000 });
     assert.equal(
       operationCount(front, "editors.completeSave", 200),
       completed + 1,
@@ -339,7 +429,13 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
   });
 
   await report.check("the PPTX is untouched, with no new version", async () => {
-    await closeEditor(page);
+    if (native) {
+      // A copy doesn't make the original clean: its edits live in the copy, so closing asks.
+      await barButton(page, "Close").click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Discard changes" }).click();
+      await page.locator('[data-slot="hosted-document"]').waitFor({ state: "detached" });
+    } else await closeEditor(page);
+
     await rowIn(page, name).waitFor();
     assert.equal(new URL(page.url()).pathname, sourcePath, "where Close went");
     assert.equal(sha256Of(await downloadRow(page, name)), original, "the PPTX's bytes");
@@ -606,7 +702,15 @@ async function readOnly(run: CoreRun, cases: EditorCases) {
       const top = await openSharedRow(secondReader, "read-only.pptx", "Read only");
 
       await cases.deckFromPptx.edit(secondReader, top, COPIED);
-      await secondReader.keyboard.press("Control+s");
+
+      // A protocol 2 editor offers the copy itself; a legacy one asks on Ctrl+S.
+      if (await inNativeEditor(run, secondReader)) {
+        await barButton(secondReader, "Save a copy").click();
+        await secondReader
+          .getByRole("dialog", { name: "Save a copy" })
+          .getByRole("button", { name: "Continue" })
+          .click();
+      } else await secondReader.keyboard.press("Control+s");
 
       const dialog = secondReader.getByRole("dialog");
 
@@ -659,9 +763,14 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
   await report.check("losing access mid-edit stops saving, and hands back the work", async () => {
     const top = await openSharedRow(member.page, accountFile, "All changes saved");
 
+    // The next save is held until access has ended: a protocol 2 editor starts its own save
+    // as soon as there's an edit, and that save, like Ctrl+S's, has to arrive too late.
+    const release = run.front.hold((record) => record.operation === "editors.prepareSave");
+
     await editDocument(member.page, cases.word, top, MINE);
     await stopSharing(page, accountFile, member.accountId);
     await member.page.keyboard.press("Control+s");
+    release();
     await member.page
       .getByText("You no longer have access to this file")
       .waitFor({ timeout: 60_000 });
@@ -688,9 +797,12 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
     const top = await waitForEditor(visitor, "All changes saved");
     const before = sha256Of(await downloadRow(page, linkFile));
 
+    const release = run.front.hold((record) => record.operation === "editors.prepareSave");
+
     await editDocument(visitor, cases.word, top, MINE);
     await revokeLink(page, linkFile);
     await visitor.keyboard.press("Control+s");
+    release();
     await visitor.getByText("You no longer have access to this file").waitFor({ timeout: 60_000 });
 
     const work = await downloadBytes(visitor, () =>
@@ -764,14 +876,14 @@ async function sessionLimit(run: CoreRun, cases: EditorCases) {
       await rowMenu(page, name, "Open in editor");
       await page
         .locator('[data-slot="hosted-document"] header [role="status"]', {
-          hasText: /^(All changes saved|Editor stopped)$/,
+          hasText: /^(All changes saved|Ready to edit|Editor stopped)$/,
         })
         .waitFor({ timeout: 180_000 });
 
       const refused = front.trace.findLast((record) => record.operation === "editors.open");
 
       report.observe("that open's reply", `${refused?.status} ${refused?.errorBody ?? ""}`);
-      await barStatus(page, "All changes saved").waitFor({ timeout: 1000 });
+      await barStatus(page, OPENED_CLEAN).waitFor({ timeout: 1000 });
     },
   );
 

@@ -7,14 +7,27 @@ const MANIFEST = "runtime-bundle-manifest.json";
 
 const Manifest = z.looseObject({
   purpose: z.string(),
-  editors: z.array(z.looseObject({ app: z.string(), version: z.string(), assetUrl: z.string() })),
+  editors: z.array(
+    z.looseObject({
+      app: z.string(),
+      version: z.string(),
+      assetUrl: z.string(),
+      protocol: z.number().int().nullish(),
+    }),
+  ),
 });
 
 export type EditorBundle = {
   readonly directory: string;
   readonly manifestSha256: string;
   readonly purpose: string;
-  readonly editors: readonly { app: string; version: string; assetUrl: string }[];
+  /** Protocol 2 editors save in the background and follow the product's theme. */
+  readonly editors: readonly {
+    app: string;
+    version: string;
+    assetUrl: string;
+    protocol: number | null;
+  }[];
 };
 
 /**
@@ -37,6 +50,11 @@ export function readEditorBundle(directoryArgument: string, expectedSha256: stri
     directory,
     manifestSha256,
     purpose,
-    editors: editors.map(({ app, version, assetUrl }) => ({ app, version, assetUrl })),
+    editors: editors.map(({ app, version, assetUrl, protocol }) => ({
+      app,
+      version,
+      assetUrl,
+      protocol: protocol ?? null,
+    })),
   };
 }

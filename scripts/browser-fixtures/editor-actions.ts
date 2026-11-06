@@ -97,12 +97,31 @@ export async function untilOperation(
 }
 
 /** Waits until the session has really opened, and the frame is the size edits are placed for. */
-export async function waitForEditor(page: Page, expected: "All changes saved" | "Read only") {
+/**
+ * A clean, freshly opened document. Protocol 2 editors say "Ready to edit" until their first save
+ * in this session; legacy editors have no such state and say "All changes saved".
+ */
+export const OPENED_CLEAN = /^(All changes saved|Ready to edit)$/;
+
+export async function waitForEditor(
+  page: Page,
+  expected: "All changes saved" | "Read only" | "Save a copy to keep changes",
+) {
+  // Protocol 2 editors open a format they can't replace in place as copy-only from the start.
   await page
-    .locator(STATUS, { hasText: /^(All changes saved|Read only|Editor stopped)$/ })
+    .locator(STATUS, {
+      hasText:
+        /^(All changes saved|Ready to edit|Read only|Save a copy to keep changes|Editor stopped)$/,
+    })
     .waitFor({ timeout: OPEN_TIMEOUT_MS });
 
-  assert.equal(await page.locator(STATUS).innerText(), expected, "the editor's state when opened");
+  const state = await page.locator(STATUS).innerText();
+
+  assert.equal(
+    OPENED_CLEAN.test(state) ? "All changes saved" : state,
+    expected,
+    "the editor's state when opened",
+  );
   let box = await page.locator(FRAME).boundingBox();
   assert.ok(box !== null, "the editor frame isn't on the page");
   const element = await page.locator(FRAME).elementHandle();
@@ -135,7 +154,7 @@ export async function waitForEditor(page: Page, expected: "All changes saved" | 
 export async function openFromRow(
   page: Page,
   name: string,
-  expected: "All changes saved" | "Read only" = "All changes saved",
+  expected: "All changes saved" | "Read only" | "Save a copy to keep changes" = "All changes saved",
 ) {
   await rowMenu(page, name, "Open in editor");
   await page.waitForURL(/\/edit\/[^/]+$/);
@@ -158,8 +177,27 @@ export async function assertBundleAsset(run: CoreRun, page: Page, app: EditorApp
 
 /** A real edit: the session has to report it, because that's what protects it from being lost. */
 export async function editDocument(page: Page, item: EditorCase, top: number, marker: string) {
+  // Protocol 2 editors schedule a background save at once, so they pass through these instead.
+  // Watched from before the edit: a slow edit can be saved in the background before it returns.
+  const reported = barStatus(
+    page,
+    /^(Unsaved changes|Waiting for current edit…|Saving soon…|Preparing to save…|Saving…)$/,
+  ).waitFor({ timeout: 60_000 });
+
+  reported.catch(() => undefined);
   await item.edit(page, top, marker);
-  await barStatus(page, "Unsaved changes").waitFor({ timeout: 20_000 });
+  await reported;
+}
+
+/** Whether the open frame runs a protocol 2 editor, by the exact asset the bundle names. */
+export async function inNativeEditor(run: CoreRun, page: Page) {
+  const src = await page.locator(FRAME).getAttribute("src");
+
+  return (
+    run.editorBundle?.editors.some(
+      ({ assetUrl, protocol }) => protocol === 2 && assetUrl === src,
+    ) === true
+  );
 }
 
 /** Saved only once the server has said so: the bar reads the same before any save has happened. */
@@ -167,8 +205,31 @@ export async function saveWithKeyboard(run: CoreRun, page: Page) {
   const before = operationCount(run.front, "editors.completeSave", 200);
 
   await page.keyboard.press("Control+s");
-  await untilOperation(run.front, "editors.completeSave", before + 1);
-  await barStatus(page, "All changes saved").waitFor({ timeout: 20_000 });
+
+  // A background save may already have carried the edit; Ctrl+S then only flushes what's left.
+  // "All changes saved" is shown only after the server confirmed a save of this session's edits.
+  if (!(await inNativeEditor(run, page))) {
+    await untilOperation(run.front, "editors.completeSave", before + 1);
+    await barStatus(page, "All changes saved").waitFor({ timeout: 20_000 });
+
+    return;
+  }
+
+  // Ctrl+S on an already saved native document still starts a capture, which counts as unsaved
+  // work until it lands. Settled means saved, with nothing left to save, for a whole second.
+  const deadline = Date.now() + 20_000;
+  let settledSince: number | null = null;
+
+  while (settledSince === null || Date.now() - settledSince < 1000) {
+    assert.ok(Date.now() < deadline, "the native save didn't settle");
+
+    const settled =
+      (await barStatus(page, "All changes saved").count()) === 1 &&
+      (await barButton(page, "Save").isDisabled());
+
+    settledSince = settled ? (settledSince ?? Date.now()) : null;
+    await page.waitForTimeout(100);
+  }
 }
 
 export async function closeEditor(page: Page) {
@@ -186,7 +247,12 @@ export function downloadRow(page: Page, name: string) {
  * answer from earlier in this page could otherwise be counted. "Current" draws at once from the
  * listing, so only this opening's reply, and the list that follows it, says what's there.
  */
-export async function assertEarlierVersions(page: Page, name: string, expected: number) {
+export async function assertEarlierVersions(
+  page: Page,
+  name: string,
+  expected: number,
+  bound: "exactly" | "at least" = "exactly",
+) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await rowIn(page, name).waitFor();
 
@@ -208,12 +274,73 @@ export async function assertEarlierVersions(page: Page, name: string, expected: 
 
   await dialog.getByRole("button", { name: "Close" }).first().click();
   await dialog.waitFor({ state: "detached" });
-  assert.equal(count, expected, `${name} has ${count} earlier versions, not ${expected}`);
+  assert.ok(
+    bound === "exactly" ? count === expected : count >= expected,
+    `${name} has ${count} earlier versions, not ${bound} ${expected}`,
+  );
+
+  return count;
 }
 
 export function assertHoldsEdit(item: EditorCase, saved: Buffer, marker: string) {
   assert.ok(!saved.equals(readFileSync(item.source)), "the saved bytes are still the original's");
   assert.ok(item.contains(saved, marker), `the saved ${item.extension} doesn't hold the edit`);
+}
+
+/**
+ * Mean luminance (0–255) of the editor's own chrome: the band just under the product's bar,
+ * where every engine draws its title bar and ribbon. Document content sits below it.
+ */
+export async function editorChromeLuminance(page: Page) {
+  const box = await page.locator(FRAME).boundingBox();
+
+  assert.ok(box !== null, "the editor frame isn't on the page");
+
+  const png = await page.screenshot({
+    clip: { x: box.x, y: box.y, width: box.width, height: Math.min(96, box.height) },
+    animations: "disabled",
+  });
+
+  return page.evaluate(
+    async (source) => {
+      const image = new Image();
+
+      image.src = source;
+      await image.decode();
+
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const drawing = canvas.getContext("2d");
+
+      if (drawing === null) throw new Error("No 2D canvas.");
+      drawing.drawImage(image, 0, 0);
+
+      const data = drawing.getImageData(0, 0, image.width, image.height).data;
+      let sum = 0;
+
+      for (let index = 0; index < data.length; index += 4)
+        sum += 0.2126 * data[index]! + 0.7152 * data[index + 1]! + 0.0722 * data[index + 2]!;
+
+      return sum / (data.length / 4);
+    },
+    `data:image/png;base64,${png.toString("base64")}`,
+  );
+}
+
+/** Waits until the editor's chrome is drawn in the asked appearance, and returns its luminance. */
+export async function untilEditorChrome(page: Page, appearance: "light" | "dark") {
+  const deadline = Date.now() + 20_000;
+  let luminance = await editorChromeLuminance(page);
+
+  while (appearance === "dark" ? luminance > 96 : luminance < 160) {
+    if (Date.now() > deadline)
+      throw new Error(
+        `the editor's chrome stayed at luminance ${Math.round(luminance)}, not ${appearance}`,
+      );
+    await page.waitForTimeout(250);
+    luminance = await editorChromeLuminance(page);
+  }
+
+  return luminance;
 }
 
 /**

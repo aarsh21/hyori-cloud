@@ -10,6 +10,9 @@ import {
   barStatus,
   closeEditor,
   downloadRow,
+  OPENED_CLEAN,
+  untilEditorChrome,
+  untilOperation,
   assertEarlierVersions,
   EDITOR_VIEWPORT,
   editDocument,
@@ -35,6 +38,15 @@ import { createLink } from "./scenarios-sharing.ts";
 
 const ALL_APPS: readonly EditorApp[] = ["wordcraft", "gridcraft", "pdfcraft", "deckcraft"];
 const DECK_VERSION = "0.14.1-hyori-host.2";
+
+const NATIVE_VERSIONS = new Map([
+  ["wordcraft", "0.14.0-hyori-host.1"],
+  ["gridcraft", "0.15.0-hyori-host.1"],
+  ["pdfcraft", "0.17.0-hyori-host.1"],
+  ["deckcraft", "0.14.1-hyori-host.3"],
+]);
+
+const NATIVE_MARKER = "HYORIAUTOSAVE";
 const SIGNED_IN_MARKER = "HYORISIGNEDIN";
 const PUBLIC_MARKER = "HYORIPUBLIC";
 
@@ -65,13 +77,16 @@ async function bundleIdentity(run: CoreRun) {
     }
   }
 
-  if (inBundle(run, "deckcraft")) {
-    await report.check("Deck is the rebuilt host version", () => {
-      assert.equal(
-        editorBundle.editors.find(({ app }) => app === "deckcraft")?.version,
-        DECK_VERSION,
-      );
-    });
+  for (const { app, version, protocol } of editorBundle.editors) {
+    if (protocol === 2) {
+      await report.check(`${app} is the native host build`, () => {
+        assert.equal(version, NATIVE_VERSIONS.get(app));
+      });
+    } else if (app === "deckcraft") {
+      await report.check("Deck is the rebuilt host version", () => {
+        assert.equal(version, DECK_VERSION);
+      });
+    }
   }
 
   await report.check("the server activated each editor in the bundle", () => {
@@ -140,34 +155,44 @@ async function bundleServing(run: CoreRun) {
     );
   });
 
-  const deck = editorBundle.editors.find(({ app }) => app === "deckcraft");
+  // Modified builds must carry this product's marks, not the upstream ones.
+  const modified = editorBundle.editors.filter(
+    ({ app, protocol }) => protocol === 2 || app === "deckcraft",
+  );
 
-  if (deck !== undefined) {
-    const deckDirectory = join(editorBundle.directory, "deckcraft", deck.version);
+  for (const editor of modified) {
+    const directory = join(editorBundle.directory, editor.app, editor.version);
 
-    await report.check("Deck shows this product's icon, not the upstream mark", async () => {
-      const { text } = await fetchInPage(page, `${origin}${deck.assetUrl}`);
-      const links = text.match(/<link\b[^>]*>/g) ?? [];
-      const icon = links.find((link) => /\brel=["'](?:shortcut )?icon["']/.test(link));
-      const href = icon?.match(/\bhref=["']([^"']+)["']/)?.[1];
+    await report.check(
+      `${editor.app} shows this product's icon, not the upstream mark`,
+      async () => {
+        const { text } = await fetchInPage(page, `${origin}${editor.assetUrl}`);
+        const links = text.match(/<link\b[^>]*>/g) ?? [];
+        const icon = links.find((link) => /\brel=["'](?:shortcut )?icon["']/.test(link));
+        const href = icon?.match(/\bhref=["']([^"']+)["']/)?.[1];
 
-      assert.ok(href !== undefined, "Deck's page declares no icon");
+        assert.ok(href !== undefined, `${editor.app}'s page declares no icon`);
 
-      const { status, sha256 } = await fetchInPage(
-        page,
-        new URL(href, `${origin}${deck.assetUrl}`).href,
-      );
+        const { status, sha256 } = await fetchInPage(
+          page,
+          new URL(href, `${origin}${editor.assetUrl}`).href,
+        );
 
-      assert.equal(status, 200, "Deck's icon");
-      assert.equal(sha256, sha256Of(readFileSync(join(webRoot, "favicon.ico"))), "Deck's icon");
-    });
+        assert.equal(status, 200, `${editor.app}'s icon`);
+        assert.equal(
+          sha256,
+          sha256Of(readFileSync(join(webRoot, "favicon.ico"))),
+          `${editor.app}'s icon`,
+        );
+      },
+    );
 
-    await report.check("Deck's WebAssembly no longer points at the upstream sites", () => {
-      const wasm = readdirSync(deckDirectory, { recursive: true, withFileTypes: true }).filter(
+    await report.check(`${editor.app}'s WebAssembly no longer points at the upstream sites`, () => {
+      const wasm = readdirSync(directory, { recursive: true, withFileTypes: true }).filter(
         (entry) => entry.isFile() && entry.name.endsWith(".wasm"),
       );
 
-      assert.ok(wasm.length > 0, "Deck has no WebAssembly");
+      assert.ok(wasm.length > 0, `${editor.app} has no WebAssembly`);
 
       for (const entry of wasm) {
         const bytes = readFileSync(join(entry.parentPath, entry.name));
@@ -209,7 +234,7 @@ async function verifyReopened(
     changed >= MIN_VISIBLE_CHANGE_PIXELS,
     `only ${changed} pixels differ from the original`,
   );
-  await barStatus(page, "All changes saved").waitFor();
+  await barStatus(page, OPENED_CLEAN).waitFor();
   run.report.unverified(
     `${item.label} ${flow}: what the reopened document shows`,
     `Read ${reopenedShot}: it must show ${item.shows(marker)}.`,
@@ -257,9 +282,15 @@ async function signedInRoundTrip(
     report.observe(`${label} saved`, { sha256: sha256Of(bytes), bytes: bytes.length });
   });
 
-  await report.check(`${label}: the save is exactly one new version`, async () => {
-    await assertEarlierVersions(page, name, 1);
-  });
+  // Background saves follow the person's pauses, so a protocol 2 edit may be several versions.
+  if (isNative(run, item.app))
+    await report.check(`${label}: the background saves are new versions`, async () => {
+      report.observe(`${label} versions`, await assertEarlierVersions(page, name, 1, "at least"));
+    });
+  else
+    await report.check(`${label}: the save is exactly one new version`, async () => {
+      await assertEarlierVersions(page, name, 1);
+    });
 
   await page.close();
 
@@ -364,7 +395,10 @@ async function publicRoundTrip(
     await owner.goto(`${run.origin}${folderPath}`, { waitUntil: "domcontentloaded" });
     await rowIn(owner, name).waitFor();
     assertHoldsEdit(item, await downloadRow(owner, name), PUBLIC_MARKER);
-    await assertEarlierVersions(owner, name, 1);
+    report.observe(
+      `${label} versions`,
+      await assertEarlierVersions(owner, name, 1, isNative(run, item.app) ? "at least" : "exactly"),
+    );
   });
 
   await report.check(
@@ -476,6 +510,30 @@ async function singleFileLink(run: CoreRun, cases: EditorCases) {
         await visitor.getByRole("button", { name: "Open in editor" }).click();
         await visitor.waitForURL(/\/edit\/[^/]+$/);
 
+        if (isNative(run, "deckcraft")) {
+          // A protocol 2 editor knows a converted file is copy-only before any edit, and offers
+          // the copy itself instead of failing a save.
+          const top = await waitForEditor(visitor, "Save a copy to keep changes");
+
+          await cases.deckFromPptx.edit(visitor, top, PUBLIC_MARKER);
+          await barButton(visitor, "Save a copy").click();
+          await visitor
+            .getByRole("dialog", { name: "Save a copy" })
+            .getByRole("button", { name: "Continue" })
+            .click();
+
+          const dialog = visitor.getByRole("dialog");
+
+          await dialog.getByText("This link only shares one file").waitFor({ timeout: 30_000 });
+          await dialog.getByRole("button", { name: "Close" }).first().click();
+          await dialog.waitFor({ state: "detached" });
+          await barStatus(visitor, /^Not saved$/).waitFor();
+          await barButton(visitor, "Download my version").waitFor();
+          assert.equal(operationCount(front, "editors.prepareSave"), prepares, "saves attempted");
+
+          return;
+        }
+
         const top = await waitForEditor(visitor, "All changes saved");
 
         await editDocument(visitor, cases.deckFromPptx, top, PUBLIC_MARKER);
@@ -501,6 +559,125 @@ async function singleFileLink(run: CoreRun, cases: EditorCases) {
  * needs a verified bundle and says nothing without one. Screenshots of reopened documents are the
  * evidence: nothing else here can tell a real render from a blank one.
  */
+const isNative = (run: CoreRun, app: EditorApp) =>
+  run.editorBundle?.editors.some((editor) => editor.app === app && editor.protocol === 2) === true;
+
+/** Chosen as a person does, from the account menu, which carries the product's Appearance choice. */
+async function chooseAppearance(page: Page, name: "Light" | "Dark" | "System") {
+  await page.getByRole("button", { name: /Noor Haddad/ }).click();
+  await page.getByRole("menuitemradio", { name }).click();
+  await page.keyboard.press("Escape");
+}
+
+/**
+ * Protocol 2 editors: an edit reaches the server without Ctrl+S, and the editor's own chrome
+ * follows the product's appearance (explicit Light and Dark override the device; System follows
+ * it live). Pixels say the chrome changed; the screenshots say what it looks like.
+ */
+async function nativeLifecycle(run: CoreRun, cases: EditorCases) {
+  const { report, editorBundle, front } = run;
+
+  const native = new Set(
+    (editorBundle?.editors ?? []).filter(({ protocol }) => protocol === 2).map(({ app }) => app),
+  );
+
+  const items = [cases.word, cases.grid, cases.deck, cases.pdf].filter(({ app }) =>
+    native.has(app),
+  );
+
+  if (items.length === 0) {
+    report.unverified("background saving and theme", "No protocol 2 editor is in this bundle.");
+
+    return;
+  }
+
+  const { context, page } = await ownerPage(run, {
+    viewport: EDITOR_VIEWPORT,
+    colorScheme: "light",
+  });
+
+  await createFolder(page, "Native editors");
+  await uploadDocuments(
+    run,
+    page,
+    items.map((item) => item.copyAs(`native-${item.app}`)),
+  );
+
+  const folderPath = new URL(page.url()).pathname;
+
+  await page.close();
+
+  // Each check starts from the folder on its own page, so one failure can't strand the next.
+  // A failed check is captured on its own page first: the report only knows pages it was shown.
+  const fromFolder = async (label: string, check: (editorPage: Page) => Promise<void>) => {
+    const editorPage = await openPage(run, context, folderPath);
+
+    try {
+      await check(editorPage);
+    } catch (error) {
+      await report.shot(editorPage, `FAILED-${label}`);
+      throw error;
+    } finally {
+      await editorPage.close();
+    }
+  };
+
+  for (const item of items) {
+    const name = `native-${item.app}${item.extension}`;
+
+    await report.check(`${item.label}: an edit saves in the background, with no Ctrl+S`, () =>
+      fromFolder(`${item.app}-native`, async (editorPage) => {
+        const top = await openFromRow(editorPage, name);
+        const before = operationCount(front, "editors.completeSave", 200);
+
+        await editDocument(editorPage, item, top, NATIVE_MARKER);
+        await untilOperation(front, "editors.completeSave", before + 1);
+        await barStatus(editorPage, "All changes saved").waitFor({ timeout: 20_000 });
+        report.observe(`${item.label} background saves`, {
+          completeSaves: operationCount(front, "editors.completeSave", 200) - before,
+        });
+        await closeEditor(editorPage);
+        await rowIn(editorPage, name).waitFor();
+        assertHoldsEdit(item, await downloadRow(editorPage, name), NATIVE_MARKER);
+      }),
+    );
+
+    await report.check(`${item.label}: explicit Light and Dark override the device`, () =>
+      fromFolder(`${item.app}-native`, async (editorPage) => {
+        for (const appearance of ["Dark", "Light"] as const) {
+          await chooseAppearance(editorPage, appearance);
+          await openFromRow(editorPage, name);
+
+          const mode = appearance === "Dark" ? "dark" : "light";
+          const luminance = await untilEditorChrome(editorPage, mode);
+
+          report.observe(`${item.label} ${mode} chrome`, {
+            luminance: Math.round(luminance),
+            screenshot: await report.shot(editorPage, `${item.app}-native-${mode}`),
+          });
+          await closeEditor(editorPage);
+          await rowIn(editorPage, name).waitFor();
+        }
+      }),
+    );
+
+    await report.check(`${item.label}: System follows the device live, without reopening`, () =>
+      fromFolder(`${item.app}-native`, async (editorPage) => {
+        await chooseAppearance(editorPage, "System");
+        await openFromRow(editorPage, name);
+        await untilEditorChrome(editorPage, "light");
+        await editorPage.emulateMedia({ colorScheme: "dark" });
+        await untilEditorChrome(editorPage, "dark");
+        await editorPage.emulateMedia({ colorScheme: "light" });
+        await untilEditorChrome(editorPage, "light");
+        await closeEditor(editorPage);
+      }),
+    );
+  }
+
+  await context.close();
+}
+
 export async function runEditorScenarios(run: CoreRun) {
   const { report, editorBundle } = run;
 
@@ -522,6 +699,7 @@ export async function runEditorScenarios(run: CoreRun) {
     await report.scenario("Editors, signed in", () => signedInRoundTrips(run, cases), quiet);
     await report.scenario("Editors, public links", () => publicRoundTrips(run, cases), quiet);
     await report.scenario("Editors, one-file links", () => singleFileLink(run, cases), quiet);
+    await report.scenario("Editors, native lifecycle", () => nativeLifecycle(run, cases), quiet);
     await runEditorRecoveryScenarios(run, cases);
   } finally {
     rmSync(work, { recursive: true, force: true });
