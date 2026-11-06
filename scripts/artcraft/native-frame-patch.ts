@@ -26,12 +26,20 @@ export function patchNativeFrame(
   const path = `${root}/native_host.rs`;
   const nativeModule = app === "pdfcraft" ? "editing" : "app";
 
-  if (!source.get(`crates/ui-egui/src/${nativeModule}/native_host.rs`)?.includes(Buffer.from("pub struct NativeHostJob")))
+  if (
+    !source
+      .get(`crates/ui-egui/src/${nativeModule}/native_host.rs`)
+      ?.includes(Buffer.from("pub struct NativeHostJob"))
+  )
     throw new Error("Shared frame requires explicit native methods and intent/job types first");
 
   const exports = [
-    "NativeHostFailure", "NativeHostIdentity", "NativeHostSnapshot", "NativeHostSaveReason",
-    "NativeHostIntent", "NativeHostIntentFn",
+    "NativeHostFailure",
+    "NativeHostIdentity",
+    "NativeHostSnapshot",
+    "NativeHostSaveReason",
+    "NativeHostIntent",
+    "NativeHostIntentFn",
   ].join(", ");
 
   // PDF's web crate reaches wasm-bindgen only through eframe; adding a direct dependency would
@@ -40,13 +48,24 @@ export function patchNativeFrame(
   const header = `${bindgen}pub use eframe::egui;\npub use ${app}_ui_egui::{${exports}};\npub const NATIVE_ARTIFACT_VERSION: &str = "${nativeArtifactVersions[app]}";\n`;
 
   const added = new Map([
-    [path, Buffer.concat([Buffer.from(header), inputs.imports, Buffer.from("\n"), inputs.adapter, Buffer.from("\n"), inputs.frame])],
+    [
+      path,
+      Buffer.concat([
+        Buffer.from(header),
+        inputs.imports,
+        Buffer.from("\n"),
+        inputs.adapter,
+        Buffer.from("\n"),
+        inputs.frame,
+      ]),
+    ],
     [`${root}/native_host/clock.rs`, inputs.clock],
     [`apps/${app}-web/hyori-native-host.js`, inputs.hostJavaScript],
   ]);
 
   for (const [path, body] of added) {
-    if (source.has(path)) throw new Error(`Refusing to replace shared native frame source: ${path}`);
+    if (source.has(path))
+      throw new Error(`Refusing to replace shared native frame source: ${path}`);
 
     if (body.length === 0) throw new Error(`Missing authored native frame source: ${path}`);
     files.set(path, body);

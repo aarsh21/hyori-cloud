@@ -420,9 +420,10 @@ export async function createNativeRuntime(
       throw new Error(`Evidence for ${entry.app} differs from its committed receipt`);
 
     for (const asset of buildManifest.assets) {
-      const legal = /^(modified-source|original-legal|host-bridge-legal|tool-legal|font-legal)\//u.test(
-        asset.path,
-      );
+      const legal =
+        /^(modified-source|original-legal|host-bridge-legal|tool-legal|font-legal)\//u.test(
+          asset.path,
+        );
 
       if (!legal && !asset.path.startsWith("artifact/")) continue;
       const bytes = await readAcquisitionFile(evidence, asset.path);

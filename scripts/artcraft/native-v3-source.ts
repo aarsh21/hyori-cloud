@@ -48,13 +48,13 @@ async function hostBridgeLegal() {
   const annotated = (await bundleHostEntry(false)).toString();
   const roots = new Map<string, Set<string>>();
 
-  for (const match of annotated.matchAll(
-    /^\/\/ (\S*node_modules\/((?:@[^/]+\/)?[^/.][^/]*))\//gmu,
-  ))
+  for (const match of annotated.matchAll(/^\/\/ (\S*node_modules\/((?:@[^/]+\/)?[^/.][^/]*))\//gmu))
     roots.set(match[2]!, (roots.get(match[2]!) ?? new Set()).add(match[1]!));
 
   if ([...roots.keys()].sort().join() !== [...bridgePackages].join())
-    throw new Error(`Native host bridge bundles unreviewed packages: ${[...roots.keys()].join(", ")}`);
+    throw new Error(
+      `Native host bridge bundles unreviewed packages: ${[...roots.keys()].join(", ")}`,
+    );
 
   const files = new Map<string, Buffer>();
 
@@ -64,7 +64,8 @@ async function hostBridgeLegal() {
     if (others.length) throw new Error(`Native host bridge bundles two copies of ${name}`);
     const manifest = await readFile(join(root!, "package.json"));
 
-    if (JSON.parse(manifest.toString()).name !== name) throw new Error(`Package root differs: ${name}`);
+    if (JSON.parse(manifest.toString()).name !== name)
+      throw new Error(`Package root differs: ${name}`);
     files.set(`${name}/LICENSE`, await readFile(join(root!, "LICENSE")));
     files.set(`${name}/package.json`, manifest);
   }
@@ -114,7 +115,10 @@ export function readPinnedSource(app: NativeApp, archive: Buffer) {
   if (!pin || sha256(archive) !== pin.sourceSha256)
     throw new Error(`${app} tagged source checksum mismatch`);
 
-  return { pin, original: readGitSourceArchive(archive, `${app}-${pin.version}`, nativeSourceCommits[app]) };
+  return {
+    pin,
+    original: readGitSourceArchive(archive, `${app}-${pin.version}`, nativeSourceCommits[app]),
+  };
 }
 
 /**

@@ -42,9 +42,16 @@ test("shared frame composition uses exact modified artifact identity without cha
     expect(result.files.get(web)?.toString()).toContain(`"${nativeArtifactVersions[app]}"`);
     expect(result.files.get(web)?.toString()).toContain("pub struct NativeHostFrame");
     expect(result.files.get(web)?.toString()).toContain("pub trait NativeHostAdapter");
-    expect(() => execFileSync("rustfmt", ["--edition", "2024", "--config", "skip_children=true", "--emit", "stdout"], {
-      input: result.files.get(web), maxBuffer: 4 * 1024 * 1024,
-    })).not.toThrow();
+    expect(() =>
+      execFileSync(
+        "rustfmt",
+        ["--edition", "2024", "--config", "skip_children=true", "--emit", "stdout"],
+        {
+          input: result.files.get(web),
+          maxBuffer: 4 * 1024 * 1024,
+        },
+      ),
+    ).not.toThrow();
     expect(result.files.get("Cargo.lock")).toBe(lock);
     expect(result.files.get(`apps/${app}-web/src/native_host/clock.rs`)).toBe(authored.clock);
     expect(result.files.get(`apps/${app}-web/hyori-native-host.js`)).toBe(authored.hostJavaScript);
@@ -57,7 +64,9 @@ test("shared frame composition uses exact modified artifact identity without cha
 
 test("shared frame refuses missing intent prerequisites and never uses keyboard or focus workarounds", async () => {
   const authored = await inputs();
-  expect(() => patchNativeFrame(new Map(), "wordcraft", authored)).toThrow("intent/job types first");
+  expect(() => patchNativeFrame(new Map(), "wordcraft", authored)).toThrow(
+    "intent/job types first",
+  );
   expect(authored.frame.toString()).not.toMatch(/KeyboardEvent|\.focus\(|\.run\("file\.save/);
   expect(authored.frame.toString()).toContain("self.process_fences(app)?;");
   expect(authored.frame.toString()).toContain("self.process_ack(app)?;");
@@ -70,12 +79,23 @@ test("source ordering keeps pending raw input fenced until a nondiscarded UI pas
   const authored = await inputs();
   const source = authored.frame.toString();
   const note = source.slice(source.indexOf("pub fn note_input"), source.indexOf("fn revision"));
-  expect(note).toContain("self.input_pending |= !raw.events.is_empty() || !raw.dropped_files.is_empty();");
-  const logic = source.slice(source.indexOf("pub fn after_logic"), source.indexOf("pub fn after_ui"));
-  expect(logic.indexOf("if self.input_pending { return Ok(()) }")).toBeLessThan(logic.indexOf("self.process_capture(app)"));
+  expect(note).toContain(
+    "self.input_pending |= !raw.events.is_empty() || !raw.dropped_files.is_empty();",
+  );
+  const logic = source.slice(
+    source.indexOf("pub fn after_logic"),
+    source.indexOf("pub fn after_ui"),
+  );
+  expect(logic.indexOf("if self.input_pending { return Ok(()) }")).toBeLessThan(
+    logic.indexOf("self.process_capture(app)"),
+  );
   const ui = source.slice(source.indexOf("pub fn after_ui"));
-  expect(ui.indexOf("if ctx.will_discard() { return Ok(()) }")).toBeLessThan(ui.indexOf("self.input_pending = false;"));
-  expect(ui.indexOf("self.input_pending = false;")).toBeLessThan(ui.indexOf("self.process_capture(app)?;"));
+  expect(ui.indexOf("if ctx.will_discard() { return Ok(()) }")).toBeLessThan(
+    ui.indexOf("self.input_pending = false;"),
+  );
+  expect(ui.indexOf("self.input_pending = false;")).toBeLessThan(
+    ui.indexOf("self.process_capture(app)?;"),
+  );
   expect(source).not.toContain("self.host_dirty |= model.is_some_and");
   expect(source).toContain("self.host_dirty |= !save_as && snapshot.identity.dirty;");
 });

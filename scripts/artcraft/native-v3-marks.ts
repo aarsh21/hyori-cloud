@@ -58,7 +58,9 @@ export function patchNativeMarks(
   const files = new Map(source);
   const ui = "crates/ui-egui/src";
   const upstream = `https://github.com/storytold/${app}`;
-  const upstreamName = { wordcraft: "WordCraft", gridcraft: "GridCraft", pdfcraft: "PdfCraft" }[app];
+  const upstreamName = { wordcraft: "WordCraft", gridcraft: "GridCraft", pdfcraft: "PdfCraft" }[
+    app
+  ];
 
   function text(path: string) {
     const body = files.get(path);
@@ -140,7 +142,11 @@ export function patchNativeMarks(
       'o.push_str("% Written by WordCraft (https://getartcraft.com/apps/wordcraft).\\n");',
       `o.push_str("% Written by ${product}, based on WordCraft (${upstream}).\\n");`,
     );
-    replace("crates/engine/src/sample.rs", 'link: Some("https://getartcraft.com/".into())', `link: Some("${upstream}".into())`);
+    replace(
+      "crates/engine/src/sample.rs",
+      'link: Some("https://getartcraft.com/".into())',
+      `link: Some("${upstream}".into())`,
+    );
     // Zotero needs the desktop app; the tab is upstream promotion with no function in the browser.
     replace(
       `${ui}/ribbon.rs`,
@@ -171,15 +177,27 @@ export function patchNativeMarks(
 
     replace(`${ui}/chrome.rs`, '"WordCraft".to_string()', `"${product}".to_string()`);
     replace(`${ui}/windows.rs`, '"{name}{} - WordCraft"', `"{name}{} - ${product}"`);
-    replace(`${ui}/windows.rs`, 'return "WordCraft".to_string();', `return "${product}".to_string();`);
+    replace(
+      `${ui}/windows.rs`,
+      'return "WordCraft".to_string();',
+      `return "${product}".to_string();`,
+    );
     replace(`${ui}/windows.rs`, 'with_title("WordCraft")', `with_title("${product}")`);
     replace(`${ui}/dialogs/chrome.rs`, '"About WordCraft"', `"About ${product}"`);
-    replace(`${ui}/dialogs/chrome.rs`, 'Dialog::SaveChanges { .. } => "WordCraft"', `Dialog::SaveChanges { .. } => "${product}"`);
+    replace(
+      `${ui}/dialogs/chrome.rs`,
+      'Dialog::SaveChanges { .. } => "WordCraft"',
+      `Dialog::SaveChanges { .. } => "${product}"`,
+    );
   } else if (app === "gridcraft") {
     const about = `${ui}/dialogs/about.rs`;
 
     replace(about, 'ui.heading("GridCraft");', `ui.heading("${product}");`);
-    replace(about, 'format!("Version {}", env!("CARGO_PKG_VERSION"))', `format!("Version {}", "${version}")`);
+    replace(
+      about,
+      'format!("Version {}", env!("CARGO_PKG_VERSION"))',
+      `format!("Version {}", "${version}")`,
+    );
     replace(
       about,
       '"A clean-room, open-source, Rust-native spreadsheet. Part of ArtCraft."',
@@ -192,12 +210,24 @@ export function patchNativeMarks(
     );
     removeLines(about, '"https://discord.gg/artcraft"');
     replace(`${ui}/dialogs.rs`, '"About GridCraft"', `"About ${product}"`);
-    replace(`${ui}/dialogs.rs`, 'Dialog::custom("start", "GridCraft",', `Dialog::custom("start", "${product}",`);
+    replace(
+      `${ui}/dialogs.rs`,
+      'Dialog::custom("start", "GridCraft",',
+      `Dialog::custom("start", "${product}",`,
+    );
     replace(`${ui}/backstage.rs`, 'RichText::new("GridCraft")', `RichText::new("${product}")`);
     replace(`${ui}/backstage.rs`, 'lang.tr("About GridCraft")', `"About ${product}"`, 2);
-    replace(`${ui}/backstage.rs`, '("Version", env!("CARGO_PKG_VERSION").to_string())', `("Version", "${version}".to_string())`);
+    replace(
+      `${ui}/backstage.rs`,
+      '("Version", env!("CARGO_PKG_VERSION").to_string())',
+      `("Version", "${version}".to_string())`,
+    );
     replace(`${ui}/ribbon/automate.rs`, '"About\\nGridCraft"', '"About"');
-    replace(`${ui}/ribbon/automate.rs`, '"Look for a newer GridCraft release"', '"Look for a newer release"');
+    replace(
+      `${ui}/ribbon/automate.rs`,
+      '"Look for a newer GridCraft release"',
+      '"Look for a newer release"',
+    );
     replace(`${ui}/app/editing.rs`, '"GridCraft".to_string()', `"${product}".to_string()`);
 
     // Alert titles name the product.
@@ -231,14 +261,26 @@ export function patchNativeMarks(
     replace(`${ui}/home.rs`, 'tl!("Welcome to PdfCraft")', `"Welcome to ${product}"`);
     // The community card only promoted the upstream community; it starts (and stays) closed.
     replace(`${ui}/app.rs`, "community_card_closed: false,", "community_card_closed: true,");
-    replace(`${ui}/home.rs`, 'tl!("Join the ArtCraft community")', '"Based on PdfCraft by the ArtCraft team"');
+    replace(
+      `${ui}/home.rs`,
+      'tl!("Join the ArtCraft community")',
+      '"Based on PdfCraft by the ArtCraft team"',
+    );
     replace(
       `${ui}/home.rs`,
       'tl!("Get help, share feedback and follow development on Discord.")',
       '"Its source code is on GitHub."',
     );
-    replace(`${ui}/app.rs`, '|| "PdfCraft".to_owned(), |name| format!("{name}{mark} — PdfCraft")', `|| "${product}".to_owned(), |name| format!("{name}{mark} — ${product}")`);
-    replace(`${ui}/menus.rs`, 'pub(crate) const APP_NAME: &str = "PdfCraft";', `pub(crate) const APP_NAME: &str = "${product}";`);
+    replace(
+      `${ui}/app.rs`,
+      '|| "PdfCraft".to_owned(), |name| format!("{name}{mark} — PdfCraft")',
+      `|| "${product}".to_owned(), |name| format!("{name}{mark} — ${product}")`,
+    );
+    replace(
+      `${ui}/menus.rs`,
+      'pub(crate) const APP_NAME: &str = "PdfCraft";',
+      `pub(crate) const APP_NAME: &str = "${product}";`,
+    );
     replace(
       `${ui}/menus.rs`,
       '"help.app_page", "help.github", "help.website", "help.discord", SEP,',
@@ -248,7 +290,11 @@ export function patchNativeMarks(
     const dialogs = `${ui}/dialogs.rs`;
 
     replace(dialogs, "widgets::artcraft_mark(ui, 40.0);", "widgets::hyori_mark(ui, 40.0);");
-    replace(dialogs, 'egui::RichText::new("PdfCraft").font(theme::semibold(20.0))', `egui::RichText::new("${product}").font(theme::semibold(20.0))`);
+    replace(
+      dialogs,
+      'egui::RichText::new("PdfCraft").font(theme::semibold(20.0))',
+      `egui::RichText::new("${product}").font(theme::semibold(20.0))`,
+    );
     replace(dialogs, '&[("v", &pdfcraft_engine::build_info::version())]', `&[("v", "${version}")]`);
     replace(
       dialogs,
@@ -261,7 +307,11 @@ export function patchNativeMarks(
 
     const chrome = `${ui}/chrome.rs`;
 
-    replace(chrome, 'ui.fonts_mut(|f| f.layout_no_wrap("Discord".into(), theme::medium(13.0), t.text).size().x)\n                    + 3.0 * button', "3.0 * button");
+    replace(
+      chrome,
+      'ui.fonts_mut(|f| f.layout_no_wrap("Discord".into(), theme::medium(13.0), t.text).size().x)\n                    + 3.0 * button',
+      "3.0 * button",
+    );
     removeLines(chrome, "// One click to the community, from anywhere in the app.", 4, "}");
 
     const commands = "crates/engine/src/commands.rs";
@@ -272,7 +322,11 @@ export function patchNativeMarks(
     const links = "crates/engine/src/links.rs";
 
     replace(links, '"https://discord.gg/artcraft"', `"${upstream}"`);
-    replace(links, 'pub const WEBSITE: &str = "https://getartcraft.com";', `pub const WEBSITE: &str = "${upstream}";`);
+    replace(
+      links,
+      'pub const WEBSITE: &str = "https://getartcraft.com";',
+      `pub const WEBSITE: &str = "${upstream}";`,
+    );
     replace(links, '"https://getartcraft.com/apps/pdfcraft"', `"${upstream}"`);
 
     for (const id of ["help.discord", "help.app_page", "help.website"])

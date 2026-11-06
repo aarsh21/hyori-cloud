@@ -12,10 +12,17 @@ import {
 } from "./native-v3-source.ts";
 
 const inputs = z.object({ ARTCRAFT_TEST_INPUTS: z.string().optional() }).parse(process.env);
-const legal = ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE", "ATTRIBUTION.md", "docs/brand/LICENSE-brand.txt"];
+const legal = [
+  "LICENSE-MIT",
+  "LICENSE-APACHE",
+  "NOTICE",
+  "ATTRIBUTION.md",
+  "docs/brand/LICENSE-brand.txt",
+];
 
 /** Upstream promotion a person could see or click in the browser build. */
-const promotion = /discord\.gg|getartcraft\.com|"[^"\n]*Discord[^"\n]*"|docs\/brand\/artcraft|assets\/app-icon/u;
+const promotion =
+  /discord\.gg|getartcraft\.com|"[^"\n]*Discord[^"\n]*"|docs\/brand\/artcraft|assets\/app-icon/u;
 
 test("marks patch fails closed on a missing upstream anchor", () => {
   const empty = new Map([["Cargo.lock", Buffer.from("lock")]]);
@@ -38,7 +45,9 @@ for (const app of nativeApps)
         .object({ editors: z.array(z.object({ app: z.string(), sourceArchive: z.string() })) })
         .parse(JSON.parse(await readFile(inputs.ARTCRAFT_TEST_INPUTS!, "utf8")));
 
-      const archive = await readFile(config.editors.find((editor) => editor.app === app)!.sourceArchive);
+      const archive = await readFile(
+        config.editors.find((editor) => editor.app === app)!.sourceArchive,
+      );
       const { original } = readPinnedSource(app, archive);
       const snapshot = new Map([...original].map(([path, body]) => [path, Buffer.from(body)]));
       const result = await composeNativeSource(app, original, await nativeAuthoredInputs());
@@ -54,7 +63,9 @@ for (const app of nativeApps)
 
       if (app === "wordcraft") {
         // Hyori owns sharing and the account: both upstream controls are drawn only standalone.
-        expect(ui("ribbon.rs")).toContain("if !hosted {\n                        let (share_size, share_text) =");
+        expect(ui("ribbon.rs")).toContain(
+          "if !hosted {\n                        let (share_size, share_text) =",
+        );
         expect(ui("chrome.rs")).toContain(
           "if app.native_host_intents.is_none() {\n                    let (r, resp) = ui.allocate_exact_size(vec2(control_h, control_h), Sense::click());",
         );
@@ -64,7 +75,8 @@ for (const app of nativeApps)
 
       for (const [path, body] of snapshot) expect(original.get(path)!.equals(body)).toBe(true);
 
-      for (const path of legal) expect(result.files.get(path)!.equals(original.get(path)!)).toBe(true);
+      for (const path of legal)
+        expect(result.files.get(path)!.equals(original.get(path)!)).toBe(true);
       expect(result.changes.some((change) => change.path.endsWith("Cargo.toml"))).toBe(false);
       expect(result.changes.some((change) => change.path === "Cargo.lock")).toBe(false);
 
@@ -90,7 +102,10 @@ for (const app of nativeApps)
           .join("\n")
           .split("#[cfg(test)]")[0]!;
 
-        expect({ path, match: shipped.match(promotion)?.[0] ?? null }).toEqual({ path, match: null });
+        expect({ path, match: shipped.match(promotion)?.[0] ?? null }).toEqual({
+          path,
+          match: null,
+        });
       }
     },
     120000,

@@ -27,7 +27,8 @@ export function patchNativeMethods(
     throw new Error("Native job source requires the explicit shared intent types");
 
   if (input.intents)
-    types += ", NativeHostIntent, NativeHostIntentFn, NativeHostSerializer, NativeHostContinuation, NativeHostJob";
+    types +=
+      ", NativeHostIntent, NativeHostIntentFn, NativeHostSerializer, NativeHostContinuation, NativeHostJob";
 
   if (files.has(module))
     throw new Error(`Refusing to replace an existing native method module: ${module}`);
@@ -61,7 +62,10 @@ export function patchNativeMethods(
   bodies.push(input.methods);
 
   if (input.jobs) bodies.push(input.jobs);
-  files.set(module, Buffer.concat(bodies.flatMap((body, index) => index ? [Buffer.from("\n"), body] : [body])));
+  files.set(
+    module,
+    Buffer.concat(bodies.flatMap((body, index) => (index ? [Buffer.from("\n"), body] : [body]))),
+  );
 
   const changes = [...files].flatMap(([path, body]) => {
     const original = source.get(path);

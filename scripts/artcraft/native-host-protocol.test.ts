@@ -381,11 +381,7 @@ test("stale cancellation is a no-op, matching cancellation removes only the queu
   f.bridge.saveRequested("42", false, undefined, "intent-1");
   f.request({ reason: "manual", intentId: "intent-1" });
 
-  for (const changed of [
-    { openId: "other" },
-    { documentId: "43" },
-    { intentId: "other" },
-  ])
+  for (const changed of [{ openId: "other" }, { documentId: "43" }, { intentId: "other" }])
     f.receive("cancel-intent", {
       openId: "open-1",
       documentId: "42",
@@ -474,11 +470,19 @@ test("confirmation retry reaches native once consumed, then cached confirmation 
   expect(f.bridge.takeAcknowledgement()?.status).toBe("saved");
   f.bridge.acknowledged("42", "3", "42", "4", false);
   f.receive("save-result", ack);
-  expect(f.posted.at(-1)).toMatchObject({ type: "deckcraft:saved", currentRevision: "4", dirty: false });
+  expect(f.posted.at(-1)).toMatchObject({
+    type: "deckcraft:saved",
+    currentRevision: "4",
+    dirty: false,
+  });
   expect(f.bridge.takeAcknowledgement()).toBeNull();
   f.bridge.observe("42", "5", true);
   f.receive("save-result", ack);
-  expect(f.posted.at(-1)).toMatchObject({ type: "deckcraft:saved", currentRevision: "5", dirty: true });
+  expect(f.posted.at(-1)).toMatchObject({
+    type: "deckcraft:saved",
+    currentRevision: "5",
+    dirty: true,
+  });
   expect(f.bridge.getRecoverySnapshot()).toBeNull();
 });
 
