@@ -20,6 +20,7 @@ runs:
       shell: bash
       run: |
         (
+          set +e
           docker buildx build --progress plain --load \
             --cache-from type=gha,scope=hyori-media-worker \
             --cache-to type=gha,scope=hyori-media-worker,mode=max,ignore-error=true \

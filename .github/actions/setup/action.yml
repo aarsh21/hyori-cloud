@@ -26,10 +26,25 @@ runs:
     - uses: oven-sh/setup-bun@v2
       with:
         bun-version: "1.4.4"
-    - name: Install native Rust prerequisites
-      if: inputs.rust == 'true'
+    # apt and the JavaScript installs run in the background while the toolchain and caches restore.
+    - name: Start installing native Rust prerequisites and workspace dependencies
       shell: bash
-      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang
+      env:
+        RUST: ${{ inputs.rust }}
+        ARCHITECTURE_CHECKER: ${{ inputs.architecture-checker }}
+      run: |
+        background() {
+          name="$1"
+          shift
+          ( set +e; "$@"; echo "$?" > "$RUNNER_TEMP/setup-$name.status" ) > "$RUNNER_TEMP/setup-$name.log" 2>&1 &
+        }
+        if [ "$RUST" = true ]; then
+          background apt sh -c 'sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang'
+        fi
+        background bun bun install --frozen-lockfile
+        if [ "$ARCHITECTURE_CHECKER" = true ]; then
+          background npm npm --prefix tooling/fernando-lint ci
+        fi
     - name: Install the repository-pinned Rust toolchain and components
       if: inputs.rust == 'true'
       shell: bash
@@ -44,10 +59,16 @@ runs:
       if: inputs.rust == 'true'
       shell: bash
       run: cargo fetch --locked
-    - name: Install workspace dependencies
+    - name: Finish installing native Rust prerequisites and workspace dependencies
       shell: bash
-      run: bun install --frozen-lockfile
-    - name: Install the locked architecture checker
-      if: inputs.architecture-checker == 'true'
-      shell: bash
-      run: npm --prefix tooling/fernando-lint ci
+      run: |
+        failed=0
+        for name in apt bun npm; do
+          [ -e "$RUNNER_TEMP/setup-$name.log" ] || continue
+          while [ ! -f "$RUNNER_TEMP/setup-$name.status" ]; do sleep 1; done
+          echo "::group::$name"
+          cat "$RUNNER_TEMP/setup-$name.log"
+          echo "::endgroup::"
+          [ "$(cat "$RUNNER_TEMP/setup-$name.status")" = 0 ] || failed=1
+        done
+        exit "$failed"
