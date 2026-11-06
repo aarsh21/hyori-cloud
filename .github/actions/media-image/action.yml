@@ -23,6 +23,7 @@ runs:
           docker buildx build --progress plain --load \
             --cache-from type=gha,scope=hyori-media-worker \
             --cache-to type=gha,scope=hyori-media-worker,mode=max,ignore-error=true \
+            --no-cache-filter builder \
             --file apps/media-worker/Dockerfile --tag "hyori-media-ci:${GITHUB_SHA}" .
           echo "$?" > "$RUNNER_TEMP/media-image.status"
         ) > "$RUNNER_TEMP/media-image.log" 2>&1 &
@@ -32,4 +33,7 @@ runs:
       run: |
         while [ ! -f "$RUNNER_TEMP/media-image.status" ]; do sleep 1; done
         cat "$RUNNER_TEMP/media-image.log"
+        docker run --rm --entrypoint sha256sum "hyori-media-ci:${GITHUB_SHA}" /usr/local/bin/hyori-media-worker
+        docker image inspect --format '{{json .Config}}' "hyori-media-ci:${GITHUB_SHA}"
+        docker run --rm --user 0 --entrypoint sh "hyori-media-ci:${GITHUB_SHA}" -c 'find / -xdev \( -path /proc -o -path /var/log -o -path /var/cache \) -prune -o -type f -print | sort | xargs sha256sum' | sha256sum
         exit "$(cat "$RUNNER_TEMP/media-image.status")"

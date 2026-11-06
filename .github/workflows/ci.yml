@@ -186,8 +186,13 @@ jobs:
           docker buildx build --progress plain --load
           --cache-from type=gha,scope=hyori-server
           --cache-to type=gha,scope=hyori-server,mode=max,ignore-error=true
-          --build-arg CARGO_BUILD_JOBS=4
+          --build-arg CARGO_BUILD_JOBS=4 --no-cache-filter builder
           --file apps/server/Dockerfile --tag hyori-rust-ci:${{ github.sha }} .
+      - name: "Measurement only: fingerprint the new server image"
+        run: |
+          docker run --rm --entrypoint sha256sum hyori-rust-ci:${{ github.sha }} /usr/local/bin/hyori-server
+          docker image inspect --format '{{json .Config}}' hyori-rust-ci:${{ github.sha }}
+          docker run --rm --user 0 --entrypoint sh hyori-rust-ci:${{ github.sha }} -c 'find / -xdev \( -path /proc -o -path /var/log -o -path /var/cache \) -prune -o -type f -print | sort | xargs sha256sum' | sha256sum
       - name: Drive the production-mode release image through the public SDK
         run: bun run test:rust-image hyori-rust-ci:${{ github.sha }}
       - name: Build the actual Nitro web host
@@ -205,3 +210,23 @@ jobs:
         run: docker build --file apps/web/Dockerfile --tag hyori-web-ci:${{ github.sha }} .
       - name: Verify read-only nonroot frontend runtime and environment isolation
         run: bun run test:web-image hyori-web-ci:${{ github.sha }}
+
+  image-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: "Measurement only: build and fingerprint the images from the previous Dockerfiles"
+        run: |
+          git show db1cb5d:apps/server/Dockerfile > "$RUNNER_TEMP/server.Dockerfile"
+          git show db1cb5d:apps/media-worker/Dockerfile > "$RUNNER_TEMP/media.Dockerfile"
+          docker build --file "$RUNNER_TEMP/media.Dockerfile" --tag old-media .
+          docker build --file "$RUNNER_TEMP/server.Dockerfile" --tag old-server .
+          for pair in old-server:/usr/local/bin/hyori-server old-media:/usr/local/bin/hyori-media-worker; do
+            image="${pair%%:*}"; file="${pair#*:}"
+            docker run --rm --entrypoint sha256sum "$image" "$file"
+            docker image inspect --format '{{json .Config}}' "$image"
+            docker run --rm --user 0 --entrypoint sh "$image" -c 'find / -xdev \( -path /proc -o -path /var/log -o -path /var/cache \) -prune -o -type f -print | sort | xargs sha256sum' | sha256sum
+          done
