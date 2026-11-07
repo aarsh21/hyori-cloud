@@ -5,6 +5,8 @@ import {
   barButton,
   barStatus,
   closeEditor,
+  cover,
+  coverButton,
   downloadRow,
   assertEarlierVersions,
   EDITOR_VIEWPORT,
@@ -35,6 +37,7 @@ const MINE = "HYORIMINE";
 const THEIRS = "HYORITHEIRS";
 const RETRIED = "HYORIRETRIED";
 const COPIED = "HYORICOPIED";
+const LATER = "HYORILATER";
 
 /** A conflict is off screen entirely: nothing here may capture it, including on failure. */
 const NEVER_CAPTURED = { captureFailure: false };
@@ -103,13 +106,50 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
 
     const theirs = await downloadRow(newer, name);
 
-    await editDocument(stale, item, staleTop, MINE);
-    await stale.keyboard.press("Control+s");
-    await barStatus(stale, "Not saved: changed elsewhere").waitFor({ timeout: 90_000 });
+    // Word keeps its caret, so it can go on typing after the refused save took its snapshot: what
+    // it typed then is only in the editor, and Download my version has to hold it too.
+    const typesOn = item.app === "wordcraft" && (await inNativeEditor(run, stale));
+    const prepares = operationCount(run.front, "editors.prepareSave");
 
-    const mine = await downloadBytes(stale, () => barButton(stale, "Download my version").click());
+    const release = typesOn
+      ? run.front.hold((record) => record.operation === "editors.prepareSave")
+      : () => {};
+
+    try {
+      await editDocument(stale, item, staleTop, MINE);
+      await stale.keyboard.press("Control+s");
+
+      if (typesOn) {
+        const deadline = Date.now() + 60_000;
+
+        while (operationCount(run.front, "editors.prepareSave") === prepares) {
+          assert.ok(Date.now() < deadline, "the save never reached the server");
+          await stale.waitForTimeout(100);
+        }
+
+        await stale.keyboard.type(LATER, { delay: 60 });
+        await stale.waitForTimeout(1000);
+      }
+    } finally {
+      release();
+    }
+
+    await barStatus(stale, "Not saved: changed elsewhere").waitFor({ timeout: 90_000 });
+    // The cover says what happened, and the editor under it takes no more input to lose.
+    await cover(stale).getByText("This file was changed somewhere else").waitFor();
+    assert.equal(
+      await stale.locator('[data-slot="hosted-document-frame"]').getAttribute("inert"),
+      "",
+      "the covered editor is inert",
+    );
+
+    const mine = await downloadBytes(stale, () =>
+      coverButton(stale, "Download my version").click(),
+    );
 
     assertHoldsEdit(item, mine, MINE);
+
+    if (typesOn) assertHoldsEdit(item, mine, LATER);
     assert.deepEqual(
       sha256Of(await downloadRow(newer, name)),
       sha256Of(theirs),
@@ -117,11 +157,12 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
     );
     await assertVersionsMade(newer, name, versions);
 
-    await barButton(stale, "Open latest version").click();
+    // Reopening leaves this version behind, so it asks first even after a download.
+    await coverButton(stale, "Open latest version").click();
 
-    const confirmation = stale.getByRole("alertdialog");
+    const confirmation = stale.getByRole("alertdialog", { name: "Leave your version behind?" });
 
-    await confirmation.getByRole("button", { name: "Discard changes" }).click();
+    await confirmation.getByRole("button", { name: "Reopen without it" }).click();
     await waitForEditor(stale, "All changes saved");
     assert.deepEqual(
       sha256Of(await downloadRow(newer, name)),
@@ -394,18 +435,34 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
     await page.getByRole("heading", { name: /^Save “.*” to…$/ }).waitFor({ timeout: 30_000 });
   });
 
+  // A protocol 2 editor treats a cancelled copy as a decision, not a failure: it goes back to
+  // editing with the work still in it, and Save a copy is there to try again. A legacy one keeps
+  // the cancelled copy as a failed save to retry.
   await report.check("cancelling saves nothing and keeps the work to retry", async () => {
     const prepares = operationCount(front, "editors.prepareSave");
 
     await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
-    await barStatus(page, /^Not saved$/).waitFor();
+
+    if (native) {
+      await page.getByRole("dialog").waitFor({ state: "detached" });
+      await barStatus(page, "Save a copy to keep changes").waitFor();
+      assert.ok(await barButton(page, "Save a copy").isEnabled(), "Save a copy is offered again");
+    } else await barStatus(page, /^Not saved$/).waitFor();
+
     assert.equal(operationCount(front, "editors.prepareSave"), prepares, "saves attempted");
   });
 
   await report.check("retrying asks again, and the copy goes where it was told", async () => {
     const completed = operationCount(front, "editors.completeSave", 200);
 
-    await barButton(page, "Retry save").click();
+    if (native) {
+      await barButton(page, "Save a copy").click();
+      await page
+        .getByRole("dialog", { name: "Save a copy" })
+        .getByRole("button", { name: "Continue" })
+        .click();
+      await page.getByRole("heading", { name: /^Save “.*” to…$/ }).waitFor({ timeout: 30_000 });
+    } else await barButton(page, "Retry save").click();
 
     const dialog = page.getByRole("dialog");
 
@@ -945,9 +1002,13 @@ async function killSwitch(run: CoreRun, cases: EditorCases) {
         );
         await other.keyboard.press("Escape");
         await other.goto(`${run.origin}${editorPath}`, { waitUntil: "domcontentloaded" });
-        await other
-          .getByText("This document couldn’t be opened in the editor")
-          .waitFor({ timeout: 60_000 });
+        // It says which of the ways an open can fail this was, and changes nothing.
+        await cover(other).getByText("Editing isn’t available right now").waitFor({
+          timeout: 60_000,
+        });
+        await cover(other).getByText("The editor is turned off on this server").waitFor();
+        await cover(other).getByText("Your file hasn’t changed.").waitFor();
+        await barStatus(other, "Editor stopped").waitFor();
       },
     );
 

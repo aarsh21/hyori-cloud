@@ -181,6 +181,7 @@ export function createNativeEditorSession(
       pendingOutput:
         pending === null ? null : { name: pending.output.name, intent: pending.output.intent },
       recoveryCount: recovered.length + Number(pending !== null),
+      recovering: capture?.recovery === true,
       lastSavedAt,
       autosave: autosave(),
       message,

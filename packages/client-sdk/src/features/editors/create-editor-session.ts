@@ -96,6 +96,8 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       pendingOutput:
         current === null ? null : { name: current.output.name, intent: current.output.intent },
       recoveryCount: dismissed.length + Number(current !== null) + Number(queued !== null),
+      // Only a native editor can be asked for its current state.
+      recovering: false,
       lastSavedAt,
       autosave: {
         status: "disabled",

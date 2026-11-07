@@ -68,6 +68,15 @@ export function barButton(page: Page, name: string) {
   return page.locator(BAR).getByRole("button", { name, exact: true });
 }
 
+/** What covers the frame once editing has stopped: a conflict, ended access, or a failed open. */
+export function cover(page: Page) {
+  return page.locator('[data-slot="hosted-document"] main');
+}
+
+export function coverButton(page: Page, name: string) {
+  return cover(page).getByRole("button", { name, exact: true });
+}
+
 export function operationCount(front: FrontHandler, operation: string, status?: number) {
   return front.trace.filter(
     (record) =>

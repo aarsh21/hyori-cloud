@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
+import { createClient } from "@hyori-cloud/client-sdk";
 import type {
   EditorBackendOptions,
   EditorDocument,
+  FetchCapability,
   FileEntry,
   InputOf,
   OutputOf,
@@ -10,6 +12,7 @@ import type {
   UploadOptions,
   UploadTask,
 } from "@hyori-cloud/client-sdk";
+import { Schema } from "@hyori-cloud/lib/effect";
 import { createEditors } from "#client-sdk/features/editors/create-editors";
 import { entry } from "#client-sdk-test/fake-api";
 
@@ -461,3 +464,127 @@ test("namespace disposal starts clean-handle release before aborting the client 
   await tick();
   expect(f.calls.filter((call) => call === "close")).toHaveLength(1);
 });
+
+/**
+ * Through the public client, over the wire: a tab on a verified legacy version while the
+ * deployment has selected a newer current one. The server keeps saving such sessions.
+ */
+function legacyTab() {
+  const document: EditorDocument = {
+    sessionId: "b".repeat(64),
+    app: "wordcraft",
+    version: "0.14.0",
+    bridge: "upstream-host-parent",
+    protocol: null,
+    assetUrl: "/artcraft/wordcraft/0.14.0/index.html?host=parent",
+    name: "Report.docx",
+    revision: "0",
+    writable: true,
+    maxBytes: 16,
+    replacementName: "Report.docx",
+    outputFormats: [{ extension: ".docx", kind: "document", maxBytes: 16 }],
+  };
+
+  const decodeRequest = Schema.decodeUnknownSync(
+    Schema.Struct({
+      operation: Schema.String,
+      input: Schema.Struct({ saveId: Schema.optional(Schema.String) }),
+    }),
+  );
+
+  const replies: { code: string; status: number }[] = [];
+  const operations: string[] = [];
+  const saveIds: unknown[] = [];
+
+  const fetch: FetchCapability = async (_url, init) => {
+    const { operation, input } = decodeRequest(await new Response(init?.body).json());
+
+    operations.push(operation);
+
+    if (operation === "editors.open") return Response.json({ ok: true, value: document });
+
+    if (operation === "editors.close") return Response.json({ ok: true, value: { success: true } });
+
+    // The deployment's selected current version is newer than the one this tab runs.
+    if (operation === "editors.available")
+      return Response.json({
+        ok: true,
+        value: { apps: [{ app: "wordcraft", inputExtensions: [".docx"], version: "0.15.0" }] },
+      });
+
+    if (operation === "editors.download")
+      return Response.json({
+        ok: true,
+        value: { url: "/editor-original", name: document.name, size: 3, mimeType: "text/plain" },
+      });
+
+    if (operation === "editors.prepareSave") {
+      saveIds.push(input.saveId);
+
+      const reply = replies.shift() ?? { code: "service.unavailable", status: 503 };
+
+      return Response.json(
+        { ok: false, error: { code: reply.code, message: "Synthetic refusal" } },
+        { status: reply.status },
+      );
+    }
+
+    throw new Error(`Unexpected ${operation}`);
+  };
+
+  const client = createClient({ fetch });
+  const backend = client.editors.backend({ id: entry.id });
+
+  const input = {
+    sessionId: document.sessionId,
+    expectedRevision: document.revision,
+    saveId: "legacy-save-1",
+    output: { name: document.name, bytes: new Uint8Array([1, 2, 3]), intent: "replace" as const },
+  };
+
+  return {
+    backend,
+    input,
+    operations,
+    saveIds,
+    nextPreparation(code: string, status: number) {
+      replies.push({ code, status });
+    },
+    dispose: () => client.dispose(),
+  };
+}
+
+test("a legacy tab's transiently unavailable save stays retryable when a newer editor is current", async () => {
+  const tab = legacyTab();
+  await tab.backend.open({ signal: active() });
+
+  tab.nextPreparation("service.unavailable", 503);
+  expect(await tab.backend.save(tab.input, { signal: active() })).toMatchObject({
+    status: "failed",
+  });
+
+  // Retrying is still allowed, and reaches the server with the same save.
+  tab.nextPreparation("service.unavailable", 503);
+  expect((await tab.backend.save(tab.input, { signal: active() })).status).toBe("failed");
+  expect(tab.saveIds).toEqual(["legacy-save-1", "legacy-save-1"]);
+  tab.dispose();
+});
+
+for (const [code, status, reason] of [
+  ["auth.required", 401, "access-revoked"],
+  ["resource.notFound", 404, "session-ended"],
+] as const) {
+  test(`a legacy tab's session still ends when the server says so for it (${code})`, async () => {
+    const tab = legacyTab();
+    await tab.backend.open({ signal: active() });
+
+    tab.nextPreparation("service.unavailable", 503);
+    expect((await tab.backend.save(tab.input, { signal: active() })).status).toBe("failed");
+    tab.nextPreparation(code, status);
+    expect(await tab.backend.save(tab.input, { signal: active() })).toMatchObject({
+      status: "access-ended",
+      reason,
+    });
+    tab.dispose();
+  });
+}

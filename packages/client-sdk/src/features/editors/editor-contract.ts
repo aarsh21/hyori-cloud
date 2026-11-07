@@ -161,6 +161,8 @@ export interface EditorSnapshot {
   pendingOutput: Pick<EditorOutput, "name" | "intent"> | null;
   /** Outputs getRecoveryOutputs() would return, including ones that will never be retried. */
   recoveryCount: number;
+  /** The editor is being asked for its current state, which will be the newest recovery output. */
+  recovering: boolean;
   /** Observed time of the last confirmed source replacement, never a copy or export. */
   lastSavedAt: number | null;
   autosave: EditorAutosave;

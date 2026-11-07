@@ -4,6 +4,7 @@ import { decodeNativeHostCommand } from "@hyori-cloud/client-sdk/editor-runtime"
 import type { NativeHostCommand, NativeHostEvent } from "@hyori-cloud/client-sdk/editor-runtime";
 import { createNavigationGuard } from "#features/cloud/navigation-guard.ts";
 import { CloudNavigationProvider } from "#features/cloud/react/cloud-navigation.tsx";
+import type { CopyDestination } from "#features/editors/react/destination-dialog.tsx";
 import { EditorScreen } from "#features/editors/react/editor-screen.tsx";
 import {
   act,
@@ -12,6 +13,7 @@ import {
   deferred,
   fileEntry,
   fileList,
+  folderEntry,
   fireEvent,
   mount,
   screen,
@@ -52,6 +54,7 @@ const UPLOADING = {
 function fixture(
   overrides: Partial<EditorDocument> = {},
   handlers: Record<string, (input: RequestInput) => object | Promise<object>> = {},
+  copyDestination: CopyDestination = { kind: "folder", folderId: null },
 ) {
   const descriptor = { ...DOCUMENT, ...overrides };
   const owned = fileEntry({ id: "file_1", name: descriptor.name });
@@ -82,11 +85,7 @@ function fixture(
       onNavigate={() => {}}
       navigationGuard={guard}
     >
-      <EditorScreen
-        fileId={owned.id}
-        copyDestination={{ kind: "folder", folderId: null }}
-        closePath={() => "/"}
-      />
+      <EditorScreen fileId={owned.id} copyDestination={copyDestination} closePath={() => "/"} />
     </CloudNavigationProvider>,
     api,
   );
@@ -381,6 +380,116 @@ describe("autosave shell consuming the real SDK over explicit synthetic transpor
     expect(f.api.callsTo("editors.prepareSave")[0]?.input.intent).toBe("save-as");
     expect(f.guard.isHeld()).toBe(true);
     expect(screen.queryByText("All changes saved")).toBeNull();
+  });
+
+  test("a copy cancelled at the folder goes back to editing, and can go where it's told next", async () => {
+    const f = fixture(
+      { replacementName: null },
+      {
+        "files.list": () => fileList([folderEntry({ id: "folder_c", name: "Copies" })]),
+        "editors.completeSave": () => ({
+          status: "saved",
+          revision: "1",
+          file: fileEntry({ id: "copy_1", name: "Synthetic copy.docx" }),
+        }),
+      },
+    );
+
+    await f.ready();
+    f.dirty();
+    fireEvent.click(screen.getByRole("button", { name: "Save a copy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    f.output();
+    await screen.findByRole("heading", { name: "Save “Synthetic copy.docx” to…" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByText("Save a copy to keep changes")).toBeTruthy();
+    expect(screen.queryByText("Not saved")).toBeNull();
+    expect(f.api.callsTo("editors.prepareSave")).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save a copy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    expect(f.requests()).toHaveLength(2);
+    f.output();
+    await screen.findByRole("heading", { name: "Save “Synthetic copy.docx” to…" });
+    fireEvent.click(await screen.findByRole("button", { name: /Copies/ }));
+    await waitFor(() =>
+      expect(f.api.callsTo("files.list").at(-1)?.input.parentId).toBe("folder_c"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save here" }));
+    await waitFor(() => expect(f.api.callsTo("editors.prepareSave")).toHaveLength(1));
+    expect(f.api.callsTo("editors.prepareSave")[0]?.input.destination).toEqual({
+      parentId: "folder_c",
+    });
+  });
+
+  test("a cancelled copy of a writable file leaves Save a copy… available", async () => {
+    const f = fixture();
+
+    await f.ready();
+    fireEvent.click(screen.getByRole("button", { name: "Document options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Save a copy…" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
+    f.output();
+    await screen.findByRole("heading", { name: "Save “Synthetic copy.docx” to…" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await screen.findByText(/^(All changes saved|Ready to edit)$/);
+    fireEvent.click(screen.getByRole("button", { name: "Document options" }));
+
+    const item = await screen.findByRole("menuitem", { name: "Save a copy…" });
+
+    expect(item.getAttribute("aria-disabled")).not.toBe("true");
+  });
+
+  test("a one-file link offers the copy, says there's no folder for it, and keeps it to download", async () => {
+    const f = fixture({ replacementName: null }, {}, { kind: "none" });
+
+    await f.ready();
+    f.dirty();
+    fireEvent.click(screen.getByRole("button", { name: "Save a copy" }));
+    // There's no folder to name it for, so nothing asks for a name.
+    expect(screen.queryByLabelText("Copy name")).toBeNull();
+    expect(f.requests()[0]).toMatchObject({ saveAs: true, name: "Synthetic copy.docx" });
+    f.output();
+
+    const dialog = await screen.findByRole("dialog");
+
+    expect(dialog.textContent).toContain("This link only shares one file");
+    expect(screen.queryByRole("button", { name: "Save here" })).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByText("Save a copy to keep changes")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Download my version" })).toBeTruthy();
+    expect(f.api.callsTo("editors.prepareSave")).toHaveLength(0);
+  });
+
+  test("after a conflict, Download my version waits for what's in the editor now", async () => {
+    const f = fixture(
+      {},
+      {
+        "editors.prepareSave": () => {
+          throw new ApiFailure("resource.conflict");
+        },
+      },
+    );
+
+    await f.ready();
+    f.dirty();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    f.output();
+    expect(await screen.findByText("This file was changed somewhere else")).toBeTruthy();
+    expect(f.frame.hasAttribute("inert")).toBe(true);
+    // The refused save's bytes predate anything typed since, so the editor is asked again.
+    expect(f.requests()).toHaveLength(2);
+    expect(f.requests()[1]).toMatchObject({ saveAs: true });
+    const download = () => screen.getByRole("button", { name: /Download my version/ });
+
+    expect(download().getAttribute("aria-busy")).toBe("true");
+    expect(download().getAttribute("aria-disabled")).toBe("true");
+    f.output();
+    await waitFor(() => expect(download().getAttribute("aria-busy")).toBeNull());
+    expect(download().getAttribute("aria-disabled")).toBeNull();
   });
 
   test("a failed source save keeps stable retry and never recaptures", async () => {

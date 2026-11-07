@@ -39,7 +39,7 @@ import { useStoreValue } from "@hyori-cloud/ui/hooks/use-store-value";
 import { saveBytesAsDownload } from "@hyori-cloud/ui/lib/browser";
 import { AppearanceObserver } from "@hyori-cloud/ui/theme";
 import { editorSaveState } from "#features/editors/editor-save-state.ts";
-import { EditorCopyDialog } from "#features/editors/react/editor-copy-dialog.tsx";
+import { EditorCopyDialog, suggestedName } from "#features/editors/react/editor-copy-dialog.tsx";
 import { EditorSaveActions } from "#features/editors/react/editor-save-actions.tsx";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
 import { createDestinationRequests } from "#features/editors/destination-requests.ts";
@@ -178,7 +178,7 @@ function EditorBar({
   attachment: EditorAttachment;
   fileId: string;
   closePath: ClosePath;
-  /** False where there is nowhere to put a copy, such as a link that shares a single file. */
+  /** False where there is no folder to put a copy in, such as a link that shares a single file. */
   canCopy: boolean;
   onReopen: () => void;
 }) {
@@ -199,6 +199,14 @@ function EditorBar({
 
   const live = snapshot.status === "editing" || snapshot.status === "read-only";
   const serializing = snapshot.autosave.status === "serializing";
+
+  // With no folder to name a copy for, it goes straight to the dialog that says so, and the
+  // capture it made stays here to download.
+  function copy() {
+    if (canCopy) setCopying(true);
+    else if (snapshot.document !== null)
+      session.requestSave({ saveAs: true, name: suggestedName(snapshot.document) });
+  }
 
   function leave(action: "close" | "reopen") {
     // Ended first, so the frame is still there when the session lets go of it.
@@ -226,11 +234,12 @@ function EditorBar({
         </InlineText>
         <HostedDocumentStatus>{editorSaveState(snapshot)}</HostedDocumentStatus>
       </HostedDocumentIdentity>
-      <EditorSaveActions
-        snapshot={snapshot}
-        requestSave={session.requestSave}
-        onCopy={canCopy ? () => setCopying(true) : null}
-      />
+      <EditorSaveActions snapshot={snapshot} requestSave={session.requestSave} onCopy={copy} />
+      {!canCopy && hasRecovery && live ? (
+        <Button size="sm" variant="outline" onClick={() => downloadMyVersion(session)}>
+          Download my version
+        </Button>
+      ) : null}
       <EditorProblem
         snapshot={snapshot}
         hasRecovery={hasRecovery}
@@ -248,11 +257,12 @@ function EditorBar({
           align="end"
           className="data-open:animate-none data-closed:animate-none"
         >
-          {native && canCopy && !copyOnly && live ? (
+          {native && !copyOnly && live ? (
             <>
+              {/* Only an unfinished save blocks a copy; one already given up on never does. */}
               <DropdownMenuItem
-                disabled={serializing || hasRecovery}
-                onClick={() => setCopying(true)}
+                disabled={serializing || snapshot.pendingSaveCount > 0}
+                onClick={copy}
               >
                 Save a copy…
               </DropdownMenuItem>
@@ -386,8 +396,15 @@ function EditorCover({
   const close = useCloseEditor(fileId, closePath);
   const hasRecovery = snapshot.recoveryCount > 0;
 
+  // While the editor is still handing over what's in it now, an earlier capture would miss edits.
   const download = hasRecovery ? (
-    <Button size="sm" variant="outline" onClick={() => downloadMyVersion(session)}>
+    <Button
+      size="sm"
+      variant="outline"
+      pending={snapshot.recovering}
+      pendingLabel="Preparing…"
+      onClick={() => downloadMyVersion(session)}
+    >
       Download my version
     </Button>
   ) : null;

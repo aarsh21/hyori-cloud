@@ -387,26 +387,9 @@ export function createEditors(
                 };
             }
 
-            // An unavailable save from a version this server no longer serves can never succeed;
-            // retrying it forever would only hide that the open editor is out of date.
-            if (
-              failure.status === "failed" &&
-              normalizeClientError(cause).code === "service.unavailable" &&
-              !lifetime.signal.aborted
-            ) {
-              const current = await rpc
-                .available({}, { signal: lifetime.signal })
-                .then((result) => result.apps.find((app) => app.app === document?.app))
-                .catch(() => undefined);
-
-              if (current !== undefined && current.version !== document.version)
-                return {
-                  status: "access-ended",
-                  reason: "editor-updated",
-                  message: "The editor was updated. Download your changes and reopen the file.",
-                };
-            }
-
+            // An unavailable save stays retryable. A newer current version is no evidence against
+            // this one: the server keeps saving verified legacy sessions, and only a response
+            // about this session itself (handled above) ends it.
             return failure;
           } finally {
             task?.dispose();

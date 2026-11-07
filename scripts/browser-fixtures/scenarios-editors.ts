@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BrowserContext, Page } from "playwright-core";
 import { z } from "zod";
+import { editorContentSecurityPolicy } from "../editor-csp.ts";
 import {
   assertBundleAsset,
   assertHoldsEdit,
@@ -30,7 +31,7 @@ import {
 } from "./editor-actions.ts";
 import { createEditorCases } from "./editor-probe/cases.ts";
 import type { EditorApp, EditorCase, EditorCases } from "./editor-probe/cases.ts";
-import { fetchInPage } from "./page-actions.ts";
+import { downloadBytes, fetchInPage } from "./page-actions.ts";
 import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { runEditorRecoveryScenarios } from "./scenarios-editor-recovery.ts";
@@ -123,7 +124,11 @@ async function bundleServing(run: CoreRun) {
       assert.equal(status, 200);
       assert.equal(headers["x-content-type-options"], "nosniff");
       assert.equal(headers["x-frame-options"], "SAMEORIGIN");
-      assert.equal(headers["content-security-policy"], "frame-ancestors 'self'");
+      // Exactly the policy derived from the bundle being served: framing, plus its own loaders.
+      assert.equal(
+        headers["content-security-policy"],
+        editorContentSecurityPolicy(editorBundle.directory),
+      );
       assert.equal(headers["cache-control"], "no-cache");
       assert.match(headers["content-type"] ?? "", /^text\/html/);
     });
@@ -521,20 +526,32 @@ async function singleFileLink(run: CoreRun, cases: EditorCases) {
           // the copy itself instead of failing a save.
           const top = await waitForEditor(visitor, "Save a copy to keep changes");
 
+          // With no folder, there's no name to choose either: Save a copy says so at once. Closing
+          // that is a cancelled copy, so the editor goes on editing, and the capture it made is
+          // the person's to download.
           await cases.deckFromPptx.edit(visitor, top, PUBLIC_MARKER);
           await barButton(visitor, "Save a copy").click();
-          await visitor
-            .getByRole("dialog", { name: "Save a copy" })
-            .getByRole("button", { name: "Continue" })
-            .click();
 
           const dialog = visitor.getByRole("dialog");
 
           await dialog.getByText("This link only shares one file").waitFor({ timeout: 30_000 });
+          // Photographed once it has really appeared, not in its first transparent frame.
+          await visitor.locator('[role="dialog"]:not([data-starting-style])').waitFor();
+          await dialog.evaluate((element) =>
+            Promise.all(element.getAnimations({ subtree: true }).map(({ finished }) => finished)),
+          );
+          await report.shot(visitor, "deckcraft-single-link-no-folder");
           await dialog.getByRole("button", { name: "Close" }).first().click();
           await dialog.waitFor({ state: "detached" });
-          await barStatus(visitor, /^Not saved$/).waitFor();
-          await barButton(visitor, "Download my version").waitFor();
+          await barStatus(visitor, "Save a copy to keep changes").waitFor();
+          assert.ok(await barButton(visitor, "Save a copy").isEnabled(), "Save a copy is offered");
+
+          const kept = await downloadBytes(visitor, () =>
+            barButton(visitor, "Download my version").click(),
+          );
+
+          await report.shot(visitor, "deckcraft-single-link-kept");
+          assertHoldsEdit(cases.deckFromPptx, kept, PUBLIC_MARKER);
           assert.equal(operationCount(front, "editors.prepareSave"), prepares, "saves attempted");
 
           return;

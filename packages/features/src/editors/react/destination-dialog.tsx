@@ -100,7 +100,8 @@ function NoFolderToChoose({ requests }: { requests: DestinationRequests }) {
     <>
       <DialogBody>
         <Text tone="muted">
-          This link only shares one file, so there’s no folder here to save a copy in.
+          This link only shares one file, so there’s no folder here to save a copy in. Your changes
+          stay open, and Download my version saves them to this device.
         </Text>
       </DialogBody>
       <DialogFooter>

@@ -17,7 +17,8 @@ import { Label } from "@hyori-cloud/ui/components/label";
 import { Text } from "@hyori-cloud/ui/components/text";
 import { formText } from "#features/shared/form-values.ts";
 
-function suggestedName(document: EditorDocument) {
+/** The copy's name until someone changes it: the source's, in the editor's own document format. */
+export function suggestedName(document: EditorDocument) {
   const extension = document.outputFormats.find((format) => format.kind === "document")?.extension;
   const dot = document.name.lastIndexOf(".");
   const stem = dot > 0 ? document.name.slice(0, dot) : document.name;

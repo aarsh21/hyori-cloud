@@ -9,8 +9,7 @@ export function EditorSaveActions({
 }: {
   snapshot: EditorSnapshot;
   requestSave: EditorSession["requestSave"];
-  /** Null where there is nowhere to put a copy. */
-  onCopy: (() => void) | null;
+  onCopy: () => void;
 }) {
   const document = snapshot.document;
 
@@ -29,8 +28,6 @@ export function EditorSaveActions({
     snapshot.autosave.status === "disabled" && snapshot.autosave.reason === "copy-required";
 
   if (detached || !document.writable || document.replacementName === null) {
-    if (onCopy === null) return null;
-
     return (
       <Button size="sm" variant="outline" pending={pending} pendingLabel="Saving…" onClick={onCopy}>
         Save a copy
