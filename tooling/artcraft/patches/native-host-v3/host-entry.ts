@@ -145,6 +145,10 @@ export function hostTakeFailure() {
   return bridge().takeFailure();
 }
 
+export function hostTakeDiscard() {
+  return bridge().takeDiscard();
+}
+
 export function hostTakeAcknowledgement() {
   return bridge().takeAcknowledgement();
 }
@@ -168,6 +172,10 @@ export function hostAcknowledged(
 
 export function hostTakeThemeRequest() {
   return bridge().takeThemeRequest();
+}
+
+export function hostThemeFailed(requestId: string, message: string) {
+  bridge().themeFailed(requestId, message);
 }
 
 export function hostThemeApplied(

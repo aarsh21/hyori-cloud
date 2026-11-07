@@ -43,12 +43,16 @@ extern "C" {
     fn js_take_cancellation() -> Result<JsValue, JsValue>;
     #[wasm_bindgen(catch, js_name = hostTakeFailure)]
     fn js_take_failure() -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(catch, js_name = hostTakeDiscard)]
+    fn js_take_discard() -> Result<JsValue, JsValue>;
     #[wasm_bindgen(catch, js_name = hostTakeAcknowledgement)]
     fn js_take_ack() -> Result<JsValue, JsValue>;
     #[wasm_bindgen(catch, js_name = hostAcknowledged)]
     fn js_acknowledged(before_document: &JsValue, before_revision: &str, current_document: &JsValue, current_revision: &str, dirty: bool) -> Result<(), JsValue>;
     #[wasm_bindgen(catch, js_name = hostTakeThemeRequest)]
     fn js_take_theme() -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(catch, js_name = hostThemeFailed)]
+    fn js_theme_failed(request_id: &str, message: &str) -> Result<(), JsValue>;
     #[wasm_bindgen(catch, js_name = hostThemeApplied)]
     fn js_theme_applied(request_id: &str, theme: &str, resolved: &str) -> Result<(), JsValue>;
 }
