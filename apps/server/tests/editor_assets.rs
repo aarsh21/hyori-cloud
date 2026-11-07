@@ -413,6 +413,20 @@ async fn rolling_catalogue_preserves_legacy_save_after_restart_and_applies_kill_
     );
     pg.stop();
 }
+/// The bundle's current editor entries, read from the manifest the pinned hash names.
+fn actual_bundle_current_editors() -> Vec<serde_json::Value> {
+    let config = actual_bundle();
+    let bytes = std::fs::read(config.directory.join("runtime-bundle-manifest.json")).unwrap();
+    assert_eq!(hex::encode(Sha256::digest(&bytes)), config.manifest_sha256);
+    let manifest: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    manifest["editors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|editor| editor.get("role").is_none_or(|role| role == "current"))
+        .cloned()
+        .collect()
+}
 fn actual_bundle() -> EditorAssetsConfig {
     EditorAssetsConfig {
         directory: std::env::var_os("HYORI_EDITOR_TEST_BUNDLE_DIR")
@@ -433,18 +447,18 @@ async fn actual_bundle_activation_preserves_disable_and_absence_revokes_session_
     let setup=server.rpc("auth.setup",json!({"email":"assets@example.test","name":"Assets","password":random_token(),"setupToken":pg.config.setup_token}),None).await;
     assert!(setup.cookie.is_some());
     let cookie = setup.credential();
+    // Expectations come from the bundle itself, so any verified runtime bundle can run this.
+    let current = actual_bundle_current_editors();
     let rows=server.state.db.query_all_raw(sql("SELECT app,enabled,first_activated_catalog_sha256 FROM hyori_editor_assets ORDER BY app",vec![])).await.unwrap();
     for row in rows {
         let app: String = row.try_get("", "app").unwrap();
-        assert_eq!(
-            row.try_get::<bool>("", "enabled").unwrap(),
-            app != "deckcraft"
-        );
+        let shipped = current.iter().any(|editor| editor["app"] == app.as_str());
+        assert_eq!(row.try_get::<bool>("", "enabled").unwrap(), shipped);
         assert_eq!(
             row.try_get::<Option<String>>("", "first_activated_catalog_sha256")
                 .unwrap()
                 .is_some(),
-            app != "deckcraft"
+            shipped
         );
     }
     let available = server
@@ -452,10 +466,23 @@ async fn actual_bundle_activation_preserves_disable_and_absence_revokes_session_
         .await
         .value()
         .clone();
-    assert_eq!(
-        available,
-        json!({"apps":[{"app":"wordcraft","version":"0.14.0","inputExtensions":[".docx"]},{"app":"gridcraft","version":"0.15.0","inputExtensions":[".xlsx"]},{"app":"pdfcraft","version":"0.17.0","inputExtensions":[".pdf"]}]})
-    );
+    let expected: Vec<_> = [
+        ("wordcraft", vec![".docx"]),
+        ("gridcraft", vec![".xlsx"]),
+        ("deckcraft", vec![".deckcraft", ".pptx"]),
+        ("pdfcraft", vec![".pdf"]),
+    ]
+    .into_iter()
+    .filter_map(|(app, extensions)| {
+        let editor = current.iter().find(|editor| editor["app"] == app)?;
+        Some(json!({"app":app,"version":editor["version"],"inputExtensions":extensions}))
+    })
+    .collect();
+    assert_eq!(available, json!({ "apps": expected }));
+    let pdf = current
+        .iter()
+        .find(|editor| editor["app"] == "pdfcraft")
+        .expect("the bundle ships PdfCraft");
     let bytes = b"%PDF-1.7\n%%EOF\n";
     let begin=server.rpc("uploads.begin",json!({"parentId":null,"name":"runtime.pdf","size":bytes.len(),"mimeType":"application/pdf"}),Some(&cookie)).await;
     let upload = begin.value()["uploadId"].as_str().unwrap();
@@ -487,10 +514,7 @@ async fn actual_bundle_activation_preserves_disable_and_absence_revokes_session_
         .await
         .value()
         .clone();
-    assert_eq!(
-        document["assetUrl"],
-        "/artcraft/pdfcraft/0.17.0/index.html?host=parent"
-    );
+    assert_eq!(document["assetUrl"], pdf["assetUrl"]);
     server
         .state
         .db
@@ -507,7 +531,10 @@ async fn actual_bundle_activation_preserves_disable_and_absence_revokes_session_
         .await
         .value()
         .clone();
-    assert_eq!(available["apps"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        available["apps"].as_array().unwrap().len(),
+        expected.len() - 1
+    );
     server
         .rpc(
             "editors.download",
