@@ -556,3 +556,11 @@ Each step is skipped when its result exists, and a failed step's partial output 
 ### CSP for the inline loader
 
 Trunk's `index.html` starts the engine from one inline `<script type="module">`. Its text names that build's hashed JS and WASM files, so it differs per app and per build. Rather than rewrite Trunk's output, which would add a post-build transform and change payload bytes after Trunk's SRI attributes were computed, `native-v3-build-evidence.ts` records the loader's CSP hash. It refuses an entry with anything other than exactly one inline script. The hash appears as `cspScriptHashes` in each r2 receipt and in the handoff's `editors[]`. A gateway can then send `script-src 'self' 'wasm-unsafe-eval' 'sha256-…'` for each app's `/artcraft/<app>/<version>/` path, or one policy listing all four hashes. The entry also has an inline `<style>`, so `style-src` would need its own hash or `'unsafe-inline'`; that is not recorded here.
+
+### r2 results (2026-11-07, runner Hyorinmaru)
+
+- Bundle `tooling/artcraft/.generated/runtime-all4-native-v3-r2`, manifest SHA-256 **`8c8998f74a6d11b4ebc84f70f70adb284b9e1bed6ea3f6c9b26e99030e5ab4a4`**, 4,123 files. `native-v3-runtime.ts check` passes and regenerates the committed handoff byte for byte.
+- WASM: Word `c0708fdd…4d18`, Grid `6fdc25f0…274e`, PDF `51d6d2b2…79ab`, Deck `f10d5f65…f594`.
+- `bun run check:rust` passes. `bun run test:rust-services` passes with `HYORI_EDITOR_TEST_BUNDLE_DIR`/`SHA256` set to this bundle: 64 tests. The actual-bundle activation test now reads its expectations from the bundle manifest; it used to hard-code the official-three bundle, so it failed for every all-four bundle. On this runner `/tmp` is a small tmpfs, so set `TMPDIR` to a short on-disk path. A long path overflows the media worker's Unix socket limit.
+- `scripts/test-rust-browser.ts` editors scenarios, with the server image built from this branch and `hyori-media-worker:local`: 114 passed, 0 failed, 12 unverified. Ten of the unverified items were reopened-document screenshots, and a person read all ten as correct. The other two are documented behaviour: repeat PPTX saves ask each time, and the read-only Save As Browse… control can't be located automatically.
+- `scripts/dev-stack.ts` now defaults to `runtime-all4-native-v3-r2.json`.
