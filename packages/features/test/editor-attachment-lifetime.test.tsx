@@ -48,6 +48,10 @@ function leaveDocument({ persisted }: { persisted: boolean }) {
   act(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted })));
 }
 
+function returnToDocument() {
+  act(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+}
+
 /** The person is asked and says no: the only thing the page ever sees is this event. */
 function refuseToLeave() {
   const asking = new Event("beforeunload", { cancelable: true });
@@ -78,9 +82,16 @@ describe("how long an attachment lives", () => {
 
     Object.defineProperty(editorWindow, "postMessage", { configurable: true, value: () => {} });
 
-    const attachment = createEditorAttachment({ frame, backend, guard });
+    const returns: string[] = [];
 
-    return { attachment, closes, guard, frame, editorWindow };
+    const attachment = createEditorAttachment({
+      frame,
+      backend,
+      guard,
+      onReturn: () => returns.push("returned"),
+    });
+
+    return { attachment, closes, guard, frame, editorWindow, returns };
   }
 
   const status = ({ attachment }: ReturnType<typeof attached>) =>
@@ -135,22 +146,50 @@ describe("how long an attachment lives", () => {
     opened.attachment.dispose();
   });
 
-  test("a page kept for the back button keeps its live work", () => {
+  test("a clean page kept for the back button lets its session go, and reopens on return", () => {
     const opened = attached();
 
     leaveDocument({ persisted: true });
 
-    expect(status(opened)).not.toBe("disposed");
-    expect(opened.closes).toEqual([]);
+    expect(status(opened)).toBe("disposed");
+    expect(opened.closes).toEqual(["closed"]);
+    returnToDocument();
+    expect(opened.returns).toEqual(["returned"]);
     opened.attachment.dispose();
+    returnToDocument();
+    expect(opened.returns).toEqual(["returned"]);
   });
 
-  test("a page that came back still ends its session when it's really left", () => {
+  test("a page kept for the back button with unsaved work keeps it live", async () => {
     const opened = attached();
 
-    leaveDocument({ persisted: true });
-    leaveDocument({ persisted: false });
+    await waitFor(() => expect(opened.frame.getAttribute("src")).toBe(DOCUMENT.assetUrl));
+    act(() =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "wordcraft:ready", version: "0.14.0" },
+          origin: window.location.origin,
+          source: opened.editorWindow,
+        }),
+      ),
+    );
+    await waitFor(() => expect(status(opened)).toBe("editing"));
+    act(() =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "wordcraft:dirty", dirty: true },
+          origin: window.location.origin,
+          source: opened.editorWindow,
+        }),
+      ),
+    );
 
+    leaveDocument({ persisted: true });
+    expect(status(opened)).not.toBe("disposed");
+    expect(opened.closes).toEqual([]);
+    returnToDocument();
+    expect(opened.returns).toEqual([]);
+    leaveDocument({ persisted: false });
     expect(status(opened)).toBe("disposed");
     expect(opened.closes).toEqual(["closed"]);
   });
@@ -224,7 +263,7 @@ describe("the mounted editor's session", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: "Open latest version" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Discard changes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Reopen without it" }));
 
     await waitFor(() => expect(api.callsTo("editors.open")).toHaveLength(2));
     await waitFor(() => expect(api.callsTo("editors.download")).toHaveLength(2));

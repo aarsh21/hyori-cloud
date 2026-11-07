@@ -3,7 +3,7 @@ import {
   useClientSDK,
   useEditorSession,
 } from "@hyori-cloud/client-sdk/react";
-import type { EditorSession, EditorSnapshot } from "@hyori-cloud/client-sdk";
+import type { EditorSession, EditorSnapshot, EditorStopReason } from "@hyori-cloud/client-sdk";
 import { useQuery, useQueryClient } from "@hyori-cloud/lib/query";
 import { ArrowLeft, MoreHorizontal } from "@hyori-cloud/lib/icons";
 import { useState } from "@hyori-cloud/lib/react";
@@ -35,6 +35,7 @@ import {
 import { Notice } from "@hyori-cloud/ui/components/notice";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { InlineText, Text } from "@hyori-cloud/ui/components/text";
+import { useStoreValue } from "@hyori-cloud/ui/hooks/use-store-value";
 import { saveBytesAsDownload } from "@hyori-cloud/ui/lib/browser";
 import { AppearanceObserver } from "@hyori-cloud/ui/theme";
 import { editorSaveState } from "#features/editors/editor-save-state.ts";
@@ -50,6 +51,15 @@ import type { CopyDestination } from "#features/editors/react/destination-dialog
 type ClosePath = (parentId: string | null) => string;
 
 const NOTICES_URL = "/artcraft/legal/RUNTIME-NOTICE-INDEX.md";
+
+// Read before an attachment exists, so the frame's lock can be derived in the one place it renders.
+const NO_SESSION = {
+  subscribe: () => () => {},
+  getSnapshot: (): EditorSnapshot | null => null,
+};
+
+/** What "Download my version" holds once editing has stopped. */
+const DOWNLOAD_HOLDS = "Download my version saves your changes as they were when editing stopped.";
 
 /** One attempt per mount: reopening is a new attachment, never a replay into a live editor. */
 export function EditorScreen({
@@ -92,11 +102,19 @@ function EditorAttempt({
   const { navigationGuard } = useCloudNavigation();
   const [requests] = useState(createDestinationRequests);
   const [attachment, setAttachment] = useState<EditorAttachment | null>(null);
+  const snapshot = useStoreValue<EditorSnapshot | null>(attachment?.session ?? NO_SESSION);
+
+  // Nothing typed here could be saved any more, so the editor stops taking input under its cover.
+  const locked =
+    snapshot?.status === "conflict" ||
+    snapshot?.status === "access-ended" ||
+    snapshot?.status === "failed";
 
   function attach(frame: HTMLIFrameElement) {
     const created = createEditorAttachment({
       frame,
       guard: navigationGuard,
+      onReturn: onReopen,
       backend: createQueryEditorBackend(sdkClient, queryClient, {
         id: fileId,
         chooseDestination: requests.choose,
@@ -116,12 +134,13 @@ function EditorAttempt({
             attachment={attachment}
             fileId={fileId}
             closePath={closePath}
+            canCopy={copyDestination.kind !== "none"}
             onReopen={onReopen}
           />
         )
       }
     >
-      <HostedDocumentFrame title="Document editor" onAttach={attach} />
+      <HostedDocumentFrame title="Document editor" onAttach={attach} inert={locked} />
       {attachment === null ? null : (
         <EditorCover
           session={attachment.session}
@@ -153,18 +172,21 @@ function EditorBar({
   attachment,
   fileId,
   closePath,
+  canCopy,
   onReopen,
 }: {
   attachment: EditorAttachment;
   fileId: string;
   closePath: ClosePath;
+  /** False where there is nowhere to put a copy, such as a link that shares a single file. */
+  canCopy: boolean;
   onReopen: () => void;
 }) {
   const { session } = attachment;
   const snapshot = useEditorSession(session);
   const close = useCloseEditor(fileId, closePath);
   const [confirming, setConfirming] = useState<"close" | "reopen" | null>(null);
-  const hasRecovery = snapshot.pendingSaveCount > 0;
+  const hasRecovery = snapshot.recoveryCount > 0;
   const [copying, setCopying] = useState(false);
 
   const native =
@@ -207,14 +229,14 @@ function EditorBar({
       <EditorSaveActions
         snapshot={snapshot}
         requestSave={session.requestSave}
-        onCopy={() => setCopying(true)}
+        onCopy={canCopy ? () => setCopying(true) : null}
       />
       <EditorProblem
         snapshot={snapshot}
         hasRecovery={hasRecovery}
         onRetry={() => session.retry()}
+        onDismiss={() => session.dismiss()}
         onDownload={() => downloadMyVersion(session)}
-        onReopen={() => request("reopen")}
       />
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -226,7 +248,7 @@ function EditorBar({
           align="end"
           className="data-open:animate-none data-closed:animate-none"
         >
-          {native && !copyOnly && live ? (
+          {native && canCopy && !copyOnly && live ? (
             <>
               <DropdownMenuItem
                 disabled={serializing || hasRecovery}
@@ -246,7 +268,7 @@ function EditorBar({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {native && snapshot.document !== null ? (
+      {native && canCopy && snapshot.document !== null ? (
         <EditorCopyDialog
           document={snapshot.document}
           open={copying}
@@ -295,42 +317,41 @@ function EditorProblem({
   snapshot,
   hasRecovery,
   onRetry,
+  onDismiss,
   onDownload,
-  onReopen,
 }: {
   snapshot: EditorSnapshot;
   hasRecovery: boolean;
   onRetry: () => void;
+  onDismiss: () => void;
   onDownload: () => void;
-  onReopen: () => void;
 }) {
-  const download = hasRecovery ? (
-    <Button size="xs" variant="outline" onClick={onDownload}>
-      Download my version
-    </Button>
-  ) : null;
+  const copy = snapshot.pendingOutput !== null && snapshot.pendingOutput.intent !== "replace";
 
   switch (snapshot.status) {
     case "save-failed":
+      // A copy may give up and leave the original editing; the original itself can only retry.
       return (
         <>
           <Button size="xs" variant="outline" onClick={onRetry}>
-            Retry save
+            {copy ? "Retry copy" : "Retry save"}
           </Button>
-          {download}
+          {copy ? (
+            <Button size="xs" variant="ghost" onClick={onDismiss}>
+              Don’t save copy
+            </Button>
+          ) : null}
+          {!copy && hasRecovery ? (
+            <Button size="xs" variant="outline" onClick={onDownload}>
+              Download my version
+            </Button>
+          ) : null}
         </>
       );
     case "conflict":
-      return (
-        <>
-          {download}
-          <Button size="xs" variant="outline" onClick={onReopen}>
-            Open latest version
-          </Button>
-        </>
-      );
     case "access-ended":
-      return download;
+      // Covered: the cover says what happened and offers the way out.
+      return null;
     case "editing":
     case "read-only":
       return snapshot.message === null ? null : (
@@ -363,7 +384,19 @@ function EditorCover({
 }) {
   const snapshot = useEditorSession(session);
   const close = useCloseEditor(fileId, closePath);
-  const hasRecovery = snapshot.pendingSaveCount > 0;
+  const hasRecovery = snapshot.recoveryCount > 0;
+
+  const download = hasRecovery ? (
+    <Button size="sm" variant="outline" onClick={() => downloadMyVersion(session)}>
+      Download my version
+    </Button>
+  ) : null;
+
+  const closeButton = (
+    <Button size="sm" variant="ghost" onClick={close}>
+      Close
+    </Button>
+  );
 
   switch (snapshot.status) {
     case "opening":
@@ -372,58 +405,84 @@ function EditorCover({
           <Spinner label="Opening the editor" />
         </HostedDocumentCover>
       );
-    case "failed":
+    case "failed": {
+      const failure = openFailure(snapshot.reason);
+
       return (
         <HostedDocumentCover>
           <Notice
-            title="This document couldn’t be opened in the editor"
+            title={failure.title}
             action={
               <>
-                {hasRecovery ? (
-                  <Button size="sm" variant="outline" onClick={() => downloadMyVersion(session)}>
-                    Download my version
-                  </Button>
+                {download}
+                {failure.retry ? (
+                  <ReopenButton hasRecovery={hasRecovery} onReopen={onReopen}>
+                    Try again
+                  </ReopenButton>
                 ) : null}
-                <Button size="sm" variant="outline" onClick={onReopen}>
-                  Try again
-                </Button>
-                <Button size="sm" variant="ghost" onClick={close}>
-                  Close
-                </Button>
+                {closeButton}
               </>
             }
           >
-            Your file hasn’t changed. Editing may not be available on this server right now.
+            {failure.detail}{" "}
+            {snapshot.lastSavedAt === null
+              ? "Your file hasn’t changed."
+              : "Changes saved before this are in the file."}
+            {hasRecovery ? ` ${DOWNLOAD_HOLDS}` : ""}
           </Notice>
         </HostedDocumentCover>
       );
-    case "access-ended":
+    }
+
+    case "conflict":
       return (
         <HostedDocumentCover>
           <Notice
-            title="You no longer have access to this file"
+            title="This file was changed somewhere else"
             action={
               <>
-                {hasRecovery ? (
-                  <Button size="sm" variant="outline" onClick={() => downloadMyVersion(session)}>
-                    Download my version
-                  </Button>
-                ) : null}
-                <Button size="sm" variant="ghost" onClick={close}>
-                  Close
-                </Button>
+                {download}
+                <ReopenButton hasRecovery={hasRecovery} onReopen={onReopen}>
+                  Open latest version
+                </ReopenButton>
               </>
             }
           >
-            Nothing more can be saved to it.
+            Your recent changes weren’t saved over it, and editing has stopped here.{" "}
+            {DOWNLOAD_HOLDS}
           </Notice>
         </HostedDocumentCover>
       );
+    case "access-ended": {
+      const ended = endedSession(snapshot.reason);
+
+      return (
+        <HostedDocumentCover>
+          <Notice
+            title={ended.title}
+            action={
+              <>
+                {download}
+                {ended.reopen ? (
+                  <ReopenButton hasRecovery={hasRecovery} onReopen={onReopen}>
+                    Reopen
+                  </ReopenButton>
+                ) : null}
+                {closeButton}
+              </>
+            }
+          >
+            {ended.detail}
+            {hasRecovery ? ` ${DOWNLOAD_HOLDS}` : ""}
+          </Notice>
+        </HostedDocumentCover>
+      );
+    }
+
     case "editing":
     case "saving":
     case "read-only":
     case "save-failed":
-    case "conflict":
     case "disposed":
       return null;
     default:
@@ -431,4 +490,149 @@ function EditorCover({
 
       return null;
   }
+}
+
+/** Reopening drops what this editor holds, so with something to download first it asks. */
+function ReopenButton({
+  hasRecovery,
+  onReopen,
+  children,
+}: {
+  hasRecovery: boolean;
+  onReopen: () => void;
+  children: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => (hasRecovery ? setConfirming(true) : onReopen())}
+      >
+        {children}
+      </Button>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Leave your version behind?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Reopening starts from the saved file. Download your version first to keep it.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="ghost" />}>Cancel</AlertDialogClose>
+            <Button variant="destructive" onClick={onReopen}>
+              Reopen without it
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+/** How the cover explains a session that never opened, and whether trying again can help. */
+type OpenFailure = { title: string; detail: string; retry: boolean };
+
+/** How the cover explains a session that ended, and whether reopening can help. */
+type EndedSession = { title: string; detail: string; reopen: boolean };
+
+function openFailure(reason: EditorStopReason | null): OpenFailure {
+  switch (reason) {
+    case "unsupported":
+      return {
+        title: "This file can’t be opened in the editor",
+        detail: "It’s larger than the editor allows, or in a format it can’t open.",
+        retry: false,
+      };
+    case "session-limit":
+      return {
+        title: "Too many documents are open",
+        detail: "Close a document open in another tab or window, then try again.",
+        retry: true,
+      };
+    case "unavailable":
+      return {
+        title: "Editing isn’t available right now",
+        detail: "The editor is turned off on this server, or its storage can’t be reached.",
+        retry: true,
+      };
+    case "unreadable":
+      return {
+        title: "The editor couldn’t read this file",
+        detail: "It may be damaged, or use something the editor doesn’t support.",
+        retry: false,
+      };
+    case "network":
+      return {
+        title: "The document couldn’t be loaded",
+        detail: "Check your connection, then try again.",
+        retry: true,
+      };
+    case "timeout":
+      return {
+        title: "The editor took too long to start",
+        detail: "This can happen on a slow connection or with a large file.",
+        retry: true,
+      };
+    case "access-revoked":
+      return {
+        title: "You don’t have access to this file",
+        detail: "Ask its owner to share it with you again.",
+        retry: false,
+      };
+    case "editor-updated":
+      return {
+        title: "The editor was updated",
+        detail: "Reopen the file to use the new version.",
+        retry: true,
+      };
+    case "crashed":
+    case "session-ended":
+    case null:
+      return {
+        title: "The editor stopped",
+        detail: "Something went wrong while it was running.",
+        retry: true,
+      };
+  }
+
+  reason satisfies never;
+
+  return { title: "The editor stopped", detail: "", retry: true };
+}
+
+function endedSession(reason: EditorStopReason | null): EndedSession {
+  switch (reason) {
+    case "session-ended":
+      return {
+        title: "This editing session has ended",
+        detail: "Sessions end after a day, or when the file is moved or removed.",
+        reopen: true,
+      };
+    case "editor-updated":
+      return {
+        title: "The editor was updated",
+        detail: "This tab still has the old editor, which can’t save any more.",
+        reopen: true,
+      };
+    case "access-revoked":
+    case "unsupported":
+    case "session-limit":
+    case "unavailable":
+    case "unreadable":
+    case "network":
+    case "timeout":
+    case "crashed":
+    case null:
+      return {
+        title: "You no longer have access to this file",
+        detail: "Nothing more can be saved to it.",
+        reopen: false,
+      };
+  }
+
+  reason satisfies never;
+
+  return { title: "", detail: "", reopen: false };
 }

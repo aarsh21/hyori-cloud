@@ -24,7 +24,7 @@ assert.equal(origin.protocol, "https:");
 
 assert.match(
   assetPath,
-  /^\/artcraft\/(wordcraft|gridcraft|pdfcraft|deckcraft)\/[^/]+\/[^/]+-[0-9a-f]{16}(_bg)?\.(js|wasm)$/,
+  /^\/artcraft\/(wordcraft|gridcraft|pdfcraft|deckcraft)\/[^/]+\/[^/]+-[0-9a-f]{15,20}(_bg)?\.(js|wasm)$/,
 );
 
 const assetUrl = new URL(assetPath, origin).href;

@@ -115,6 +115,10 @@ export const NativeHostCommand = Schema.Union(
     status: Schema.Literal("failed", "conflict", "read-only", "access-ended"),
     message,
   }),
+  // The host moved these bytes to its own recovery and will never persist them: release the
+  // snapshot and its native job without marking anything clean. Frames older than this addition
+  // reject it as unknown, so hosts follow it with the earlier copy-only release (see SDK).
+  Schema.Struct({ ...saveResult, status: Schema.Literal("discarded"), message }),
 );
 
 export type NativeHostCommand = typeof NativeHostCommand.Type;

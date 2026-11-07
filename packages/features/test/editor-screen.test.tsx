@@ -103,7 +103,10 @@ function fromEditor(editorWindow: Window | null, data: EditorMessage) {
 function attach(frame: HTMLIFrameElement, backend: EditorBackendPort) {
   const guard = createNavigationGuard();
 
-  return { guard, attachment: createEditorAttachment({ frame, backend, guard }) };
+  return {
+    guard,
+    attachment: createEditorAttachment({ frame, backend, guard, onReturn: () => {} }),
+  };
 }
 
 // Captured before attaching. This DOM replaces a frame's window when it navigates, where a real
@@ -569,12 +572,15 @@ describe("the editor screen", () => {
     await ready(editorWindow);
     save(editorWindow);
 
+    expect(await screen.findByText("This file was changed somewhere else")).toBeTruthy();
+    // Nothing typed under the cover could be saved, so the editor takes no input there.
+    expect(document.querySelector("iframe")?.hasAttribute("inert")).toBe(true);
     fireEvent.click(await screen.findByRole("button", { name: "Open latest version" }));
 
-    expect(await screen.findByText("Open the latest version?")).toBeTruthy();
+    expect(await screen.findByText("Leave your version behind?")).toBeTruthy();
     expect(api.callsTo("editors.open")).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reopen without it" }));
 
     await waitFor(() => expect(api.callsTo("editors.open")).toHaveLength(2));
   });
@@ -607,7 +613,7 @@ describe("the editor screen", () => {
   test("losing access covers the editor and keeps what can be recovered", async () => {
     const api = apiFor({
       "editors.prepareSave": () => {
-        throw new ApiFailure("access.denied");
+        throw new ApiFailure("auth.required");
       },
     });
 
@@ -631,8 +637,44 @@ describe("the editor screen", () => {
 
     screenWith(api);
 
-    expect(await screen.findByText("This document couldn’t be opened in the editor")).toBeTruthy();
+    expect(await screen.findByText("Editing isn’t available right now")).toBeTruthy();
+    expect(screen.getByText(/Your file hasn’t changed/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  for (const [code, title] of [
+    ["resource.conflict", "Too many documents are open"],
+    ["input.invalid", "This file can’t be opened in the editor"],
+  ] as const) {
+    test(`opening refused with ${code} says why`, async () => {
+      screenWith(
+        apiFor({
+          "editors.open": () => {
+            throw new ApiFailure(code);
+          },
+        }),
+      );
+
+      expect(await screen.findByText(title)).toBeTruthy();
+    });
+  }
+
+  test("losing Edit mid-session turns the editor read-only rather than ending it", async () => {
+    const api = apiFor({
+      "editors.prepareSave": () => {
+        throw new ApiFailure("access.denied");
+      },
+    });
+
+    const { editorWindow } = screenWith(api);
+
+    await ready(editorWindow);
+    save(editorWindow);
+
+    await waitFor(() =>
+      expect(screen.queryByText("You no longer have access to this file")).toBeNull(),
+    );
+    expect((await screen.findAllByText(/Save a copy|Read only/)).length).toBeGreaterThan(0);
   });
 
   test("closing with nothing unsaved goes straight back to the file's folder", async () => {

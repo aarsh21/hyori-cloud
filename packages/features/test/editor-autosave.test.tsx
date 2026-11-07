@@ -117,6 +117,19 @@ function fixture(
       if (command === null) throw new Error("Invalid native host command");
       commands.push(command);
 
+      // A native frame answers each theme once it has painted it; the SDK sends one at a time.
+      if (command.type === "wordcraft:set-theme")
+        queueMicrotask(() =>
+          emit({
+            type: "wordcraft:theme-applied",
+            protocol: 2,
+            version: descriptor.version,
+            requestId: command.requestId,
+            theme: command.theme,
+            resolvedTheme: command.theme === "dark" ? "dark" : "light",
+          }),
+        );
+
       if ("fileRevision" in command)
         emit({
           type: "wordcraft:saved",

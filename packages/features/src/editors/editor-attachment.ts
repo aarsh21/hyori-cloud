@@ -1,6 +1,9 @@
 import { createEditorSession } from "@hyori-cloud/client-sdk";
 import type { EditorBackendPort, EditorSession } from "@hyori-cloud/client-sdk";
-import { createBrowserEditorMessages } from "@hyori-cloud/client-sdk/browser";
+import {
+  createBrowserEditorMessages,
+  createBrowserEditorVisibility,
+} from "@hyori-cloud/client-sdk/browser";
 import type { NavigationGuard } from "#features/cloud/navigation-guard.ts";
 
 // The largest any editor's descriptor may ask for. The server's own limit applies within this.
@@ -26,10 +29,13 @@ export function createEditorAttachment({
   frame,
   backend,
   guard,
+  onReturn,
 }: {
   frame: HTMLIFrameElement;
   backend: EditorBackendPort;
   guard: NavigationGuard;
+  /** The page came back from the back/forward cache after this attachment let its session go. */
+  onReturn: () => void;
 }): Attachment {
   const host = frame.ownerDocument.defaultView;
   const editorWindow = frame.contentWindow;
@@ -42,6 +48,7 @@ export function createEditorAttachment({
     backend,
     maxBytes: MAX_EDITOR_BYTES,
     autosave: { idleMs: 750, maxWaitMs: 5000 },
+    visibility: createBrowserEditorVisibility(frame.ownerDocument),
     messages: createBrowserEditorMessages({
       host,
       editorWindow,
@@ -71,7 +78,9 @@ export function createEditorAttachment({
     if (isSameOriginPath(assetUrl)) frame.src = assetUrl;
   });
 
-  function dispose() {
+  let released = false;
+
+  function end() {
     host?.removeEventListener("pagehide", leaveDocument);
     stopWatching();
     session.dispose();
@@ -79,17 +88,38 @@ export function createEditorAttachment({
     release = null;
   }
 
+  function dispose() {
+    host?.removeEventListener("pageshow", returnToDocument);
+    end();
+  }
+
   /**
    * Leaving the document ends the session, for the sake of the server's limit on open ones. Only
    * here, not at `beforeunload`: that only asks, and a person can answer no and keep working. A page
-   * kept in the back/forward cache may come back with its work intact, so it's left alone. If it
-   * never does, the session expires on the server like any other that couldn't say goodbye.
+   * kept in the back/forward cache lets its session go too when nothing in it is unsaved, and opens
+   * a fresh one if it comes back. One holding unsaved work keeps it, so that work isn't lost; if it
+   * never returns, that session expires on the server like any other that couldn't say goodbye.
    */
   function leaveDocument(event: PageTransitionEvent) {
-    if (!event.persisted) dispose();
+    if (!event.persisted) {
+      dispose();
+
+      return;
+    }
+
+    const { hasUnsavedChanges, recoveryCount } = session.getSnapshot();
+
+    if (hasUnsavedChanges || recoveryCount > 0) return;
+    released = true;
+    end();
+  }
+
+  function returnToDocument(event: PageTransitionEvent) {
+    if (event.persisted && released) onReturn();
   }
 
   host.addEventListener("pagehide", leaveDocument);
+  host.addEventListener("pageshow", returnToDocument);
 
   return { session, dispose };
 }

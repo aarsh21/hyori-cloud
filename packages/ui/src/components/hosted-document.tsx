@@ -32,10 +32,13 @@ function HostedDocumentLayout({
 function HostedDocumentFrame({
   title,
   onAttach,
+  inert,
   className,
 }: {
   title: string;
   onAttach: (frame: HTMLIFrameElement) => () => void;
+  /** Takes the document out of focus and input while something covers it, without unloading it. */
+  inert?: boolean;
   className?: string;
 }) {
   // Kept from the first render: a new callback must not detach and reattach a live document.
@@ -47,6 +50,7 @@ function HostedDocumentFrame({
       data-slot="hosted-document-frame"
       title={title}
       allow="clipboard-read; clipboard-write; fullscreen"
+      inert={inert}
       className={cn("absolute inset-0 size-full border-0", className)}
     />
   );

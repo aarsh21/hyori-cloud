@@ -46,8 +46,15 @@ function fixture(overrides: Partial<EditorDocument> = {}) {
   let disposed = 0;
   let failedReplies = 0;
 
+  let readDenied = false;
+
   let preparationError: {
-    code: "resource.conflict" | "access.denied" | "service.unavailable";
+    code:
+      | "resource.conflict"
+      | "access.denied"
+      | "resource.notFound"
+      | "auth.required"
+      | "service.unavailable";
     message: string;
   } | null = null;
 
@@ -68,6 +75,8 @@ function fixture(overrides: Partial<EditorDocument> = {}) {
     },
     download: async () => {
       calls.push("download");
+
+      if (readDenied) throw { code: "access.denied", message: "Revoked" };
 
       return {
         url: "/editor-original",
@@ -161,6 +170,9 @@ function fixture(overrides: Partial<EditorDocument> = {}) {
     },
     failReplies(count: number) {
       failedReplies = count;
+    },
+    denyRead() {
+      readDenied = true;
     },
     failPreparation(error: typeof preparationError) {
       preparationError = error;
@@ -271,7 +283,8 @@ test("copy/export needs explicit destination; user choice is retained across ret
     output: { ...f.input.output, name: "Copy.docx", intent: "save-as" as const },
   };
 
-  expect((await absent.save(copy, { signal: active() })).status).toBe("failed");
+  // No destination is a distinct, certain no-write outcome rather than an ambiguous failure.
+  expect((await absent.save(copy, { signal: active() })).status).toBe("cancelled");
   expect(f.preparations).toHaveLength(0);
   let choices = 0;
 
@@ -318,10 +331,13 @@ test("per-format and attachment ceilings reject output before preparing a transf
 
 for (const [code, expected] of [
   ["resource.conflict", "conflict"],
-  ["access.denied", "access-ended"],
+  // A replacement refused while the session still exists is an Edit to Viewer downgrade.
+  ["access.denied", "read-only"],
+  ["resource.notFound", "access-ended"],
+  ["auth.required", "access-ended"],
   ["service.unavailable", "failed"],
 ] as const) {
-  test(`binding maps ${code} without parsing human messages or inventing read-only causes`, async () => {
+  test(`binding maps ${code} from its code alone, never from human messages`, async () => {
     const f = fixture();
     const backend = f.backend();
     await backend.open({ signal: active() });
@@ -331,6 +347,16 @@ for (const [code, expected] of [
     f.collection.dispose();
   });
 }
+
+test("a denied replacement that can no longer read the source has lost access, not Edit", async () => {
+  const f = fixture();
+  const backend = f.backend();
+  await backend.open({ signal: active() });
+  f.failPreparation({ code: "access.denied", message: "Revoked link" });
+  f.denyRead();
+  expect((await backend.save(f.input, { signal: active() })).status).toBe("access-ended");
+  f.collection.dispose();
+});
 
 test("local admission holds one output and client disposal cancels byte readers", async () => {
   const f = fixture();

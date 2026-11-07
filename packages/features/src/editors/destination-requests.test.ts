@@ -59,6 +59,21 @@ describe("asking where a copy should go", () => {
     expect(await second).toEqual({ parentId: null });
   });
 
+  test("aborting an answered request leaves a newer question open", async () => {
+    const abort = new AbortController();
+    const requests = createDestinationRequests();
+    const first = requests.choose(OUTPUT, { signal: abort.signal });
+
+    requests.answer({ parentId: "folder_1" });
+    expect(await first).toEqual({ parentId: "folder_1" });
+    const second = requests.choose({ name: "b.pdf", intent: "export" }, { signal: signal() });
+
+    abort.abort();
+    expect(requests.getSnapshot()?.name).toBe("b.pdf");
+    requests.answer({ parentId: null });
+    expect(await second).toEqual({ parentId: null });
+  });
+
   test("tells whoever is watching about each change", () => {
     const requests = createDestinationRequests();
     let changes = 0;

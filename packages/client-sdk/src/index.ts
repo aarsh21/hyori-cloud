@@ -68,6 +68,8 @@ export type {
   EditorSessionOptions,
   EditorSnapshot,
   EditorStatus,
+  EditorStopReason,
+  EditorVisibilityPort,
 } from "#client-sdk/features/editors/editor-contract";
 
 export type {

@@ -9,6 +9,7 @@ import type {
   EditorDocument,
   EditorOutput,
   EditorSaveResult,
+  EditorStopReason,
 } from "#client-sdk/features/editors/editor-contract";
 import { hashEditorBytes, readEditorBytes } from "#client-sdk/features/editors/editor-bytes";
 import {
@@ -26,27 +27,69 @@ export type EditorBackendOptions = InputOf<RPC["editors"]["open"]> & {
   ) => Promise<EditorDestination | null>;
 };
 
-function saveFailure(cause: unknown): Exclude<EditorSaveResult, { status: "saved" }> {
+function saveFailure(
+  cause: unknown,
+  intent: EditorOutput["intent"],
+): Exclude<EditorSaveResult, { status: "saved" }> {
   const error = normalizeClientError(cause);
 
   switch (error.code) {
     case "resource.conflict":
-      return {
-        status: "conflict",
-        message: "The server reported a save conflict; recovery bytes are retained.",
-      };
-    case "auth.required":
+      return intent === "replace"
+        ? {
+            status: "conflict",
+            message: "The server reported a save conflict; recovery bytes are retained.",
+          }
+        : {
+            status: "conflict",
+            message:
+              "The copy wasn't saved: that folder already has a file with this name, or the original changed.",
+          };
     case "access.denied":
-    case "resource.notFound":
+      // Replacement needs Edit; a session that can still read may keep working on copies.
+      return intent === "replace"
+        ? { status: "read-only", message: "You can no longer edit this file. Save a copy instead." }
+        : { status: "read-only", message: "You can't save a copy to that folder." };
+    case "auth.required":
       return {
         status: "access-ended",
+        reason: "access-revoked",
         message: "The editor session or its current access is no longer available.",
+      };
+    case "resource.notFound":
+      // Expiry, closure and a removed file all remove the session; none can save again.
+      return {
+        status: "access-ended",
+        reason: "session-ended",
+        message: "This editing session has ended. Download your changes and reopen the file.",
       };
     default:
       return {
         status: "failed",
         message: "Could not confirm the save; retry uses the same save ID and retained bytes.",
       };
+  }
+}
+
+/** Classifies why opening failed from the server's error code, never from its prose. */
+export function editorOpenFailure(cause: unknown): EditorStopReason {
+  const error = normalizeClientError(cause);
+
+  switch (error.code) {
+    case "input.invalid":
+      return "unsupported";
+    case "resource.conflict":
+      return "session-limit";
+    case "service.unavailable":
+      return "unavailable";
+    case "auth.required":
+    case "access.denied":
+    case "resource.notFound":
+      return "access-revoked";
+    case "SDK_PROTOCOL":
+      return "unsupported";
+    default:
+      return "network";
   }
 }
 
@@ -243,9 +286,8 @@ export function createEditors(
 
               if (!destination)
                 return {
-                  status: "failed",
-                  message:
-                    "Choose an explicit destination to save a copy or export; recovery bytes are retained.",
+                  status: "cancelled",
+                  message: "No folder was chosen, so the copy wasn't saved.",
                 };
             }
 
@@ -318,7 +360,54 @@ export function createEditors(
 
             return saved;
           } catch (cause) {
-            return saveFailure(cause);
+            const failure = saveFailure(cause, input.output.intent);
+
+            // Denial means a lost Edit (still readable: keep working on copies) or lost access
+            // altogether (a revoked link, say). Only the server can tell; a Read-only probe asks.
+            if (
+              failure.status === "read-only" &&
+              input.output.intent === "replace" &&
+              !lifetime.signal.aborted
+            ) {
+              const readable = await rpc
+                .download(
+                  { sessionId: input.sessionId, expectedRevision: input.expectedRevision },
+                  { signal: lifetime.signal },
+                )
+                .then(
+                  () => true,
+                  (probe) => normalizeClientError(probe).code === "resource.conflict",
+                );
+
+              if (!readable)
+                return {
+                  status: "access-ended",
+                  reason: "access-revoked",
+                  message: "The editor session or its current access is no longer available.",
+                };
+            }
+
+            // An unavailable save from a version this server no longer serves can never succeed;
+            // retrying it forever would only hide that the open editor is out of date.
+            if (
+              failure.status === "failed" &&
+              normalizeClientError(cause).code === "service.unavailable" &&
+              !lifetime.signal.aborted
+            ) {
+              const current = await rpc
+                .available({}, { signal: lifetime.signal })
+                .then((result) => result.apps.find((app) => app.app === document?.app))
+                .catch(() => undefined);
+
+              if (current !== undefined && current.version !== document.version)
+                return {
+                  status: "access-ended",
+                  reason: "editor-updated",
+                  message: "The editor was updated. Download your changes and reopen the file.",
+                };
+            }
+
+            return failure;
           } finally {
             task?.dispose();
             saving = false;

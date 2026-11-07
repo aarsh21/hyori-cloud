@@ -497,7 +497,11 @@ describe("protocol2 autosave through the public SDK (synthetic ports, not native
       expect(f.session.retry()).toBe(false);
       f.dirty();
       await delay(20);
-      expect(f.requests).toHaveLength(1);
+      // A conflict asks once for the editor's current state, kept locally and never persisted.
+      expect(f.requests.slice(1).map((request) => request.saveAs)).toEqual(
+        outcome === "conflict" ? [true] : [],
+      );
+      expect(f.saves).toHaveLength(1);
       expect(f.session.getRecoveryOutputs()).toHaveLength(1);
     });
   }

@@ -101,3 +101,22 @@ test("source ordering keeps pending raw input fenced until a nondiscarded UI pas
   expect(source).not.toContain("self.host_dirty |= model.is_some_and");
   expect(source).toContain("self.host_dirty |= !save_as && snapshot.identity.dirty;");
 });
+
+test("document links open only http, https and mailto, in a new unrelated tab", async () => {
+  const source = (await inputs()).frame.toString();
+  const allowed = source.slice(source.indexOf("fn allowed_url"));
+
+  expect(allowed).toContain('"http" | "https" | "mailto"');
+  expect(source).toContain('"noopener,noreferrer"');
+
+  // Every pass strips OpenUrl before eframe sees it, including logic-only (hidden) ticks.
+  const logic = source.slice(
+    source.indexOf("pub fn after_logic"),
+    source.indexOf("pub fn after_ui"),
+  );
+
+  const ui = source.slice(source.indexOf("pub fn after_ui"));
+
+  expect(logic).toContain("guard_urls(ctx);");
+  expect(ui.indexOf("guard_urls(ctx);")).toBeLessThan(ui.indexOf("ctx.will_discard()"));
+});

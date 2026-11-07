@@ -220,16 +220,16 @@ describe("recovering unsaved work, after the production compiler", () => {
     expect(screen.queryByRole("button", { name: "Retry save" })).toBeNull();
   });
 
-  test("losing access offers the bytes in the bar and on the cover", async () => {
+  test("losing access offers the bytes once, on the cover", async () => {
     await openAndSave(
       apiFor({
         "editors.prepareSave": () => {
-          throw new ApiFailure("access.denied");
+          throw new ApiFailure("auth.required");
         },
       }),
     );
 
     await screen.findByText("You no longer have access to this file");
-    await waitFor(() => expect(screen.getAllByRole("button", DOWNLOAD)).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole("button", DOWNLOAD)).toHaveLength(1));
   });
 });

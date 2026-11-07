@@ -31,11 +31,30 @@ export interface EditorOutput {
   intent: EditorIntent;
 }
 
+/** Why a session stopped. `failed` reasons happen while opening; the rest end a working session. */
+export type EditorStopReason =
+  | "unsupported"
+  | "session-limit"
+  | "unavailable"
+  | "unreadable"
+  | "network"
+  | "timeout"
+  | "crashed"
+  | "access-revoked"
+  | "session-ended"
+  | "editor-updated";
+
 export type EditorSaveResult =
   | Pick<EditorSaved, "status" | "revision">
   | { status: "conflict"; message: string }
   | { status: "read-only"; message: string }
-  | { status: "access-ended"; message: string }
+  | {
+      status: "access-ended";
+      message: string;
+      reason?: Extract<EditorStopReason, "access-revoked" | "session-ended" | "editor-updated">;
+    }
+  /** Nothing was written: the person declined to choose a destination. */
+  | { status: "cancelled"; message: string }
   | { status: "failed"; message: string };
 
 export interface EditorBackendPort {
@@ -44,7 +63,8 @@ export interface EditorBackendPort {
   close?(): Promise<void>;
   download(document: EditorDocument, options: { signal: AbortSignal }): Promise<Uint8Array>;
   // A non-replacement output must never replace the source. The binding must obtain any
-  // required destination/user choice, or return failed; it cannot silently reinterpret intent.
+  // required destination/user choice, or return cancelled; it cannot silently reinterpret intent.
+  // The caller retains output.bytes for retry: never mutate or transfer them, copy what you keep.
   save(
     // Every retry keeps its save ID; the server durably deduplicates the operation.
     input: Pick<EditorPrepareSave, "sessionId" | "expectedRevision" | "saveId" | "saveMode"> & {
@@ -86,7 +106,14 @@ export interface EditorMessagePort {
   origin: string;
   source: object;
   subscribe(listener: (event: EditorMessageEvent) => void): () => void;
-  post(message: EditorHostMessage, targetOrigin: string): void;
+  /** `transfer` hands exclusively owned buffers to the frame instead of cloning them. */
+  post(message: EditorHostMessage, targetOrigin: string, transfer?: ArrayBuffer[]): void;
+}
+
+/** Whether the host page is hidden. Hidden frames run on throttled timers, so waits stretch. */
+export interface EditorVisibilityPort {
+  hidden(): boolean;
+  subscribe(listener: () => void): () => void;
 }
 
 export type EditorStatus =
@@ -122,6 +149,7 @@ export interface EditorSessionOptions {
   readyTimeoutMs?: number;
   autosave?: { idleMs: number; maxWaitMs: number };
   theme?: NativeTheme;
+  visibility?: EditorVisibilityPort;
 }
 
 export interface EditorSnapshot {
@@ -129,21 +157,29 @@ export interface EditorSnapshot {
   document: EditorDocument | null;
   hasUnsavedChanges: boolean;
   pendingSaveCount: number;
+  /** The output a pending save is for: a copy that failed can be given up on, a source can't. */
+  pendingOutput: Pick<EditorOutput, "name" | "intent"> | null;
+  /** Outputs getRecoveryOutputs() would return, including ones that will never be retried. */
+  recoveryCount: number;
   /** Observed time of the last confirmed source replacement, never a copy or export. */
   lastSavedAt: number | null;
   autosave: EditorAutosave;
   message: string | null;
+  /** Set once the status is `failed` or `access-ended`. */
+  reason: EditorStopReason | null;
 }
 
 export interface EditorSession {
   getSnapshot(): EditorSnapshot;
   subscribe(listener: () => void): () => void;
   retry(): boolean;
+  /** Give up on a failed copy or export. Its bytes stay in getRecoveryOutputs(). */
+  dismiss(): boolean;
   /** Flush a native snapshot; an explicit copy never retargets the opened source. */
   requestSave(copy?: { saveAs: true; name: string }): boolean;
   /** Applies only through a negotiated native theme capability, never iframe CSS injection. */
   setTheme(theme: NativeTheme): boolean;
-  // Returned copies remain available even after disposal. Unserialized in-editor edits still
+  // Oldest first; the last is the newest. Returned copies remain available even after disposal. Unserialized in-editor edits still
   // require the live editor; callers must check hasUnsavedChanges before removing its frame.
   getRecoveryOutputs(): readonly EditorOutput[];
   dispose(): void;

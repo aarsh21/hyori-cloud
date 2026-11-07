@@ -8,7 +8,9 @@ import type {
   EditorSessionOptions,
   EditorSnapshot,
   EditorStatus,
+  EditorStopReason,
 } from "#client-sdk/features/editors/editor-contract";
+import { editorOpenFailure } from "#client-sdk/features/editors/create-editors";
 import {
   classifyEditorOutput,
   copyEditorBytes,
@@ -65,6 +67,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   let document: EditorDocument | null = null;
   let status: EditorStatus = "opening";
   let message: string | null = null;
+  let reason: EditorStopReason | null = null;
   let originalBytes: Uint8Array<ArrayBuffer> | null = null;
   let opened = false;
   let openSent = false;
@@ -73,6 +76,8 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   let lastAcknowledged: PendingSave | null = null;
   let current: PendingSave | null = null;
   let queued: PendingSave | null = null;
+  // Copies given up on after a failure: never retried, still downloadable.
+  const dismissed: EditorOutput[] = [];
   let persisting = false;
   let dirtyEpoch = 0;
   let savedEpoch = 0;
@@ -88,12 +93,16 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       hasUnsavedChanges:
         dirtyEpoch > savedEpoch || current !== null || queued !== null || rejectedOutput,
       pendingSaveCount: Number(current !== null) + Number(queued !== null),
+      pendingOutput:
+        current === null ? null : { name: current.output.name, intent: current.output.intent },
+      recoveryCount: dismissed.length + Number(current !== null) + Number(queued !== null),
       lastSavedAt,
       autosave: {
         status: "disabled",
         reason: options.autosave === undefined ? "not-enabled" : "unsupported",
       } satisfies EditorSnapshot["autosave"],
       message,
+      reason,
     });
   }
 
@@ -103,11 +112,16 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
     for (const listener of listeners) listener();
   }
 
-  function stop(nextStatus: "failed" | "access-ended", reason: string) {
+  function stop(
+    nextStatus: "failed" | "access-ended",
+    text: string,
+    why: EditorStopReason = nextStatus === "failed" ? "crashed" : "access-revoked",
+  ) {
     if (!active()) return;
 
     status = nextStatus;
-    message = reason;
+    message = text;
+    reason = why;
     abort.abort();
     clearTimeout(timer);
     originalBytes = null;
@@ -129,7 +143,11 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
     if (version === undefined) return;
 
     if (version !== document.version) {
-      stop("failed", "The editor asset version does not match the open descriptor");
+      stop(
+        "failed",
+        "The editor asset version does not match the open descriptor",
+        "editor-updated",
+      );
 
       return;
     }
@@ -144,7 +162,12 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       // No transfer list: the acknowledged protocol retains its input until parsing succeeds.
       if (document.app === "deckcraft") {
         timer = setTimeout(
-          () => stop("failed", "The editor did not acknowledge opening the document in time"),
+          () =>
+            stop(
+              "failed",
+              "The editor did not acknowledge opening the document in time",
+              "timeout",
+            ),
           readyTimeoutMs,
         );
         messages.post(
@@ -191,10 +214,14 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   function acknowledge(saved: PendingSave, result: EditorSaveResult) {
     if (!document || !saved.saveId) return;
 
+    // Protocol 1 predates a distinct cancellation; to that frame it is an ordinary failure.
     const outcome: EditorSaveResult =
       result.status === "saved"
         ? { status: result.status, revision: result.revision }
-        : { status: result.status, message: result.message };
+        : {
+            status: result.status === "cancelled" ? "failed" : result.status,
+            message: result.message,
+          };
 
     messages.post(
       {
@@ -318,8 +345,12 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
         return;
       case "conflict":
       case "read-only":
+      case "cancelled":
       case "failed":
-        status = result.status === "failed" ? "save-failed" : result.status;
+        status =
+          result.status === "failed" || result.status === "cancelled"
+            ? "save-failed"
+            : result.status;
         message = result.message;
 
         return;
@@ -460,7 +491,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
         return;
       case "error":
         if (decoded.operation === "open" && decoded.operationId === openId)
-          stop("failed", decoded.error);
+          stop("failed", decoded.error, "unreadable");
         else if (opened) rejectOutput(decoded.error);
 
         return;
@@ -550,7 +581,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       }
 
       timer = setTimeout(
-        () => stop("failed", "The editor did not become ready in time"),
+        () => stop("failed", "The editor did not become ready in time", "timeout"),
         readyTimeoutMs,
       );
       sendOpen();
@@ -563,8 +594,9 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
 
       if (!originalBytes) throw new Error("Invalid editor download");
       sendOpen();
-    } catch {
-      if (active()) stop("failed", "Could not open the authorized document");
+    } catch (cause) {
+      if (active())
+        stop("failed", "Could not open the authorized document", editorOpenFailure(cause));
     }
   }
 
@@ -597,11 +629,37 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
 
       return true;
     },
+    dismiss() {
+      if (nativeSession !== null) return nativeSession.dismiss();
+
+      if (
+        status !== "save-failed" ||
+        !current ||
+        persisting ||
+        current.output.intent === "replace" ||
+        current.persisted
+      )
+        return false;
+      dismissed.push(current.output);
+
+      if (dismissed.length > 3) dismissed.shift();
+      current = queued;
+      queued = null;
+      status = document?.writable === false ? "read-only" : "editing";
+      message = null;
+      publish();
+
+      if (current) void persist();
+
+      return true;
+    },
     getRecoveryOutputs: () =>
-      nativeSession?.getRecoveryOutputs() ??
-      [current, queued].flatMap((pending) =>
-        pending ? [{ ...pending.output, bytes: new Uint8Array(pending.output.bytes) }] : [],
-      ),
+      nativeSession?.getRecoveryOutputs() ?? [
+        ...dismissed.map((output) => ({ ...output, bytes: new Uint8Array(output.bytes) })),
+        ...[current, queued].flatMap((pending) =>
+          pending ? [{ ...pending.output, bytes: new Uint8Array(pending.output.bytes) }] : [],
+        ),
+      ],
     dispose() {
       if (status === "disposed") return;
       unsubscribe();

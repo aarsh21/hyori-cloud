@@ -189,6 +189,19 @@ impl NativeHostFrame {
         if !absent(&cancellation) { self.fence(app, &cancellation)?; }
         let failure = js_take_failure().map_err(js_failure)?;
         if !absent(&failure) { self.fence(app, &failure)?; }
+        let discard = js_take_discard().map_err(js_failure)?;
+        if !absent(&discard) { self.discard(app, &discard)?; }
+        Ok(())
+    }
+
+    /// The host kept this snapshot itself and will never persist it. Drop it and its job so a
+    /// later capture can run; the live document's dirty state is left exactly as it is.
+    fn discard(&mut self, app: &mut impl NativeHostAdapter, message: &JsValue) -> Result<(), NativeHostFailure> {
+        let Some(captured) = self.pending.as_ref() else { return Ok(()) };
+        if text(message, "requestId")? != captured.request_id || captured.confirmation.is_some() { return Ok(()) }
+        let Some(captured) = self.pending.take() else { return Ok(()) };
+        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
+        if let Some(id) = captured.intent_id { app.host_cancel_intent(&id); }
         Ok(())
     }
 
@@ -322,10 +335,13 @@ impl NativeHostFrame {
             let preference = text(&command, "theme")?;
             let resolved_dark = match preference.as_str() { "dark" => true, "light" => false, "system" => system_dark,
                 _ => return Err(NativeHostFailure::SerializationFailed("Unknown native theme".into())) };
-            app.host_theme(&preference, resolved_dark)?;
+            let request_id = text(&command, "requestId")?;
+            if let Err(error) = app.host_theme(&preference, resolved_dark) {
+                return js_theme_failed(&request_id, &error.to_string()).map_err(js_failure);
+            }
             self.system_theme = preference == "system";
             self.last_system_dark = Some(system_dark);
-            self.theme = Some(ThemeApplication { request_id: text(&command, "requestId")?, preference, resolved_dark });
+            self.theme = Some(ThemeApplication { request_id, preference, resolved_dark });
         } else if self.system_theme && self.last_system_dark != Some(system_dark) {
             app.host_theme("system", system_dark)?;
             self.last_system_dark = Some(system_dark);
@@ -341,7 +357,8 @@ impl NativeHostFrame {
         self.process_theme(app)
     }
 
-    pub fn after_logic(&mut self, app: &mut impl NativeHostAdapter, _ctx: &egui::Context) -> Result<(), NativeHostFailure> {
+    pub fn after_logic(&mut self, app: &mut impl NativeHostAdapter, ctx: &egui::Context) -> Result<(), NativeHostFailure> {
+        guard_urls(ctx);
         self.poll_open(app)?;
         self.observe(app)?;
         if self.input_pending { return Ok(()) }
@@ -349,6 +366,7 @@ impl NativeHostFrame {
     }
 
     pub fn after_ui(&mut self, app: &mut impl NativeHostAdapter, ctx: &egui::Context) -> Result<(), NativeHostFailure> {
+        guard_urls(ctx);
         if ctx.will_discard() { return Ok(()) }
         self.input_pending = false;
         self.poll_open(app)?;
@@ -365,4 +383,31 @@ impl NativeHostFrame {
         }
         Ok(())
     }
+}
+
+/// Document links run with Hyori's origin, so a crafted `javascript:` or `data:` link must never
+/// reach the browser. Only absolute web and mail links open, always in a new, unrelated tab.
+fn guard_urls(ctx: &egui::Context) {
+    let urls: Vec<String> = ctx.output_mut(|output| {
+        let mut urls = Vec::new();
+        output.commands.retain(|command| match command {
+            egui::OutputCommand::OpenUrl(open) => { urls.push(open.url.clone()); false }
+            _ => true,
+        });
+        urls
+    });
+    for url in urls {
+        if let Some(url) = allowed_url(&url)
+            && let Some(window) = eframe::web_sys::window()
+        {
+            let _ = window.open_with_url_and_target_and_features(&url, "_blank", "noopener,noreferrer");
+        }
+    }
+}
+
+/// Browsers drop leading C0/space and every tab/newline before reading a scheme; do the same.
+fn allowed_url(url: &str) -> Option<String> {
+    let url: String = url.trim_start_matches(|c: char| c <= ' ').chars().filter(|c| !matches!(c, '\t' | '\n' | '\r')).collect();
+    let (scheme, _) = url.split_once(':')?;
+    matches!(scheme.to_ascii_lowercase().as_str(), "http" | "https" | "mailto").then_some(url)
 }

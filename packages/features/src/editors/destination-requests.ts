@@ -11,7 +11,7 @@ type Pending = { readonly output: Output; readonly settle: (choice: Destination)
 /**
  * Turns the SDK's request for a destination into something a dialog can show and answer. Only the
  * person's choice crosses here: where a save may go is still the server's decision. A cancelled
- * request answers null, which the SDK keeps as a recoverable failure rather than a save to root.
+ * request answers null, which the SDK reports as a cancelled copy rather than a save to root.
  */
 export function createDestinationRequests() {
   const listeners = new Set<() => void>();
@@ -33,10 +33,23 @@ export function createDestinationRequests() {
       // One at a time: the SDK saves one output at a time, so a second means the first was dropped.
       settle(null);
 
-      pending = { output: requested, settle: resolve };
+      // Aborting withdraws this request only, never a newer one that has replaced it.
+      const withdraw = () => {
+        if (pending === request) settle(null);
+      };
+
+      const request: Pending = {
+        output: requested,
+        settle(choice) {
+          signal.removeEventListener("abort", withdraw);
+          resolve(choice);
+        },
+      };
+
+      pending = request;
       output = requested;
 
-      signal.addEventListener("abort", () => settle(null), { once: true });
+      signal.addEventListener("abort", withdraw, { once: true });
 
       for (const listener of listeners) listener();
     });

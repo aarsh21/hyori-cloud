@@ -152,7 +152,10 @@ try {
   assert.equal(identity.headers.get("content-encoding"), null);
   assert.equal(identity.headers.get("x-content-type-options"), "nosniff");
   assert.equal(identity.headers.get("x-frame-options"), "SAMEORIGIN");
-  assert.equal(identity.headers.get("content-security-policy"), "frame-ancestors 'self'");
+  assert.equal(
+    identity.headers.get("content-security-policy"),
+    "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+  );
 
   const gzip = await request(path, ["Accept-Encoding: gzip"]);
   assert.equal(gzip.status, 200);

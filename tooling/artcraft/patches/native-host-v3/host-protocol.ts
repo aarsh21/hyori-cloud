@@ -22,7 +22,9 @@ type CancelIntent = Extract<NativeHostCommand, { type: `${string}:cancel-intent`
 
 type SaveIntent = Extract<NativeHostEvent, { type: `${string}:save-requested` }>;
 
-type SaveFailure = Exclude<SaveAck, { status: "saved" }>;
+type SaveFailure = Exclude<SaveAck, { status: "saved" | "discarded" }>;
+
+type SaveDiscard = Extract<SaveAck, { status: "discarded" }>;
 
 type ThemeRequest = Extract<NativeHostCommand, { type: `${string}:set-theme` }>;
 
@@ -79,6 +81,7 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
   let intent: SaveIntent | null = null;
   let cancellation: CancelIntent | null = null;
   let failure: (SaveFailure & { intentId: string | undefined }) | null = null;
+  let discard: (SaveDiscard & { intentId: string | undefined }) | null = null;
   let themeRequest: ThemeRequest | null = null;
   let themeTaken = false;
   let saveSequence = 0;
@@ -261,6 +264,18 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
 
     if (!sameSnapshot(input, pending.message)) return;
 
+    if (input.status === "discarded") {
+      // The host kept these bytes itself. Release them and their job; nothing becomes clean.
+      if (pending.acknowledged) return;
+
+      if (intent?.intentId === pending.intentId) intent = null;
+      discard = { ...input, intentId: pending.intentId };
+      pending = null;
+      ports.repaint();
+
+      return;
+    }
+
     if (input.status !== "saved") {
       if (pending.acknowledged) return;
       pending.continuationCancelled = true;
@@ -314,7 +329,7 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
       return active?.source.outputFormats.some((format) => format.extension === extension(name)) ?? false;
     },
     hasPendingSave() {
-      return Boolean(request || pending || intent || cancellation || failure);
+      return Boolean(request || pending || intent || cancellation || failure || discard);
     },
     hasRecoverySnapshot() {
       return pending !== null;
@@ -369,7 +384,8 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
       if (!opening || openTaken) return null;
       openTaken = true;
 
-      return { ...opening, bytes: new Uint8Array(opening.bytes) };
+      // Rust copies these into its own memory; `opening` already owns a private copy.
+      return opening;
     },
     opened(openId: string, documentId: string, revision: string) {
       if (!opening || !openTaken || opening.openId !== openId)
@@ -424,7 +440,10 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
         return false;
       }
 
-      if (intentId !== undefined && (intent || pending || request || cancellation || failure)) {
+      if (
+        intentId !== undefined &&
+        (intent || pending || request || cancellation || failure || discard)
+      ) {
         error("busy", "save", "Another native save intent is still pending");
 
         return false;
@@ -560,9 +579,16 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
 
       return result;
     },
+    /** Drain with the other fences, before takeAcknowledgement. */
+    takeDiscard() {
+      const result = discard;
+      discard = null;
+
+      return result;
+    },
     takeAcknowledgement() {
       // Rust must fence jobs before it applies a same-channel positive acknowledgement.
-      if (!ack || !pending || cancellation || failure) return null;
+      if (!ack || !pending || cancellation || failure || discard) return null;
 
       const result = {
         ...ack,
@@ -583,7 +609,7 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
       currentRevision: string,
       dirty: boolean,
     ) {
-      if (!pending?.acknowledged || ack || cancellation || failure)
+      if (!pending?.acknowledged || ack || cancellation || failure || discard)
         throw new Error("No consumed and fenced durable native acknowledgement");
       const message = pending.message;
 
@@ -628,6 +654,12 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
         throw new Error("Native theme application identity mismatch");
       send("theme-applied", { requestId, theme: applied, resolvedTheme });
       themeRequest = null;
+    },
+    /** A theme the engine refused must not leave every later theme request busy. */
+    themeFailed(requestId: string, message: string) {
+      if (!themeRequest || themeRequest.requestId !== requestId) return;
+      themeRequest = null;
+      error("serialization-failed", "theme", message, requestId);
     },
     getRecoverySnapshot() {
       return pending ? { ...pending.message, bytes: new Uint8Array(pending.message.bytes) } : null;

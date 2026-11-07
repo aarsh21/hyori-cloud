@@ -12,7 +12,12 @@ void browserCallSite;
 test("browser adapter owns exact-origin posting, message subscription and cleanup", () => {
   const listeners = new Set<(event: MessageEvent) => void>();
   const received: EditorMessageEvent[] = [];
-  const sent: { message: Parameters<EditorMessagePort["post"]>[0]; targetOrigin: string }[] = [];
+
+  const sent: {
+    message: Parameters<EditorMessagePort["post"]>[0];
+    targetOrigin: string;
+    transfer?: ArrayBuffer[];
+  }[] = [];
 
   const host: Parameters<typeof createBrowserEditorMessages>[0]["host"] = {
     location: { origin: "https://cloud.example" },
@@ -27,8 +32,8 @@ test("browser adapter owns exact-origin posting, message subscription and cleanu
   };
 
   const editorWindow: Parameters<typeof createBrowserEditorMessages>[0]["editorWindow"] = {
-    postMessage(message, targetOrigin) {
-      sent.push({ message, targetOrigin });
+    postMessage(message, { targetOrigin, transfer }) {
+      sent.push({ message, targetOrigin, transfer });
     },
   };
 
@@ -43,7 +48,10 @@ test("browser adapter owns exact-origin posting, message subscription and cleanu
   expect(port.source).toBe(editorWindow);
   const message = { type: "wordcraft:open", name: "Report.docx", bytes: new Uint8Array([1]) };
   port.post(message, host.location.origin);
-  expect(sent).toEqual([{ message, targetOrigin: host.location.origin }]);
+  expect(sent).toEqual([{ message, targetOrigin: host.location.origin, transfer: undefined }]);
+  // Exclusively owned buffers are handed over rather than cloned.
+  port.post(message, host.location.origin, [message.bytes.buffer]);
+  expect(sent[1]?.transfer).toEqual([message.bytes.buffer]);
   expect(() => port.post(message, "*")).toThrow("target origin changed");
   expect(() =>
     createBrowserEditorMessages({ host, editorWindow, origin: "https://other.example" }),

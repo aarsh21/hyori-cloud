@@ -8,8 +8,10 @@ import type {
   EditorSessionOptions,
   EditorSnapshot,
   EditorStatus,
+  EditorStopReason,
 } from "#client-sdk/features/editors/editor-contract";
 import { createAutosaveScheduler } from "#client-sdk/features/editors/create-autosave-scheduler";
+import { editorOpenFailure } from "#client-sdk/features/editors/create-editors";
 import {
   classifyEditorOutput,
   copyEditorBytes,
@@ -37,7 +39,8 @@ type CancelIntent = Extract<NativeHostCommand, { type: `${string}:cancel-intent`
 
 type Intent = { command: CancelIntent; cancelled: boolean; delivered: boolean };
 
-type Capture = { command: RequestSave; epoch: number; intent?: Intent };
+/** `recovery` captures only refill the local recovery list; they are never persisted. */
+type Capture = { command: RequestSave; epoch: number; intent?: Intent; recovery?: true };
 
 type Pending = {
   identity: NativeSnapshotIdentity;
@@ -50,6 +53,13 @@ type Pending = {
 };
 
 const MAX_BUSY_ATTEMPTS = 3;
+const MAX_THEME_ATTEMPTS = 3;
+
+// Each kept copy may be as large as the document; a few is enough to never lose the latest.
+const MAX_RECOVERED = 3;
+
+// Native parse and serialization scale with document size; waits grow by one period per 8 MiB.
+const BYTES_PER_PERIOD = 8 * 1024 * 1024;
 
 /** Local protocol2 lifecycle. Native serialization and backend persistence each have one owner. */
 export function createNativeEditorSession(
@@ -57,7 +67,7 @@ export function createNativeEditorSession(
   descriptor: EditorDocument,
   initialReady?: Ready,
 ): EditorSession {
-  const { backend, messages, readyTimeoutMs = 30_000 } = options;
+  const { backend, messages, readyTimeoutMs = 30_000, visibility } = options;
   const origin = messages.origin;
   const source = messages.source;
   const openId = crypto.randomUUID();
@@ -66,26 +76,35 @@ export function createNativeEditorSession(
   let document = descriptor;
   let status: EditorStatus = "opening";
   let message: string | null = null;
+  let reason: EditorStopReason | null = null;
   let ready: Ready | null = null;
   let opened = false;
   let openSent = false;
   let bytes: Uint8Array<ArrayBuffer> | null = null;
+  let documentBytes = 0;
   let documentId: string | null = null;
   let revision: string | null = null;
   let observedFalseRevision: string | null = null;
   let waitingForNative = false;
   let detached = false;
+  // Edit permission withdrawn mid-session: the source stays readable, so copies remain possible.
+  let downgraded = false;
   let epoch = 0;
   let savedEpoch = 0;
   let lastSavedAt: number | null = null;
   let capture: Capture | null = null;
+  // A capture that outlived its wait. The frame may still answer it, so its ID is reused.
+  let stale: Capture | null = null;
   let pending: Pending | null = null;
+  const recovered: EditorOutput[] = [];
   let persisting = false;
   let queuedFlush: "manual" | "automatic" | null = null;
   let pause: Extract<EditorAutosave, { status: "paused" }>["reason"] | null = null;
   let busyAttempts = 0;
   let theme = options.theme ?? "system";
   let themeRequest: string | null = null;
+  let themeAttempts = 0;
+  let themeTimer: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let operationTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -103,6 +122,34 @@ export function createNativeEditorSession(
     return status !== "disposed" && status !== "failed" && status !== "access-ended";
   }
 
+  function editable() {
+    return document.writable && !downgraded;
+  }
+
+  function idleStatus(): EditorStatus {
+    return editable() ? "editing" : "read-only";
+  }
+
+  /** A timer that never expires while the page is hidden, where the frame's work is throttled. */
+  function wait(ms: number, expired: () => void): ReturnType<typeof setTimeout> {
+    const handle = setTimeout(() => {
+      if (visibility?.hidden()) {
+        // Rearm under the same slot the caller cleared/replaced, by returning through it.
+        const next = wait(ms, expired);
+
+        if (timer === handle) timer = next;
+
+        if (operationTimer === handle) operationTimer = next;
+      } else expired();
+    }, ms);
+
+    return handle;
+  }
+
+  function sized(base: number) {
+    return base * (1 + Math.floor(documentBytes / BYTES_PER_PERIOD));
+  }
+
   function autosave(): EditorAutosave {
     if (detached) return { status: "disabled", reason: "copy-required" };
 
@@ -110,8 +157,7 @@ export function createNativeEditorSession(
 
     if (ready === null) return { status: "disabled", reason: "unsupported" };
 
-    if (!document.writable || status === "read-only")
-      return { status: "disabled", reason: "read-only" };
+    if (!editable() || status === "read-only") return { status: "disabled", reason: "read-only" };
 
     if (document.replacementName === null) return { status: "disabled", reason: "copy-required" };
 
@@ -119,7 +165,7 @@ export function createNativeEditorSession(
 
     if (waitingForNative) return { status: "waiting", reason: "native-busy" };
 
-    if (capture !== null) return { status: "serializing" };
+    if (capture !== null && capture.recovery !== true) return { status: "serializing" };
 
     if (scheduler?.pending() || queuedFlush !== null) return { status: "scheduled" };
 
@@ -132,9 +178,13 @@ export function createNativeEditorSession(
       document,
       hasUnsavedChanges: epoch > savedEpoch || pending !== null || capture !== null,
       pendingSaveCount: Number(pending !== null),
+      pendingOutput:
+        pending === null ? null : { name: pending.output.name, intent: pending.output.intent },
+      recoveryCount: recovered.length + Number(pending !== null),
       lastSavedAt,
       autosave: autosave(),
       message,
+      reason,
     });
   }
 
@@ -142,6 +192,12 @@ export function createNativeEditorSession(
     snapshot = buildSnapshot();
 
     for (const listener of listeners) listener();
+  }
+
+  function remember(output: EditorOutput) {
+    recovered.push(output);
+
+    if (recovered.length > MAX_RECOVERED) recovered.shift();
   }
 
   function cancelIntent(intent: Intent | undefined): boolean {
@@ -162,34 +218,39 @@ export function createNativeEditorSession(
 
   function cancelContinuations() {
     cancelIntent(capture?.intent);
+    cancelIntent(stale?.intent);
     cancelIntent(pending?.intent);
   }
 
-  function stop(next: "failed" | "access-ended", reason: string) {
+  function stop(next: "failed" | "access-ended", text: string, why: EditorStopReason) {
     if (!active()) return;
     cancelContinuations();
     waitingForNative = false;
     status = next;
-    message = reason;
+    message = text;
+    reason = why;
 
     if (next === "access-ended") pause = "access-ended";
     scheduler?.cancel();
     clearTimeout(timer);
     clearTimeout(operationTimer);
+    clearTimeout(themeTimer);
+    stopWatching?.();
     bytes = null;
     capture = null;
+    stale = null;
     abort.abort();
     publish();
   }
 
-  function serializationFailed(reason: string) {
+  function serializationFailed(text: string) {
     clearTimeout(operationTimer);
     cancelIntent(capture?.intent);
     waitingForNative = false;
     capture = null;
-    status = document.writable ? "editing" : "read-only";
+    status = idleStatus();
     pause = "serialization-failed";
-    message = reason;
+    message = text;
     scheduler?.cancel();
     queuedFlush = null;
     // A failed capture can contain a draft not yet represented by a dirty packet.
@@ -197,72 +258,87 @@ export function createNativeEditorSession(
     publish();
   }
 
-  function send(command: NativeHostCommand) {
-    messages.post(command, origin);
+  function send(command: NativeHostCommand, transfer?: ArrayBuffer[]) {
+    messages.post(command, origin, transfer);
   }
 
-  function setTheme(next: NativeTheme): boolean {
-    if (!Schema.is(NativeTheme)(next)) return false;
-    theme = next;
-
+  function sendTheme(): boolean {
     if (!active() || ready === null) return false;
-    themeRequest = crypto.randomUUID();
+
+    // One request at a time: the frame refuses a second, and the latest wish is resent after.
+    if (themeRequest !== null) return true;
+    const requestId = crypto.randomUUID();
 
     try {
       send({
         type: `${document.app}:set-theme`,
         protocol: 2,
         version: document.version,
-        requestId: themeRequest,
+        requestId,
         theme,
       });
+      themeRequest = requestId;
 
       return true;
     } catch {
-      themeRequest = null;
-
       return false;
     }
+  }
+
+  function setTheme(next: NativeTheme): boolean {
+    if (!Schema.is(NativeTheme)(next)) return false;
+    theme = next;
+    themeAttempts = 0;
+
+    return sendTheme();
   }
 
   function sendOpen() {
     if (!active() || ready === null || bytes === null || openSent) return;
 
     if (ready.maxBytes < document.maxBytes) {
-      stop("failed", "The native editor cannot accept this document's authorized byte limit");
+      stop(
+        "failed",
+        "The native editor cannot accept this document's authorized byte limit",
+        "unsupported",
+      );
 
       return;
     }
 
     openSent = true;
     clearTimeout(timer);
-    timer = setTimeout(
-      () => stop("failed", "The native editor did not acknowledge parsing the document"),
-      readyTimeoutMs,
+    timer = wait(sized(readyTimeoutMs), () =>
+      stop("failed", "The native editor did not acknowledge parsing the document", "timeout"),
     );
+    // Exclusively ours since download; transferring avoids cloning the whole document again.
+    const owned = bytes;
+
+    bytes = null;
 
     try {
-      send({
-        type: `${document.app}:open`,
-        protocol: 2,
-        version: document.version,
-        openId,
-        name: document.name,
-        bytes: new Uint8Array(bytes),
-        writable: document.writable,
-        replacementName: document.replacementName,
-        outputFormats: document.outputFormats,
-        maxBytes: document.maxBytes,
-      });
+      send(
+        {
+          type: `${document.app}:open`,
+          protocol: 2,
+          version: document.version,
+          openId,
+          name: document.name,
+          bytes: owned,
+          writable: document.writable,
+          replacementName: document.replacementName,
+          outputFormats: document.outputFormats,
+          maxBytes: document.maxBytes,
+        },
+        [owned.buffer],
+      );
     } catch {
-      stop("failed", "Could not send the document to the native editor");
+      stop("failed", "Could not send the document to the native editor", "crashed");
     }
   }
 
   function mayReplace() {
-    return (
-      !detached && document.writable && status !== "read-only" && document.replacementName !== null
-    );
+    return !detached && editable() && status !== "read-only" && document.replacementName !== null;
   }
 
   function schedule() {
@@ -278,7 +354,51 @@ export function createNativeEditorSession(
     scheduler?.schedule();
   }
 
-  function flush(reason: "manual" | "automatic", copy?: Copy, intent?: Intent): boolean {
+  function startCapture(next: Capture) {
+    capture = next;
+    operationTimer = wait(sized(readyTimeoutMs), () => {
+      if (capture !== next) return;
+
+      if (next.recovery === true) {
+        capture = null;
+        publish();
+
+        return;
+      }
+
+      if (detached) {
+        cancelIntent(next.intent);
+        status = "save-failed";
+        pause = "save-failed";
+        message =
+          "The previous capture is unresolved. A new copy must wait for its snapshot or error.";
+        publish();
+
+        return;
+      }
+
+      // Keep its identity: a late snapshot is still accepted, and saving again asks for it.
+      stale = next;
+      serializationFailed(
+        "The editor is taking a long time to prepare your changes. Save again to keep waiting.",
+      );
+    });
+    publish();
+
+    if (!active()) return false;
+
+    try {
+      send(next.command);
+
+      return true;
+    } catch {
+      serializationFailed("Could not request a native snapshot");
+
+      return false;
+    }
+  }
+
+  function flush(why: "manual" | "automatic", copy?: Copy, intent?: Intent): boolean {
     function reject() {
       cancelIntent(intent);
 
@@ -289,26 +409,47 @@ export function createNativeEditorSession(
 
     if (copy === undefined && !mayReplace()) return reject();
 
-    if (intent !== undefined && pause !== null) return reject();
+    // A capture failure must not lock out the person's next plain Save; other pauses still do.
+    if (pause !== null && pause !== "serialization-failed") return reject();
 
-    if (
-      status === "conflict" ||
-      status === "save-failed" ||
-      (pause !== null && pause !== "serialization-failed")
-    )
-      return reject();
+    if (status === "conflict" || status === "save-failed") return reject();
 
     if (capture !== null || pending !== null || persisting) {
-      // Native job/options and SaveChanges continuation cannot become a generic future flush.
-      if (copy !== undefined || intent !== undefined) return reject();
+      // Native job/options and SaveChanges continuations cannot become a generic future flush.
+      if (copy !== undefined) return reject();
 
-      if (queuedFlush !== "manual") queuedFlush = reason;
+      // A plain Save still happens next; only its continuation is fenced.
+      if (intent !== undefined) {
+        cancelIntent(intent);
+        queuedFlush = "manual";
+        publish();
+
+        return true;
+      }
+
+      if (queuedFlush !== "manual") queuedFlush = why;
       publish();
 
       return true;
     }
 
-    if (reason === "automatic" && (pause !== null || waitingForNative || epoch <= savedEpoch))
+    if (stale !== null) {
+      if (copy !== undefined) return reject();
+      cancelIntent(intent);
+      scheduler?.cancel();
+      waitingForNative = false;
+      pause = null;
+      message = null;
+      queuedFlush = null;
+      status = "saving";
+      const retried = stale;
+
+      stale = null;
+
+      return startCapture(retried);
+    }
+
+    if (why === "automatic" && (pause !== null || waitingForNative || epoch <= savedEpoch))
       return reject();
 
     const request = {
@@ -318,7 +459,7 @@ export function createNativeEditorSession(
       requestId: crypto.randomUUID(),
       openId,
       documentId,
-      reason,
+      reason: why,
       ...copy,
     };
 
@@ -337,38 +478,38 @@ export function createNativeEditorSession(
     scheduler?.cancel();
     waitingForNative = false;
 
-    if (reason === "manual") busyAttempts = 0;
+    if (why === "manual") busyAttempts = 0;
     pause = null;
     message = null;
     queuedFlush = null;
-    capture = { command, epoch, intent };
     status = "saving";
-    operationTimer = setTimeout(() => {
-      if (detached && capture !== null) {
-        cancelIntent(capture.intent);
-        status = "save-failed";
-        pause = "save-failed";
-        message =
-          "The previous capture is unresolved. A new copy must wait for its snapshot or error.";
-        publish();
-      } else
-        serializationFailed(
-          "The native editor did not return a snapshot; save again to retry capture",
-        );
-    }, readyTimeoutMs);
-    publish();
 
-    if (!active()) return false;
+    return startCapture({ command, epoch, intent });
+  }
 
-    try {
-      send(command);
+  /** After a conflict, refill recovery with exactly what is in the editor now. */
+  function captureRecovery() {
+    if (documentId === null || capture !== null) return;
+    const format = document.outputFormats.find((candidate) => candidate.kind === "document");
 
-      return true;
-    } catch {
-      serializationFailed("Could not request a native snapshot");
+    if (format === undefined) return;
+    const dot = document.name.lastIndexOf(".");
+    const stem = dot > 0 ? document.name.slice(0, dot) : document.name;
 
-      return false;
-    }
+    const command = decodeNativeHostCommand({
+      type: `${document.app}:request-save`,
+      protocol: 2,
+      version: document.version,
+      requestId: crypto.randomUUID(),
+      openId,
+      documentId,
+      reason: "manual",
+      saveAs: true,
+      name: `${stem}${format.extension}`,
+    });
+
+    if (command === null || !("reason" in command)) return;
+    startCapture({ command, epoch, recovery: true });
   }
 
   function sameIdentity(value: NativeSnapshotIdentity, expected: NativeSnapshotIdentity) {
@@ -381,6 +522,72 @@ export function createNativeEditorSession(
     );
   }
 
+  /**
+   * Tells the frame the host kept these bytes and will never persist them, so its single
+   * snapshot slot is free again. A frame from before `discarded` ignores it; for copies, which can
+   * never mark the source clean, the earlier completed-copy acknowledgement frees that frame too.
+   */
+  function releaseFrame(identity: NativeSnapshotIdentity, intent: EditorOutput["intent"]) {
+    const { openId: open, documentId: id, revision: native, requestId, saveId } = identity;
+
+    const envelope = {
+      protocol: 2,
+      version: document.version,
+      openId: open,
+      documentId: id,
+      revision: native,
+      requestId,
+      saveId,
+    } as const;
+
+    try {
+      send({
+        ...envelope,
+        type: `${document.app}:save-result`,
+        status: "discarded",
+        message: "Kept by the host",
+      });
+
+      if (intent !== "replace")
+        send({
+          ...envelope,
+          type: `${document.app}:save-result`,
+          status: "saved",
+          fileRevision: "not-persisted",
+        });
+    } catch {
+      // The bytes are safe here regardless; a frame that missed this answers later saves busy.
+    }
+  }
+
+  /** A save that certainly wrote nothing: keep its bytes locally and get back to editing. */
+  function release(saved: Pending, text: string | null) {
+    remember(saved.output);
+    cancelIntent(saved.intent);
+    releaseFrame(saved.identity, saved.output.intent);
+    clearTimeout(operationTimer);
+    pending = null;
+    status = idleStatus();
+    pause = null;
+    message = text;
+    publish();
+    drain();
+  }
+
+  function enterConflict(saved: Pending, text: string) {
+    remember(saved.output);
+    pending = null;
+    status = "conflict";
+    pause = "conflict";
+    message = text;
+    scheduler?.cancel();
+    queuedFlush = null;
+    releaseFrame(saved.identity, saved.output.intent);
+    publish();
+    // The conflict snapshot can predate the last few edits; ask for the editor's current state.
+    captureRecovery();
+  }
+
   function acknowledge(saved: Pending) {
     const result = saved.persisted;
 
@@ -389,7 +596,7 @@ export function createNativeEditorSession(
     if (saved.intent?.cancelled && !cancelIntent(saved.intent))
       throw new Error("Native continuation cancellation was not delivered");
     clearTimeout(operationTimer);
-    operationTimer = setTimeout(() => {
+    operationTimer = wait(readyTimeoutMs, () => {
       if (!active() || pending !== saved) return;
       cancelIntent(saved.intent);
       status = "save-failed";
@@ -397,7 +604,7 @@ export function createNativeEditorSession(
       message =
         "Saved to storage, but the native editor did not acknowledge it. Retry will not write it again.";
       publish();
-    }, readyTimeoutMs);
+    });
     send({
       type: `${document.app}:save-result`,
       protocol: 2,
@@ -406,6 +613,60 @@ export function createNativeEditorSession(
       status: "saved",
       fileRevision: result.revision,
     });
+  }
+
+  function refused(saved: Pending, result: Exclude<EditorSaveResult, { status: "saved" }>) {
+    cancelIntent(saved.intent);
+    scheduler?.cancel();
+    queuedFlush = null;
+
+    const envelope = {
+      type: `${document.app}:save-result`,
+      protocol: 2,
+      version: document.version,
+      ...saved.identity,
+    } as const;
+
+    if (result.status === "access-ended") {
+      try {
+        send({ ...envelope, status: result.status, message: result.message });
+      } finally {
+        stop("access-ended", result.message, result.reason ?? "access-revoked");
+      }
+
+      return;
+    }
+
+    const copy = saved.output.intent !== "replace";
+
+    // Each of these certainly wrote nothing. A copy just gives up; the source keeps editing.
+    if (copy && result.status !== "failed") {
+      release(saved, result.status === "cancelled" ? null : result.message);
+
+      return;
+    }
+
+    if (!copy && result.status === "read-only") {
+      downgraded = true;
+      send({ ...envelope, status: "read-only", message: result.message });
+      release(saved, result.message);
+
+      return;
+    }
+
+    if (!copy && result.status === "conflict") {
+      send({ ...envelope, status: "conflict", message: result.message });
+      enterConflict(saved, result.message);
+
+      return;
+    }
+
+    // Possibly written: keep the exact bytes and save ID for an explicit retry.
+    status = "save-failed";
+    pause = "save-failed";
+    message = result.message;
+    publish();
+    send({ ...envelope, status: "failed", message: result.message });
   }
 
   async function persist(saved: Pending) {
@@ -429,7 +690,8 @@ export function createNativeEditorSession(
             expectedRevision: saved.expectedRevision,
             saveId: saved.identity.saveId,
             saveMode: saved.mode,
-            output: { ...saved.output, bytes: new Uint8Array(saved.output.bytes) },
+            // The port contract forbids mutating these, so the retained bytes go out uncopied.
+            output: saved.output,
           },
           { signal: abort.signal },
         ));
@@ -450,43 +712,11 @@ export function createNativeEditorSession(
         }
 
         acknowledge(saved);
-      } else {
-        cancelIntent(saved.intent);
-        scheduler?.cancel();
-        queuedFlush = null;
-        message = result.message;
-
-        if (result.status === "access-ended") {
-          try {
-            send({
-              type: `${document.app}:save-result`,
-              protocol: 2,
-              version: document.version,
-              ...saved.identity,
-              ...result,
-            });
-          } finally {
-            stop("access-ended", result.message);
-          }
-        } else {
-          status = result.status === "failed" ? "save-failed" : result.status;
-          pause = result.status === "conflict" ? "conflict" : "save-failed";
-          publish();
-        }
-
-        if (active())
-          send({
-            type: `${document.app}:save-result`,
-            protocol: 2,
-            version: document.version,
-            ...saved.identity,
-            ...result,
-          });
-      }
+      } else refused(saved, result);
     } catch {
       cancelIntent(saved.intent);
 
-      if (active()) {
+      if (active() && pending === saved) {
         status = "save-failed";
         pause = "save-failed";
         scheduler?.cancel();
@@ -520,11 +750,38 @@ export function createNativeEditorSession(
     }
   }
 
-  function acceptSave(value: Save) {
-    const requested = capture;
+  function acceptRecovery(value: Save) {
+    clearTimeout(operationTimer);
+    capture = null;
+    const owned = copyEditorBytes(value.bytes, document.maxBytes);
 
-    if (requested === null || value.requestId !== requested.command.requestId || pending !== null)
+    if (owned !== null) remember({ name: value.name, bytes: owned, intent: "save-as" });
+    releaseFrame(value, "save-as");
+    publish();
+  }
+
+  function acceptSave(value: Save) {
+    const requested =
+      capture?.command.requestId === value.requestId
+        ? capture
+        : capture === null && stale?.command.requestId === value.requestId
+          ? stale
+          : null;
+
+    if (requested === null || pending !== null) return;
+
+    if (requested.recovery === true) {
+      acceptRecovery(value);
+
       return;
+    }
+
+    if (requested === stale) {
+      stale = null;
+      pause = null;
+      message = null;
+      status = "saving";
+    }
 
     if (
       value.openId !== requested.command.openId ||
@@ -598,6 +855,82 @@ export function createNativeEditorSession(
     void persist(pending);
   }
 
+  function receiveError(event: Extract<NativeHostEvent, { type: `${string}:error` }>) {
+    if (event.operation === "theme") {
+      if (event.requestId === undefined || event.requestId !== themeRequest) return;
+      themeRequest = null;
+
+      // Busy means an older request still occupies the frame; try the latest wish again shortly.
+      if (event.code === "busy" && ++themeAttempts <= MAX_THEME_ATTEMPTS) {
+        clearTimeout(themeTimer);
+        themeTimer = setTimeout(sendTheme, 250 * themeAttempts);
+      }
+
+      return;
+    }
+
+    if (event.operation === "open") {
+      if (openSent && !opened) stop("failed", event.message, "unreadable");
+      else if (opened) {
+        // The engine hit a problem after opening. Editing may continue, but say so.
+        message = `The editor reported a problem: ${event.message}`;
+        publish();
+      }
+
+      return;
+    }
+
+    if (event.requestId === undefined) {
+      // Only a native Save pressed while another save owns the frame reports busy without an ID.
+      // The frame has already dropped its job; the Save itself still runs next.
+      if (event.code === "busy" && opened) flush("manual");
+
+      return;
+    }
+
+    if (stale !== null && event.requestId === stale.command.requestId && capture === null) {
+      // The late answer to a capture we stopped waiting for: the frame has let it go.
+      cancelIntent(stale.intent);
+      stale = null;
+
+      return;
+    }
+
+    if (capture === null || event.requestId !== capture.command.requestId) return;
+
+    if (capture.recovery === true) {
+      // An older frame still holds the conflict snapshot; recovery keeps that one.
+      clearTimeout(operationTimer);
+      capture = null;
+      publish();
+
+      return;
+    }
+
+    if (event.code === "busy" && capture.command.reason === "automatic") {
+      clearTimeout(operationTimer);
+      capture = null;
+      status = idleStatus();
+
+      // A manual Save queued behind this automatic capture goes now, with its manual reason.
+      if (queuedFlush !== null) {
+        busyAttempts = 0;
+        drain();
+
+        return;
+      }
+
+      if (++busyAttempts < MAX_BUSY_ATTEMPTS) schedule();
+      else {
+        scheduler?.cancel();
+        queuedFlush = null;
+        waitingForNative = true;
+      }
+
+      publish();
+    } else serializationFailed(event.message);
+  }
+
   function receive(event: NativeHostEvent) {
     if (
       !active() ||
@@ -612,14 +945,18 @@ export function createNativeEditorSession(
       case "pdfcraft:ready":
       case "deckcraft:ready":
         if (openSent) {
-          stop("failed", "The native editor restarted. Recover your work before reopening.");
+          stop(
+            "failed",
+            "The native editor restarted. Recover your work before reopening.",
+            "crashed",
+          );
 
           return;
         }
 
         ready = event;
         clearTimeout(timer);
-        setTheme(theme);
+        sendTheme();
         sendOpen();
         publish();
 
@@ -632,9 +969,8 @@ export function createNativeEditorSession(
         clearTimeout(timer);
         documentId = event.documentId;
         revision = event.revision;
-        bytes = null;
         opened = true;
-        status = document.writable ? "editing" : "read-only";
+        status = idleStatus();
         publish();
 
         return;
@@ -654,26 +990,28 @@ export function createNativeEditorSession(
           queuedFlush = null;
 
           if (capture === null && pending === null && !persisting) {
-            status = document.writable ? "editing" : "read-only";
+            status = idleStatus();
             pause = null;
             message = null;
           }
         }
 
-        const changed = event.revision !== revision;
-        revision = event.revision;
+        {
+          const changed = event.revision !== revision;
+          revision = event.revision;
 
-        if (event.dirty) {
-          observedFalseRevision = null;
-          epoch += 1;
-        } else {
-          // A cancelled draft/safe point still advances the observation token, never durability.
-          observedFalseRevision = event.revision;
-        }
+          if (event.dirty) {
+            observedFalseRevision = null;
+            epoch += 1;
+          } else {
+            // A cancelled draft/safe point still advances the observation token, never durability.
+            observedFalseRevision = event.revision;
+          }
 
-        if (waitingForNative && changed) {
-          waitingForNative = false;
-          busyAttempts = 0;
+          if (waitingForNative && changed) {
+            waitingForNative = false;
+            busyAttempts = 0;
+          }
         }
 
         schedule();
@@ -754,7 +1092,7 @@ export function createNativeEditorSession(
         }
 
         pending = null;
-        status = document.writable ? "editing" : "read-only";
+        status = idleStatus();
         pause = null;
         message = null;
         publish();
@@ -767,30 +1105,7 @@ export function createNativeEditorSession(
       case "gridcraft:error":
       case "pdfcraft:error":
       case "deckcraft:error":
-        if (event.operation === "open" && openSent && !opened) {
-          stop("failed", event.message);
-        } else if (
-          event.operation === "save" &&
-          capture !== null &&
-          event.requestId === capture.command.requestId
-        ) {
-          const automatic = capture.command.reason === "automatic";
-
-          if (event.code === "busy" && automatic) {
-            clearTimeout(operationTimer);
-            capture = null;
-            status = document.writable ? "editing" : "read-only";
-
-            if (++busyAttempts < MAX_BUSY_ATTEMPTS) schedule();
-            else {
-              scheduler?.cancel();
-              queuedFlush = null;
-              waitingForNative = true;
-            }
-
-            publish();
-          } else serializationFailed(event.message);
-        }
+        receiveError(event);
 
         return;
       case "wordcraft:save-paused":
@@ -811,7 +1126,12 @@ export function createNativeEditorSession(
       case "gridcraft:theme-applied":
       case "pdfcraft:theme-applied":
       case "deckcraft:theme-applied":
-        if (event.requestId === themeRequest && event.theme === theme) themeRequest = null;
+        if (event.requestId !== themeRequest) return;
+        themeRequest = null;
+        themeAttempts = 0;
+
+        // Toggled again while this one was applying: catch up to the latest choice.
+        if (event.theme !== theme) sendTheme();
 
         return;
     }
@@ -826,6 +1146,11 @@ export function createNativeEditorSession(
     if (decoded !== null) receive(decoded);
   });
 
+  // Capture before the page is hidden: throttled frames may take a long time to answer after.
+  const stopWatching = visibility?.subscribe(() => {
+    if (visibility.hidden() && active() && opened && epoch > savedEpoch) flush("automatic");
+  });
+
   async function download() {
     try {
       const downloaded = await backend.download(document, { signal: abort.signal });
@@ -834,15 +1159,23 @@ export function createNativeEditorSession(
       bytes = copyEditorBytes(downloaded, document.maxBytes);
 
       if (bytes === null) throw new Error("Invalid native editor input");
+      documentBytes = bytes.byteLength;
       sendOpen();
-    } catch {
-      if (active()) stop("failed", "Could not download the authorized document");
+    } catch (cause) {
+      if (active())
+        stop(
+          "failed",
+          "Could not download the authorized document",
+          cause instanceof Error && cause.message === "Invalid native editor input"
+            ? "unsupported"
+            : editorOpenFailure(cause),
+        );
     }
   }
 
-  timer = setTimeout(
-    () => stop("failed", "The native editor did not become ready in time"),
-    readyTimeoutMs,
+  // Ready covers fetching and compiling a large engine, which slow networks stretch the most.
+  timer = wait(readyTimeoutMs * 4, () =>
+    stop("failed", "The native editor did not become ready in time", "timeout"),
   );
 
   if (initialReady !== undefined) receive(initialReady);
@@ -868,18 +1201,37 @@ export function createNativeEditorSession(
 
       return true;
     },
+    dismiss() {
+      if (
+        status !== "save-failed" ||
+        pending === null ||
+        persisting ||
+        pending.output.intent === "replace" ||
+        pending.persisted !== undefined
+      )
+        return false;
+      release(pending, null);
+
+      return true;
+    },
     getRecoveryOutputs: () =>
-      pending === null ? [] : [{ ...pending.output, bytes: new Uint8Array(pending.output.bytes) }],
+      [...recovered, ...(pending === null ? [] : [pending.output])].map((output) => ({
+        ...output,
+        bytes: new Uint8Array(output.bytes),
+      })),
     dispose() {
       if (status === "disposed") return;
       cancelContinuations();
       waitingForNative = false;
       unsubscribe();
+      stopWatching?.();
       abort.abort();
       scheduler?.cancel();
       clearTimeout(timer);
       clearTimeout(operationTimer);
+      clearTimeout(themeTimer);
       capture = null;
+      stale = null;
       bytes = null;
       status = "disposed";
       publish();

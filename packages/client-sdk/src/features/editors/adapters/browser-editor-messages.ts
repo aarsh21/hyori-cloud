@@ -1,4 +1,7 @@
-import type { EditorMessagePort } from "#client-sdk/features/editors/editor-contract";
+import type {
+  EditorMessagePort,
+  EditorVisibilityPort,
+} from "#client-sdk/features/editors/editor-contract";
 
 // The app composition owner must register/mount this host adapter and dispose the session
 // before removing or navigating its frame. Same-origin vendor WASM is trusted executable code;
@@ -10,7 +13,10 @@ export function createBrowserEditorMessages(options: {
     removeEventListener(type: "message", listener: (event: MessageEvent) => void): void;
   };
   editorWindow: {
-    postMessage(message: Parameters<EditorMessagePort["post"]>[0], targetOrigin: string): void;
+    postMessage(
+      message: Parameters<EditorMessagePort["post"]>[0],
+      options: { targetOrigin: string; transfer?: ArrayBuffer[] },
+    ): void;
   };
   origin: string;
 }): EditorMessagePort {
@@ -31,9 +37,24 @@ export function createBrowserEditorMessages(options: {
 
       return () => host.removeEventListener("message", receive);
     },
-    post(message, targetOrigin) {
+    post(message, targetOrigin, transfer) {
       if (targetOrigin !== origin) throw new Error("Editor target origin changed");
-      editorWindow.postMessage(message, origin);
+      editorWindow.postMessage(message, { targetOrigin: origin, transfer });
+    },
+  };
+}
+
+export function createBrowserEditorVisibility(document: {
+  readonly hidden: boolean;
+  addEventListener(type: "visibilitychange", listener: () => void): void;
+  removeEventListener(type: "visibilitychange", listener: () => void): void;
+}): EditorVisibilityPort {
+  return {
+    hidden: () => document.hidden,
+    subscribe(listener) {
+      document.addEventListener("visibilitychange", listener);
+
+      return () => document.removeEventListener("visibilitychange", listener);
     },
   };
 }

@@ -317,9 +317,8 @@ describe("the editor under a public link", () => {
 
     await openLink();
 
-    expect(await screen.findByText("This document couldn’t be opened in the editor")).toBeTruthy();
+    expect(await screen.findByText("You don’t have access to this file")).toBeTruthy();
 
-    await screen.findByRole("button", { name: "Try again" });
     fireEvent.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
 
     await waitFor(() => expect(visited).toEqual(["/share/token_1"]));
@@ -483,6 +482,9 @@ describe("saving a copy through a link", () => {
     );
     expect(api.callsTo("editors.prepareSave")).toHaveLength(0);
     expect(await screen.findByText("Not saved")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Download my version" })).toBeTruthy();
+    // Giving up on the copy keeps its bytes for download and lets the source keep saving.
+    fireEvent.click(screen.getByRole("button", { name: "Don’t save copy" }));
+    await waitFor(() => expect(screen.queryByText("Not saved")).toBeNull());
+    expect(screen.queryByRole("menuitem", { name: "Save a copy…" })).toBeNull();
   });
 });

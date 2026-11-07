@@ -33,9 +33,10 @@ pub(crate) fn validate_transport_name(app: &EditorApp, name: &str) -> Result<(),
     }
     Ok(())
 }
-pub(crate) fn extension(name: &str) -> Result<&str, ApiError> {
+/// Lowercased: `Report.DOCX` is the same format as `report.docx`.
+pub(crate) fn extension(name: &str) -> Result<String, ApiError> {
     let (_, extension) = name.rsplit_once('.').ok_or_else(ApiError::invalid)?;
-    Ok(extension)
+    Ok(extension.to_ascii_lowercase())
 }
 pub(crate) const APPS: [EditorApp; 4] = [
     EditorApp::Wordcraft,
@@ -58,7 +59,7 @@ pub(crate) fn app(name: &str) -> Result<EditorApp, ApiError> {
         .ok_or_else(ApiError::invalid)
 }
 pub(crate) fn mime(name: &str) -> Result<&'static str, ApiError> {
-    match extension(name)? {
+    match extension(name)?.as_str() {
         "docx" => Ok("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
         "xlsx" => Ok("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         "pptx" => Ok("application/vnd.openxmlformats-officedocument.presentationml.presentation"),
@@ -91,7 +92,7 @@ pub(crate) fn outputs(app: &EditorApp) -> Vec<EditorOutputFormat> {
     outputs
 }
 pub(crate) fn replacement(name: &str) -> Option<String> {
-    if extension(name).ok() == Some("pptx") {
+    if extension(name).ok().as_deref() == Some("pptx") {
         None
     } else {
         Some(name.into())
@@ -279,7 +280,7 @@ fn identify(name: &str, head: &[u8], tail: &[u8], size: u64) -> Result<(), ApiEr
     if cursor != end {
         return Err(ApiError::invalid());
     }
-    let required: &[&[u8]] = match extension {
+    let required: &[&[u8]] = match extension.as_str() {
         "docx" => &[b"[Content_Types].xml", b"word/document.xml"],
         "xlsx" => &[b"[Content_Types].xml", b"xl/workbook.xml"],
         "pptx" => &[b"[Content_Types].xml", b"ppt/presentation.xml"],
@@ -307,6 +308,16 @@ fn identify(name: &str, head: &[u8], tail: &[u8], size: u64) -> Result<(), ApiEr
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn extensions_match_regardless_of_case() {
+        assert!(app("Report.DOCX").is_ok_and(|app| app == EditorApp::Wordcraft));
+        assert!(app("Deck.PpTx").is_ok_and(|app| app == EditorApp::Deckcraft));
+        assert_eq!(mime("Scan.PDF").ok(), Some("application/pdf"));
+        assert_eq!(replacement("Deck.PPTX"), None);
+        assert_eq!(replacement("Sheet.XLSX").as_deref(), Some("Sheet.XLSX"));
+        assert!(validate_output(&EditorApp::Wordcraft, "Out.PDF", &EditorIntent::Export).is_ok());
+    }
+
     #[test]
     fn rejects_spoofed_pdf_and_empty_or_mismatched_containers() {
         for name in ["x.pdf", "x.docx", "x.xlsx", "x.pptx", "x.deckcraft"] {

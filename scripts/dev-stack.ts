@@ -270,8 +270,8 @@ function editorAsset(root: string | null, pathname: string, accepts: string) {
     "content-type": TYPES.get(extname(path)) ?? "application/octet-stream",
     "x-content-type-options": "nosniff",
     "x-frame-options": "SAMEORIGIN",
-    "content-security-policy": "frame-ancestors 'self'",
-    "cache-control": /\/[^/]+-[0-9a-f]{16}(_bg)?\.(wasm|js|css)$/.test(path)
+    "content-security-policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    "cache-control": /\/[^/]+-[0-9a-f]{15,20}(_bg)?\.(wasm|js|css)$/.test(path)
       ? "public, max-age=31536000, immutable"
       : "no-cache",
     vary: "accept-encoding",

@@ -12,7 +12,9 @@ export function editorSaveState(snapshot: EditorSnapshot): string {
     case "conflict":
       return "Not saved: changed elsewhere";
     case "access-ended":
-      return "Access ended";
+      if (snapshot.reason === "session-ended") return "Session ended";
+
+      return snapshot.reason === "editor-updated" ? "Editor updated" : "Access ended";
     case "failed":
       return "Editor stopped";
     case "disposed":

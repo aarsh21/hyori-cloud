@@ -330,7 +330,8 @@ try {
         { signal },
       )
     ).status,
-    "failed",
+    // No chosen destination is a certain no-write outcome, distinct from an ambiguous failure.
+    "cancelled",
   );
 
   const native = new Uint8Array(syntheticDeckCraft());
