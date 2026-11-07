@@ -284,7 +284,18 @@ pub(crate) async fn stream_content(
         .try_with(|slot| slot.borrow_mut().take())
         .ok()
         .flatten();
-    let body = relay(read.body, (permit, slot), IDLE);
+    let mut body = Box::pin(relay(read.body, (permit, slot), IDLE));
+    // Headers flushed ahead of any body bytes lose Content-Length behind some proxies (Bun.serve),
+    // so send them with the first chunk. A storage failure before it then answers 503, not 200.
+    let first = if expected == 0 {
+        None
+    } else {
+        match body.next().await {
+            Some(Ok(chunk)) => Some(Ok::<_, StorageError>(chunk)),
+            _ => return Err(ApiError::unavailable()),
+        }
+    };
+    let body = stream::iter(first).chain(body);
     let encoded = url::form_urlencoded::byte_serialize(descriptor.name.as_bytes())
         .collect::<String>()
         .replace('+', "%20");

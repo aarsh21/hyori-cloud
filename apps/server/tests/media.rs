@@ -417,6 +417,12 @@ async fn durable_derivatives_preserve_originals_scope_restore_quota_and_purge_la
     for (name, mime, bytes) in FIXTURES {
         files.push(upload(&server, &cookie, None, name, mime, bytes, None).await);
     }
+    let published = count(&server, "SELECT count(*) AS count FROM hyori_media_jobs").await;
+    assert_eq!(
+        published,
+        FIXTURES.len() as i64,
+        "publication enqueues one job per media file"
+    );
     for file in &files {
         assert_eq!(
             server
@@ -438,7 +444,7 @@ async fn durable_derivatives_preserve_originals_scope_restore_quota_and_purge_la
     );
     assert_eq!(
         count(&server, "SELECT count(*) AS count FROM hyori_media_jobs").await,
-        0,
+        published,
         "query/refetch never starts work"
     );
     for _ in 0..8 {
