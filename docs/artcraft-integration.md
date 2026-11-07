@@ -513,3 +513,46 @@ Each bundle app ships `legal/native-host-v3/<app>/` with `MODIFICATIONS.md`, the
 - A protocol 2 editor knows a converted file (PPTX in Deck) is copy-only when it opens: it reads "Save a copy to keep changes" and offers Save a copy, rather than failing a first save.
 
 Browser scenarios branch on the protocol the bundle declares, never on hard-coded versions. Native editors may make more than one version per edit session (background save plus Ctrl+S); the checks count versions against server-confirmed saves.
+
+## Native host v3 revision r2: rebuilt from pinned public inputs — 2026-11-07
+
+Every bundle and every intermediate from earlier builds lived only in a now-unreachable orb's gitignored `tooling/artcraft/.generated/`. That covers r1 (`runtime-all4-native-v3`, manifest `5697833f…26db`), the `runtime-all4-v2` base (`bb6d2eb3…a28ea0`), the notice-adoption and Deck .2 inputs, and the native staging. Nothing could be copied. r2 was rebuilt on runner Hyorinmaru from committed sources and hash-pinned public downloads only.
+
+### Why r1 can't be reproduced and r2 has new pins
+
+- **r1's build manifests can't be rebuilt.** `build-manifest.json` hashes each command's `elapsedMs`, stdout and stderr. Its SHA-256 therefore changes on every build, and so do the receipt and authority pins that depend on it. The payload is a separate question. A fresh Grid build at HEAD reproduced r1's `payloadSha256` `69076e11…0687` and WASM `4953dd49…795f` bit for bit, but its build manifest is necessarily new. r1's committed records stay as they are, and the server still accepts r1 bundles.
+- **HEAD composes different Word and Deck sources.** The polish commits d3f2e77/d65079c renamed them `0.14.0-hyori-host.2` and `0.14.1-hyori-host.4` in `nativeArtifactVersions`. Grid and PDF compose byte-identical sources to r1.
+- **PDF reproduced its bytes but not its file names.** The rebuilt PDF WASM (`228d09b9…`) and JS (`13162cd8…`) match r1 exactly, but Trunk named them `pdfcraft-web-4d57fe7f91d1a19*` instead of r1's `pdfcraft-web-3b534dae8bf1cea2*`, and `index.html` changed with them. Trunk derives that hash from its pre-optimisation input, so a likely cause is nondeterminism in the intermediate cargo WASM. r1's intermediate no longer exists, so that remains unconfirmed. A payload that differs needs a new version, so a HEAD-only build would have made PDF `0.17.0-hyori-host.2`. Grid reproduced r1's whole payload, so a HEAD-only Grid could have kept `0.15.0-hyori-host.1`.
+- **r2 also carries the frame fixes.** Those are the `discarded` save result with its `takeDiscard` fence, `themeFailed`, the http/https/mailto allow-list for egui `OpenUrl`, and `takeOpen` no longer copying the document. They change `host-protocol.ts`, `host-entry.ts`, `native-frame.rs`, `native-imports.rs` and the bundled SDK `native-runtime.ts`. The wire protocol is still 2, with additions only. Every app's payload changes, so no HEAD-only revision was recorded. r2's versions are Word `0.14.0-hyori-host.3`, Grid `0.15.0-hyori-host.2`, PDF `0.17.0-hyori-host.2` and Deck `0.14.1-hyori-host.5`.
+- **A version names exactly one payload.** `record` now refuses an app whose version an earlier authority already pins to a different payload. Any changed payload has to bump `nativeArtifactVersions`.
+
+### The base chain reproduced its committed pins
+
+`content-acquire.ts` acquired the four pinned official ZIPs, then `content-runtime.ts assemble` composed the official-three bundle. Its manifest SHA-256 reproduced `1bfd3449…e8fc` (`runtime-official3-v1`). Deck .2 was rebuilt with `deckcraft-build.ts --marks` in the pinned restricted container and reproduced WASM `81ecb8a3…ef98`, JS `c586cf23…`, host bridge `cbaf952f…` and index `09791017…`. Its build inputs differ from the committed plan only in the Cargo cache's Git pack files and sparse-index cache entries. Every `cargo fetch` writes those files afresh, but the locked commits and crate checksums stay the same. The all-four composition then passed `content-runtime.ts check` against the original **`bb6d2eb3…a28ea0`** pin. The legal base is therefore the same bytes r1 used; no new pin was needed.
+
+### Isolation
+
+r1 ran natively without network isolation. r2 runs each editor in `scripts/artcraft/native-v3-container.ts`, one container at a time. Each one uses the pinned `rust@sha256:be499482…` image with `--network none`, an unprivileged UID, a read-only root, `--cap-drop ALL`, `no-new-privileges`, and limits of 6 GB memory and no swap, 6 CPUs and 512 PIDs. Input, driver and tools are mounted read-only at the driver's absolute paths. The exact command and exit status are retained in each app's evidence (`container-command.json`, `container-result.json`), and `execution` in the build manifest says which isolation ran.
+
+### One rebuild command
+
+```sh
+# Bun 1.4.4 and Docker. Downloads pinned inputs, rebuilds the bb6 base, builds all four editors,
+# records the current revision's authority/receipts, assembles and checks the bundle.
+~/.bun/bin/bun scripts/artcraft/native-v3-rebuild.ts [WORK_DIR]
+```
+
+Each step is skipped when its result exists, and a failed step's partial output is removed before it reruns. For the next revision, after patches change:
+
+1. Append a revision to `revisions` in `native-v3-runtime.ts`, with a new authority, receipt root, bundle and handoff name.
+2. Append the authority file to `NATIVE_AUTHORITIES` in `apps/server/src/editor_assets.rs`.
+3. Bump `nativeArtifactVersions` for every app whose payload changes.
+4. Run the command above with a fresh `WORK_DIR`, or delete the native `stage/*` and `evidence/*` directories in the old one. The downloads, tools, Cargo cache and bb6 base are reused.
+
+### Server acceptance
+
+`editor_assets.rs` compiles in every authority revision. A bundle's `legal/native-host-v3/authority.json` must hash-match exactly one of them. That revision alone then pins the editor's version, source, build manifest, payload, WASM, receipt and source summary. An editor from one revision is not accepted against another revision's carried authority or receipts. The full inventory, mode, sidecar and unregistered-payload checks are unchanged. `editor_protocol` derives protocol 2 versions from the compiled-in authorities instead of a hard-coded list. The browser scenarios read the accepted native versions from the same committed files.
+
+### CSP for the inline loader
+
+Trunk's `index.html` starts the engine from one inline `<script type="module">`. Its text names that build's hashed JS and WASM files, so it differs per app and per build. Rather than rewrite Trunk's output, which would add a post-build transform and change payload bytes after Trunk's SRI attributes were computed, `native-v3-build-evidence.ts` records the loader's CSP hash. It refuses an entry with anything other than exactly one inline script. The hash appears as `cspScriptHashes` in each r2 receipt and in the handoff's `editors[]`. A gateway can then send `script-src 'self' 'wasm-unsafe-eval' 'sha256-…'` for each app's `/artcraft/<app>/<version>/` path, or one policy listing all four hashes. The entry also has an inline `<style>`, so `style-src` would need its own hash or `'unsafe-inline'`; that is not recorded here.

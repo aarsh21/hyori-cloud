@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BrowserContext, Page } from "playwright-core";
+import { z } from "zod";
 import {
   assertBundleAsset,
   assertHoldsEdit,
@@ -39,13 +40,17 @@ import { createLink } from "./scenarios-sharing.ts";
 const ALL_APPS: readonly EditorApp[] = ["wordcraft", "gridcraft", "pdfcraft", "deckcraft"];
 const DECK_VERSION = "0.14.1-hyori-host.2";
 
-// Every native build the server accepts, one entry per authority revision, oldest first.
-const NATIVE_VERSIONS = new Map([
-  ["wordcraft", ["0.14.0-hyori-host.1", "0.14.0-hyori-host.2"]],
-  ["gridcraft", ["0.15.0-hyori-host.1"]],
-  ["pdfcraft", ["0.17.0-hyori-host.1"]],
-  ["deckcraft", ["0.14.1-hyori-host.3", "0.14.1-hyori-host.4"]],
-]);
+// Every native build the server accepts: the versions each committed authority revision names.
+const NATIVE_VERSIONS = new Map<string, string[]>();
+const TOOLING = join(import.meta.dir, "../../tooling/artcraft");
+
+for (const name of readdirSync(TOOLING).filter((entry) =>
+  /^runtime-native-v3.*\.json$/u.test(entry),
+))
+  for (const { app, artifactVersion } of z
+    .object({ apps: z.array(z.object({ app: z.string(), artifactVersion: z.string() })) })
+    .parse(JSON.parse(readFileSync(join(TOOLING, name), "utf8"))).apps)
+    NATIVE_VERSIONS.set(app, [...(NATIVE_VERSIONS.get(app) ?? []), artifactVersion]);
 
 const NATIVE_MARKER = "HYORIAUTOSAVE";
 const SIGNED_IN_MARKER = "HYORISIGNEDIN";

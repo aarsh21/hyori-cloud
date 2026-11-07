@@ -403,16 +403,15 @@ fn verify_sidecar(
     Ok(())
 }
 fn editor_protocol(editor: &Editor) -> Result<Option<u8>, ApiError> {
-    let native_version = match editor.app {
-        EditorApp::Wordcraft => "0.14.0-hyori-host.1",
-        EditorApp::Gridcraft => "0.15.0-hyori-host.1",
-        EditorApp::Deckcraft => "0.14.1-hyori-host.3",
-        EditorApp::Pdfcraft => "0.17.0-hyori-host.1",
-    };
-    if editor.version == native_version
-        && editor.bridge == "hyori-correlated-host-v2"
-        && editor.protocol == Some(2)
-    {
+    let native = native_authorities()?.iter().any(|(authority, _)| {
+        authority.bridge == editor.bridge
+            && Some(authority.protocol) == editor.protocol
+            && authority
+                .apps
+                .iter()
+                .any(|entry| entry.app == editor.app && entry.artifact_version == editor.version)
+    });
+    if native {
         return Ok(Some(2));
     }
     let protocol = if editor.app == EditorApp::Deckcraft {
@@ -552,38 +551,61 @@ fn payload_sha256(files: &[InventoryFile]) -> Result<Option<String>, ApiError> {
     let json = serde_json::to_vec(&files).map_err(|_| ApiError::unavailable())?;
     Ok(Some(hex::encode(Sha256::digest(json))))
 }
-const NATIVE_AUTHORITY: &str = include_str!("../../../tooling/artcraft/runtime-native-v3.json");
-/// Native host v3 builds: one committed authority pins each app's build, payload, receipt and
-/// source summary; the bundle must carry those exact receipts and the authority itself.
+/// Every committed native host v3 authority revision, oldest first. A revision is never rewritten,
+/// so bundles it identifies keep verifying; each bundle carries exactly one of them.
+const NATIVE_AUTHORITIES: [&str; 2] = [
+    include_str!("../../../tooling/artcraft/runtime-native-v3.json"),
+    include_str!("../../../tooling/artcraft/runtime-native-v3-r2.json"),
+];
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct NativeAuthority {
+    schema_version: u32,
+    bridge: String,
+    protocol: u8,
+    receipt_root: String,
+    apps: Vec<NativeAppAuthority>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct NativeAppAuthority {
+    app: EditorApp,
+    artifact_version: String,
+    source_archive_sha256: String,
+    build_manifest_sha256: String,
+    payload_sha256: String,
+    receipt_sha256: String,
+    source_summary_sha256: String,
+    wasm_sha256: String,
+}
+/// Each compiled-in authority with the SHA-256 of its exact committed bytes.
+fn native_authorities() -> Result<Vec<(NativeAuthority, String)>, ApiError> {
+    NATIVE_AUTHORITIES
+        .iter()
+        .map(|bytes| {
+            let authority: NativeAuthority =
+                serde_json::from_str(bytes).map_err(|_| ApiError::unavailable())?;
+            validate_relative(&authority.receipt_root)?;
+            Ok((authority, hex::encode(Sha256::digest(bytes.as_bytes()))))
+        })
+        .collect()
+}
+/// Native host v3 builds: the authority revision the bundle carries pins each app's build,
+/// payload, receipt and source summary; the bundle must carry those exact receipts too.
 fn known_native_identity(
     editor: &Editor,
     inventory: &BTreeMap<&str, &InventoryFile>,
     source_pin: &str,
 ) -> Result<bool, ApiError> {
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase", deny_unknown_fields)]
-    struct Authority {
-        schema_version: u32,
-        bridge: String,
-        protocol: u8,
-        receipt_root: String,
-        apps: Vec<AppAuthority>,
-    }
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase", deny_unknown_fields)]
-    struct AppAuthority {
-        app: EditorApp,
-        artifact_version: String,
-        source_archive_sha256: String,
-        build_manifest_sha256: String,
-        payload_sha256: String,
-        receipt_sha256: String,
-        source_summary_sha256: String,
-        wasm_sha256: String,
-    }
-    let authority: Authority =
-        serde_json::from_str(NATIVE_AUTHORITY).map_err(|_| ApiError::unavailable())?;
-    validate_relative(&authority.receipt_root)?;
+    let Some(carried) = inventory.get("legal/native-host-v3/authority.json") else {
+        return Ok(false);
+    };
+    let authorities = native_authorities()?;
+    let Some((authority, authority_hash)) =
+        authorities.iter().find(|(_, hash)| *hash == carried.sha256)
+    else {
+        return Ok(false);
+    };
     let Some(entry) = authority.apps.iter().find(|entry| entry.app == editor.app) else {
         return Ok(false);
     };
@@ -606,7 +628,6 @@ fn known_native_identity(
     {
         return Ok(false);
     }
-    let authority_hash = hex::encode(Sha256::digest(NATIVE_AUTHORITY.as_bytes()));
     for (path, expected) in [
         (
             format!("legal/native-host-v3/{name}/build-manifest.json"),
@@ -756,24 +777,24 @@ mod identity_tests {
     fn native_versions_cannot_borrow_the_official_archive_identity() {
         let pins: serde_json::Value =
             serde_json::from_str(include_str!("../../../tooling/artcraft/manifest.json")).unwrap();
-        for (app, version) in [
-            ("wordcraft", "0.14.0-hyori-host.1"),
-            ("gridcraft", "0.15.0-hyori-host.1"),
-            ("pdfcraft", "0.17.0-hyori-host.1"),
-        ] {
-            let pin = pins["editors"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|pin| pin["app"] == app)
+        for (authority, _) in native_authorities().unwrap() {
+            for entry in authority.apps {
+                let app = formats::app_name(&entry.app);
+                let pin = pins["editors"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|pin| pin["app"] == app)
+                    .unwrap();
+                let editor: Editor = serde_json::from_value(serde_json::json!({
+                    "app":app,"version":entry.artifact_version,"bridge":"hyori-correlated-host-v2",
+                    "protocol":2,"archiveSha256":pin["sha256"],"index":"index.html",
+                    "assetUrl":"/artcraft/index.html","deployable":true,"files":[]
+                }))
                 .unwrap();
-            let editor: Editor = serde_json::from_value(serde_json::json!({
-                "app":app,"version":version,"bridge":"hyori-correlated-host-v2","protocol":2,
-                "archiveSha256":pin["sha256"],"index":"index.html","assetUrl":"/artcraft/index.html",
-                "deployable":true,"files":[]
-            })).unwrap();
-            assert_eq!(editor_protocol(&editor).unwrap(), Some(2));
-            assert!(!known_identity(&editor, &BTreeMap::new()).unwrap());
+                assert_eq!(editor_protocol(&editor).unwrap(), Some(2));
+                assert!(!known_identity(&editor, &BTreeMap::new()).unwrap());
+            }
         }
     }
 
@@ -787,12 +808,13 @@ mod identity_tests {
         .unwrap()
     }
 
-    /// The editor entry and legal inventory a correctly assembled native bundle carries.
-    fn native_bundle(app: &str) -> (Editor, Vec<InventoryFile>) {
-        let receipt: serde_json::Value = serde_json::from_slice(&tooling(&format!(
-            "builds/native-host-v3/{app}/receipt.json"
-        )))
-        .unwrap();
+    /// The editor entry and legal inventory a correctly assembled bundle of `revision` carries.
+    fn native_bundle(revision: usize, app: &str) -> (Editor, Vec<InventoryFile>) {
+        let authority = NATIVE_AUTHORITIES[revision];
+        let parsed: NativeAuthority = serde_json::from_str(authority).unwrap();
+        let receipts = parsed.receipt_root;
+        let receipt: serde_json::Value =
+            serde_json::from_slice(&tooling(&format!("{receipts}/{app}/receipt.json"))).unwrap();
         let version = receipt["artifactVersion"].as_str().unwrap();
         let editor: Editor = serde_json::from_value(serde_json::json!({
             "app": app, "role": "current", "protocol": 2, "version": version,
@@ -808,7 +830,7 @@ mod identity_tests {
         let mut legal: Vec<_> = ["build-manifest.json", "receipt.json", "source-summary.json"]
             .into_iter()
             .map(|name| {
-                let bytes = tooling(&format!("builds/native-host-v3/{app}/{name}"));
+                let bytes = tooling(&format!("{receipts}/{app}/{name}"));
                 InventoryFile {
                     path: format!("legal/native-host-v3/{app}/{name}"),
                     bytes: bytes.len() as u64,
@@ -818,8 +840,8 @@ mod identity_tests {
             .collect();
         legal.push(InventoryFile {
             path: "legal/native-host-v3/authority.json".into(),
-            bytes: NATIVE_AUTHORITY.len() as u64,
-            sha256: hex::encode(Sha256::digest(NATIVE_AUTHORITY.as_bytes())),
+            bytes: authority.len() as u64,
+            sha256: hex::encode(Sha256::digest(authority.as_bytes())),
         });
         (editor, legal)
     }
@@ -831,50 +853,85 @@ mod identity_tests {
             .collect()
     }
 
-    #[test]
-    fn native_builds_are_known_from_the_committed_authority() {
-        for app in APPS {
-            let (editor, legal) = native_bundle(app);
-            assert_eq!(editor_protocol(&editor).unwrap(), Some(2), "{app}");
-            assert!(
-                known_identity(&editor, &inventory(&legal)).unwrap(),
-                "{app}"
-            );
-        }
+    fn revisions() -> std::ops::Range<usize> {
+        0..NATIVE_AUTHORITIES.len()
     }
 
     #[test]
-    fn native_identity_rejects_a_changed_payload_file() {
-        for app in APPS {
-            let (mut editor, legal) = native_bundle(app);
-            editor.files[0].sha256 = "0".repeat(64);
-            assert!(
-                !known_identity(&editor, &inventory(&legal)).unwrap(),
-                "{app}"
-            );
-        }
-    }
-
-    #[test]
-    fn native_identity_requires_the_bundled_receipts() {
-        for app in APPS {
-            let (editor, legal) = native_bundle(app);
-            for missing in 0..legal.len() {
-                let mut partial: Vec<_> = legal.iter().collect();
-                partial.remove(missing);
-                let inventory = partial
-                    .into_iter()
-                    .map(|file| (file.path.as_str(), file))
-                    .collect();
-                assert!(!known_identity(&editor, &inventory).unwrap(), "{app}");
+    fn native_builds_are_known_from_every_committed_authority() {
+        for revision in revisions() {
+            for app in APPS {
+                let (editor, legal) = native_bundle(revision, app);
+                assert_eq!(editor_protocol(&editor).unwrap(), Some(2), "{app}");
+                assert!(
+                    known_identity(&editor, &inventory(&legal)).unwrap(),
+                    "r{revision} {app}"
+                );
             }
         }
     }
 
     #[test]
+    fn native_identity_rejects_a_changed_payload_file() {
+        for revision in revisions() {
+            for app in APPS {
+                let (mut editor, legal) = native_bundle(revision, app);
+                editor.files[0].sha256 = "0".repeat(64);
+                assert!(
+                    !known_identity(&editor, &inventory(&legal)).unwrap(),
+                    "r{revision} {app}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn native_identity_requires_the_bundled_receipts() {
+        for revision in revisions() {
+            for app in APPS {
+                let (editor, legal) = native_bundle(revision, app);
+                for missing in 0..legal.len() {
+                    let mut partial: Vec<_> = legal.iter().collect();
+                    partial.remove(missing);
+                    let inventory = partial
+                        .into_iter()
+                        .map(|file| (file.path.as_str(), file))
+                        .collect();
+                    assert!(
+                        !known_identity(&editor, &inventory).unwrap(),
+                        "r{revision} {app}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_identity_is_checked_against_the_carried_revision_only() {
+        // An editor from one revision is unknown to a bundle carrying another revision's
+        // authority and receipts, even where both revisions name the same version.
+        for app in APPS {
+            let (editor, _) = native_bundle(1, app);
+            let (_, other) = native_bundle(0, app);
+            assert!(
+                !known_identity(&editor, &inventory(&other)).unwrap(),
+                "{app}"
+            );
+            let (editor, _) = native_bundle(0, app);
+            let (_, other) = native_bundle(1, app);
+            assert!(
+                !known_identity(&editor, &inventory(&other)).unwrap(),
+                "{app}"
+            );
+        }
+    }
+
+    #[test]
     fn native_identity_is_not_shared_between_apps() {
-        let (mut editor, legal) = native_bundle("wordcraft");
-        editor.app = EditorApp::Gridcraft;
-        assert!(!known_identity(&editor, &inventory(&legal)).unwrap());
+        for revision in revisions() {
+            let (mut editor, legal) = native_bundle(revision, "wordcraft");
+            editor.app = EditorApp::Gridcraft;
+            assert!(!known_identity(&editor, &inventory(&legal)).unwrap());
+        }
     }
 }

@@ -31,7 +31,7 @@ const POSTGRES_BIN = process.env.HYORI_POSTGRES_BIN ?? "/usr/lib/postgresql/17/b
 const RUSTFS = process.env.HYORI_RUSTFS_BIN ?? join(homedir(), "opt/rustfs/rustfs");
 
 const EDITOR_RECEIPT =
-  process.env.HYORI_DEV_EDITOR_RECEIPT ?? "tooling/artcraft/runtime-all4-transport-v2.json";
+  process.env.HYORI_DEV_EDITOR_RECEIPT ?? "tooling/artcraft/runtime-all4-native-v3-r2.json";
 
 const Secrets = z.object({
   pg: z.string(),

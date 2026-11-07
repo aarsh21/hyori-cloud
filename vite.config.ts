@@ -66,6 +66,8 @@ export default defineConfig({
       "tooling/artcraft/closure/**",
       // Build inputs and recorded evidence whose bytes receipts and manifests pin by SHA-256.
       "tooling/artcraft/builds/**",
+      // Authorities the server hashes and handoffs `check` regenerates byte for byte.
+      "tooling/artcraft/runtime-*.json",
       "tooling/artcraft/capabilities-v1/**",
       "tooling/artcraft/content-audit/**",
       "tooling/artcraft/evidence/**",
