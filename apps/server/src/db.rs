@@ -148,6 +148,10 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             14_i32,
             include_str!("../migrations/0014_owner_scoped_listing.sql"),
         ),
+        (
+            15_i32,
+            include_str!("../migrations/0015_media_lease_settlement.sql"),
+        ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
         let old = tx

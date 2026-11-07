@@ -724,6 +724,105 @@ async fn a_thumbnail_still_queued_never_keeps_a_deleted_original() {
         .value();
     jobs::run_once(&server.state).await.unwrap();
     assert_eq!(job(&server, &back_key).await.as_deref(), Some("ready"));
+
+    // The same after a failed attempt whose back-off has passed; one still backing off keeps it.
+    let (again, again_key) = photo(&server, &owner, "again.png").await;
+    let (waiting, waiting_key) = photo(&server, &owner, "waiting.png").await;
+    server.state.db.execute_raw(sql("UPDATE hyori_media_jobs SET attempts=1,due_at=CASE WHEN source_key=$1 THEN now()-interval '1 second' ELSE now()+interval '15 seconds' END WHERE source_key IN ($1,$2)", vec![again_key.clone().into(), waiting_key.clone().into()])).await.unwrap();
+    for id in [&again, &waiting] {
+        server
+            .rpc("files.trash", json!({"id":id}), Some(&owner.cookie))
+            .await
+            .value();
+    }
+    jobs::run_once(&server.state).await.unwrap();
+    for id in [&again, &waiting] {
+        server
+            .rpc("files.restore", json!({"id":id}), Some(&owner.cookie))
+            .await
+            .value();
+    }
+    jobs::run_once(&server.state).await.unwrap();
+    assert_eq!(job(&server, &again_key).await.as_deref(), Some("ready"));
+    assert_eq!(scalar(&server, "SELECT (due_at>now()+interval '10 seconds')::int::bigint AS value FROM hyori_media_jobs WHERE source_key=$1", vec![waiting_key.clone().into()]).await, 1, "failure back-off was shortened");
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL, pinned RustFS and the isolated media worker"]
+async fn an_expired_lease_never_keeps_a_deleted_original() {
+    let (pg, _fs, _worker, server, storage) = media_stack().await;
+    let owner = setup(&server).await;
+    let lease = |attempts: i64, key: &str| {
+        sql(
+            "UPDATE hyori_media_jobs SET state='processing',attempts=$2,lease_token='crashed',lease_until=now()+interval '5 minutes' WHERE source_key=$1",
+            vec![key.into(), attempts.into()],
+        )
+    };
+    let expire = |key: &str| {
+        sql(
+            "UPDATE hyori_media_jobs SET lease_until=now()-interval '1 second' WHERE source_key=$1",
+            vec![key.into()],
+        )
+    };
+    // A sixth attempt, admitted by explicit retries, whose worker crashed mid-read.
+    let (last, last_key) = photo(&server, &owner, "last.png").await;
+    server
+        .state
+        .db
+        .execute_raw(lease(6, &last_key))
+        .await
+        .unwrap();
+    delete(&server, &owner, &last).await;
+    server
+        .state
+        .db
+        .execute_raw(expire(&last_key))
+        .await
+        .unwrap();
+    maintain(&server).await;
+    assert!(
+        storage.head(&last_key).await.is_err(),
+        "kept by a sixth attempt, job {:?}",
+        job(&server, &last_key).await
+    );
+    assert_eq!(job(&server, &last_key).await, None);
+
+    // The server restarts without a decoder after a worker crashed; deletion still completes.
+    let (crash, crash_key) = photo(&server, &owner, "crash.png").await;
+    let (_live, live_key) = photo(&server, &owner, "live.png").await;
+    for key in [&crash_key, &live_key] {
+        server.state.db.execute_raw(lease(1, key)).await.unwrap();
+    }
+    delete(&server, &owner, &crash).await;
+    for key in [&crash_key, &live_key] {
+        server.state.db.execute_raw(expire(key)).await.unwrap();
+    }
+    let mut config = pg.config.clone();
+    config.media_worker_socket = None;
+    let plain = TestServer::start(config).await;
+    for _ in 0..3 {
+        plain
+            .state
+            .db
+            .execute_unprepared("UPDATE hyori_uploads SET cleanup_due=now()")
+            .await
+            .unwrap();
+        jobs::run_once(&plain.state).await.unwrap();
+        cleanup::reclaim(&plain.state).await.unwrap();
+    }
+    assert!(
+        storage.head(&crash_key).await.is_err(),
+        "kept without a decoder, job {:?}",
+        job(&server, &crash_key).await
+    );
+    assert_eq!(job(&server, &crash_key).await, None);
+    // Control: a crashed job whose photo still exists goes back to the queue for a decoder.
+    assert_eq!(job(&server, &live_key).await.as_deref(), Some("queued"));
+    assert!(storage.head(&live_key).await.is_ok());
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+    drop(plain);
     drop(server);
     pg.stop();
 }
