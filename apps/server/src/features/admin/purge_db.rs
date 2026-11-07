@@ -42,7 +42,7 @@ pub(crate) async fn prepare(tx: &DatabaseTransaction, user: &str) -> DomainResul
         // cannot certify this newly aborted key without actually deleting its original.
         tx.execute_raw(sql("UPDATE hyori_uploads SET state='aborted',reservation_held=false,purged=true,purge_checked_at=NULL,
             name='',mime_type='',size=0,parent_id=NULL,uploader_id=NULL,grant_digests='[]',replace_id=NULL,replace_revision=NULL,file_id=NULL,result=NULL,
-            lease_token=NULL,lease_until=NULL,cleanup_token=NULL,cleanup_until=NULL,cleanup_due=now()
+            lease_token=NULL,lease_until=NULL,cleanup_token=NULL,cleanup_until=NULL,cleanup_due=now(),clean_checks=0
             WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))",vec![ids.into()])).await?;
     }
     if !preserve.is_empty() {
@@ -58,6 +58,7 @@ pub(crate) async fn prepare(tx: &DatabaseTransaction, user: &str) -> DomainResul
     ))
     .await?;
     tx.execute_raw(sql("DELETE FROM hyori_invites WHERE token_digest IN (SELECT token_digest FROM hyori_invites WHERE issuer_id=$1 OR email=$2 ORDER BY token_digest LIMIT 256)",vec![user.into(),email.clone().into()])).await?;
+    // Address- and device-keyed login counters can't be enumerated; they expire with their window.
     tx.execute_raw(sql(
         "DELETE FROM hyori_rate_limits WHERE key_digest=$1",
         vec![digest(&format!("login:{email}")).into()],

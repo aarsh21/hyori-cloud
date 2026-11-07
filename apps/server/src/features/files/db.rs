@@ -74,12 +74,47 @@ impl Item {
         }
         Ok(())
     }
-    pub async fn descendants(&self, tx: &DatabaseTransaction) -> DomainResult<Vec<Self>> {
-        let rows = tx.query_all_raw(sql("SELECT * FROM hyori_items WHERE owner_id=$1 AND ancestor_ids @> $2::jsonb ORDER BY id LIMIT 1001", vec![self.owner_id.clone().into(), serde_json::json!([self.id]).into()])).await?;
-        if rows.len() > 1000 {
-            return Err(ApiError::conflict().into());
+    // Subtree changes are set-based single statements: no descendant row enters the process and
+    // the GIN ancestor index bounds each to its subtree, however large.
+    fn subtree(&self) -> Vec<sea_orm::Value> {
+        vec![self.owner_id.clone().into(), self.id.clone().into()]
+    }
+    /// Entries already trashed on their own keep their own trash root.
+    pub async fn trash_descendants(
+        &self,
+        tx: &DatabaseTransaction,
+        now: DateTime<Utc>,
+    ) -> DomainResult<()> {
+        let mut values = self.subtree();
+        values.push(now.into());
+        tx.execute_raw(sql("UPDATE hyori_items SET trashed_at=$3,trash_root=$2,revision=revision+1 WHERE owner_id=$1 AND ancestor_ids @> jsonb_build_array($2::text) AND trashed_at IS NULL", values)).await?;
+        Ok(())
+    }
+    /// The partial unique index checks every restored name atomically, including conflicts within
+    /// the restored group; a violation rolls back the whole operation.
+    pub async fn restore_descendants(&self, tx: &DatabaseTransaction) -> DomainResult<()> {
+        tx.execute_raw(sql("UPDATE hyori_items SET trashed_at=NULL,trash_root=NULL,revision=revision+1 WHERE owner_id=$1 AND ancestor_ids @> jsonb_build_array($2::text) AND trash_root=$2", self.subtree())).await?;
+        Ok(())
+    }
+    /// Replace this item's old ancestry prefix in every descendant with `ancestors` (its new one).
+    pub async fn move_descendants(
+        &self,
+        tx: &DatabaseTransaction,
+        ancestors: &[String],
+    ) -> DomainResult<()> {
+        let depth: i32 = tx
+            .query_one_raw(sql("SELECT coalesce(max(jsonb_array_length(ancestor_ids)),0)::int AS depth FROM hyori_items WHERE owner_id=$1 AND ancestor_ids @> jsonb_build_array($2::text)", self.subtree()))
+            .await?
+            .ok_or_else(ApiError::unavailable)?
+            .try_get("", "depth")?;
+        if depth as usize + ancestors.len() > 63 + self.ancestor_ids.len() {
+            return Err(ApiError::invalid().into());
         }
-        rows.into_iter().map(Self::from_row).collect()
+        let mut values = self.subtree();
+        values.push(serde_json::json!(ancestors).into());
+        values.push((self.ancestor_ids.len() as i64).into());
+        tx.execute_raw(sql("UPDATE hyori_items SET ancestor_ids=$3::jsonb || jsonb_path_query_array(ancestor_ids, ('$[' || $4::bigint::text || ' to last]')::jsonpath),revision=revision+1 WHERE owner_id=$1 AND ancestor_ids @> jsonb_build_array($2::text)", values)).await?;
+        Ok(())
     }
 }
 

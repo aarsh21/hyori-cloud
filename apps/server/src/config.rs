@@ -17,6 +17,10 @@ pub struct Config {
     pub secure_cookies: bool,
     pub bind: SocketAddr,
     pub default_quota_bytes: u64,
+    /// Trash roots older than this are permanently deleted by maintenance (1 to 3650 days).
+    pub trash_retention_days: u32,
+    /// PostgreSQL pool ceiling per process; see [`DEFAULT_DATABASE_CONNECTIONS`].
+    pub database_max_connections: u32,
     /// None is an explicit metadata-only fixture; storage operations return unavailable.
     pub storage: Option<hyori_storage::StorageConfig>,
     /// Operator-owned private Unix capability; absence disables derivative processing, not originals.
@@ -27,6 +31,24 @@ pub struct Config {
 #[derive(Debug, thiserror::Error)]
 #[error("Invalid server configuration: {0}")]
 pub struct ConfigError(&'static str);
+pub const DEFAULT_TRASH_RETENTION_DAYS: u32 = 30;
+/// Concurrent RPC handlers admitted per process; excess requests receive `service.unavailable`.
+pub const RPC_CONCURRENCY: usize = 128;
+/// Concurrent download/preview/thumbnail/editor-download bodies per process.
+pub const DOWNLOAD_CONCURRENCY: usize = 64;
+/// Concurrent download bodies per session, public-grant set or client address.
+pub const DOWNLOADS_PER_PRINCIPAL: usize = 8;
+/// Further requests per principal that may wait for one of its slots instead of failing.
+pub const DOWNLOAD_QUEUE_PER_PRINCIPAL: usize = 56;
+/// How long a queued download request waits for its principal's slot before `503`.
+pub const DOWNLOAD_QUEUE_WAIT: Duration = Duration::from_secs(10);
+/// Concurrent upload begin/part/complete operations per process.
+pub const UPLOAD_CONCURRENCY: usize = 16;
+/// An RPC holds at most one connection at a time and most release it within milliseconds, so a
+/// quarter of the RPC slots plus every upload operation (each holds one across its storage call's
+/// bracketing transactions) keeps admitted work from timing out on pool acquisition. Downloads only
+/// use a connection while authorizing. Operators sharing PostgreSQL across replicas lower this.
+pub const DEFAULT_DATABASE_CONNECTIONS: u32 = (RPC_CONCURRENCY / 4 + UPLOAD_CONCURRENCY) as u32;
 pub const SESSION_SECONDS: i64 = 7 * 24 * 60 * 60;
 pub const MAX_JSON_BYTES: usize = 256 * 1024;
 pub const DATABASE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -55,6 +77,24 @@ impl Config {
                 .parse()
                 .map_err(|_| ConfigError("invalid bind address"))?,
             default_quota_bytes: 10 * 1024 * 1024 * 1024,
+            trash_retention_days: match std::env::var("HYORI_TRASH_RETENTION_DAYS") {
+                Err(std::env::VarError::NotPresent) => DEFAULT_TRASH_RETENTION_DAYS,
+                value => value
+                    .ok()
+                    .and_then(|days| days.parse().ok())
+                    .ok_or(ConfigError(
+                        "trash retention must be a whole number of days",
+                    ))?,
+            },
+            database_max_connections: match std::env::var("HYORI_DATABASE_MAX_CONNECTIONS") {
+                Err(std::env::VarError::NotPresent) => DEFAULT_DATABASE_CONNECTIONS,
+                value => value
+                    .ok()
+                    .and_then(|count| count.parse().ok())
+                    .ok_or(ConfigError(
+                        "database pool size must be a whole number of connections",
+                    ))?,
+            },
             media_worker_socket: std::env::var_os("HYORI_MEDIA_WORKER_SOCKET").map(Into::into),
             editor_assets: match (
                 std::env::var_os("HYORI_EDITOR_ASSETS_DIR"),
@@ -171,6 +211,15 @@ impl Config {
         {
             return Err(ConfigError(
                 "independent secrets and safe integer quota required",
+            ));
+        }
+        if !(1..=3650).contains(&self.trash_retention_days) {
+            return Err(ConfigError("trash retention must be 1 to 3650 days"));
+        }
+        // Maintenance alone runs up to five concurrent loops; fewer would starve foreground work.
+        if !(8..=1024).contains(&self.database_max_connections) {
+            return Err(ConfigError(
+                "database pool size must be 8 to 1024 connections",
             ));
         }
         Ok(())

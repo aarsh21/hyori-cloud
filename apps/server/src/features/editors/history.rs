@@ -95,9 +95,11 @@ pub(crate) async fn collectible(tx: &DatabaseTransaction, upload: &Upload) -> Do
         .file_id
         .as_deref()
         .ok_or_else(ApiError::unavailable)?;
+    // The revision this upload published: a new file starts at 0 (permanent deletion also
+    // tombstones those), a replacement follows the revision it replaced.
     let revision = upload
         .replace_revision
-        .and_then(|r| r.checked_add(1))
+        .map_or(Some(0), |r| r.checked_add(1))
         .ok_or_else(ApiError::unavailable)?;
     Ok(!referenced(tx, &upload.object_key, file, revision, None, None, None).await?)
 }

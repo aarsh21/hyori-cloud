@@ -355,8 +355,50 @@ try {
     fixtureSql("SELECT sum(size) FROM hyori_objects"),
     String((await sdk.rpc.auth.status({})).user?.usedBytes),
   );
+
+  // Freeing space: prune history, then delete permanently and empty Trash, all through the SDK.
+  const usedBytes = async () => Number((await sdk.rpc.auth.status({})).user?.usedBytes);
+  const beforeDeletion = await usedBytes();
+  const history = (await sdk.rpc.files.versions({ id: retried.id })).items;
+  // Restoring kept the replaced "version" contents as history, beside a copy of the live contents.
+  const older = history.find((version) => version.size === 7)!;
+  const live = history.find((version) => version.size === 5)!;
+  assert.deepEqual(await sdk.rpc.files.deleteVersion({ id: retried.id, versionId: older.id }), {
+    items: 1,
+    freedBytes: 7,
+  });
+  assert.deepEqual(await sdk.rpc.files.deleteVersion({ id: retried.id, versionId: live.id }), {
+    items: 1,
+    freedBytes: 0,
+  });
+  assert.equal(await usedBytes(), beforeDeletion - 7);
+  assert.equal((await sdk.rpc.files.versions({ id: retried.id })).items.length, 0);
+  await assert.rejects(sdk.rpc.files.deletePermanently({ id: retried.id }));
+  await sdk.rpc.files.trash({ id: retried.id });
+  assert.deepEqual(await sdk.rpc.files.trashSummary({}), { items: 1, freedBytes: 5 });
+  assert.deepEqual(await sdk.rpc.files.deletePermanently({ id: retried.id }), {
+    items: 1,
+    freedBytes: 5,
+  });
+  assert.equal(await usedBytes(), beforeDeletion - 12);
+  await assert.rejects(sdk.rpc.files.get({ id: retried.id }));
+  await sdk.rpc.files.trash({ id: empty.id });
+  assert.deepEqual(await sdk.rpc.files.emptyTrash({}), { items: 1, freedBytes: 0 });
+  assert.deepEqual(await sdk.rpc.files.trashSummary({}), { items: 0, freedBytes: 0 });
+  // The server's own maintenance removes released objects from RustFS after the response.
+  await waitFor(
+    async () =>
+      fixtureSql(
+        `SELECT count(*) FROM hyori_uploads WHERE file_id IN ('${retried.id}','${empty.id}') AND state='complete' AND (NOT editor_superseded OR editor_reclaimed_at IS NULL)`,
+      ) === "0",
+    "released objects were not removed from storage",
+  );
+  assert.equal(
+    fixtureSql("SELECT coalesce(sum(size),0) FROM hyori_objects"),
+    String(await usedBytes()),
+  );
   console.log(
-    "Real Rust -> web proxy -> vanilla SDK: multipart pause/checkpoint/process-restart/resume, streamed byte digest, zero-byte, retry, lost-complete replay, cancellation, replacement/history/restore, and distinct-object quota passed.",
+    "Real Rust -> web proxy -> vanilla SDK: multipart pause/checkpoint/process-restart/resume, streamed byte digest, zero-byte, retry, lost-complete replay, cancellation, replacement/history/restore, version deletion, permanent deletion, Empty Trash, storage reclamation, and distinct-object quota passed.",
   );
 } finally {
   for (const sdk of clients) sdk.dispose();

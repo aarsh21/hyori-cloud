@@ -29,6 +29,8 @@ fn config(fixture: &BundleFixture) -> Config {
         secure_cookies: false,
         bind: "127.0.0.1:0".parse().unwrap(),
         default_quota_bytes: 100000,
+        trash_retention_days: hyori_server::config::DEFAULT_TRASH_RETENTION_DAYS,
+        database_max_connections: hyori_server::config::DEFAULT_DATABASE_CONNECTIONS,
         storage: None,
         media_worker_socket: None,
         editor_assets: Some(fixture.persist()),

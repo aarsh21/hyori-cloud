@@ -2,7 +2,7 @@ use crate::{
     AppState,
     auth::{digest, random_token},
     db::{self, sql},
-    error::ApiError,
+    error::{ApiError, ErrorCode},
     features::{
         auth::api::Done,
         files::{
@@ -62,7 +62,7 @@ impl UploadsService {
         let storage = self.storage()?;
         let _permit = self
             .state
-            .transfers
+            .uploads
             .try_acquire()
             .map_err(|_| ApiError::unavailable())?;
         if input.size.0 > CHUNK_SIZE * u64::from(MAX_PARTS) {
@@ -122,7 +122,7 @@ impl UploadsService {
         let storage = self.storage()?;
         let _permit = self
             .state
-            .transfers
+            .uploads
             .try_acquire()
             .map_err(|_| ApiError::unavailable())?;
         let token = random_token();
@@ -135,7 +135,9 @@ impl UploadsService {
                     if upload.expires_at <= Utc::now() {
                         return Err(ApiError::conflict().into());
                     }
-                    claim(tx, &upload, &token, "starting").await?;
+                    if !claim(tx, &upload, &token, "starting").await? {
+                        return Err(ApiError::conflict().into());
+                    }
                 }
                 Ok(upload)
             })
@@ -212,7 +214,7 @@ impl UploadsService {
         length: u64,
         body: StorageStream,
         permit: OwnedSemaphorePermit,
-    ) -> Result<UploadStatus, ApiError> {
+    ) -> Result<AcknowledgedPart, ApiError> {
         self.run_leased(id.clone(), permit, move |service, token| async move {
             service
                 .write_part_leased(id, number, length, body, token)
@@ -227,7 +229,7 @@ impl UploadsService {
         length: u64,
         mut body: StorageStream,
         token: String,
-    ) -> Result<UploadStatus, ApiError> {
+    ) -> Result<AcknowledgedPart, ApiError> {
         let storage = self.storage()?;
         let owner = self
             .owner_hint("SELECT owner_id FROM hyori_uploads WHERE id=$1", id.clone())
@@ -242,7 +244,9 @@ impl UploadsService {
                 if part.try_get::<i64>("","size")? != length as i64 || part.try_get::<String>("","etag")?.is_empty() { return Err(ApiError::conflict().into()); }
                 return Ok((upload,true));
             }
-            claim(tx,&upload,&token,"uploading").await?;
+            // A retry of a part whose previous request is still unwinding (for example its
+            // connection died mid-body) is told to retry, not that the part conflicts.
+            if !claim(tx,&upload,&token,"uploading").await? { return Err(ApiError::unavailable().into()); }
             Ok((upload,false))
         }) }).await?;
         let checksum = if upload.editor_bound {
@@ -302,12 +306,16 @@ impl UploadsService {
             if let Some(etag) = etag {
                 if current.lease_token.as_deref() != Some(&token) { return Err(ApiError::conflict().into()); }
                 tx.execute_raw(sql("INSERT INTO hyori_upload_parts(upload_id,part_number,size,etag,editor_sha256) VALUES ($1,$2,$3,$4,$5)",vec![id.clone().into(),(number as i32).into(),(length as i64).into(),etag.into(),checksum.into()])).await?;
-                tx.execute_raw(sql("UPDATE hyori_uploads SET lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2",vec![id.into(),token.into()])).await?;
+                // Contributions into someone else's space stay reserved only while parts arrive.
+                tx.execute_raw(sql("UPDATE hyori_uploads SET lease_token=NULL,lease_until=NULL,
+                    expires_at=CASE WHEN initiator IS DISTINCT FROM owner_id THEN LEAST(created_at+interval '7 days',GREATEST(expires_at,now()+$3::bigint*interval '1 second')) ELSE expires_at END,
+                    cleanup_due=CASE WHEN initiator IS DISTINCT FROM owner_id THEN LEAST(created_at+interval '7 days',GREATEST(expires_at,now()+$3::bigint*interval '1 second')) ELSE cleanup_due END
+                    WHERE id=$1 AND lease_token=$2",vec![id.into(),token.into(),CONTRIBUTION_IDLE_SECONDS.into()])).await?;
             } else if let Some(checksum) = checksum {
                 let stored = tx.query_one_raw(sql("SELECT editor_sha256 FROM hyori_upload_parts WHERE upload_id=$1 AND part_number=$2",vec![id.into(),(number as i32).into()])).await?.ok_or_else(ApiError::conflict)?;
                 if stored.try_get::<Option<String>>("","editor_sha256")?.as_deref() != Some(&checksum) { return Err(ApiError::invalid().into()); }
             }
-            current.status(tx).await
+            Ok(AcknowledgedPart { part_number: number, size: crate::features::auth::api::Bytes(length) })
         }) }).instrument(tracing::info_span!("upload_part_acknowledgement")).await;
         if recorded.is_err() && !acknowledged {
             self.release(&id, &token).await;
@@ -368,7 +376,7 @@ impl UploadsService {
         self.storage()?;
         let permit = self
             .state
-            .transfers
+            .uploads
             .clone()
             .try_acquire_owned()
             .map_err(|_| ApiError::unavailable())?;
@@ -422,7 +430,9 @@ impl UploadsService {
                     {
                         return Err(ApiError::conflict().into());
                     }
-                    claim(tx, &upload, &token, "finalizing").await?;
+                    if !claim(tx, &upload, &token, "finalizing").await? {
+                        return Err(ApiError::conflict().into());
+                    }
                     Ok((
                         upload,
                         parts.into_iter().map(|(p, _)| p).collect::<Vec<_>>(),
@@ -460,6 +470,7 @@ impl UploadsService {
             }
             return Err(error);
         }
+        let media = self.state.media_worker.is_some();
         let published = self.owner_domain(owner.as_deref(), |tx| {
             let assets = self.state.editor_assets.clone();
             let (context, id, token) = (self.context.clone(), id.clone(), token.clone());
@@ -530,6 +541,10 @@ impl UploadsService {
                     "UPDATE hyori_users SET reserved_bytes=reserved_bytes-$2,used_bytes=used_bytes+$2 WHERE id=$1",
                     vec![current.owner_id.clone().into(), current.size.into()],
                 )).await?;
+                if media && crate::features::media::service::supported(&item) {
+                    // Publication enqueues its own thumbnail; discovery is only a safety net.
+                    crate::features::media::service::enqueue(tx, &item).await?;
+                }
                 files::load_roles(tx, &actor, std::slice::from_mut(&mut item)).await?;
                 let result = files::project(&item, &actor);
                 crate::features::editors::policy::published(tx, &current, &item, &result).await?;
@@ -556,10 +571,53 @@ impl UploadsService {
             let (context, id) = (self.context.clone(), input.upload_id.0.clone());
             Box::pin(async move {
                 // Cancelling one's own intent cannot publish bytes; changed destination/revision
-                // must not trap a still-authenticated initiator's reservation until expiry.
-                let (upload, _) = policy::initiated(tx, &context, &id).await?;
+                // must not trap a still-authenticated initiator's reservation until expiry. The
+                // destination owner may also cancel anyone's pending upload into their space.
+                let upload = match policy::initiated(tx, &context, &id).await {
+                    Ok((upload, _)) => upload,
+                    // Only a domain refusal falls through; database errors keep their SQLSTATE
+                    // for the retry owner.
+                    Err(db::DomainError::Api(denied)) => {
+                        let upload = Upload::get(tx, &id).await?;
+                        let actor = files::resolve_actor(tx, &context).await?;
+                        if actor.user_id() != Some(upload.owner_id.as_str()) {
+                            return Err(denied.into());
+                        }
+                        if upload.state == "complete" {
+                            return Err(ApiError::conflict().into());
+                        }
+                        upload
+                    }
+                    Err(error) => return Err(error),
+                };
                 upload.abort(tx).await?;
                 Ok(Done { success: true })
+            })
+        })
+        .await
+    }
+    /// Other people's pending uploads into the signed-in owner's space, oldest first, so the
+    /// owner can see and cancel reservations held against their quota.
+    pub async fn incoming(&self) -> Result<IncomingUploads, ApiError> {
+        db::domain(&self.state.db, |tx| {
+            let context = self.context.clone();
+            Box::pin(async move {
+                let actor = files::resolve_actor(tx, &context).await?;
+                let owner = actor.require_user()?;
+                let rows = tx.query_all_raw(sql(
+                    "SELECT id,name,size,expires_at,uploader_id IS NULL AS anonymous FROM hyori_uploads
+                     WHERE owner_id=$1 AND reservation_held AND initiator IS DISTINCT FROM owner_id
+                     ORDER BY created_at,id LIMIT 128",
+                    vec![owner.into()],
+                )).await?;
+                let items = rows.iter().map(|row| Ok(IncomingUpload {
+                    upload_id: crate::features::auth::api::Id(row.try_get("", "id")?),
+                    name: row.try_get("", "name")?,
+                    size: crate::features::auth::api::Bytes(row.try_get::<i64>("", "size")? as u64),
+                    expires_at: row.try_get::<chrono::DateTime<Utc>>("", "expires_at")?.to_rfc3339(),
+                    anonymous: row.try_get("", "anonymous")?,
+                })).collect::<db::DomainResult<Vec<_>>>()?;
+                Ok(IncomingUploads { items })
             })
         })
         .await
@@ -587,25 +645,61 @@ pub(crate) async fn reserve(
     )
     .await?;
     policy::quota(tx, &destination.owner_id, input.size.0 as i64).await?;
-    let pending = tx
+    let owner = tx
         .query_one_raw(sql(
-            "SELECT pending_uploads FROM hyori_users WHERE id=$1",
+            "SELECT pending_uploads,quota_bytes-used_bytes-reserved_bytes AS free FROM hyori_users WHERE id=$1",
             vec![destination.owner_id.clone().into()],
         ))
         .await?
-        .ok_or_else(ApiError::unavailable)?
-        .try_get::<i32>("", "pending_uploads")?;
-    if pending >= 128 {
+        .ok_or_else(ApiError::unavailable)?;
+    if owner.try_get::<i32>("", "pending_uploads")? >= 128 {
         return Err(ApiError::conflict().into());
     }
-    // Inventory and full reservation commit before any storage effect.
+    let initiator = match actor.user_id() {
+        Some(user) => user.to_owned(),
+        None => {
+            let mut shares = actor.public_shares().to_vec();
+            shares.sort_unstable();
+            format!("shares:{}", shares.join(","))
+        }
+    };
+    let contribution = initiator != destination.owner_id;
+    if contribution {
+        // Someone else's space: bound how much of it one contributor can hold at once.
+        let held = tx
+            .query_one_raw(sql(
+                "SELECT count(*)::bigint AS uploads,coalesce(sum(size),0)::bigint AS bytes FROM hyori_uploads WHERE owner_id=$1 AND initiator=$2 AND reservation_held",
+                vec![destination.owner_id.clone().into(), initiator.clone().into()],
+            ))
+            .await?
+            .ok_or_else(ApiError::unavailable)?;
+        let (uploads, bytes) = (
+            held.try_get::<i64>("", "uploads")?,
+            held.try_get::<i64>("", "bytes")?,
+        );
+        if !contribution_admitted(
+            uploads,
+            bytes,
+            owner.try_get("", "free")?,
+            input.size.0 as i64,
+        ) {
+            return Err(ApiError::new(
+                ErrorCode::QuotaExceeded,
+                "Too many pending uploads into this space",
+            )
+            .into());
+        }
+    }
+    // Inventory and full reservation commit before any storage effect. A contribution expires
+    // unless parts keep arriving; the owner's own uploads stay resumable for seven days.
     tx.execute_raw(sql(
-        "INSERT INTO hyori_uploads(id,owner_id,uploader_id,grant_digests,parent_id,name,size,mime_type,object_key,replace_id,replace_revision,state)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'starting')",
+        "INSERT INTO hyori_uploads(id,owner_id,uploader_id,grant_digests,parent_id,name,size,mime_type,object_key,replace_id,replace_revision,state,initiator,expires_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'starting',$12,now()+$13::bigint*interval '1 second')",
         vec![id.into(), destination.owner_id.clone().into(), actor.user_id().into(),
             serde_json::json!(context.grants.iter().map(|t| digest(t)).collect::<Vec<_>>()).into(),
             parent.into(), input.name.0.clone().into(), (input.size.0 as i64).into(), input.mime_type.clone().into(),
-            format!("owners/{}/{id}",destination.owner_id).into(), replacement.into(), previous.map(|p| p.revision).into()],
+            format!("owners/{}/{id}",destination.owner_id).into(), replacement.into(), previous.map(|p| p.revision).into(),
+            initiator.into(), if contribution { CONTRIBUTION_IDLE_SECONDS } else { OWN_UPLOAD_SECONDS }.into()],
     )).await?;
     tx.execute_raw(sql(
         "UPDATE hyori_users SET reserved_bytes=reserved_bytes+$2 WHERE id=$1",
@@ -614,19 +708,46 @@ pub(crate) async fn reserve(
     .await?;
     Upload::get(tx, id).await
 }
+/// A contribution reservation must arrive within, and is extended by each part to, this window.
+pub(crate) const CONTRIBUTION_IDLE_SECONDS: i64 = 60 * 60;
+const OWN_UPLOAD_SECONDS: i64 = 7 * 24 * 60 * 60;
+/// Pending uploads one contributor may hold in another account's space.
+pub(crate) const CONTRIBUTION_PENDING_LIMIT: i64 = 16;
+/// A contributor may reserve at most half of the space still available to them (the owner's
+/// free bytes plus what they already hold), so one contributor can't exhaust anyone's quota.
+fn contribution_admitted(uploads: i64, held: i64, free: i64, size: i64) -> bool {
+    uploads < CONTRIBUTION_PENDING_LIMIT && (held + size).saturating_mul(2) <= free + held
+}
 fn terminal(upload: &Upload) -> Result<FileEntry, ApiError> {
     serde_json::from_value(upload.result.clone().ok_or_else(ApiError::unavailable)?)
         .map_err(|_| ApiError::unavailable())
 }
+/// False when another operation holds the upload's lease.
 async fn claim(
     tx: &sea_orm::DatabaseTransaction,
     upload: &Upload,
     token: &str,
     state: &str,
-) -> db::DomainResult<()> {
+) -> db::DomainResult<bool> {
     let changed = tx.execute_raw(sql("UPDATE hyori_uploads SET state=$3,lease_token=$2,lease_until=now()+interval '3 minutes' WHERE id=$1 AND (lease_until IS NULL OR lease_until<=now())",vec![upload.id.clone().into(),token.into(),state.into()])).await?;
-    if changed.rows_affected() != 1 {
-        return Err(ApiError::conflict().into());
+    Ok(changed.rows_affected() == 1)
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn a_contributor_may_hold_at_most_half_of_the_space_left_to_them() {
+        assert!(contribution_admitted(0, 0, 1000, 500));
+        assert!(!contribution_admitted(0, 0, 1000, 501));
+        // Already holding 400 of what was 1,400 free: at most 700 in total.
+        assert!(contribution_admitted(1, 400, 1000, 300));
+        assert!(!contribution_admitted(1, 400, 1000, 301));
+        assert!(contribution_admitted(15, 0, 0, 0));
+        assert!(!contribution_admitted(
+            CONTRIBUTION_PENDING_LIMIT,
+            0,
+            1000,
+            0
+        ));
     }
-    Ok(())
 }

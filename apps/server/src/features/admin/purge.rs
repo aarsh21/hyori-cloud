@@ -30,17 +30,11 @@ pub(crate) async fn progress(state: &Arc<AppState>, user: Id) -> Result<PurgeRes
 }
 /// At most two accounts, independently leased and ordered by durable due time.
 pub async fn reclaim(state: &Arc<AppState>) -> Result<usize, ApiError> {
-    reclaim_scope(state, None).await
-}
-pub(crate) async fn reclaim_user(state: &Arc<AppState>, user: &str) -> Result<usize, ApiError> {
-    reclaim_scope(state, Some(user)).await
-}
-async fn reclaim_scope(state: &Arc<AppState>, user: Option<&str>) -> Result<usize, ApiError> {
     let token = random_token();
-    let users = db::domain(&state.db, |tx| { let token=token.clone(); let user=user.map(str::to_owned); Box::pin(async move {
+    let users = db::domain(&state.db, |tx| { let token=token.clone(); Box::pin(async move {
         let rows = tx.query_all_raw(sql("SELECT p.user_id FROM hyori_account_purges p JOIN hyori_users u ON u.id=p.user_id
             WHERE u.status IN ('deleting','deleted') AND p.due_at<=now() AND (p.lease_until IS NULL OR p.lease_until<=now())
-            AND ($1::text IS NULL OR p.user_id=$1) ORDER BY p.due_at,p.user_id LIMIT 2 FOR UPDATE OF p SKIP LOCKED",vec![user.into()])).await?;
+            ORDER BY p.due_at,p.user_id LIMIT 2 FOR UPDATE OF p SKIP LOCKED",vec![])).await?;
         let ids = rows.iter().map(|row| row.try_get::<String>("", "user_id")).collect::<Result<Vec<_>,_>>()?;
         tx.execute_raw(sql("UPDATE hyori_account_purges SET lease_token=$2,lease_until=now()+interval '5 minutes',due_at=now()+interval '1 minute' WHERE user_id IN (SELECT jsonb_array_elements_text($1::jsonb))",vec![serde_json::json!(ids).into(),token.into()])).await?;
         Ok(ids)

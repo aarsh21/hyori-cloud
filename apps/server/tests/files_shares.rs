@@ -914,22 +914,55 @@ async fn trash_versions_hierarchy_and_name_races() {
         .error(400, "input.invalid");
     let huge = folder(&server, &owner.cookie, None, "Huge").await;
     server.state.db.execute_raw(sql("INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,mime_type,ancestor_ids) SELECT 'huge-'||n,$1,$2,'entry-'||n,'folder','inode/directory',jsonb_build_array($2::text) FROM generate_series(1,1001) n",vec![owner.id.clone().into(),huge.clone().into()])).await.unwrap();
-    for (op, input) in [
-        ("files.trash", json!({"id":huge})),
-        ("files.move", json!({"id":huge,"parentId":root})),
-    ] {
-        server
-            .rpc(op, input, Some(&owner.cookie))
-            .await
-            .error(409, "resource.conflict");
-    }
-    let row=server.state.db.query_one_raw(sql("SELECT count(*) AS count FROM hyori_items WHERE trashed_at IS NOT NULL AND (id=$1 OR ancestor_ids @> jsonb_build_array($1::text))",vec![huge.clone().into()])).await.unwrap().unwrap();
-    assert_eq!(row.try_get::<i64>("", "count").unwrap(), 0);
-    server.state.db.execute_raw(sql("UPDATE hyori_items SET trashed_at=now(),trash_root=$1 WHERE id=$1 OR ancestor_ids @> jsonb_build_array($1::text)",vec![huge.clone().into()])).await.unwrap();
+    // No descendant cap: each operation rewrites the whole subtree in one set-based statement.
+    let subtree = |state: &'static str| {
+        format!(
+            "SELECT count(*) AS count FROM hyori_items WHERE ancestor_ids @> jsonb_build_array($1::text) AND {state}"
+        )
+    };
+    let count = |query: String, values: Vec<sea_orm::Value>| {
+        let db = &server.state.db;
+        async move {
+            db.query_one_raw(sql(&query, values))
+                .await
+                .unwrap()
+                .unwrap()
+                .try_get::<i64>("", "count")
+                .unwrap()
+        }
+    };
+    server
+        .rpc("files.trash", json!({"id":huge}), Some(&owner.cookie))
+        .await
+        .value();
+    assert_eq!(
+        count(subtree("trash_root=$1"), vec![huge.clone().into()]).await,
+        1001
+    );
     server
         .rpc("files.restore", json!({"id":huge}), Some(&owner.cookie))
         .await
-        .error(409, "resource.conflict");
+        .value();
+    assert_eq!(
+        count(subtree("trashed_at IS NOT NULL"), vec![huge.clone().into()]).await,
+        0
+    );
+    server
+        .rpc(
+            "files.move",
+            json!({"id":huge,"parentId":root}),
+            Some(&owner.cookie),
+        )
+        .await
+        .value();
+    assert_eq!(
+        count(
+            "SELECT count(*) AS count FROM hyori_items WHERE ancestor_ids @> jsonb_build_array($1::text,$2::text)".into(),
+            vec![root.clone().into(), huge.clone().into()]
+        )
+        .await,
+        1001
+    );
 }
 
 #[tokio::test]

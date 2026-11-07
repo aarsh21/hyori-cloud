@@ -3,11 +3,12 @@ use crate::{
     auth::random_token,
     db::{self, sql},
     error::ApiError,
+    features::uploads::cleanup::revisit_seconds,
 };
 use sea_orm::ConnectionTrait;
 use std::{sync::Arc, time::Duration};
 
-/// Reconcile at most eight retained derivative keys. This also runs when the decoder is disabled.
+/// Reconcile at most eight retained derivative keys, unverified ones before clean revisits. This also runs when the decoder is disabled.
 pub async fn reclaim(state: &Arc<AppState>) -> Result<usize, ApiError> {
     reclaim_scope(state, None).await
 }
@@ -20,9 +21,15 @@ async fn reclaim_scope(state: &Arc<AppState>, owner: Option<&str>) -> Result<usi
     };
     let token = random_token();
     let records=db::domain(&state.db,|tx|{let token=token.clone();let owner=owner.map(str::to_owned);Box::pin(async move{
-        let rows=tx.query_all_raw(sql("SELECT a.*,coalesce(u.status='active',false) AS active FROM hyori_media_artifacts a LEFT JOIN hyori_users u ON u.id=a.owner_id
-            WHERE cleanup_due<=now() AND (cleanup_until IS NULL OR cleanup_until<=now()) AND ($1::text IS NULL OR a.owner_id=$1)
-            ORDER BY cleanup_due,a.id LIMIT 8 FOR UPDATE OF a SKIP LOCKED",vec![owner.into()])).await?;
+        // Unverified intents and deletes first; clean revisits only fill the rest of the batch.
+        let mut rows=Vec::new();
+        for class in ["a.clean_checks=0","a.clean_checks>0"] {
+            let limit=(8-rows.len()) as i64;
+            if limit==0 {break;}
+            rows.extend(tx.query_all_raw(sql(&format!("SELECT a.*,coalesce(u.status='active',false) AS active FROM hyori_media_artifacts a LEFT JOIN hyori_users u ON u.id=a.owner_id
+                WHERE {class} AND cleanup_due<=now() AND (cleanup_until IS NULL OR cleanup_until<=now()) AND ($1::text IS NULL OR a.owner_id=$1)
+                ORDER BY cleanup_due,a.id LIMIT $2 FOR UPDATE OF a SKIP LOCKED"),vec![owner.clone().into(),limit.into()])).await?);
+        }
         let mut records=Vec::new();
         for row in rows{
             let id:String=row.try_get("","id")?;
@@ -32,12 +39,12 @@ async fn reclaim_scope(state: &Arc<AppState>, owner: Option<&str>) -> Result<usi
             // Starting intents first become due after ten minutes, beyond all processing deadlines.
             tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state=CASE WHEN $3 THEN 'aborted' ELSE state END,
                 cleanup_token=$2,cleanup_until=now()+interval '5 minutes',cleanup_due=now()+interval '1 minute' WHERE id=$1",vec![id.clone().into(),token.clone().into(),aborted.into()])).await?;
-            records.push((id,row.try_get::<String>("","object_key")?,row.try_get::<Option<String>>("","multipart_id")?,aborted,row.try_get::<Option<i64>>("","size")?));
+            records.push((id,row.try_get::<String>("","object_key")?,row.try_get::<Option<String>>("","multipart_id")?,aborted,row.try_get::<Option<i64>>("","size")?,row.try_get::<i32>("","clean_checks")?));
         }
         Ok(records)
     })}).await?;
     let count = records.len();
-    for (id, key, multipart, aborted, expected_size) in records {
+    for (id, key, multipart, aborted, expected_size, checks) in records {
         let result = tokio::time::timeout(Duration::from_secs(20), async {
             if let Some(multipart) = multipart {
                 storage.abort(&key, &multipart).await?;
@@ -61,10 +68,11 @@ async fn reclaim_scope(state: &Arc<AppState>, owner: Option<&str>) -> Result<usi
         let missing = matches!(result, Ok(Ok((_, true))));
         let clean = matches!(result, Ok(Ok((false, false))));
         db::domain(&state.db,|tx|{let(id,token)=(id.clone(),token.clone());Box::pin(async move {
-            let delay=if missing {0_i64} else if clean {3600} else {60};
-            let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET cleanup_token=NULL,cleanup_until=NULL,
+            // Clean observations back off to a 30-day ceiling; anything else becomes urgent again.
+            let (delay,checks)=if missing {(0_i64,0)} else if clean {(revisit_seconds(checks),checks.saturating_add(1))} else {(60,0)};
+            let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET cleanup_token=NULL,cleanup_until=NULL,clean_checks=$6,
                 state=CASE WHEN $5 THEN 'aborted' ELSE state END,cleanup_due=now()+$3::bigint*interval '1 second',checked_at=CASE WHEN $4 THEN now() ELSE NULL END
-                WHERE id=$1 AND cleanup_token=$2",vec![id.clone().into(),token.into(),delay.into(),clean.into(),missing.into()])).await?;
+                WHERE id=$1 AND cleanup_token=$2",vec![id.clone().into(),token.into(),delay.into(),clean.into(),missing.into(),checks.into()])).await?;
             if missing && changed.rows_affected()==1 {
                 // Only observed absence/length corruption triggers bounded repair, never a storage outage.
                 tx.execute_raw(sql("UPDATE hyori_media_jobs SET state=CASE WHEN attempts<3 THEN 'queued' ELSE 'failed' END,
@@ -84,7 +92,7 @@ pub(crate) async fn prepare_purge(
     // Leave an in-flight worker's lease visible until it exits or its bounded deadline expires.
     tx.execute_raw(sql("DELETE FROM hyori_media_jobs WHERE id IN (SELECT id FROM hyori_media_jobs WHERE owner_id=$1 AND (state<>'processing' OR lease_until<=now()) ORDER BY id LIMIT 256)",vec![user.into()])).await?;
     tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state='aborted',job_id='',size=NULL,width=NULL,height=NULL,checked_at=NULL,
-        cleanup_token=NULL,cleanup_until=NULL,cleanup_due=now() WHERE id IN
+        cleanup_token=NULL,cleanup_until=NULL,cleanup_due=now(),clean_checks=0 WHERE id IN
         (SELECT id FROM hyori_media_artifacts WHERE owner_id=$1 AND (state<>'aborted' OR job_id<>'') ORDER BY id LIMIT 256)",vec![user.into()])).await?;
     Ok(())
 }

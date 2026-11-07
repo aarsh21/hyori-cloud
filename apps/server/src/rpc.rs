@@ -21,12 +21,18 @@ use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 /// database-validated public shares. Cookie names are only replacement/eviction addresses.
 pub(crate) const MAX_GRANT_CANDIDATES: usize = 64;
 pub(crate) const GRANT_COOKIE_PREFIX: &str = "hyori_grant_";
+pub(crate) const DEVICE_COOKIE: &str = "hyori_device";
 
 #[derive(Clone, Default)]
 pub struct RequestContext {
     pub session: Option<String>,
     pub grants: Vec<String>,
     pub grant_cookie_names: Vec<String>,
+    /// Unverified `hyori_device` cookie; the login rate limiter checks its MAC.
+    pub device: Option<String>,
+    /// TCP peer of this connection when the server was started with connect info. Behind the
+    /// web host this is the web host, not the end client; forwarded headers are never trusted.
+    pub peer: Option<std::net::IpAddr>,
 }
 impl RequestContext {
     /// Parse bounded credential material only. This is not authority: every product transaction
@@ -37,6 +43,8 @@ impl RequestContext {
             session: session_cookie(headers),
             grants,
             grant_cookie_names,
+            device: cookie(headers, DEVICE_COOKIE).filter(|value| value.len() <= 160),
+            peer: None,
         }
     }
 }
@@ -216,7 +224,11 @@ async fn handle_inner(
     {
         return Err(ApiError::invalid());
     }
-    let context = RequestContext::from_headers(request.headers());
+    let mut context = RequestContext::from_headers(request.headers());
+    context.peer = request
+        .extensions()
+        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        .map(|info| info.0.ip());
     let bytes = to_bytes(request.into_body(), MAX_JSON_BYTES)
         .await
         .map_err(|_| ApiError::invalid())?;
@@ -303,6 +315,23 @@ fn grant_cookies(headers: &HeaderMap) -> (Vec<String>, Vec<String>) {
 }
 fn valid_token(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
+}
+/// The single value of a named cookie; absent when missing or repeated.
+fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
+    let mut found = None;
+    for header in headers.get_all("cookie") {
+        for pair in header.to_str().ok()?.split(';') {
+            if let Some((key, value)) = pair.trim().split_once('=')
+                && key == name
+            {
+                if found.is_some() {
+                    return None;
+                }
+                found = Some(value.to_owned());
+            }
+        }
+    }
+    found
 }
 fn session_cookie(headers: &HeaderMap) -> Option<String> {
     let mut session = None;

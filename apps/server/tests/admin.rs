@@ -405,6 +405,8 @@ async fn purge_owned_hierarchy_versions_photos_and_credentials_preserves_contrib
         assert!(!value.to_string().contains("private-"));
         assert!(!value.to_string().contains("owners/"));
     }
+    // The RPC only commits the deletion; this is maintenance's first pass, under the same fault.
+    purge::reclaim(&server.state).await.unwrap();
     assert_eq!(
         server
             .rpc("auth.status", json!({}), Some(&target_cookie))
@@ -603,7 +605,18 @@ async fn deleted_account_tombstones_reconcile_late_begin_and_fence_publishing_wo
                 Some(&admin),
             )
             .await;
-        assert_eq!(response.value()["state"], "complete");
+        // The RPC only commits the deletion; maintenance completes it.
+        assert_eq!(response.value()["state"], "pending");
+        purge::reclaim(&server.state).await.unwrap();
+        assert_eq!(
+            scalar(
+                &server,
+                "SELECT count(*) AS count FROM hyori_account_purges WHERE user_id=$1 AND completed_at IS NOT NULL",
+                &late
+            )
+            .await,
+            1
+        );
         proxy.faults.mode.store(0, Ordering::SeqCst);
         proxy.faults.release.notify_one();
     };

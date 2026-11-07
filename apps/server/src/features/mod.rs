@@ -5,9 +5,11 @@ pub mod auth {
 pub mod files {
     pub mod api;
     pub(crate) mod db;
+    pub(crate) mod deletion;
     pub(crate) mod policy;
     pub(crate) mod preview;
     pub(crate) mod service;
+    pub use deletion::purge_expired_trash;
     pub use service::{ContentDescriptor, read_content};
 }
 pub mod editors {

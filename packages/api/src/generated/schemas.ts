@@ -152,6 +152,10 @@ export const DeleteUser = Schema.Struct({ "confirmEmail": Schema.String, "userId
 
 export type DeleteUser = typeof DeleteUser.Type;
 
+export const DeleteVersion = Schema.Struct({ "id": Id, "versionId": Id });
+
+export type DeleteVersion = typeof DeleteVersion.Type;
+
 export const DerivativeFailure = intersection(Schema.Union(Schema.Literal("unavailable"), Schema.Literal("invalidMedia"), Schema.Literal("resourceLimit"), Schema.Literal("unsupported"), Schema.Literal("timeout"), Schema.Literal("busy")), Schema.String);
 
 export type DerivativeFailure = typeof DerivativeFailure.Type;
@@ -264,6 +268,14 @@ export const FilesView = intersection(Schema.Union(Schema.Literal("files"), Sche
 
 export type FilesView = typeof FilesView.Type;
 
+export const IncomingUpload = Schema.Struct({ "anonymous": Schema.Boolean, "expiresAt": Schema.String, "name": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
+
+export type IncomingUpload = typeof IncomingUpload.Type;
+
+export const IncomingUploads = Schema.Struct({ "items": Schema.Array(IncomingUpload).pipe(Schema.maxItems(128)) });
+
+export type IncomingUploads = typeof IncomingUploads.Type;
+
 export const Invite = Schema.Struct({ "expiresAt": Schema.String, "token": Schema.String });
 
 export type Invite = typeof Invite.Type;
@@ -295,6 +307,10 @@ export type MoveFile = typeof MoveFile.Type;
 export const NewAccount = Schema.Struct({ "email": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 254)), "name": Name, "password": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 12), Schema.filter((value) => Array.from(value).length <= 1024)) });
 
 export type NewAccount = typeof NewAccount.Type;
+
+export const PermanentDeletion = Schema.Struct({ "freedBytes": Bytes, "items": Bytes });
+
+export type PermanentDeletion = typeof PermanentDeletion.Type;
 
 export const PhotoSources = Schema.Struct({ "allMyFiles": Schema.Boolean, "folderIds": Schema.Array(Id).pipe(Schema.maxItems(100)) });
 
@@ -363,6 +379,10 @@ export type Timeline = typeof Timeline.Type;
 export const TimelineInput = Schema.Struct({ "albumId": Schema.optional(Id), "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)) });
 
 export type TimelineInput = typeof TimelineInput.Type;
+
+export const TrashSummary = Schema.Struct({ "freedBytes": Bytes, "items": Bytes });
+
+export type TrashSummary = typeof TrashSummary.Type;
 
 export const UnlockShare = Schema.Struct({ "password": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 1024)), "token": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256)) });
 

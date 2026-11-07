@@ -33,7 +33,7 @@ pub fn sql(statement: &str, values: Vec<sea_orm::Value>) -> Statement {
 pub async fn connect(config: &Config) -> Result<DatabaseConnection, ApiError> {
     let mut options = sea_orm::ConnectOptions::new(config.database_url.clone());
     options
-        .max_connections(10)
+        .max_connections(config.database_max_connections)
         .min_connections(1)
         .connect_timeout(DATABASE_TIMEOUT)
         .acquire_timeout(DATABASE_TIMEOUT)
@@ -135,6 +135,14 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
         (
             11_i32,
             include_str!("../migrations/0011_editor_automatic_retention.sql"),
+        ),
+        (
+            12_i32,
+            include_str!("../migrations/0012_maintenance_backoff_and_upload_admission.sql"),
+        ),
+        (
+            13_i32,
+            include_str!("../migrations/0013_permanent_deletion.sql"),
         ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));

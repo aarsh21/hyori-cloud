@@ -8,6 +8,7 @@ use crate::{
         files::{
             api::*,
             db::{Item, Version},
+            deletion::{self, Doomed},
             policy::{self, Action, ProductActor},
         },
     },
@@ -440,28 +441,7 @@ impl FilesService {
                 )
                 .await?;
                 if item.kind == FileKind::Folder {
-                    let mut changes = vec![];
-                    for child in item.descendants(tx).await? {
-                        let position = child
-                            .ancestor_ids
-                            .iter()
-                            .position(|id| id == &item.id)
-                            .ok_or_else(ApiError::unavailable)?;
-                        let mut ancestors = destination.ancestor_ids.clone();
-                        ancestors.extend_from_slice(&child.ancestor_ids[position..]);
-                        if ancestors.len() > 63 {
-                            return Err(ApiError::invalid().into());
-                        }
-                        changes
-                            .push(serde_json::json!({"id": child.id, "ancestor_ids": ancestors}));
-                    }
-                    tx.execute_raw(sql(
-                        "UPDATE hyori_items i SET ancestor_ids=c.ancestor_ids,revision=i.revision+1
-                     FROM jsonb_to_recordset($1::jsonb) AS c(id text,ancestor_ids jsonb)
-                     WHERE i.id=c.id",
-                        vec![serde_json::json!(changes).into()],
-                    ))
-                    .await?;
+                    item.move_descendants(tx, &destination.ancestor_ids).await?;
                 }
                 item.parent_id = parent_id;
                 item.ancestor_ids = destination.ancestor_ids;
@@ -482,23 +462,7 @@ impl FilesService {
                     policy::authorize(tx, &actor, &input.id.0, Action::Owner, false).await?;
                 let now = Utc::now();
                 if item.kind == FileKind::Folder {
-                    let ids: Vec<_> = item
-                        .descendants(tx)
-                        .await?
-                        .into_iter()
-                        .filter(|child| child.trashed_at.is_none())
-                        .map(|child| child.id)
-                        .collect();
-                    tx.execute_raw(sql(
-                        "UPDATE hyori_items SET trashed_at=$1,trash_root=$2,revision=revision+1
-                     WHERE id IN (SELECT jsonb_array_elements_text($3::jsonb))",
-                        vec![
-                            now.into(),
-                            item.id.clone().into(),
-                            serde_json::json!(ids).into(),
-                        ],
-                    ))
-                    .await?;
+                    item.trash_descendants(tx, now).await?;
                 }
                 item.trashed_at = Some(now);
                 item.trash_root = Some(item.id.clone());
@@ -534,21 +498,7 @@ impl FilesService {
                 )
                 .await?;
                 if item.kind == FileKind::Folder {
-                    let ids: Vec<_> = item
-                        .descendants(tx)
-                        .await?
-                        .into_iter()
-                        .filter(|child| child.trash_root.as_deref() == Some(item.id.as_str()))
-                        .map(|child| child.id)
-                        .collect();
-                    // The partial unique index checks every restored name atomically, including conflicts
-                    // within the selected group; a violation rolls back the whole operation.
-                    tx.execute_raw(sql(
-                        "UPDATE hyori_items SET trashed_at=NULL,trash_root=NULL,revision=revision+1
-                     WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))",
-                        vec![serde_json::json!(ids).into()],
-                    ))
-                    .await?;
+                    item.restore_descendants(tx).await?;
                 }
                 item.trashed_at = None;
                 item.trash_root = None;
@@ -560,6 +510,74 @@ impl FilesService {
             })
         })
         .await
+    }
+    /// Owner-only, for a trash root. Removes it with everything beneath it.
+    pub async fn delete_permanently(
+        &self,
+        input: ItemInput,
+    ) -> Result<PermanentDeletion, ApiError> {
+        let deleted = self
+            .run(move |tx, actor| {
+                let input = input.clone();
+                Box::pin(async move {
+                    let item =
+                        policy::authorize(tx, &actor, &input.id.0, Action::Owner, true).await?;
+                    if item.trashed_at.is_none() {
+                        return Err(ApiError::invalid().into());
+                    }
+                    // Inside a trashed folder: its root decides, like restore.
+                    if item.trash_root.as_deref() != Some(item.id.as_str()) {
+                        return Err(ApiError::conflict().into());
+                    }
+                    deletion::delete_trashed(tx, &item.owner_id, Doomed::Subtree(&item.id)).await
+                })
+            })
+            .await?;
+        self.state.upload_cleanup.notify_one();
+        Ok(deleted)
+    }
+    pub async fn empty_trash(&self) -> Result<PermanentDeletion, ApiError> {
+        let deleted = self
+            .run(|tx, actor| {
+                Box::pin(async move {
+                    let owner = actor.require_user()?.to_owned();
+                    deletion::delete_trashed(tx, &owner, Doomed::Trash).await
+                })
+            })
+            .await?;
+        self.state.upload_cleanup.notify_one();
+        Ok(deleted)
+    }
+    pub async fn trash_summary(&self) -> Result<TrashSummary, ApiError> {
+        self.run(|tx, actor| {
+            Box::pin(async move {
+                let owner = actor.require_user()?.to_owned();
+                deletion::trash_summary(tx, &owner).await
+            })
+        })
+        .await
+    }
+    /// Owner-only. Retained versions are never the live contents, which stay on the file.
+    pub async fn delete_version(
+        &self,
+        input: DeleteVersion,
+    ) -> Result<PermanentDeletion, ApiError> {
+        let deleted = self
+            .run(move |tx, actor| {
+                let input = input.clone();
+                Box::pin(async move {
+                    let item =
+                        policy::authorize(tx, &actor, &input.id.0, Action::Owner, false).await?;
+                    if item.kind != FileKind::File {
+                        return Err(ApiError::not_found().into());
+                    }
+                    deletion::delete_version(tx, &item.owner_id, &item.id, &input.version_id.0)
+                        .await
+                })
+            })
+            .await?;
+        self.state.upload_cleanup.notify_one();
+        Ok(deleted)
     }
     pub async fn versions(&self, input: ListVersions) -> Result<Versions, ApiError> {
         self.run(move |tx, actor| {

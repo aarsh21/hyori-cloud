@@ -94,11 +94,11 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
             cookies: vec![state.auth.cookie(Some(&issued.token))],
         })
     })?;
-    registry.bind::<Credentials, User, _, _>("auth.login", |state, _, input| async move {
-        let issued = AuthService::new(&state).login(input).await?;
+    registry.bind::<Credentials, User, _, _>("auth.login", |state, context, input| async move {
+        let (issued, device) = AuthService::new(&state).login(input, &context).await?;
         Ok(RpcResult {
             value: issued.user,
-            cookies: vec![state.auth.cookie(Some(&issued.token))],
+            cookies: vec![state.auth.cookie(Some(&issued.token)), device],
         })
     })?;
     registry.bind::<Empty, Done, _, _>("auth.logout", |state, context, _| async move {

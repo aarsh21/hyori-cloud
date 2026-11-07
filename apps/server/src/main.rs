@@ -16,9 +16,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let signal = shutdown()?;
     let (stop, stopped) = tokio::sync::watch::channel(false);
     let maintenance = tokio::spawn(hyori_server::maintenance::run(state.clone(), stopped));
-    let served = axum::serve(listener, router(state.clone()))
-        .with_graceful_shutdown(signal)
-        .await;
+    let served = axum::serve(
+        listener,
+        router(state.clone()).into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(signal)
+    .await;
     let _ = stop.send(true);
     let maintained = maintenance.await;
     let drained = state.drain_transfers().await;

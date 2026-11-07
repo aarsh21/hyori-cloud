@@ -1,6 +1,6 @@
 use crate::{
     features::{
-        auth::api::{Bytes, Done, Id, Name},
+        auth::api::{Bytes, Done, Empty, Id, Name},
         files::api::FileEntry,
     },
     wire::{Manifest, Nullable},
@@ -20,6 +20,18 @@ crate::wire_struct!(AcknowledgedPart {
     size: Bytes
 });
 crate::wire_struct!(UploadStatus { upload_id: Id, chunk_size: Bytes, total_parts: Bytes, parts: Vec<AcknowledgedPart>, state: UploadState, file_id: Nullable<Id> });
+crate::wire_struct!(IncomingUpload {
+    upload_id: Id,
+    #[schemars(length(max = 255))]
+    name: String,
+    size: Bytes,
+    expires_at: String,
+    anonymous: bool
+});
+crate::wire_struct!(IncomingUploads {
+    #[schemars(length(max = 128))]
+    items: Vec<IncomingUpload>
+});
 crate::wire_enum!(PutMethod { Put => "PUT" });
 crate::wire_struct!(UploadPart { url: String, method: PutMethod, headers: BTreeMap<String, String> });
 pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResult<()> {
@@ -69,10 +81,19 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
                 .map(RpcResult::value)
         },
     )?;
+    registry.bind::<Empty, IncomingUploads, _, _>(
+        "uploads.incoming",
+        |state, context, _| async move {
+            UploadsService::new(state, context)
+                .incoming()
+                .await
+                .map(RpcResult::value)
+        },
+    )?;
     Ok(())
 }
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
-    crate::schemas!(m; BeginUpload, UploadInput, UploadPartInput, UploadStatus, UploadPart);
+    crate::schemas!(m; BeginUpload, UploadInput, UploadPartInput, UploadStatus, UploadPart, AcknowledgedPart, IncomingUploads);
     crate::operation!(
         m,
         "uploads.begin",
@@ -115,7 +136,16 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         UploadInput,
         Done,
         "mutation",
-        ["auth"],
+        ["auth", "uploads"],
+        false
+    );
+    crate::operation!(
+        m,
+        "uploads.incoming",
+        Empty,
+        IncomingUploads,
+        "query",
+        [],
         false
     );
     Ok(())

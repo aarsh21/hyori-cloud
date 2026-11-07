@@ -6,7 +6,7 @@ use serde_json::json;
 #[test]
 fn complete_deterministic_catalog() {
     let manifest = manifest().unwrap();
-    assert_eq!(manifest.operations.len(), 45);
+    assert_eq!(manifest.operations.len(), 50);
     assert_eq!(
         serde_json::to_string(&manifest).unwrap(),
         serde_json::to_string(&hyori_server::wire::manifest().unwrap()).unwrap()
@@ -38,6 +38,9 @@ fn complete_deterministic_catalog() {
         "Versions",
         "ListVersions",
         "RestoreVersion",
+        "DeleteVersion",
+        "PermanentDeletion",
+        "TrashSummary",
         "DownloadInput",
         "Download",
         "BeginUpload",
@@ -45,6 +48,8 @@ fn complete_deterministic_catalog() {
         "UploadPartInput",
         "UploadStatus",
         "UploadPart",
+        "AcknowledgedPart",
+        "IncomingUploads",
         "Share",
         "SharesListInput",
         "SharesList",
@@ -146,6 +151,8 @@ fn production_configuration_and_cookie_policy() {
         secure_cookies: true,
         bind: "127.0.0.1:3002".parse().unwrap(),
         default_quota_bytes: 1024,
+        trash_retention_days: hyori_server::config::DEFAULT_TRASH_RETENTION_DAYS,
+        database_max_connections: hyori_server::config::DEFAULT_DATABASE_CONNECTIONS,
         storage: None,
         media_worker_socket: None,
         editor_assets: None,

@@ -245,6 +245,10 @@ async fn move_trash_and_account_deletion_invalidate_inflight_editor_publication(
         )
         .await;
     assert!(!denied.body["ok"].as_bool().unwrap());
+    // admin.deleteUser only commits the deletion; maintenance's purge pass removes sessions.
+    hyori_server::features::admin::purge::reclaim(&server.state)
+        .await
+        .unwrap();
     assert_eq!(
         scalar(
             &server,

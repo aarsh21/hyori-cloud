@@ -10,6 +10,7 @@ pub const AUTH_BATCH_SIZE: i64 = 256;
 const AUTH_INTERVAL: Duration = Duration::from_secs(30);
 const UPLOAD_CLEANUP_QUIET: Duration = Duration::from_millis(500);
 const UPLOAD_CLEANUP_SETTLE_MAX: Duration = Duration::from_secs(5);
+const UPLOAD_BATCHES_PER_TICK: usize = 4;
 
 /// Counts only committed deletions, never active records or pending work.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -75,8 +76,11 @@ async fn run_editors(db: DatabaseConnection, mut shutdown: watch::Receiver<bool>
         }
     }
 }
+/// Thumbnail jobs processed per tick while a backlog remains, also bounded by the tick interval.
+const MEDIA_JOBS_PER_TICK: usize = 64;
+const MEDIA_INTERVAL: Duration = Duration::from_secs(5);
 async fn run_media(state: std::sync::Arc<crate::AppState>, mut shutdown: watch::Receiver<bool>) {
-    let mut interval = tokio::time::interval(Duration::from_secs(5));
+    let mut interval = tokio::time::interval(MEDIA_INTERVAL);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
         if *shutdown.borrow() {
@@ -85,7 +89,16 @@ async fn run_media(state: std::sync::Arc<crate::AppState>, mut shutdown: watch::
         tokio::select! { biased; _=shutdown.changed()=>return, _=interval.tick()=>{} }
         tokio::select! { biased; _=shutdown.changed()=>return, result=async {
             crate::features::media::cleanup::reclaim(&state).await?;
-            crate::features::media::jobs::run_once(&state).await
+            // One discovery page and job, then keep draining the queue while it has due work.
+            let started = tokio::time::Instant::now();
+            let mut worked = crate::features::media::jobs::run_once(&state).await?;
+            for _ in 1..MEDIA_JOBS_PER_TICK {
+                if !worked || started.elapsed() >= MEDIA_INTERVAL {
+                    break;
+                }
+                worked = crate::features::media::jobs::process_next(&state).await?;
+            }
+            Ok::<_, ApiError>(())
         } => {if let Err(error)=result { tracing::warn!(%error,"media maintenance failed; durable leases will recover"); }} }
     }
 }
@@ -96,12 +109,20 @@ async fn run_accounts(state: std::sync::Arc<crate::AppState>, mut shutdown: watc
         if *shutdown.borrow() {
             return;
         }
-        tokio::select! { biased; _ = shutdown.changed() => return, _ = interval.tick() => {} }
+        // A committed deletion wakes this loop at once; the purge itself never runs in its RPC.
+        tokio::select! { biased; _ = shutdown.changed() => return, _ = interval.tick() => {}, _ = state.account_purge.notified() => {} }
         tokio::select! {
             biased;
             _ = shutdown.changed() => return,
             result = crate::features::admin::purge::reclaim(&state) => {
                 if let Err(error) = result { tracing::warn!(%error, "account purge failed; durable lease expiry permits recovery"); }
+            }
+        }
+        tokio::select! {
+            biased;
+            _ = shutdown.changed() => return,
+            result = crate::features::files::purge_expired_trash(&state) => {
+                if let Err(error) = result { tracing::warn!(%error, "trash retention purge failed; the next pass retries"); }
             }
         }
     }
@@ -135,7 +156,13 @@ async fn run_uploads(state: std::sync::Arc<crate::AppState>, mut shutdown: watch
             _ = shutdown.changed() => return,
             result = async {
                 crate::features::uploads::cleanup::reclaim_editors(&state).await?;
-                crate::features::uploads::cleanup::reclaim(&state).await
+                // Keep draining full batches of a backlog, a bounded number per tick.
+                for _ in 0..UPLOAD_BATCHES_PER_TICK {
+                    if crate::features::uploads::cleanup::reclaim(&state).await? < crate::features::uploads::cleanup::BATCH {
+                        break;
+                    }
+                }
+                Ok::<_, ApiError>(())
             } => {
                 if let Err(error) = result { tracing::warn!(%error, "upload cleanup failed; durable lease expiry permits recovery"); }
             }

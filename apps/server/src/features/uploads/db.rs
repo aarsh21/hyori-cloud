@@ -32,6 +32,8 @@ pub(crate) struct Upload {
     pub result: Option<serde_json::Value>,
     pub lease_token: Option<String>,
     pub expires_at: DateTime<Utc>,
+    /// Consecutive clean cleanup observations; drives revisit backoff.
+    pub clean_checks: i32,
 }
 impl Upload {
     pub fn from_row(row: QueryResult) -> DomainResult<Self> {
@@ -56,6 +58,7 @@ impl Upload {
             result: row.try_get("", "result")?,
             lease_token: row.try_get("", "lease_token")?,
             expires_at: row.try_get("", "expires_at")?,
+            clean_checks: row.try_get("", "clean_checks")?,
         })
     }
     pub async fn get(tx: &DatabaseTransaction, id: &str) -> DomainResult<Self> {
@@ -114,7 +117,7 @@ impl Upload {
                 vec![self.owner_id.clone().into(), self.size.into()],
             ))
             .await?;
-            tx.execute_raw(sql("UPDATE hyori_uploads SET state='aborted',reservation_held=false,lease_token=NULL,lease_until=NULL,cleanup_due=now() WHERE id=$1", vec![self.id.clone().into()])).await?;
+            tx.execute_raw(sql("UPDATE hyori_uploads SET state='aborted',reservation_held=false,lease_token=NULL,lease_until=NULL,cleanup_due=now(),clean_checks=0 WHERE id=$1", vec![self.id.clone().into()])).await?;
         }
         Ok(())
     }

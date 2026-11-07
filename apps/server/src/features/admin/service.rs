@@ -62,10 +62,9 @@ impl AdminService {
             tx.execute_raw(sql("INSERT INTO hyori_account_purges(user_id) VALUES ($1) ON CONFLICT DO NOTHING",vec![input.user_id.0.into()])).await?;
             Ok(())
         }) }).await?;
-        // One bounded attempt is useful to small accounts, but continuation belongs to maintenance.
-        if let Err(error) = purge::reclaim_user(&self.state, &input.user_id.0).await {
-            tracing::warn!(%error,"account purge remains pending; durable maintenance will retry");
-        }
+        // The deletion is committed; its storage purge can outlast any RPC deadline, so it belongs
+        // to maintenance alone. Reporting progress here never turns a commit into a 503.
+        self.state.account_purge.notify_one();
         purge::progress(&self.state, input.user_id).await
     }
 }

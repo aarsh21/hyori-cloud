@@ -1,7 +1,16 @@
 import type { FileEntry } from "@hyori-cloud/client-sdk";
 import { Trash2 } from "@hyori-cloud/lib/icons";
-import { PageBar, PageBody, PageSection, PageTitle } from "@hyori-cloud/ui/components/app-shell";
+import { useState } from "@hyori-cloud/lib/react";
+import {
+  PageBar,
+  PageBarActions,
+  PageBody,
+  PageSection,
+  PageTitle,
+} from "@hyori-cloud/ui/components/app-shell";
 import { Button } from "@hyori-cloud/ui/components/button";
+import { DropdownMenuItem } from "@hyori-cloud/ui/components/dropdown-menu";
+import { ItemActionMenu } from "@hyori-cloud/ui/components/item-action-menu";
 import {
   ItemName,
   ItemNavigation,
@@ -17,6 +26,8 @@ import {
 } from "@hyori-cloud/ui/components/item-collection";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { VirtualItems } from "@hyori-cloud/ui/components/virtual-items";
+import { DeletePermanentlyDialog } from "#features/files/react/delete-permanently-dialog.tsx";
+import { EmptyTrashDialog } from "#features/files/react/empty-trash-dialog.tsx";
 import { FileTypeIcon } from "#features/files/react/file-type-icon.tsx";
 import { NoSize } from "#features/files/react/no-size.tsx";
 import { useFileListing } from "#features/files/react/use-file-listing.ts";
@@ -30,6 +41,10 @@ import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 export function TrashScreen() {
   const listing = useFileListing({ view: "trash" });
   const restore = useRestoreFile();
+  // Each confirmation keeps its target while closing, after the row has already left Trash.
+  const [deleting, setDeleting] = useState<{ entry: FileEntry; open: boolean } | null>(null);
+  const [emptying, setEmptying] = useState(false);
+  const hasEntries = listing.data?.pages.some((page) => page.items.length > 0) ?? false;
 
   function renderBody() {
     if (listing.data === undefined) {
@@ -51,7 +66,7 @@ export function TrashScreen() {
           />
         ) : (
           <ItemNavigation itemKeys={entries.map((entry) => entry.id)} layout="list">
-            <ItemTable className="[--item-columns:minmax(0,1fr)_auto] @2xl:[--item-columns:minmax(0,1fr)_10rem_6rem_6.5rem]">
+            <ItemTable className="[--item-columns:minmax(0,1fr)_auto] @2xl:[--item-columns:minmax(0,1fr)_10rem_6rem_8.5rem]">
               <ItemTableHeader>
                 <ItemTableHeaderCell>Name</ItemTableHeaderCell>
                 <ItemTableHeaderCell>Deleted</ItemTableHeaderCell>
@@ -68,6 +83,7 @@ export function TrashScreen() {
                     entry={entry}
                     restoring={restore.isPending && restore.variables.id === entry.id}
                     onRestore={() => restore.mutate({ id: entry.id })}
+                    onDelete={() => setDeleting({ entry, open: true })}
                   />
                 )}
               </VirtualItems>
@@ -83,6 +99,13 @@ export function TrashScreen() {
     <>
       <PageBar>
         <PageTitle>Trash</PageTitle>
+        {hasEntries ? (
+          <PageBarActions>
+            <Button type="button" size="sm" variant="outline" onClick={() => setEmptying(true)}>
+              Empty Trash…
+            </Button>
+          </PageBarActions>
+        ) : null}
       </PageBar>
       <PageBody>
         <PageSection>
@@ -90,6 +113,15 @@ export function TrashScreen() {
           {renderBody()}
         </PageSection>
       </PageBody>
+      <EmptyTrashDialog open={emptying} onOpenChange={setEmptying} />
+      {deleting === null ? null : (
+        <DeletePermanentlyDialog
+          key={deleting.entry.id}
+          entry={deleting.entry}
+          open={deleting.open}
+          onOpenChange={(open) => setDeleting({ ...deleting, open })}
+        />
+      )}
     </>
   );
 }
@@ -98,10 +130,12 @@ function TrashRow({
   entry,
   restoring,
   onRestore,
+  onDelete,
 }: {
   entry: FileEntry;
   restoring: boolean;
   onRestore: () => void;
+  onDelete: () => void;
 }) {
   const deletedAt = entry.trashedAt ?? entry.updatedAt;
 
@@ -121,8 +155,14 @@ function TrashRow({
       <ItemTableDetailCell className="text-right">
         {entry.kind === "folder" ? <NoSize /> : formatBytes(entry.size)}
       </ItemTableDetailCell>
-      <ItemTableCell className="flex justify-end overflow-visible">
+      <ItemTableCell className="flex justify-end gap-1 overflow-visible">
         <RestoreButton restoring={restoring} onRestore={onRestore} />
+        <ItemActionMenu label={`More actions for ${entry.name}`}>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 />
+            Delete permanently…
+          </DropdownMenuItem>
+        </ItemActionMenu>
       </ItemTableCell>
     </ItemTableRow>
   );

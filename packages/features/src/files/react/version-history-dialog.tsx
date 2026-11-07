@@ -1,6 +1,7 @@
 import type { FileEntry, FileVersion } from "@hyori-cloud/client-sdk";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
-import { Download } from "@hyori-cloud/lib/icons";
+import { Download, Trash2 } from "@hyori-cloud/lib/icons";
+import { useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { toast } from "@hyori-cloud/ui/components/sonner";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { Tag } from "@hyori-cloud/ui/components/tag";
 import { InlineText, Stack } from "@hyori-cloud/ui/components/text";
+import { DeleteVersionDialog } from "#features/files/react/delete-version-dialog.tsx";
 import { useDownloadFile } from "#features/files/react/use-download-file.ts";
 import { useRestoreVersion } from "#features/files/react/use-file-mutations.ts";
 import { formatBytes, formatDateTime } from "#features/shared/format.ts";
@@ -47,6 +49,8 @@ export function VersionHistoryDialog({
   const restore = useRestoreVersion();
   const download = useDownloadFile();
   const items = versions.data?.pages.flatMap((page) => page.items) ?? [];
+  // Keeps its version while closing, after the row has already left the history.
+  const [deleting, setDeleting] = useState<{ version: FileVersion; open: boolean } | null>(null);
 
   return (
     <Dialog
@@ -62,7 +66,8 @@ export function VersionHistoryDialog({
         <DialogHeader>
           <DialogTitle>Version history</DialogTitle>
           <DialogDescription>
-            Earlier contents of “{entry.name}”. Restoring keeps the current version in this list.
+            Earlier contents of “{entry.name}”. Restoring keeps the current version in this list;
+            deleting a version frees its storage.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-2">
@@ -96,6 +101,7 @@ export function VersionHistoryDialog({
                   )
                 }
                 onDownload={() => download.mutate({ id: entry.id, versionId: version.id })}
+                onDelete={() => setDeleting({ version, open: true })}
               />
             ))}
             <VersionsState versions={versions} isEmpty={items.length === 0} />
@@ -116,6 +122,15 @@ export function VersionHistoryDialog({
           <DialogClose render={<Button variant="ghost" type="button" />}>Close</DialogClose>
         </DialogFooter>
       </DialogContent>
+      {deleting === null ? null : (
+        <DeleteVersionDialog
+          key={deleting.version.id}
+          fileId={entry.id}
+          version={deleting.version}
+          open={deleting.open}
+          onOpenChange={(next) => setDeleting({ ...deleting, open: next })}
+        />
+      )}
     </Dialog>
   );
 }
@@ -127,6 +142,7 @@ function VersionRow({
   downloading,
   onRestore,
   onDownload,
+  onDelete,
 }: {
   version: FileVersion;
   restoring: boolean;
@@ -134,7 +150,10 @@ function VersionRow({
   downloading: boolean;
   onRestore: () => void;
   onDownload: () => void;
+  onDelete: () => void;
 }) {
+  const created = formatDateTime(version.createdAt);
+
   return (
     <PickerRow className="justify-between gap-2 px-2 py-1 hover:bg-transparent">
       <Stack className="min-w-0">
@@ -150,7 +169,7 @@ function VersionRow({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label={`Download version from ${formatDateTime(version.createdAt)}`}
+          aria-label={`Download version from ${created}`}
           pending={downloading}
           onClick={onDownload}
         >
@@ -159,6 +178,15 @@ function VersionRow({
           ) : (
             <Download />
           )}
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={`Delete version from ${created}`}
+          onClick={onDelete}
+        >
+          <Trash2 />
         </Button>
         <Button
           type="button"

@@ -1,15 +1,18 @@
 use crate::{
     AppState,
-    auth::{IssuedSession, digest, random_token},
+    auth::{IssuedSession, RATE_LIMIT_WINDOW_SECONDS, digest, random_token},
     db::{begin, sql},
     error::{ApiError, ErrorCode},
     features::{
         admin::api::{CreateInvite, CreateUser, Invite},
         auth::api::*,
     },
+    rpc::{DEVICE_COOKIE, RequestContext},
     wire::Nullable,
 };
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
+use sha2::{Digest, Sha256};
+use std::net::IpAddr;
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
 use unicode_normalization::UnicodeNormalization;
@@ -75,16 +78,45 @@ impl<'a> AuthService<'a> {
         commit(tx).await?;
         Ok(session)
     }
-    pub async fn login(&self, mut input: Credentials) -> Result<IssuedSession, ApiError> {
+    /// Returns the session and a device cookie to set alongside it.
+    pub async fn login(
+        &self,
+        mut input: Credentials,
+        context: &RequestContext,
+    ) -> Result<(IssuedSession, String), ApiError> {
         input.email = normalize_email(&input.email)?;
-        self.state
-            .auth
-            .rate_limit(&self.state.db, &format!("login:{}", input.email))
-            .await?;
+        let secret = &self.state.config.auth_secret;
+        let device = context
+            .device
+            .as_deref()
+            .filter(|token| device_nonce(secret, &input.email, token).is_some());
+        for (key, limit) in login_limits(secret, &input.email, device, context.peer) {
+            self.limit(&key, limit).await?;
+        }
         let tx = Arc::new(begin(&self.state.db).await?);
         let session = self.state.auth.login(tx.clone(), &input).await?;
         commit(tx).await?;
-        Ok(session)
+        let device = device.map_or_else(|| device_token(secret, &input.email), str::to_owned);
+        Ok((session, self.device_cookie(&device)))
+    }
+    fn device_cookie(&self, token: &str) -> String {
+        format!(
+            "{DEVICE_COOKIE}={token}; Path=/api/rpc; HttpOnly; SameSite=Strict; Max-Age={DEVICE_SECONDS}{}",
+            if self.state.config.secure_cookies {
+                "; Secure"
+            } else {
+                ""
+            }
+        )
+    }
+    /// Fixed-window attempt counter shared with the other authentication limits.
+    async fn limit(&self, key: &str, attempts: i32) -> Result<(), ApiError> {
+        let row = self.state.db.query_one_raw(sql("INSERT INTO hyori_rate_limits(key_digest,window_start,attempts) VALUES ($1,now(),1) ON CONFLICT(key_digest) DO UPDATE SET window_start=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN now() ELSE hyori_rate_limits.window_start END, attempts=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN 1 ELSE LEAST(hyori_rate_limits.attempts+1,$3+1) END RETURNING attempts", vec![digest(key).into(), RATE_LIMIT_WINDOW_SECONDS.into(), attempts.into()])).await?.ok_or_else(ApiError::unavailable)?;
+        if row.try_get::<i32>("", "attempts")? > attempts {
+            Err(ApiError::limited())
+        } else {
+            Ok(())
+        }
     }
     pub async fn logout(&self, token: Option<&str>) -> Result<Done, ApiError> {
         let tx = Arc::new(begin(&self.state.db).await?);
@@ -204,6 +236,92 @@ impl<'a> AuthService<'a> {
         })
     }
 }
+/// Attempts per 15-minute window for one email from one device or client address.
+const LOGIN_ATTEMPTS: i32 = 10;
+/// Attempts per window from one directly connected client address, across all emails.
+const LOGIN_ATTEMPTS_PER_ADDRESS: i32 = 100;
+const DEVICE_SECONDS: i64 = 180 * 24 * 60 * 60;
+
+/// Which counters a login attempt consumes. A browser that has signed in to this email before
+/// presents a MAC-bound device cookie and gets its own budget, so strangers' failures cannot lock
+/// it out. Other attempts are keyed per email and client address. Behind the web host every
+/// request arrives from one private address, which is not a client identity: those attempts
+/// share one per-email budget and no per-address limit applies (it would be a global limit).
+fn login_limits(
+    secret: &str,
+    email: &str,
+    device: Option<&str>,
+    peer: Option<IpAddr>,
+) -> Vec<(String, i32)> {
+    if let Some(nonce) = device.and_then(|token| device_nonce(secret, email, token)) {
+        return vec![(format!("login-device:{email}:{nonce}"), LOGIN_ATTEMPTS)];
+    }
+    match peer.filter(|ip| direct_client(*ip)) {
+        Some(ip) => vec![
+            (format!("login:{email}:{ip}"), LOGIN_ATTEMPTS),
+            (format!("login-address:{ip}"), LOGIN_ATTEMPTS_PER_ADDRESS),
+        ],
+        None => vec![(format!("login:{email}"), LOGIN_ATTEMPTS)],
+    }
+}
+/// Loopback, private and link-local peers are proxies or local tooling, not end clients.
+fn direct_client(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
+            !(ip.is_loopback() || ip.is_private() || ip.is_link_local() || ip.is_unspecified())
+        }
+        IpAddr::V6(ip) => match ip.to_ipv4_mapped() {
+            Some(mapped) => direct_client(IpAddr::V4(mapped)),
+            None => {
+                !(ip.is_loopback()
+                    || ip.is_unspecified()
+                    || ip.is_unique_local()
+                    || ip.is_unicast_link_local())
+            }
+        },
+    }
+}
+fn device_token(secret: &str, email: &str) -> String {
+    let nonce = random_token();
+    let mac = device_mac(secret, email, &nonce);
+    format!("{nonce}.{mac}")
+}
+/// The nonce of a device token minted for this email by this server, if the MAC verifies.
+fn device_nonce<'a>(secret: &str, email: &str, token: &'a str) -> Option<&'a str> {
+    let (nonce, mac) = token.split_once('.')?;
+    if nonce.len() != 64 || !nonce.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    bool::from(
+        device_mac(secret, email, nonce)
+            .as_bytes()
+            .ct_eq(mac.as_bytes()),
+    )
+    .then_some(nonce)
+}
+fn device_mac(secret: &str, email: &str, nonce: &str) -> String {
+    // Domain-separated from every other use of the auth secret.
+    let message = format!("hyori-login-device-v1\0{email}\0{nonce}");
+    hex::encode(hmac_sha256(secret.as_bytes(), message.as_bytes()))
+}
+/// HMAC-SHA-256 (RFC 2104).
+fn hmac_sha256(secret: &[u8], message: &[u8]) -> [u8; 32] {
+    let mut key = [0_u8; 64];
+    if secret.len() > key.len() {
+        key[..32].copy_from_slice(&Sha256::digest(secret));
+    } else {
+        key[..secret.len()].copy_from_slice(secret);
+    }
+    let inner = Sha256::new()
+        .chain_update(key.map(|b| b ^ 0x36))
+        .chain_update(message)
+        .finalize();
+    Sha256::new()
+        .chain_update(key.map(|b| b ^ 0x5c))
+        .chain_update(inner)
+        .finalize()
+        .into()
+}
 async fn commit(tx: Arc<DatabaseTransaction>) -> Result<(), ApiError> {
     Arc::try_unwrap(tx)
         .map_err(|_| ApiError::unavailable())?
@@ -244,4 +362,74 @@ fn normalize_account(input: &mut NewAccount) -> Result<(), ApiError> {
         return Err(ApiError::invalid());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const SECRET: &str = "test-secret-with-at-least-thirty-two-bytes";
+    #[test]
+    fn hmac_matches_rfc_4231_test_case_two() {
+        assert_eq!(
+            hex::encode(hmac_sha256(b"Jefe", b"what do ya want for nothing?")),
+            "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+        );
+    }
+    #[test]
+    fn device_tokens_verify_only_for_their_email_and_secret() {
+        let token = device_token(SECRET, "user@example.test");
+        assert!(device_nonce(SECRET, "user@example.test", &token).is_some());
+        assert!(device_nonce(SECRET, "other@example.test", &token).is_none());
+        assert!(
+            device_nonce(
+                "another-secret-of-thirty-two-bytes!!",
+                "user@example.test",
+                &token
+            )
+            .is_none()
+        );
+        let forged = format!("{}.{}", random_token(), random_token());
+        assert!(device_nonce(SECRET, "user@example.test", &forged).is_none());
+    }
+    #[test]
+    fn a_known_device_has_its_own_budget_independent_of_the_email_lockout() {
+        let token = device_token(SECRET, "user@example.test");
+        let known = login_limits(SECRET, "user@example.test", Some(&token), None);
+        let unknown = login_limits(SECRET, "user@example.test", None, None);
+        assert_eq!(known.len(), 1);
+        assert!(known[0].0.starts_with("login-device:user@example.test:"));
+        assert_eq!(
+            unknown,
+            vec![("login:user@example.test".into(), LOGIN_ATTEMPTS)]
+        );
+    }
+    #[test]
+    fn only_direct_client_addresses_key_attempts_by_address() {
+        let public: IpAddr = "203.0.113.7".parse().unwrap();
+        assert_eq!(
+            login_limits(SECRET, "u@example.test", None, Some(public)),
+            vec![
+                ("login:u@example.test:203.0.113.7".into(), LOGIN_ATTEMPTS),
+                (
+                    "login-address:203.0.113.7".into(),
+                    LOGIN_ATTEMPTS_PER_ADDRESS
+                ),
+            ]
+        );
+        for proxy in [
+            "127.0.0.1",
+            "10.0.0.2",
+            "172.18.0.3",
+            "::1",
+            "fd00::1",
+            "::ffff:192.168.1.2",
+        ] {
+            let proxy: IpAddr = proxy.parse().unwrap();
+            assert_eq!(
+                login_limits(SECRET, "u@example.test", None, Some(proxy)).len(),
+                1,
+                "{proxy}"
+            );
+        }
+    }
 }

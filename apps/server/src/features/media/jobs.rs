@@ -37,19 +37,42 @@ impl Job {
     }
 }
 
-/// Bounded safe maintenance discovery; no query invokes this command.
+/// Items examined per discovery pass. Publication enqueues its own job, so discovery is a
+/// bounded safety net for sources that gained bytes another way (restores, copies, upgrades).
+const DISCOVERY_PAGE: i64 = 256;
+
+/// One discovery page plus at most one job; no query invokes this command.
 pub async fn run_once(state: &Arc<AppState>) -> Result<bool, ApiError> {
     if state.media_worker.is_none() || state.storage.is_none() {
         return Ok(false);
     }
-    db::domain(&state.db,|tx|Box::pin(async move {
+    discover(state).await?;
+    process_next(state).await
+}
+/// Resume an ID-ordered sweep where the last page ended and wrap at the end, so each pass reads
+/// a bounded primary-key range instead of scanning every media item for a missing job.
+async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
+    let mut cursor = state.media_discovery.lock().await;
+    let after = cursor.clone();
+    *cursor = db::domain(&state.db,|tx|{let after=after.clone();Box::pin(async move {
+        let page=tx.query_one_raw(sql("SELECT max(id) AS last,count(*)::bigint AS seen FROM (SELECT id FROM hyori_items WHERE id>$1 ORDER BY id LIMIT $2) page",vec![after.clone().into(),DISCOVERY_PAGE.into()])).await?.ok_or_else(ApiError::unavailable)?;
+        let Some(last)=page.try_get::<Option<String>>("","last")? else {return Ok(String::new());};
+        let seen:i64=page.try_get("","seen")?;
         let items=tx.query_all_raw(sql("SELECT i.* FROM hyori_items i JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'
-            WHERE i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
+            WHERE i.id>$3 AND i.id<=$4 AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
             AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
             AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
-            ORDER BY i.id LIMIT 32 FOR KEY SHARE OF u",vec![serde_json::json!(MEDIA).into(),RECIPE.into()])).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
-        service::enqueue_many(tx,&items).await
-    })).await?;
+            ORDER BY i.id FOR KEY SHARE OF u",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.into(),last.clone().into()])).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
+        service::enqueue_many(tx,&items).await?;
+        Ok(if seen<DISCOVERY_PAGE {String::new()} else {last})
+    })}).await?;
+    Ok(())
+}
+/// Claim and process the next due job; false when none was due.
+pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError> {
+    if state.media_worker.is_none() || state.storage.is_none() {
+        return Ok(false);
+    }
     let job=db::domain(&state.db,|tx|Box::pin(async move {
         tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='failed',failure='timeout',lease_token=NULL,lease_until=NULL WHERE id IN
             (SELECT id FROM hyori_media_jobs WHERE state='processing' AND lease_until<=now() AND attempts>=3 ORDER BY due_at,id LIMIT 32 FOR UPDATE SKIP LOCKED)",vec![])).await?;
@@ -117,7 +140,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
         storage.complete(&key,&multipart,&[PartRef{part_number:1,etag}],size).await.map_err(|_|Failure::Unavailable)?;
         db::domain(&state.db,|tx|{let (job,artifact)=(job.clone(),artifact.clone());Box::pin(async move {
             current(tx,&job).await?;
-            let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state='ready',size=$2,width=$3,height=$4,cleanup_due=now() WHERE id=$1 AND state='starting'",vec![artifact.clone().into(),(size as i64).into(),(width as i32).into(),(height as i32).into()])).await?;
+            let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state='ready',size=$2,width=$3,height=$4,cleanup_due=now(),clean_checks=0 WHERE id=$1 AND state='starting'",vec![artifact.clone().into(),(size as i64).into(),(width as i32).into(),(height as i32).into()])).await?;
             if changed.rows_affected()!=1 {return Err(ApiError::conflict().into());}
             tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='ready',artifact_id=$3,failure=NULL,lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),artifact.into()])).await?;
             Ok(())
@@ -125,7 +148,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
     }.await;
     if publish.is_err() {
         // An ambiguous DB acknowledgement may already have published. Never abort a ready artifact.
-        let _=state.db.execute_raw(sql("UPDATE hyori_media_artifacts SET state='aborted',cleanup_due=now() WHERE id=$1 AND state<>'ready'",vec![artifact.into()])).await;
+        let _=state.db.execute_raw(sql("UPDATE hyori_media_artifacts SET state='aborted',cleanup_due=now(),clean_checks=0 WHERE id=$1 AND state<>'ready'",vec![artifact.into()])).await;
     }
     publish
 }

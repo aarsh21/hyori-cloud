@@ -546,10 +546,25 @@ async fn personal_sources_albums_scope_reconciliation_and_capacity_are_transacti
             .await
             .error(404, "resource.notFound");
     }
+    // No descendant cap: the whole 1,001-item subtree leaves the timeline, then comes back.
     server
         .rpc("files.trash", json!({"id":folder}), Some(&cookie))
         .await
-        .error(409, "resource.conflict"); // Existing 1,000-descendant safety bound.
+        .value();
+    let hidden = server
+        .rpc("photos.timeline", json!({}), Some(&cookie))
+        .await;
+    assert!(
+        hidden.value()["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| !item["id"].as_str().unwrap().starts_with("media_"))
+    );
+    server
+        .rpc("files.restore", json!({"id":folder}), Some(&cookie))
+        .await
+        .value();
     server
         .rpc("files.trash", json!({"id":"media_1001"}), Some(&cookie))
         .await

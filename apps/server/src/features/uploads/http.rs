@@ -1,5 +1,7 @@
 use crate::{
     AppState,
+    auth::digest,
+    config::{DOWNLOAD_QUEUE_PER_PRINCIPAL, DOWNLOAD_QUEUE_WAIT, DOWNLOADS_PER_PRINCIPAL},
     error::ApiError,
     features::{
         auth::api::Id,
@@ -11,14 +13,31 @@ use crate::{
 use axum::{
     Json,
     body::Body,
-    extract::{Path, Query, State},
-    http::{Request, StatusCode},
+    extract::{ConnectInfo, Path, Query, State},
+    http::{HeaderMap, Request, StatusCode},
+    middleware::Next,
     response::{IntoResponse, Response},
 };
 use futures_util::{StreamExt, stream};
-use hyori_storage::StorageError;
+use hyori_storage::{Bytes, StorageError};
 use serde::Deserialize;
-use std::{sync::Arc, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
+    sync::{
+        Arc, Mutex, PoisonError,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
+
+/// A body that yields no chunk, or a reader that accepts none, for this long is abandoned.
+const IDLE: Duration = Duration::from_secs(30);
+/// No single download body may outlive this, however steadily it is read.
+const DOWNLOAD_DEADLINE: Duration = Duration::from_secs(900);
+/// Chunks buffered between storage and a reader; a stalled reader therefore pins only this much.
+const DOWNLOAD_BUFFER: usize = 2;
 
 pub(crate) async fn put(
     State(state): State<Arc<AppState>>,
@@ -26,7 +45,7 @@ pub(crate) async fn put(
     request: Request<Body>,
 ) -> Result<Response, ApiError> {
     let permit = state
-        .transfers
+        .uploads
         .clone()
         .try_acquire_owned()
         .map_err(|_| ApiError::unavailable())?;
@@ -46,15 +65,27 @@ pub(crate) async fn put(
         return Err(ApiError::invalid());
     }
     let context = RequestContext::from_headers(request.headers());
-    let body = request
-        .into_body()
-        .into_data_stream()
-        .map(|r| r.map_err(|_| StorageError::Body("incoming request failed")));
+    // A silently dead connection must fail the part (and release its lease) promptly, not after
+    // the storage adapter's two-minute request bound.
+    let body = stream::unfold(
+        Some(request.into_body().into_data_stream()),
+        |body| async move {
+            let mut body = body?;
+            match tokio::time::timeout(IDLE, body.next()).await {
+                Ok(Some(Ok(bytes))) => Some((Ok(bytes), Some(body))),
+                Ok(None) => None,
+                Ok(Some(Err(_))) => {
+                    Some((Err(StorageError::Body("incoming request failed")), None))
+                }
+                Err(_) => Some((Err(StorageError::Body("incoming request stalled")), None)),
+            }
+        },
+    );
     let service = UploadsService::new(state.clone(), context);
-    let status = service
+    let acknowledged = service
         .write_part(id, number, length, Box::pin(body), permit)
         .await?;
-    Ok(Json(serde_json::json!({"ok":true,"value":status})).into_response())
+    Ok(Json(serde_json::json!({"ok":true,"value":acknowledged})).into_response())
 }
 #[derive(Deserialize)]
 pub(crate) struct DownloadQuery {
@@ -100,7 +131,122 @@ pub(crate) async fn get(
     .await
 }
 
-/// Both binary routes share range, length, admission lifetime and deadline policy.
+/// Concurrent download bodies per principal. A burst (a photo grid's thumbnails) briefly
+/// queues for a slot; entries exist only while a request holds or awaits one.
+#[derive(Default)]
+pub(crate) struct PrincipalLimiter(Arc<Mutex<HashMap<String, Principal>>>);
+struct Principal {
+    slots: Arc<tokio::sync::Semaphore>,
+    /// Holders plus waiters.
+    users: usize,
+}
+/// One principal's admitted body; dropping it frees the slot.
+pub(crate) struct PrincipalSlot {
+    _slot: tokio::sync::OwnedSemaphorePermit,
+    _user: PrincipalUser,
+}
+struct PrincipalUser {
+    principals: Arc<Mutex<HashMap<String, Principal>>>,
+    key: String,
+}
+impl Drop for PrincipalUser {
+    fn drop(&mut self) {
+        let mut principals = self
+            .principals
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(principal) = principals.get_mut(&self.key) {
+            principal.users -= 1;
+            if principal.users == 0 {
+                principals.remove(&self.key);
+            }
+        }
+    }
+}
+impl PrincipalLimiter {
+    /// Wait up to `wait` for one of `limit` slots, unless `limit + queue` requests already hold
+    /// or await this principal's slots. Waiting holds no process-wide download admission.
+    async fn acquire(
+        &self,
+        key: String,
+        limit: usize,
+        queue: usize,
+        wait: Duration,
+    ) -> Option<PrincipalSlot> {
+        let (slots, user) = {
+            let mut principals = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+            let principal = principals.entry(key.clone()).or_insert_with(|| Principal {
+                slots: Arc::new(tokio::sync::Semaphore::new(limit)),
+                users: 0,
+            });
+            if principal.users >= limit + queue {
+                return None;
+            }
+            principal.users += 1;
+            (
+                principal.slots.clone(),
+                PrincipalUser {
+                    principals: self.0.clone(),
+                    key,
+                },
+            )
+        };
+        let slot = tokio::time::timeout(wait, slots.acquire_owned())
+            .await
+            .ok()?
+            .ok()?;
+        Some(PrincipalSlot {
+            _slot: slot,
+            _user: user,
+        })
+    }
+}
+tokio::task_local! {
+    /// Handed from the route middleware to whichever body producer the handler starts.
+    static DOWNLOAD_SLOT: RefCell<Option<PrincipalSlot>>;
+}
+/// A budget key, not authority: handlers still authorize every credential against the database.
+/// Sessions and grant sets are keyed by digest; credential-less callers by peer address.
+fn principal(headers: &HeaderMap, peer: Option<IpAddr>) -> String {
+    let context = RequestContext::from_headers(headers);
+    if let Some(session) = context.session {
+        format!("session:{}", digest(&session))
+    } else if !context.grants.is_empty() {
+        format!("grants:{}", digest(&context.grants.join(".")))
+    } else {
+        peer.map_or_else(|| "peer:unknown".into(), |ip| format!("peer:{ip}"))
+    }
+}
+/// Route layer for every download-like route: bound a principal's bodies before any database or
+/// storage work, and let the body producer hold the slot for the body's lifetime.
+pub(crate) async fn admit_principal(
+    State(state): State<Arc<AppState>>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    let peer = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|info| info.0.ip());
+    let key = principal(request.headers(), peer);
+    let Some(slot) = state
+        .download_principals
+        .acquire(
+            key,
+            DOWNLOADS_PER_PRINCIPAL,
+            DOWNLOAD_QUEUE_PER_PRINCIPAL,
+            DOWNLOAD_QUEUE_WAIT,
+        )
+        .await
+    else {
+        return ApiError::unavailable().into_response();
+    };
+    DOWNLOAD_SLOT
+        .scope(RefCell::new(Some(slot)), next.run(request))
+        .await
+}
+
+/// Every binary route shares range, length, admission lifetime and deadline policy.
 pub(crate) async fn stream_content(
     storage: &hyori_storage::ObjectStorage,
     descriptor: files::ContentDescriptor,
@@ -134,20 +280,11 @@ pub(crate) async fn stream_content(
     if read.size != expected {
         return Err(ApiError::unavailable());
     }
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(900);
-    // The semaphore permit lives with the response body, not just until headers are sent.
-    let body = stream::try_unfold(
-        (read.body, permit, deadline),
-        |(mut body, permit, deadline)| async move {
-            let until = deadline.min(tokio::time::Instant::now() + Duration::from_secs(30));
-            match tokio::time::timeout_at(until, body.next()).await {
-                Ok(Some(Ok(bytes))) => Ok(Some((bytes, (body, permit, deadline)))),
-                Ok(Some(Err(error))) => Err(error),
-                Ok(None) => Ok(None),
-                Err(_) => Err(StorageError::Body("download deadline exceeded")),
-            }
-        },
-    );
+    let slot = DOWNLOAD_SLOT
+        .try_with(|slot| slot.borrow_mut().take())
+        .ok()
+        .flatten();
+    let body = relay(read.body, (permit, slot), IDLE);
     let encoded = url::form_urlencoded::byte_serialize(descriptor.name.as_bytes())
         .collect::<String>()
         .replace('+', "%20");
@@ -173,6 +310,55 @@ pub(crate) async fn stream_content(
     response
         .body(Body::from_stream(body))
         .map_err(|_| ApiError::unavailable())
+}
+
+/// Hyper polls a response body only while the client reads, so deadlines inside the body never
+/// fire for a stalled reader. A spawned producer owns the storage stream and the admission, and
+/// gives up when storage or the reader is idle for `idle` or the body passes its deadline.
+/// The returned body then fails rather than ending early, so a truncated download is never
+/// mistaken for a complete one.
+fn relay<A: Send + 'static>(
+    mut source: hyori_storage::StorageStream,
+    admission: A,
+    idle: Duration,
+) -> impl futures_util::Stream<Item = Result<Bytes, StorageError>> + Send + 'static {
+    let (sender, receiver) = tokio::sync::mpsc::channel(DOWNLOAD_BUFFER);
+    let finished = Arc::new(AtomicBool::new(false));
+    let complete = finished.clone();
+    tokio::spawn(async move {
+        let _admission = admission;
+        let deadline = tokio::time::Instant::now() + DOWNLOAD_DEADLINE;
+        let until = || deadline.min(tokio::time::Instant::now() + idle);
+        loop {
+            let item = match tokio::time::timeout_at(until(), source.next()).await {
+                Ok(Some(item)) => item,
+                Ok(None) => {
+                    complete.store(true, Ordering::Release);
+                    return;
+                }
+                Err(_) => Err(StorageError::Body("download deadline exceeded")),
+            };
+            let failed = item.is_err();
+            let sent = tokio::time::timeout_at(until(), sender.send(item)).await;
+            if failed || !matches!(sent, Ok(Ok(()))) {
+                return;
+            }
+        }
+    });
+    stream::unfold(Some(receiver), move |receiver| {
+        let finished = finished.clone();
+        async move {
+            let mut receiver = receiver?;
+            match receiver.recv().await {
+                Some(item) => {
+                    let failed = item.is_err();
+                    Some((item, (!failed).then_some(receiver)))
+                }
+                None if finished.load(Ordering::Acquire) => None,
+                None => Some((Err(StorageError::Body("download abandoned")), None)),
+            }
+        }
+    })
 }
 fn unsatisfiable(size: u64) -> Response {
     (
@@ -223,7 +409,56 @@ fn parse_range(value: &str, size: u64) -> Option<(u64, u64)> {
 }
 #[cfg(test)]
 mod tests {
-    use super::parse_range;
+    use super::*;
+    const TEST_IDLE: Duration = Duration::from_millis(50);
+    #[tokio::test]
+    async fn stalled_reader_releases_admission_and_the_body_then_fails() {
+        let admission = Arc::new(());
+        let source = stream::iter((0..8).map(|_| Ok(Bytes::from_static(b"chunk"))));
+        let mut body = Box::pin(relay(Box::pin(source), admission.clone(), TEST_IDLE));
+        assert_eq!(body.next().await.unwrap().unwrap(), "chunk");
+        // The reader stops; the producer fills its buffer, then gives up after the idle bound.
+        tokio::time::sleep(TEST_IDLE * 4).await;
+        assert_eq!(Arc::strong_count(&admission), 1);
+        let mut failed = false;
+        while let Some(item) = body.next().await {
+            failed |= item.is_err();
+        }
+        assert!(failed, "an abandoned body must not end like a complete one");
+    }
+    #[tokio::test]
+    async fn read_body_completes_and_releases_admission() {
+        let admission = Arc::new(());
+        let source = stream::iter([Ok(Bytes::from_static(b"ab")), Ok(Bytes::from_static(b"c"))]);
+        let body = relay(Box::pin(source), admission.clone(), TEST_IDLE);
+        let chunks = body.collect::<Vec<_>>().await;
+        assert!(chunks.iter().all(Result::is_ok));
+        assert_eq!(chunks.len(), 2);
+        tokio::task::yield_now().await;
+        assert_eq!(Arc::strong_count(&admission), 1);
+    }
+    #[tokio::test]
+    async fn principal_slots_queue_briefly_are_bounded_per_key_and_released_on_drop() {
+        let limiter = PrincipalLimiter::default();
+        let acquire = |key: &str| limiter.acquire(key.into(), 2, 1, TEST_IDLE);
+        let (first, second) = (acquire("a").await.unwrap(), acquire("a").await.unwrap());
+        // A third request waits for a slot and gets one as soon as a holder finishes.
+        let waiting = acquire("a");
+        let release = async {
+            tokio::time::sleep(TEST_IDLE / 4).await;
+            drop(first);
+        };
+        let (third, ()) = tokio::join!(waiting, release);
+        let third = third.expect("a queued request takes the freed slot");
+        // With both slots held, a waiter times out rather than queueing forever.
+        assert!(acquire("a").await.is_none());
+        assert!(
+            acquire("b").await.is_some(),
+            "other principals are independent"
+        );
+        drop((second, third));
+        assert!(limiter.0.lock().unwrap().is_empty());
+    }
     #[test]
     fn single_ranges_are_bounded_and_malformed_ranges_never_become_full_downloads() {
         for (value, expected) in [

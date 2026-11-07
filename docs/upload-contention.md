@@ -128,3 +128,42 @@ A scratch public-SDK stress run over that stack sent 300 two-KiB files from one 
 ### Evidence
 
 With the change, the same stress run passed three repetitions of **500 files at 8 lanes**: zero failures, **zero** PostgreSQL serialization errors, zero exhausted retry budgets, and `usedBytes` equal to the bytes uploaded. With only the reservation/publication lock and no cleanup settling, 1 of 1,500 still failed. Without the settling, cleanup claims accounted for most of the remaining errors. `bun run check:rust` (format, all-target strict Clippy, workspace tests) passed. The Docker-based `upload_contention`, `uploads` and `upload_disconnect` real-service suites could not run on this orb, so rerun them before relying on this change. Uploads from one owner on one server now commit their database steps one at a time. That is a deliberate trade: each step is a few milliseconds and carries no storage I/O, and the 300-file run took about 5 s at 8 lanes.
+
+## Transfer admission, stalled readers and reservation squatting (2026-11-06)
+
+### Reproduction
+
+`apps/server/tests/download_stall.rs` (real PostgreSQL 17 and RustFS `1.0.0-alpha.85`, actual Rust HTTP) uploads a 24 MiB file, opens sixteen downloads of it from one session with a 4 KiB receive buffer, reads only the status line, and then tries an unrelated three-byte upload and download as another account. Before the change all sixteen were admitted and held the process-wide sixteen-permit `transfers` semaphore, and the unrelated `uploads.begin` received **503**:
+
+```
+stalled readers admitted: 16 of 16
+unrelated upload statuses: [503]
+test result: FAILED. 0 passed; 1 failed
+```
+
+The idle and deadline timeouts lived inside the response body, which hyper polls only while the client reads, so they never fired. Downloads, previews, thumbnails, editor downloads and every upload operation shared those sixteen permits, and anonymous public-link visitors could hold them.
+
+### Change
+
+- Uploads (`begin`, part PUT, `complete`, editor `start_reserved`) use their own sixteen-permit semaphore. Download-like bodies use 64 per process and eight per principal (session digest, public grant set, or TCP peer when there are no credentials), checked by a route layer before any database or storage work. Up to 56 more of a principal's requests wait up to 10 seconds for one of its slots, holding no process-wide admission, so a photo grid's thumbnail burst queues instead of failing.
+- `stream_content` hands the storage stream and both admissions to a spawned producer feeding a two-chunk channel. Storage idle or reader idle for 30 seconds, or 900 seconds overall, stops the producer and releases its admission while the stalled socket stays open. The body then fails rather than ending as a short success. Range and header handling are unchanged.
+- Part PUT bodies fail after 30 idle seconds, so a silently dead connection releases its lease in about 30 seconds instead of up to the 120-second storage bound. A part PUT that finds another request's lease returns retryable 503 instead of 409, which the SDK treated as permanent. The SDK retries 503 twice (250 and 500 ms); a retry that arrives while the old request is still unwinding fails the task with a transport error, and resuming from the checkpoint succeeds.
+- A contribution (initiator other than the destination owner) expires after an hour without parts, sliding with each part up to seven days from begin. One initiator holds at most 16 pending uploads and half of the space still available to it. The owner can list contributions (`uploads.incoming`) and abort them.
+- Part PUT returns only that part's acknowledgement (`{"partNumber","size"}`) instead of the full status with up to 10,000 parts. The SDK ignored that body.
+
+### Evidence
+
+After the change the same test passes. Eight of the sixteen stalled readers are admitted; the other eight wait 10 seconds for the owner's slots and receive 503. The unrelated upload (`[200, 200, 200]`) and download (200, exact bytes) finish in about 0.2 s. A ranged read of the large file by the stalling owner is admitted again once the stalled producers hit the 30-second idle bound (18 s after the unrelated work, which started after the 10-second queue wait), with the stalled sockets still open:
+
+```
+stalled readers admitted: 8 of 16
+unrelated upload statuses: [200, 200, 200]
+unrelated download status: 200
+unrelated work finished in 164.911447ms
+owner admitted again after 18.348104142s with stalled sockets still open
+test result: ok. 1 passed; 0 failed
+```
+
+`apps/server/tests/upload_admission.rs` covers contribution expiry and sliding, cleanup abort with exact reservation release, the 16-pending and half-of-free caps, owner listing and cancellation (a stranger is denied), the part acknowledgement body and 503 on a held lease. Unit tests cover the relay's stall release and failure-on-abandon, per-principal slot accounting, and the cap arithmetic.
+
+Limits: eight concurrent bodies per principal serialises one user's larger bursts (a grid's thumbnails queue behind each other), and more than 64 requests in flight or queued for one principal fail fast with 503. These numbers are defaults, not measured budgets. A visitor who resolves a public link repeatedly gets a new grant set and so a new budget; the per-process 64 still bounds the total. Behind the web host every credential-less request shares the web host's peer address.
