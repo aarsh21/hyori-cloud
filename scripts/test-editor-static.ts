@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { createGzipTransportSidecar } from "./artcraft/transport-sidecars.ts";
+import { editorContentSecurityPolicy } from "./editor-csp.ts";
 import { editorStaticHandler } from "./editor-static-handler.ts";
 
 const directory = await mkdtemp(join(tmpdir(), "hyori-static-delivery-"));
@@ -53,17 +54,33 @@ try {
 
   await writeFile(join(assets, wasmPath), wasmBytes);
   await writeFile(join(assets, `${wasmPath}.gz`), wasmGzip);
+  const loader = "\nwindow.fixtureLoaded = true;\n";
+  const style = "\n  body { margin: 0; }\n";
   await writeFile(
     join(assets, "wordcraft/fixture/index.html"),
-    "<!doctype html><title>Synthetic fixture</title>",
+    `<!doctype html><title>Synthetic fixture</title><script type="module">${loader}</script><style>${style}</style><script src="./wordcraft-web-0123456789abcdef.js"></script>`,
   );
+  await writeFile(
+    join(assets, "runtime-bundle-manifest.json"),
+    JSON.stringify({
+      editors: [
+        {
+          app: "wordcraft",
+          version: "fixture",
+          assetUrl: "/artcraft/wordcraft/fixture/index.html?host=parent",
+        },
+      ],
+    }),
+  );
+  const contentSecurityPolicy = editorContentSecurityPolicy(assets);
+  const hash = (text: string) => createHash("sha256").update(text).digest("base64");
   await writeFile(
     join(assets, "legal/RUNTIME-NOTICE-INDEX.md"),
     "Synthetic test; no vendor payload.",
   );
   await writeFile(
     join(directory, "Caddyfile"),
-    `{\n    admin off\n    auto_https off\n}\nhttp://:8080 {\n${editorStaticHandler}\n    handle {\n        respond 404\n    }\n}\n`,
+    `{\n    admin off\n    auto_https off\n}\nhttp://:8080 {\n${editorStaticHandler(contentSecurityPolicy)}\n    handle {\n        respond 404\n    }\n}\n`,
   );
   docker([
     "create",
@@ -154,7 +171,7 @@ try {
   assert.equal(identity.headers.get("x-frame-options"), "SAMEORIGIN");
   assert.equal(
     identity.headers.get("content-security-policy"),
-    "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    `frame-ancestors 'self'; object-src 'none'; base-uri 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash(loader)}'; style-src 'self' 'sha256-${hash(style)}'`,
   );
 
   const gzip = await request(path, ["Accept-Encoding: gzip"]);

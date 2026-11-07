@@ -13,6 +13,7 @@ import {
 import { homedir } from "node:os";
 import { extname, join, resolve, sep } from "node:path";
 import { z } from "zod";
+import { editorContentSecurityPolicy } from "./editor-csp.ts";
 
 /**
  * A persistent development instance for orbs, declared in `.amp/services.yaml`: PostgreSQL 17,
@@ -256,8 +257,14 @@ const TYPES = new Map([
 
 const HOP = ["connection", "keep-alive", "transfer-encoding", "upgrade", "te", "trailer"];
 
-function editorAsset(root: string | null, pathname: string, accepts: string) {
-  if (root === null) return new Response("Not found", { status: 404 });
+function editorAsset(
+  bundle: { directory: string; contentSecurityPolicy: string } | null,
+  pathname: string,
+  accepts: string,
+) {
+  if (bundle === null) return new Response("Not found", { status: 404 });
+
+  const root = bundle.directory;
 
   const path = resolve(root, `.${decodeURIComponent(pathname.slice("/artcraft".length))}`);
   const file = path.startsWith(`${root}${sep}`) ? lstatSync(path, { throwIfNoEntry: false }) : null;
@@ -270,7 +277,7 @@ function editorAsset(root: string | null, pathname: string, accepts: string) {
     "content-type": TYPES.get(extname(path)) ?? "application/octet-stream",
     "x-content-type-options": "nosniff",
     "x-frame-options": "SAMEORIGIN",
-    "content-security-policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    "content-security-policy": bundle.contentSecurityPolicy,
     "cache-control": /\/[^/]+-[0-9a-f]{15,20}(_bg)?\.(wasm|js|css)$/.test(path)
       ? "public, max-age=31536000, immutable"
       : "no-cache",
@@ -289,7 +296,19 @@ function editorAsset(root: string | null, pathname: string, accepts: string) {
 
 function gateway() {
   const publicUrl = new URL(process.env.PUBLIC_URL ?? "");
-  const bundle = editorBundle();
+  const configured = editorBundle();
+
+  // Derived once from the bundle this gateway serves, as the production Caddy line is.
+  const bundle =
+    configured === null
+      ? null
+      : {
+          ...configured,
+          contentSecurityPolicy: editorContentSecurityPolicy(
+            configured.directory,
+            join(ROOT, EDITOR_RECEIPT),
+          ),
+        };
 
   Bun.serve({
     port: Number(process.env.PORT),
@@ -302,11 +321,7 @@ function gateway() {
       if (url.pathname === "/healthz") return new Response("ok");
 
       if (url.pathname.startsWith("/artcraft/")) {
-        return editorAsset(
-          bundle?.directory ?? null,
-          url.pathname,
-          request.headers.get("accept-encoding") ?? "",
-        );
+        return editorAsset(bundle, url.pathname, request.headers.get("accept-encoding") ?? "");
       }
 
       const headers = new Headers(request.headers);

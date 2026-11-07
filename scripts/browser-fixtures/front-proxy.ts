@@ -2,6 +2,7 @@ import { lstatSync } from "node:fs";
 import http2 from "node:http2";
 import { extname, resolve, sep } from "node:path";
 import { z } from "zod";
+import { editorContentSecurityPolicy } from "../editor-csp.ts";
 
 export type ProxyRecord = {
   readonly at: number;
@@ -80,10 +81,11 @@ const STATIC_TYPES = new Map([
 ]);
 
 /**
- * The same route and headers as `docs/editor-deployment.md` gives Caddy, ahead of the host. Only
- * compression differs: Caddy gzips, and this serves identity, so nothing here measures transfer size.
+ * The same route and headers as `docs/editor-deployment.md` gives Caddy, ahead of the host, with the
+ * policy derived from this bundle by the same owner. Only compression differs: Caddy gzips, and this
+ * serves identity, so nothing here measures transfer size.
  */
-function staticResponse(root: string, pathname: string) {
+function staticResponse(root: string, contentSecurityPolicy: string, pathname: string) {
   const directory = resolve(root);
 
   const path = resolve(
@@ -103,7 +105,7 @@ function staticResponse(root: string, pathname: string) {
       "content-length": String(file.size),
       "x-content-type-options": "nosniff",
       "x-frame-options": "SAMEORIGIN",
-      "content-security-policy": "frame-ancestors 'self'",
+      "content-security-policy": contentSecurityPolicy,
       "cache-control": "no-cache",
     },
   });
@@ -117,6 +119,9 @@ export function createFrontHandler({
   /** The verified editor bundle, served at `/artcraft/` from its read-only directory. */
   staticRoot?: string | null;
 }) {
+  const contentSecurityPolicy =
+    staticRoot === null ? null : editorContentSecurityPolicy(staticRoot);
+
   const records: ProxyRecord[] = [];
   const trace: ProxyRecord[] = [];
   const faults: Fault[] = [];
@@ -193,8 +198,12 @@ export function createFrontHandler({
   async function handle(request: Request, protocol: ProxyRecord["protocol"]): Promise<Response> {
     const url = new URL(request.url);
 
-    if (staticRoot !== null && url.pathname.startsWith(STATIC_PREFIX)) {
-      const reply = staticResponse(staticRoot, url.pathname);
+    if (
+      staticRoot !== null &&
+      contentSecurityPolicy !== null &&
+      url.pathname.startsWith(STATIC_PREFIX)
+    ) {
+      const reply = staticResponse(staticRoot, contentSecurityPolicy, url.pathname);
 
       trace.push({
         at: Date.now(),

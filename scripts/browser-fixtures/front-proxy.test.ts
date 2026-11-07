@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFrontHandler } from "./front-proxy.ts";
 
 const servers: ReturnType<typeof Bun.serve>[] = [];
+
+const sha256 = (text: string) => createHash("sha256").update(text).digest("base64");
 
 const cleanups: (() => void)[] = [];
 
@@ -89,7 +92,22 @@ describe("the editor bundle route", () => {
 
     cleanups.push(() => rmSync(parent, { recursive: true, force: true }));
     mkdirSync(join(root, "wordcraft/0.14.0"), { recursive: true });
-    writeFileSync(join(root, "wordcraft/0.14.0/index.html"), "<!doctype html>");
+    writeFileSync(
+      join(root, "wordcraft/0.14.0/index.html"),
+      '<!doctype html><script type="module">start();</script><style>body{}</style>',
+    );
+    writeFileSync(
+      join(root, "runtime-bundle-manifest.json"),
+      JSON.stringify({
+        editors: [
+          {
+            app: "wordcraft",
+            version: "0.14.0",
+            assetUrl: "/artcraft/wordcraft/0.14.0/index.html",
+          },
+        ],
+      }),
+    );
     writeFileSync(join(root, "wordcraft/0.14.0/app_bg.wasm"), new Uint8Array([0, 97, 115, 109]));
     writeFileSync(join(root, "wordcraft/0.14.0/app.js"), "export {};");
     writeFileSync(join(parent, "front-outside.txt"), "outside");
@@ -108,7 +126,9 @@ describe("the editor bundle route", () => {
     expect(reply.status).toBe(200);
     expect(reply.headers.get("x-content-type-options")).toBe("nosniff");
     expect(reply.headers.get("x-frame-options")).toBe("SAMEORIGIN");
-    expect(reply.headers.get("content-security-policy")).toBe("frame-ancestors 'self'");
+    expect(reply.headers.get("content-security-policy")).toBe(
+      `frame-ancestors 'self'; object-src 'none'; base-uri 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-${sha256("start();")}'; style-src 'self' 'sha256-${sha256("body{}")}'`,
+    );
     expect(reply.headers.get("cache-control")).toBe("no-cache");
     expect(reply.headers.get("content-type")).toStartWith("text/html");
   });
