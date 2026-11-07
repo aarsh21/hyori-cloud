@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
@@ -146,6 +147,25 @@ export async function collectNativeEvidence(
   )
     throw new Error("Modified host graph differs from the noticed upstream graph");
 
+  // native-v3-container.ts leaves its exact command and exit beside the stage; r1 ran natively.
+  let container: { command: Buffer; result: Buffer } | null = null;
+
+  try {
+    container = {
+      command: await readFile(join(stageRoot, "container-command.json")),
+      result: await readFile(join(stageRoot, "container-result.json")),
+    };
+  } catch (cause) {
+    if (!(cause instanceof Error && "code" in cause && cause.code === "ENOENT")) throw cause;
+  }
+
+  if (container) {
+    if (resultSchema.parse(JSON.parse(container.result.toString())).status !== 0)
+      throw new Error("Cannot claim an artifact after the build container failed");
+    await retain("container-command.json", container.command);
+    await retain("container-result.json", container.result);
+  }
+
   await retain("Cargo.lock", lock);
   await retain("build-inputs.json", planBytes);
   await retain("tool-inputs.json", await readFile(join(stageRoot, "tool-inputs.json")));
@@ -200,6 +220,14 @@ export async function collectNativeEvidence(
   if (!html.includes(`<title>${nativeProductNames[app]}</title>`) || html.includes("app-icon"))
     throw new Error("Built entry still presents upstream marks");
 
+  // Trunk starts the engine from an inline module script. Its CSP hash lets the gateway send
+  // `script-src 'self' 'wasm-unsafe-eval' <hash>` without 'unsafe-inline'.
+  const inlineScripts = [
+    ...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gu),
+  ].map((match) => `sha256-${createHash("sha256").update(match[1]!, "utf8").digest("base64")}`);
+
+  if (inlineScripts.length !== 1) throw new Error("Expected exactly one inline loader script");
+
   const sourceSummary = {
     schemaVersion: 1,
     kind: "hyori-native-host-v3-source-summary",
@@ -239,8 +267,9 @@ export async function collectNativeEvidence(
     buildInputsSha256: sha256(planBytes),
     cargoLockSha256: sha256(lock),
     tools: pins,
-    execution:
-      "Native stand-in for the restricted container: empty environment, pinned Bun/Rust/Trunk/wasm-bindgen/Binaryen at the pinned absolute paths, read-only root-owned inputs, Cargo and Trunk --locked --offline. No network namespace isolation (the host kernel denies namespaces).",
+    execution: container
+      ? "Restricted container (container-command.json): pinned Rust base image, no network, unprivileged, read-only root, all capabilities dropped, no-new-privileges, bounded memory/CPU/processes; read-only input/driver/tools mounts at the driver's absolute paths. Cargo and Trunk --locked --offline."
+      : "Native stand-in for the restricted container: empty environment, pinned Bun/Rust/Trunk/wasm-bindgen/Binaryen at the pinned absolute paths, read-only root-owned inputs, Cargo and Trunk --locked --offline. No network namespace isolation (the host kernel denies namespaces).",
     commands,
     wasm: wasm[0]!,
     assets: assets.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
@@ -261,6 +290,7 @@ export async function collectNativeEvidence(
     sourceSummarySha256: sha256(sourceSummaryBytes),
     wasmSha256: wasm[0]!.sha256,
     payloadSha256: payloadSha256(files),
+    cspScriptHashes: inlineScripts,
     files,
   };
 
