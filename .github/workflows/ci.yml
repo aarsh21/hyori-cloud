@@ -1,34 +1,34 @@
 name: Verify Hyori Cloud
 
+# Pull requests run once on their merge result; pushes outside main would duplicate them.
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+  # Hosted runners have 4 vCPUs; the local default of 2 leaves half of them idle.
+  CARGO_BUILD_JOBS: "4"
+  CARGO_INCREMENTAL: "0"
+
 jobs:
-  verify:
+  verify-static:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: "24"
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.4.4"
-      - name: Install native Rust prerequisites
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang
-      - name: Install the repository-pinned Rust toolchain and components
-        run: rustup show active-toolchain
-      - name: Prepare the locked Cargo graph for offline architecture checks
-        run: cargo fetch --locked
-      - name: Install workspace dependencies
-        run: bun install --frozen-lockfile
-      - name: Install the locked architecture checker
-        run: npm --prefix tooling/fernando-lint ci
+          architecture-checker: "true"
       - name: Format and lint
         run: bun run check
       - name: Verify anti-slop checker regressions and tooling types
@@ -37,95 +37,170 @@ jobs:
         run: bun run check:source-files
       - name: Run local anti-slop analysis
         run: bun run lint:anti-slop
-      - name: Verify private deployment and decoder isolation configuration
-        run: bun run test:deployment
-      - name: Test product behavior and actual Node host transport
-        run: bun run test && bun run test:node-proxy
       - name: Verify architecture checker and adopted rules
         run: bun run test:architecture
       - name: Verify package boundaries
         run: bun run check:boundaries
-      - name: Verify public SDK and Query contracts
-        run: bun run check:query
-      - name: Verify external packed SDK consumers offline
-        run: bun run check:artifacts
-      - name: Verify actual app runtime composition
-        run: bun run check:app-runtime
       - name: Verify feature boundaries and React Compiler diagnostics
         run: bun run lint:architecture
       - name: Run local React Doctor analysis
         run: bun run ui:doctor
+
+  verify-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build the actual web app and its generated route tree
+        run: bun run --cwd apps/web build
+      - name: Verify private deployment and decoder isolation configuration
+        run: bun run test:deployment
+      - name: Test product behavior and actual Node host transport
+        run: bun run test && bun run test:node-proxy
+      - name: Verify external packed SDK consumers offline
+        run: bun run check:artifacts
+      - name: Verify actual app runtime composition
+        run: bun run check:app-runtime
       - name: Verify web build and startup limits
         run: bun run check:web
       - name: Verify dev-server cancellation and visible HMR errors
         run: bun run check:dev-server
 
-  rust:
+  contracts:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: "24"
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.4.4"
-      - name: Install native Rust prerequisites
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang
-      - name: Install the repository-pinned Rust toolchain and components
-        run: rustup show active-toolchain
-      - name: Fetch the exact workspace dependency graph
-        run: cargo fetch --locked
-      - name: Install workspace dependencies
-        run: bun install --frozen-lockfile
-      - name: Enforce Rust formatting, all-feature Clippy, unit and rustdoc tests
-        run: bun run check:rust
+          rust: "true"
+          rust-cache: dev
+          save-rust-cache: "true"
+          architecture-checker: "true"
+      - name: Build the actual web app and its generated route tree
+        run: bun run --cwd apps/web build
+      - name: Verify public SDK and Query contracts
+        run: bun run check:query
       - name: Reject drift in Rust-derived client contracts
         run: bun run contracts:check
-      - name: Build the isolated decoder image without publishing
-        run: docker build --file apps/media-worker/Dockerfile --tag hyori-media-ci:${{ github.sha }} .
+
+  rust-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          rust: "true"
+          rust-cache: clippy
+          save-rust-cache: "true"
+      - name: Enforce Rust formatting and all-feature Clippy
+        run: bun run check:rust --only fmt --only clippy
+
+  rust-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          rust: "true"
+          rust-cache: test
+          save-rust-cache: "true"
+      - name: Run Rust unit, integration and rustdoc tests
+        run: bun run check:rust --only test
+
+  rust-services:
+    name: rust-services (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/media-image
+        with:
+          phase: start
+      - uses: ./.github/actions/setup
+        with:
+          rust: "true"
+          rust-cache: test
+      - name: Compile the service fixture tests while the decoder image builds
+        run: bun scripts/check-rust.ts --services --shard ${{ matrix.shard }}/4 --no-run
+      - uses: ./.github/actions/media-image
+        with:
+          phase: wait
       - name: Test explicit real PostgreSQL, RustFS and isolated media lifecycle fixtures
         env:
           HYORI_MEDIA_TEST_IMAGE: hyori-media-ci:${{ github.sha }}
           RUST_TEST_THREADS: "1"
-        run: bun run test:rust-services
-      - name: Exercise the real Rust service through the web proxy and public SDK
-        run: bun run test:rust-sdk
-      - name: Exercise resumable uploads, downloads and recovery through the public SDK
-        run: bun run test:rust-upload-sdk
-      - name: Exercise Photos, safe previews and current metadata through the public SDK
-        run: bun run test:rust-photos-sdk
-      - name: Exercise administration, quota and account purge through the public SDK
-        run: bun run test:rust-admin-sdk
+        run: bun run test:rust-services --shard ${{ matrix.shard }}/4
+
+  rust-sdk:
+    name: rust-sdk (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [sdk, upload-sdk, photos-sdk, admin-sdk, media-sdk, editors-sdk]
+    steps:
+      - uses: actions/checkout@v4
+      - if: matrix.suite == 'media-sdk'
+        uses: ./.github/actions/media-image
+        with:
+          phase: start
+      - uses: ./.github/actions/setup
+        with:
+          rust: "true"
+          rust-cache: dev
+      # The harnesses' cargo build then only checks freshness; editors-sdk starts its timeout before it.
+      - name: Build the debug server the harness drives
+        run: RUST_ICU_MAJOR_VERSION_NUMBER="$(pkg-config --modversion icu-uc | cut -d. -f1)" cargo build --locked --bin hyori-server
+      - if: matrix.suite == 'media-sdk'
+        uses: ./.github/actions/media-image
+        with:
+          phase: wait
+      - name: Exercise the real Rust service through the public SDK (${{ matrix.suite }})
+        if: matrix.suite != 'media-sdk'
+        run: bun run test:rust-${{ matrix.suite }}
       - name: Exercise real isolated derivatives, recovery and purge through the public SDK
+        if: matrix.suite == 'media-sdk'
         env:
           HYORI_MEDIA_TEST_IMAGE: hyori-media-ci:${{ github.sha }}
         run: bun run test:rust-media-sdk
-      - name: Exercise editor persistence, stable saves and revocation through the public SDK
-        run: bun run test:rust-editors-sdk
 
   rust-image:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.4.4"
-      - name: Install workspace dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
+      - uses: docker/setup-buildx-action@v4
+      - uses: crazy-max/ghaction-github-runtime@v4
       - name: Build the Rust release container without publishing
-        run: docker build --file apps/server/Dockerfile --tag hyori-rust-ci:${{ github.sha }} .
+        run: >-
+          docker buildx build --progress plain --load
+          --cache-from type=gha,scope=hyori-server
+          --cache-to type=gha,scope=hyori-server,mode=max,ignore-error=true
+          --build-arg CARGO_BUILD_JOBS=4
+          --file apps/server/Dockerfile --tag hyori-rust-ci:${{ github.sha }} .
       - name: Drive the production-mode release image through the public SDK
         run: bun run test:rust-image hyori-rust-ci:${{ github.sha }}
       - name: Build the actual Nitro web host
         run: bun run --cwd apps/web build
       - name: Exercise public SDK through HTTPS termination and the built Nitro host
         run: bun run test:rust-web-host hyori-rust-ci:${{ github.sha }}
+
+  web-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
       - name: Build the minimal frontend container without publishing
         run: docker build --file apps/web/Dockerfile --tag hyori-web-ci:${{ github.sha }} .
       - name: Verify read-only nonroot frontend runtime and environment isolation

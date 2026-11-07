@@ -1,0 +1,74 @@
+name: Set up Hyori Cloud
+description: Install the pinned toolchains and locked workspace dependencies one CI job needs.
+
+inputs:
+  rust:
+    description: Install the native Rust prerequisites, the pinned toolchain and the locked Cargo graph.
+    default: "false"
+  rust-cache:
+    description: Shared Rust build cache for jobs that compile the same profile and features; empty for none.
+    default: ""
+  save-rust-cache:
+    description: Whether this job saves the shared Rust build cache. One job per cache saves it.
+    default: "false"
+  architecture-checker:
+    description: Install the locked architecture checker.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+        cache: ${{ inputs.architecture-checker == 'true' && 'npm' || '' }}
+        cache-dependency-path: tooling/fernando-lint/package-lock.json
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: "1.4.4"
+    # apt and the JavaScript installs run in the background while the toolchain and caches restore.
+    - name: Start installing native Rust prerequisites and workspace dependencies
+      shell: bash
+      env:
+        RUST: ${{ inputs.rust }}
+        ARCHITECTURE_CHECKER: ${{ inputs.architecture-checker }}
+      run: |
+        background() {
+          name="$1"
+          shift
+          ( set +e; "$@"; echo "$?" > "$RUNNER_TEMP/setup-$name.status" ) > "$RUNNER_TEMP/setup-$name.log" 2>&1 &
+        }
+        if [ "$RUST" = true ]; then
+          background apt sh -c 'sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev libssl-dev pkg-config clang'
+        fi
+        background bun bun install --frozen-lockfile
+        if [ "$ARCHITECTURE_CHECKER" = true ]; then
+          background npm npm --prefix tooling/fernando-lint ci
+        fi
+    - name: Install the repository-pinned Rust toolchain and components
+      if: inputs.rust == 'true'
+      shell: bash
+      run: rustup show active-toolchain
+    - name: Restore the shared Rust build cache
+      if: inputs.rust == 'true' && inputs.rust-cache != ''
+      uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ inputs.rust-cache }}
+        save-if: ${{ inputs.save-rust-cache == 'true' }}
+    - name: Fetch the exact workspace dependency graph
+      if: inputs.rust == 'true'
+      shell: bash
+      run: cargo fetch --locked
+    - name: Finish installing native Rust prerequisites and workspace dependencies
+      shell: bash
+      run: |
+        failed=0
+        for name in apt bun npm; do
+          [ -e "$RUNNER_TEMP/setup-$name.log" ] || continue
+          while [ ! -f "$RUNNER_TEMP/setup-$name.status" ]; do sleep 1; done
+          echo "::group::$name"
+          cat "$RUNNER_TEMP/setup-$name.log"
+          echo "::endgroup::"
+          [ "$(cat "$RUNNER_TEMP/setup-$name.status")" = 0 ] || failed=1
+        done
+        exit "$failed"

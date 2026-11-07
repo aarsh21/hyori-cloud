@@ -1,0 +1,36 @@
+name: Isolated decoder image
+description: >-
+  Build the media worker image in the background with cached layers, so the job's Rust compile runs
+  meanwhile; wait for it before the steps that use it.
+
+inputs:
+  phase:
+    description: "start: begin the background build; wait: block until it finished and fail if it did."
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - if: inputs.phase == 'start'
+      uses: docker/setup-buildx-action@v4
+    - if: inputs.phase == 'start'
+      uses: crazy-max/ghaction-github-runtime@v4
+    - name: Start building the isolated decoder image without publishing
+      if: inputs.phase == 'start'
+      shell: bash
+      run: |
+        (
+          set +e
+          docker buildx build --progress plain --load \
+            --cache-from type=gha,scope=hyori-media-worker \
+            --cache-to type=gha,scope=hyori-media-worker,mode=max,ignore-error=true \
+            --file apps/media-worker/Dockerfile --tag "hyori-media-ci:${GITHUB_SHA}" .
+          echo "$?" > "$RUNNER_TEMP/media-image.status"
+        ) > "$RUNNER_TEMP/media-image.log" 2>&1 &
+    - name: Build the isolated decoder image without publishing
+      if: inputs.phase == 'wait'
+      shell: bash
+      run: |
+        while [ ! -f "$RUNNER_TEMP/media-image.status" ]; do sleep 1; done
+        cat "$RUNNER_TEMP/media-image.log"
+        exit "$(cat "$RUNNER_TEMP/media-image.status")"
