@@ -4,7 +4,7 @@ use serde_json::json;
 use std::collections::BTreeSet;
 
 #[test]
-fn listing_statements_bind_every_slot_and_keep_unadopted_scopes_on_baseline() {
+fn listing_statements_bind_every_slot() {
     let mut exported = vec![];
     for (view, parent) in [
         ("files", None),
@@ -64,26 +64,17 @@ fn listing_statements_bind_every_slot_and_keep_unadopted_scopes_on_baseline() {
                     input.max_size.as_ref().map(|b| b.0 as i64).into(),
                     101_i64.into(),
                 ];
-                let fallback =
-                    view != "trash" && parent.is_none() && (view != "shared" || !search.is_empty());
-                let parameter_slots: Vec<_> = if fallback {
-                    assert_eq!(statement.sql, BASELINE_LIST_SQL);
-                    assert_eq!(values, &canonical);
-                    (1..=13).collect()
-                } else {
-                    assert_ne!(statement.sql, BASELINE_LIST_SQL);
-                    assert_eq!(values.last(), Some(&Value::from(101_i64)));
-                    values
-                        .iter()
-                        .map(|value| {
-                            canonical
-                                .iter()
-                                .position(|original| original == value)
-                                .unwrap()
-                                + 1
-                        })
-                        .collect()
-                };
+                assert_eq!(values.last(), Some(&Value::from(101_i64)));
+                let parameter_slots: Vec<_> = values
+                    .iter()
+                    .map(|value| {
+                        canonical
+                            .iter()
+                            .position(|original| original == value)
+                            .unwrap()
+                            + 1
+                    })
+                    .collect();
                 exported.push(json!({
                     "input": {"actor":user,"publicShares":grants,"cursor":"opaque-cursor","view":view,"parent":parent,"search":search,"type":kind,"after":wire.get("after"),"before":wire.get("before"),"minSize":wire.get("minSize"),"maxSize":wire.get("maxSize"),"limit":100},
                     "sql":statement.sql,"parameterSlots":parameter_slots

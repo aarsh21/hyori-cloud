@@ -50,6 +50,13 @@ const baselineArchiveHash = "56660298407edf2c5394645945be3e581d42343f99b6c220249
 const listSourcePath = "apps/server/src/features/files/service.rs";
 const policySourcePath = "apps/server/src/features/files/policy.rs";
 
+/** Last revision whose production listing kept the measured baseline SQL (replaced by migration 0014's owner-scoped branches). */
+const baselineRevision = "ad1641e336e767af24557b185cef96989369260b";
+
+export function readBaselineSource(path: string) {
+  return execFileSync("git", ["show", `${baselineRevision}:${path}`], { encoding: "utf8" });
+}
+
 export function normalizeSql(sql: string) {
   return sql.replace(/\s+/g, " ").trim();
 }
@@ -405,9 +412,9 @@ async function main() {
   await mkdir(join(output, "plans"));
   await mkdir(join(output, "queries"));
   console.log(`Synthetic SQL experiment artifacts: ${output}`);
-  const source = await readFile(listSourcePath, "utf8");
+  const source = readBaselineSource(listSourcePath);
   const baseline = extractListing(source);
-  const policy = await readFile(policySourcePath, "utf8");
+  const policy = readBaselineSource(policySourcePath);
 
   const roles = policy.match(
     /"(SELECT scope\.id, max\(CASE s\.role[\s\S]*?GROUP BY scope\.id)"/,
@@ -963,9 +970,9 @@ async function main() {
           plans: measurements.length,
           equivalencePassed: true,
           finalHostLoad: loadavg(),
-          listSourceStillMatches: hash(await readFile(listSourcePath, "utf8")) === hash(source),
+          listSourceStillMatches: hash(readBaselineSource(listSourcePath)) === hash(source),
           listingSqlStillMatches:
-            normalizeSql(extractListing(await readFile(listSourcePath, "utf8"))) ===
+            normalizeSql(extractListing(readBaselineSource(listSourcePath))) ===
             normalizeSql(baseline),
           notes:
             "Only fixture SQL exercised. Identity, parent authorization, transaction/revocation races, SDK/web and released server integration remain mandatory follow-up.",
@@ -1245,7 +1252,7 @@ if (import.meta.main) {
   if (process.argv[2] === "--check-production-templates") {
     const path = process.argv[3];
     assert.ok(path, "pass the JSON exported by the Rust listing unit test");
-    const baseline = extractListing(await readFile(listSourcePath, "utf8"));
+    const baseline = extractListing(readBaselineSource(listSourcePath));
     const templates = productionTemplateSchema.parse(JSON.parse(await readFile(path, "utf8")));
     const count = checkProductionTemplates(baseline, templates);
     process.stdout.write(

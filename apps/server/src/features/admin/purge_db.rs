@@ -71,9 +71,15 @@ pub(crate) async fn prepare(tx: &DatabaseTransaction, user: &str) -> DomainResul
         vec![user.into()],
     ))
     .await?;
+    // Memberships in the account's albums and of the account's files, each reached through its
+    // owner's own rows, so revisiting a finished account never walks other tenants' albums.
     tx.execute_raw(sql("DELETE FROM hyori_photo_album_items WHERE (album_id,file_id) IN (
-        SELECT a.album_id,a.file_id FROM hyori_photo_album_items a WHERE EXISTS(SELECT 1 FROM hyori_photo_albums p WHERE p.id=a.album_id AND p.owner_id=$1)
-        OR EXISTS(SELECT 1 FROM hyori_items i WHERE i.id=a.file_id AND i.owner_id=$1) ORDER BY a.album_id,a.file_id LIMIT 256)",vec![user.into()])).await?;
+        (SELECT a.album_id,a.file_id FROM hyori_photo_albums p JOIN hyori_photo_album_items a ON a.album_id=p.id
+         WHERE p.owner_id=$1 ORDER BY a.album_id,a.file_id LIMIT 256)
+        UNION
+        (SELECT a.album_id,a.file_id FROM hyori_items i JOIN hyori_photo_album_items a ON a.file_id=i.id
+         WHERE i.owner_id=$1 ORDER BY a.album_id,a.file_id LIMIT 256)
+        ORDER BY 1,2 LIMIT 256)",vec![user.into()])).await?;
     tx.execute_raw(sql("DELETE FROM hyori_photo_albums WHERE id IN (SELECT a.id FROM hyori_photo_albums a WHERE a.owner_id=$1 AND NOT EXISTS(SELECT 1 FROM hyori_photo_album_items i WHERE i.album_id=a.id) ORDER BY a.id LIMIT 256)",vec![user.into()])).await?;
     tx.execute_raw(sql("DELETE FROM hyori_versions WHERE id IN (SELECT id FROM hyori_versions WHERE owner_id=$1 ORDER BY id LIMIT 256)",vec![user.into()])).await?;
     tx.execute_raw(sql("UPDATE hyori_items SET uploaded_by=NULL WHERE id IN (SELECT id FROM hyori_items WHERE uploaded_by=$1 ORDER BY id LIMIT 256)",vec![user.into()])).await?;

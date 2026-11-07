@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
 import {
   candidateSql,
   checkProductionTemplates,
@@ -7,6 +6,7 @@ import {
   normalizeSql,
   parameters,
   planCounters,
+  readBaselineSource,
   type ExperimentInput,
 } from "./metadata-query-experiments.ts";
 
@@ -28,9 +28,7 @@ function input(patch: Partial<ExperimentInput> = {}): ExperimentInput {
   };
 }
 
-const baseline = extractListing(
-  await readFile("apps/server/src/features/files/service.rs", "utf8"),
-);
+const baseline = extractListing(readBaselineSource("apps/server/src/features/files/service.rs"));
 
 test("rejects missing authoritative SQL and normalizes whitespace only", () => {
   expect(() => extractListing("not a query")).toThrow();

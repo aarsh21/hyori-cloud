@@ -235,7 +235,7 @@ The smallest supported handoff is deliberately partial:
 1. **Explicit-parent listing:** replace the global CASE with `i.parent_id = <bound parent>`, retaining the original item authorization OR/EXISTS and active-owner/issuer checks. Add only the requested filter predicates, using bound values.
 2. **Trash:** retain owner-only trash-group semantics in a separate explicit predicate, allowing the existing partial trash index.
 3. **Shared roots only** (`view=shared`, no parent, empty search): materialize all eligible current share-root IDs once, deduplicate them, use indexed target-ID lookups, exclude owned/trashed/inactive-owner items, apply filters and cursor before the 101-row page, then fetch metadata for those IDs. Do not expand inherited descendants in this branch.
-4. **Ordinary root browsing and library-wide search:** keep the baseline for now. The robust general replacement is **not solved** by this experiment. In particular, the original ordinary-root-100 and unauthorized no-match full-library scans remain in the recommended selector.
+4. **Ordinary root browsing and library-wide search:** keep the baseline for now (superseded; see "Owner-scoped root, search and timeline" below). The robust general replacement is **not solved** by this experiment. In particular, the original ordinary-root-100 and unauthorized no-match full-library scans remain in the recommended selector.
 
 The final `recommended` selector was tested as a whole, not inferred solely from tests of its pieces. Primary values below are medians of three PostgreSQL execution observations in milliseconds, excluding Bun/SDK/Rust/HTTP. The trash row has one observation per mode.
 
@@ -350,3 +350,15 @@ bun scripts/metadata-query-experiments.ts --check-production-templates /absolute
 ```
 
 Use the repository's Rust build environment for native ICU and bounded build parallelism. Only the explicit `--check-production-templates` mode is service-free; the default experiment command starts its isolated PostgreSQL fixture and is deferred. No Docker fixtures, benchmark cohorts or release builds were started by this adoption task. Real regression gates, matched immutable pre/post images and a frozen SDK/workload capsule remain required. The **2-CPU/4-GB complete-stack target is unbenchmarked**; 150/300 ms remain proposed comparison thresholds, not agreed SLOs or NAS capacity claims.
+
+## Owner-scoped root, search and timeline (migration 0014)
+
+The retained baseline for ordinary root browsing and library-wide search is gone. `listing_statement` now merges two branches that cannot overlap: the actor's own items through owner indexes, limited to the page, and items reached from the actor's current shares, materialized before ordering. Both use one id order and one cursor. Root listing filters `parent_id IS NULL` through the new partial index `hyori_items_owner_root`. `eligible_share_roots` looks up recipient shares by index and public shares by ID instead of scanning `hyori_shares`. The Photos timeline starts from album memberships for album views, and otherwise merges the actor's own media index with source-folder subtrees. Account purge reaches album memberships through the account's own albums (`hyori_photo_albums_owner_id`) and files.
+
+Measured with PostgreSQL 17 EXPLAIN (ANALYZE, BUFFERS) on synthetic data, warm, custom/generic plans:
+
+- 101 accounts, 200k items, 1,600 shares: root for an empty account went from 29.7 s/38.4 s to 0.37/0.69 ms; shared-view search from 47.3 s to 1.5 ms.
+- 501 accounts, 1M items, 207,500 shares: every listing case took 0.35–10 ms; timeline went from 386–818 ms (about 400 ms of it JIT) to 0.4–19 ms.
+- Purge revisit of a finished account, 200 accounts × 1,000 memberships: 19.5–22.7 ms to 0.14–0.21 ms.
+
+Equivalence against the old SQL, column by column and in order: listing 6,534 cases (14,766 queries), timeline 672 cases (2,622 queries), and purge batch logs with matching SHA-256 digests. Remaining costs grow with the actor's own data: a no-match substring search reads all of the actor's own items, and users with very many incoming shares pay a check per share and folder depth (measured fine at 1,995 shares). `scripts/metadata-query-experiments.ts` now reads its baseline from revision `ad1641e`.

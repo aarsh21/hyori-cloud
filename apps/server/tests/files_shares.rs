@@ -992,7 +992,8 @@ async fn snapshot_does_not_mix_revoked_grants_with_moved_private_metadata() {
     let change = async {
         let mut waiting = false;
         for _ in 0..100 {
-            let row=first.state.db.query_one_raw(sql("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT i.* FROM hyori_items%') AS waiting",vec![])).await.unwrap().unwrap();
+            // Grant resolution never reads items, so a lock wait on them is the metadata query.
+            let row=first.state.db.query_one_raw(sql("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%FROM hyori_items i%') AS waiting",vec![])).await.unwrap().unwrap();
             if row.try_get::<bool>("", "waiting").unwrap() {
                 waiting = true;
                 break;

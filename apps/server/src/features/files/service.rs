@@ -19,37 +19,6 @@ use chrono::Utc;
 use sea_orm::{ConnectionTrait, DatabaseTransaction, Statement};
 use std::sync::Arc;
 
-// Ordinary root browsing and library-wide searches retain this baseline until separately measured.
-const BASELINE_LIST_SQL: &str = "SELECT i.* FROM hyori_items i
-                 JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'
-                 WHERE (i.owner_id=$1 OR EXISTS (
-                     SELECT 1 FROM jsonb_array_elements_text(i.ancestor_ids || jsonb_build_array(i.id)) AS root(id)
-                     JOIN hyori_shares s ON s.item_id=root.id AND s.revoked_at IS NULL
-                     JOIN hyori_users issuer ON issuer.id=s.issuer_id AND issuer.status='active'
-                     WHERE (s.recipient_id=$1 OR (s.public AND s.id IN (SELECT jsonb_array_elements_text($2::jsonb))))
-                       AND (s.expires_at IS NULL OR s.expires_at>now())))
-                   AND i.id>$3
-                   AND (($4 AND i.owner_id=$1 AND i.trashed_at IS NOT NULL AND i.trash_root=i.id)
-                        OR (NOT $4 AND i.trashed_at IS NULL))
-                   AND (NOT $5 OR i.owner_id IS DISTINCT FROM $1)
-                   AND ($4 OR CASE
-                        WHEN $5 AND $6::text IS NULL AND $7=''
-                            THEN EXISTS (SELECT 1 FROM hyori_shares s
-                                JOIN hyori_users issuer ON issuer.id=s.issuer_id AND issuer.status='active'
-                                WHERE s.item_id=i.id AND s.revoked_at IS NULL
-                                  AND (s.expires_at IS NULL OR s.expires_at>now())
-                                  AND (s.recipient_id=$1 OR (s.public AND s.id IN (SELECT jsonb_array_elements_text($2::jsonb)))))
-                        WHEN $6::text IS NOT NULL OR $7=''
-                            THEN i.parent_id IS NOT DISTINCT FROM $6
-                        ELSE true END)
-                   AND ($7='' OR strpos(lower(i.name),$7)>0)
-                   AND ($8='' OR i.kind=$8 OR i.mime_type=$8 OR starts_with(i.mime_type,$8||'/'))
-                   AND ($9::timestamptz IS NULL OR i.updated_at >= $9)
-                   AND ($10::timestamptz IS NULL OR i.updated_at <= $10)
-                   AND ($11::bigint IS NULL OR i.size >= $11)
-                   AND ($12::bigint IS NULL OR i.size <= $12)
-                 ORDER BY i.id LIMIT $13";
-
 fn listing_statement(
     input: &ListFiles,
     user_id: Option<&str>,
@@ -66,26 +35,6 @@ fn listing_statement(
     let kind = input.r#type.as_deref().unwrap_or_default();
     let min_size = input.min_size.as_ref().map(|b| b.0 as i64);
     let max_size = input.max_size.as_ref().map(|b| b.0 as i64);
-    if !trash && parent.is_none() && (!shared || !search.is_empty()) {
-        return Ok(sql(
-            BASELINE_LIST_SQL,
-            vec![
-                user_id.into(),
-                serde_json::json!(public_shares).into(),
-                cursor.into(),
-                trash.into(),
-                shared.into(),
-                parent.into(),
-                search.into(),
-                kind.into(),
-                after.into(),
-                before.into(),
-                min_size.into(),
-                max_size.into(),
-                i64::from(limit + 1).into(),
-            ],
-        ));
-    }
 
     // Bind only used values: sparse experiment PREPARE slots cannot be inferred by SQLx.
     let mut values = vec![];
@@ -95,7 +44,8 @@ fn listing_statement(
     };
     let actor = bind(user_id.into());
     let cursor = bind(cursor.into());
-    let shared_roots = !trash && parent.is_none();
+    let searching = !search.is_empty();
+    let shared_roots = !trash && parent.is_none() && shared && !searching;
     let mut predicates = if shared_roots {
         vec![]
     } else {
@@ -108,8 +58,11 @@ fn listing_statement(
         ]);
     } else {
         predicates.push("i.trashed_at IS NULL".into());
+        if parent.is_none() && !searching && !shared {
+            predicates.push("i.parent_id IS NULL".into());
+        }
     }
-    if !search.is_empty() {
+    if searching {
         let search = bind(search.into());
         predicates.push(format!("strpos(lower(i.name),{search})>0"));
     }
@@ -140,6 +93,7 @@ fn listing_statement(
         )
     } else {
         let grants = bind(serde_json::json!(public_shares).into());
+        let eligible = policy::eligible_share_roots(&actor, &grants);
         if let Some(parent) = parent {
             let parent = bind(parent.into());
             predicates.push(format!("i.parent_id={parent}"));
@@ -158,16 +112,41 @@ fn listing_statement(
                 WHERE {} ORDER BY i.id LIMIT {lookahead}",
                 predicates.join(" AND ")
             )
+        } else if !shared_roots {
+            // Library root and searches: the actor's own items through owner indexes, plus items
+            // reached from the actor's current shares, so the cost never grows with other
+            // accounts' libraries. Each branch is already filtered and keyset-limited; the merge
+            // keeps the single id order and cursor of one listing. Branches are disjoint by owner.
+            // Shared candidates are collected before ordering: under a generic plan, ORDER BY id
+            // LIMIT otherwise tempts PostgreSQL into walking the whole primary key.
+            let lookahead = bind(i64::from(limit + 1).into());
+            let predicates = predicates.join(" AND ");
+            let owned = if shared {
+                String::new()
+            } else {
+                format!(
+                    "(SELECT i.id FROM hyori_items i {active_owner}
+                    WHERE i.owner_id={actor} AND {predicates} ORDER BY i.id LIMIT {lookahead}) UNION ALL"
+                )
+            };
+            // A root (parentless) item has no ancestors, so only searches reach shared descendants.
+            let descendants = if searching {
+                " OR i.ancestor_ids ?| ARRAY(SELECT item_id FROM eligible)"
+            } else {
+                ""
+            };
+            format!("WITH eligible AS MATERIALIZED ({eligible}), reachable AS MATERIALIZED (
+                SELECT i.id FROM hyori_items i {active_owner}
+                WHERE (i.id=ANY(ARRAY(SELECT item_id FROM eligible)){descendants})
+                  AND i.owner_id IS DISTINCT FROM {actor} AND {predicates}
+              ), page AS MATERIALIZED ({owned}
+                (SELECT id FROM reachable ORDER BY id LIMIT {lookahead})
+              ) SELECT i.* FROM page p JOIN hyori_items i ON i.id=p.id ORDER BY i.id LIMIT {lookahead}")
         } else {
             // Keep the measured direct-root shape, including its materialization boundaries.
             // Deduplication precedes page limiting; no inherited descendants or grant limit.
             let lookahead = bind(i64::from(limit + 1).into());
-            format!("WITH eligible AS MATERIALIZED (
-                SELECT DISTINCT s.item_id FROM hyori_shares s
-                JOIN hyori_users issuer ON issuer.id=s.issuer_id AND issuer.status='active'
-                WHERE s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())
-                  AND (s.recipient_id={actor} OR (s.public AND s.id IN (SELECT jsonb_array_elements_text({grants}::jsonb))))
-              ), visible AS MATERIALIZED (
+            format!("WITH eligible AS MATERIALIZED ({eligible}), visible AS MATERIALIZED (
                 SELECT id FROM ((WITH scope_ids AS MATERIALIZED (
                   SELECT i.id FROM hyori_items i {active_owner}
                   WHERE i.id=ANY(ARRAY(SELECT item_id FROM eligible)) AND i.owner_id IS DISTINCT FROM {actor} AND {}

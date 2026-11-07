@@ -12,10 +12,23 @@ use crate::{
     wire::Nullable,
 };
 use chrono::{DateTime, Utc};
-use sea_orm::ConnectionTrait;
+use sea_orm::{ConnectionTrait, Statement};
 use std::sync::Arc;
 
 use crate::features::files::preview::MEDIA;
+
+// Timeline scopes are driven from the album, the actor's own media index, or the chosen source
+// folders' subtrees, never from the instance-wide media timeline. Shared bindings: $1 actor,
+// $2 public grants, $3 media types, $4/$5 cursor. Items reached through a source folder or album
+// are visible when owned or under one of the actor's eligible share roots, the same rule as
+// `policy::load_roles`, checked against the materialized roots rather than a per-row subplan.
+const ACTIVE_OWNER: &str = "JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'";
+const TIMELINE_PAGE: &str = "i.kind='file' AND i.trashed_at IS NULL
+    AND i.mime_type=ANY(ARRAY(SELECT jsonb_array_elements_text($3::jsonb)))
+    AND ($4::timestamptz IS NULL OR (i.created_at,i.id)<($4,$5))";
+const VISIBLE: &str = "(i.owner_id=$1 OR i.id=ANY(ARRAY(SELECT item_id FROM eligible))
+    OR i.ancestor_ids ?| ARRAY(SELECT item_id FROM eligible))";
+const TIMELINE_ORDER: &str = "ORDER BY i.created_at DESC,i.id DESC LIMIT 101";
 
 pub(crate) struct PhotosService {
     files: FilesService,
@@ -53,40 +66,60 @@ impl PhotosService {
     pub async fn timeline(&self, input: TimelineInput) -> Result<Timeline, ApiError> {
         let cursor = timeline_cursor(input.cursor.as_ref().and_then(|value| value.0.as_deref()))?;
         let media_enabled = self.media_enabled;
-        self.files.run(move |tx, actor| {
-            let input = input.clone();
-            let cursor = cursor.clone();
-            Box::pin(async move {
-                let user = actor.require_user()?;
-                let album = input.album_id.map(|id| id.0);
-                let sources = if let Some(id) = &album {
-                    db::require_album(tx, user, id).await?;
-                    PhotoSources { all_my_files: false, folder_ids: vec![] }
-                } else { db::sources(tx, &actor).await? };
-                let mut rows = tx.query_all_raw(sql(
-                    "SELECT i.* FROM hyori_items i JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'
-                     WHERE i.kind='file' AND i.trashed_at IS NULL
-                       AND i.mime_type IN (SELECT jsonb_array_elements_text($3::jsonb))
-                       AND (i.owner_id=$1 OR EXISTS (
-                         SELECT 1 FROM jsonb_array_elements_text(i.ancestor_ids || jsonb_build_array(i.id)) AS root(id)
-                         JOIN hyori_shares s ON s.item_id=root.id AND s.revoked_at IS NULL
-                         JOIN hyori_users issuer ON issuer.id=s.issuer_id AND issuer.status='active'
-                         WHERE (s.recipient_id=$1 OR (s.public AND s.id IN (SELECT jsonb_array_elements_text($2::jsonb))))
-                           AND (s.expires_at IS NULL OR s.expires_at>now())))
-                       AND CASE WHEN $4::text IS NOT NULL THEN EXISTS (
-                         SELECT 1 FROM hyori_photo_album_items a WHERE a.album_id=$4 AND a.file_id=i.id)
-                         ELSE (($5 AND i.owner_id=$1) OR i.ancestor_ids ?| ARRAY(SELECT jsonb_array_elements_text($6::jsonb))) END
-                       AND ($7::timestamptz IS NULL OR (i.created_at,i.id)<($7,$8))
-                     ORDER BY i.created_at DESC,i.id DESC LIMIT 101",
-                    vec![user.into(),serde_json::json!(actor.public_shares()).into(),serde_json::json!(MEDIA).into(),album.into(),sources.all_my_files.into(),serde_json::json!(sources.folder_ids).into(),cursor.as_ref().map(|c| c.0).into(),cursor.as_ref().map(|c| c.1.clone()).into()],
-                )).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
-                let next_cursor = if rows.len() > 100 { Some(format!("{}|{}",rows[99].created_at.to_rfc3339(),rows[99].id)) } else { None };
-                rows.truncate(100);
-                policy::load_roles(tx, &actor, &mut rows).await?;
-                let derivatives=crate::features::media::service::describe_page(tx,&rows,media_enabled).await?;
-                Ok(Timeline { items: rows.iter().zip(derivatives).map(|(item,derivative)| TimelineItem { file: policy::project(item,&actor), preview_url: preview_url(&item.id, None, item.revision), derivative: Some(derivative) }).collect(), next_cursor: Nullable(next_cursor), breadcrumbs: vec![], folder: Nullable(None) })
+        self.files
+            .run(move |tx, actor| {
+                let input = input.clone();
+                let cursor = cursor.clone();
+                Box::pin(async move {
+                    let user = actor.require_user()?;
+                    let album = input.album_id.map(|id| id.0);
+                    let sources;
+                    let scope = if let Some(id) = &album {
+                        db::require_album(tx, user, id).await?;
+                        TimelineScope::Album(id)
+                    } else {
+                        sources = db::sources(tx, &actor).await?;
+                        TimelineScope::Sources(&sources)
+                    };
+                    let statement =
+                        timeline_statement(user, actor.public_shares(), scope, cursor.as_ref());
+                    let mut rows = tx
+                        .query_all_raw(statement)
+                        .await?
+                        .into_iter()
+                        .map(Item::from_row)
+                        .collect::<DomainResult<Vec<_>>>()?;
+                    let next_cursor = if rows.len() > 100 {
+                        Some(format!(
+                            "{}|{}",
+                            rows[99].created_at.to_rfc3339(),
+                            rows[99].id
+                        ))
+                    } else {
+                        None
+                    };
+                    rows.truncate(100);
+                    policy::load_roles(tx, &actor, &mut rows).await?;
+                    let derivatives =
+                        crate::features::media::service::describe_page(tx, &rows, media_enabled)
+                            .await?;
+                    Ok(Timeline {
+                        items: rows
+                            .iter()
+                            .zip(derivatives)
+                            .map(|(item, derivative)| TimelineItem {
+                                file: policy::project(item, &actor),
+                                preview_url: preview_url(&item.id, None, item.revision),
+                                derivative: Some(derivative),
+                            })
+                            .collect(),
+                        next_cursor: Nullable(next_cursor),
+                        breadcrumbs: vec![],
+                        folder: Nullable(None),
+                    })
+                })
             })
-        }).await
+            .await
     }
     pub async fn albums(&self) -> Result<Albums, ApiError> {
         self.files.run(|tx, actor| Box::pin(async move {
@@ -129,6 +162,50 @@ impl PhotosService {
             })
         }).await
     }
+}
+enum TimelineScope<'a> {
+    Album(&'a str),
+    Sources(&'a PhotoSources),
+}
+fn timeline_statement(
+    user: &str,
+    public_shares: &[String],
+    scope: TimelineScope,
+    cursor: Option<&(DateTime<Utc>, String)>,
+) -> Statement {
+    let mut values = vec![
+        user.into(),
+        serde_json::json!(public_shares).into(),
+        serde_json::json!(MEDIA).into(),
+        cursor.map(|c| c.0).into(),
+        cursor.map(|c| c.1.clone()).into(),
+    ];
+    let eligible = policy::eligible_share_roots("$1", "$2");
+    let statement = match scope {
+        TimelineScope::Album(id) => {
+            values.push(id.into());
+            format!("WITH eligible AS MATERIALIZED ({eligible})
+                SELECT i.* FROM hyori_photo_album_items a JOIN hyori_items i ON i.id=a.file_id {ACTIVE_OWNER}
+                WHERE a.album_id=$6 AND {TIMELINE_PAGE} AND {VISIBLE} {TIMELINE_ORDER}")
+        }
+        TimelineScope::Sources(sources) => {
+            values.extend([
+                sources.all_my_files.into(),
+                serde_json::json!(sources.folder_ids).into(),
+            ]);
+            format!(
+                "WITH eligible AS MATERIALIZED ({eligible}), page AS MATERIALIZED (
+                (SELECT i.id FROM hyori_items i {ACTIVE_OWNER}
+                 WHERE $6 AND i.owner_id=$1 AND {TIMELINE_PAGE} {TIMELINE_ORDER})
+                UNION
+                (SELECT i.id FROM hyori_items i {ACTIVE_OWNER}
+                 WHERE i.ancestor_ids ?| ARRAY(SELECT jsonb_array_elements_text($7::jsonb))
+                   AND {TIMELINE_PAGE} AND {VISIBLE} {TIMELINE_ORDER})
+            ) SELECT i.* FROM page p JOIN hyori_items i ON i.id=p.id {TIMELINE_ORDER}"
+            )
+        }
+    };
+    sql(&statement, values)
 }
 fn timeline_cursor(cursor: Option<&str>) -> Result<Option<(DateTime<Utc>, String)>, ApiError> {
     let Some(cursor) = cursor else {
