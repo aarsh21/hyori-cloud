@@ -62,7 +62,9 @@ const revisions = [
 
 type Revision = (typeof revisions)[number];
 
-const current = revisions[revisions.length - 1]!;
+/** The revision `record` and `assemble` write: the last entry above. */
+export const currentNativeRevision = revisions[revisions.length - 1]!;
+const current = currentNativeRevision;
 const legalRoot = "legal/native-host-v3";
 const bridge = "hyori-correlated-host-v2";
 const maxFiles = 10000;
@@ -86,6 +88,8 @@ const receiptSchema = z.object({
   sourceSummarySha256: digest,
   wasmSha256: digest,
   payloadSha256: digest,
+  // Recorded from r2 on; r1 receipts predate it.
+  cspScriptHashes: z.array(z.string().regex(/^sha256-[A-Za-z0-9+/]{43}=$/u)).optional(),
   files: z.array(record).min(1).max(100),
 });
 
@@ -134,6 +138,7 @@ export async function recordNativeAuthority(evidenceRoot: string) {
 
   if (await exists(authorityPath)) throw new Error("Refusing to overwrite native v3 authority");
   const apps: Authority["apps"] = [];
+  const writes: [string, Record<string, Buffer>][] = [];
 
   for (const app of nativeApps) {
     const evidence = join(evidenceRoot, app);
@@ -151,16 +156,33 @@ export async function recordNativeAuthority(evidenceRoot: string) {
     )
       throw new Error(`Native ${app} receipt differs from its evidence`);
 
-    const target = join(toolingRoot, current.receiptRoot, app);
-    await mkdir(target, { recursive: true });
+    // A version names one payload: a rebuilt app may keep an earlier revision's version only if
+    // it reproduced that payload bit for bit. Otherwise bump nativeArtifactVersions.
+    for (const earlier of revisions.slice(0, -1)) {
+      const path = join(toolingRoot, earlier.authority);
 
-    for (const [name, bytes] of [
-      ["receipt.json", receiptBytes],
-      ["build-manifest.json", buildManifest],
-      ["source-summary.json", sourceSummary],
-    ] as const)
-      await writeFile(join(target, name), bytes, { flag: "wx" });
+      if (!(await exists(path))) continue;
 
+      const named = nativeAuthoritySchema
+        .parse(JSON.parse(await readFile(path, "utf8")))
+        .apps.find(
+          (entry) => entry.app === app && entry.artifactVersion === receipt.artifactVersion,
+        );
+
+      if (named && named.payloadSha256 !== receipt.payloadSha256)
+        throw new Error(
+          `${app} ${receipt.artifactVersion} already names another payload in ${earlier.authority}; bump its version`,
+        );
+    }
+
+    writes.push([
+      app,
+      {
+        "receipt.json": receiptBytes,
+        "build-manifest.json": buildManifest,
+        "source-summary.json": sourceSummary,
+      },
+    ]);
     apps.push({
       app,
       artifactVersion: receipt.artifactVersion,
@@ -180,6 +202,15 @@ export async function recordNativeAuthority(evidenceRoot: string) {
     receiptRoot: current.receiptRoot,
     apps,
   });
+
+  // Written only once all four receipts are accepted.
+  for (const [app, files] of writes) {
+    const target = join(toolingRoot, current.receiptRoot, app);
+    await mkdir(target, { recursive: true });
+
+    for (const [name, bytes] of Object.entries(files))
+      await writeFile(join(target, name), bytes, { flag: "wx" });
+  }
 
   await writeFile(authorityPath, `${JSON.stringify(authority, null, 2)}\n`, { flag: "wx" });
 
@@ -315,6 +346,7 @@ function handoffReceipt(
   authority: Authority,
   manifestBytes: Buffer,
   manifest: { assets: { bytes: number }[]; transportSidecars: { bytes: number }[] },
+  receipts: Map<string, { receipt: z.infer<typeof receiptSchema> }>,
 ) {
   const bundleRoot = `tooling/artcraft/.generated/${revision.bundle}`;
   const total = (files: { bytes: number }[]) => files.reduce((sum, file) => sum + file.bytes, 0);
@@ -352,6 +384,8 @@ function handoffReceipt(
       assetUrl: `/artcraft/${entry.app}/${entry.artifactVersion}/index.html?host=parent`,
       payloadSha256: entry.payloadSha256,
       wasmSha256: entry.wasmSha256,
+      // CSP hashes of the inline loader in index.html; absent for r1, so its handoff is unchanged.
+      cspScriptHashes: receipts.get(entry.app)!.receipt.cspScriptHashes,
     })),
     deploymentScope: "verified-static-assets-only-not-product-launch-or-legal-clearance",
     legalOpinion: false,
@@ -544,9 +578,13 @@ export async function createNativeRuntime(
     await setModes(staging, true);
     await checkNativeRuntime(staging, sha256(manifestBytes));
     await rename(staging, output);
-    await writeFile(handoffPath, handoffReceipt(current, authority, manifestBytes, manifest), {
-      flag: "wx",
-    });
+    await writeFile(
+      handoffPath,
+      handoffReceipt(current, authority, manifestBytes, manifest, receipts),
+      {
+        flag: "wx",
+      },
+    );
   } catch (cause) {
     await setModes(staging, false);
     await rm(staging, { recursive: true, force: true });
@@ -675,7 +713,7 @@ export async function checkNativeRuntime(root: string, expectedSha256: string) {
     const committed = await readFile(handoffPath);
 
     if (JSON.parse(committed.toString()).manifestSha256 === expectedSha256) {
-      if (!committed.equals(handoffReceipt(revision, authority, bytes, manifest)))
+      if (!committed.equals(handoffReceipt(revision, authority, bytes, manifest, receipts)))
         throw new Error(`${revision.handoff} differs from the bundle it hands off`);
       handoff = `verified ${revision.handoff}`;
     }
