@@ -183,6 +183,22 @@ pub(crate) async fn delete_version(
 /// another process holds, then prompts storage cleanup. Returns the number of items removed.
 pub async fn purge_expired_trash(state: &Arc<AppState>) -> Result<u64, ApiError> {
     let days = i64::from(state.config.trash_retention_days);
+    // A serializable scan here takes predicate locks over items that ordinary saves update, so
+    // look for expired roots with a plain read first and stay out of their way when none are due.
+    let due = state
+        .db
+        .query_one_raw(sql(
+            "SELECT EXISTS(SELECT 1 FROM hyori_items WHERE trashed_at IS NOT NULL AND trash_root=id
+               AND trashed_at<=now()-$1::bigint*interval '1 day') AS due",
+            vec![days.into()],
+        ))
+        .await?
+        .map(|row| row.try_get::<bool>("", "due"))
+        .transpose()?
+        .unwrap_or(false);
+    if !due {
+        return Ok(0);
+    }
     let removed = db::domain(&state.db, move |tx| {
         Box::pin(async move {
             let roots = tx

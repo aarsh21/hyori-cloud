@@ -167,6 +167,9 @@ async fn acknowledge(
         checked,
         outcome,
     } = result;
+    // A quota acknowledgement touches the owner's row, like their upload transactions; queue with
+    // those in-process instead of failing serialization against them.
+    let _queued = state.owner_locks.lock(Some(&upload.owner_id)).await;
     db::domain(&state.db, |tx| {
         let (id,token) = (upload.id.clone(),token.to_owned());
         Box::pin(async move {

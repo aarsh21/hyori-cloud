@@ -36,6 +36,10 @@ impl EditorsService {
         &self,
         input: EditorCloseInput,
     ) -> Result<crate::features::auth::api::Done, ApiError> {
+        // Closing aborts unfinished saves, which release reservations on the owner's row. Queue
+        // with that owner's other upload transactions rather than failing serialization.
+        let owner = self.session_owner(&input.session_id.0).await?;
+        let _queued = self.state.owner_locks.lock(owner.as_deref()).await;
         db::domain(&self.state.db, |tx| {
             let (context, id) = (self.context.clone(), input.session_id.0.clone());
             Box::pin(async move {
@@ -163,6 +167,19 @@ impl EditorsService {
             mime_type: content.mime_type,
         })
     }
+    /// A hint for in-process queueing only; the transaction still authorizes the session.
+    async fn session_owner(&self, session: &str) -> Result<Option<String>, ApiError> {
+        Ok(self
+            .state
+            .db
+            .query_one_raw(sql(
+                "SELECT owner_id FROM hyori_editor_sessions WHERE id=$1",
+                vec![session.into()],
+            ))
+            .await?
+            .map(|row| row.try_get::<String>("", "owner_id"))
+            .transpose()?)
+    }
     pub async fn prepare_save(&self, input: EditorPrepareSave) -> Result<UploadStatus, ApiError> {
         self.state
             .storage
@@ -192,6 +209,9 @@ impl EditorsService {
             serde_json::to_vec(&input).map_err(|_| ApiError::invalid())?,
         ));
         let upload_id = random_token();
+        // Reserving quota touches the owner's row; queue with their other upload transactions.
+        let owner = self.session_owner(&input.session_id.0).await?;
+        let _queued = self.state.owner_locks.lock(owner.as_deref()).await;
         let id = db::domain(&self.state.db,|tx| {
             let assets = self.state.editor_assets.clone();
             let (context,input,fingerprint,upload_id) = (self.context.clone(),input.clone(),fingerprint.clone(),upload_id.clone());

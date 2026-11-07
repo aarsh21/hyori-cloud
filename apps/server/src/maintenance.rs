@@ -156,8 +156,16 @@ async fn run_uploads(state: std::sync::Arc<crate::AppState>, mut shutdown: watch
             _ = shutdown.changed() => return,
             result = async {
                 crate::features::uploads::cleanup::reclaim_editors(&state).await?;
-                // Keep draining full batches of a backlog, a bounded number per tick.
-                for _ in 0..UPLOAD_BATCHES_PER_TICK {
+                // Keep draining full batches of a backlog, a bounded number per tick, but only
+                // while uploads are quiet: back-to-back serializable scans starve foreground saves.
+                for batch in 0..UPLOAD_BATCHES_PER_TICK {
+                    if batch > 0 {
+                        tokio::select! {
+                            biased;
+                            _ = state.upload_cleanup.notified() => break,
+                            _ = tokio::time::sleep(UPLOAD_CLEANUP_QUIET) => {}
+                        }
+                    }
                     if crate::features::uploads::cleanup::reclaim(&state).await? < crate::features::uploads::cleanup::BATCH {
                         break;
                     }

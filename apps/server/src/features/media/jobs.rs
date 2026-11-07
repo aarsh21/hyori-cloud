@@ -54,18 +54,36 @@ pub async fn run_once(state: &Arc<AppState>) -> Result<bool, ApiError> {
 async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
     let mut cursor = state.media_discovery.lock().await;
     let after = cursor.clone();
-    *cursor = db::domain(&state.db,|tx|{let after=after.clone();Box::pin(async move {
-        let page=tx.query_one_raw(sql("SELECT max(id) AS last,count(*)::bigint AS seen FROM (SELECT id FROM hyori_items WHERE id>$1 ORDER BY id LIMIT $2) page",vec![after.clone().into(),DISCOVERY_PAGE.into()])).await?.ok_or_else(ApiError::unavailable)?;
-        let Some(last)=page.try_get::<Option<String>>("","last")? else {return Ok(String::new());};
-        let seen:i64=page.try_get("","seen")?;
-        let items=tx.query_all_raw(sql("SELECT i.* FROM hyori_items i JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'
-            WHERE i.id>$3 AND i.id<=$4 AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
-            AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
-            AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
-            ORDER BY i.id FOR KEY SHARE OF u",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.into(),last.clone().into()])).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
-        service::enqueue_many(tx,&items).await?;
-        Ok(if seen<DISCOVERY_PAGE {String::new()} else {last})
-    })}).await?;
+    // Find candidates with a plain read: a serializable sweep over items every tick would make
+    // concurrent saves fail serialization. Enqueueing ignores jobs that already exist.
+    let page = state.db.query_one_raw(sql("SELECT max(id) AS last,count(*)::bigint AS seen FROM (SELECT id FROM hyori_items WHERE id>$1 ORDER BY id LIMIT $2) page",vec![after.clone().into(),DISCOVERY_PAGE.into()])).await?.ok_or_else(ApiError::unavailable)?;
+    let Some(last) = page.try_get::<Option<String>>("", "last")? else {
+        cursor.clear();
+        return Ok(());
+    };
+    let seen: i64 = page.try_get("", "seen")?;
+    let candidates = state.db.query_all_raw(sql("SELECT i.id FROM hyori_items i
+        WHERE i.id>$3 AND i.id<=$4 AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
+        AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
+        AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
+        ORDER BY i.id",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.into(),last.clone().into()])).await?
+        .into_iter().map(|row| row.try_get::<String>("", "id")).collect::<Result<Vec<_>, _>>()?;
+    if !candidates.is_empty() {
+        db::domain(&state.db,|tx|{let ids=serde_json::json!(candidates);Box::pin(async move {
+            let items=tx.query_all_raw(sql("SELECT i.* FROM hyori_items i JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'
+                WHERE i.id IN (SELECT jsonb_array_elements_text($3::jsonb)) AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
+                AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
+                AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
+                ORDER BY i.id FOR KEY SHARE OF u",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),ids.into()])).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
+            service::enqueue_many(tx,&items).await?;
+            Ok(())
+        })}).await?;
+    }
+    *cursor = if seen < DISCOVERY_PAGE {
+        String::new()
+    } else {
+        last
+    };
     Ok(())
 }
 /// Claim and process the next due job; false when none was due.
