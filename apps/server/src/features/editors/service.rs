@@ -112,10 +112,7 @@ impl EditorsService {
                 let principal = actor.user_id().map(str::to_owned).unwrap_or_else(|| digest(&grants.join(":")));
                 // Owner lock also serializes admission against purge/reservations.
                 tx.query_one_raw(sql("SELECT id FROM hyori_users WHERE id=$1 AND status='active' FOR NO KEY UPDATE",vec![item.owner_id.clone().into()])).await?.ok_or_else(ApiError::denied)?;
-                let rows = tx.query_all_raw(sql("SELECT id FROM hyori_editor_sessions WHERE owner_id=$1 AND principal=$2 LIMIT 32",vec![item.owner_id.clone().into(),principal.clone().into()])).await?;
-                if rows.len() >= 32 { return Err(ApiError::new(crate::error::ErrorCode::Conflict, "Too many documents are open for this person; close one and try again").into()); }
-                // Anonymous principals cannot evade the owner-wide cap by resolving fresh credentials.
-                if tx.query_all_raw(sql("SELECT id FROM hyori_editor_sessions WHERE owner_id=$1 LIMIT 256",vec![item.owner_id.clone().into()])).await?.len() >= 256 { return Err(ApiError::new(crate::error::ErrorCode::Conflict, "Too many of this owner's documents are open; close one and try again").into()); }
+                super::cleanup::admit(tx,&item.owner_id,&principal,actor.user_id()).await?;
                 tx.execute_raw(sql("INSERT INTO hyori_editor_sessions(id,file_id,owner_id,initiator_id,grant_digests,principal,app,version,revision,name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",vec![id.clone().into(),item.id.clone().into(),item.owner_id.clone().into(),actor.user_id().into(),serde_json::json!(grants).into(),principal.into(),formats::app_name(&app).into(),capability.version.clone().into(),item.revision.into(),item.name.clone().into()])).await?;
                 Ok(EditorDocument {
                     session_id: Id(id), version: capability.version.clone(), asset_url: capability.asset_url.clone(), name: Name(item.name.clone()), revision: item.revision.to_string(),

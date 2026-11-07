@@ -26,6 +26,8 @@ impl std::ops::DerefMut for EditorPostgres {
     }
 }
 
+#[path = "editor_admission.rs"]
+mod admission;
 #[path = "editor_automatic.rs"]
 mod automatic;
 #[path = "editor_close.rs"]
