@@ -75,6 +75,29 @@ describe("private Rust backend proxy", () => {
     expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([2, 3, 4]);
   });
 
+  test("forwards storage HEAD as HEAD without a body, keeping the object's metadata", async () => {
+    const backendUrl = startBackend((request) => {
+      expect(request.method).toBe("HEAD");
+      expect(request.headers.get("cookie")).toBe("hyori_session=opaque");
+
+      return new Response(null, {
+        headers: { "Content-Type": "application/pdf", "Content-Length": "8" },
+      });
+    });
+
+    const response = await createBackendProxy({ origin, backendUrl })(
+      new Request(`${origin}/api/storage/files/file1`, {
+        method: "HEAD",
+        headers: { Cookie: "hyori_session=opaque" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-length")).toBe("8");
+    expect(await response.text()).toBe("");
+  });
+
   test("passes the upload body as a stream without reading it before the upstream request", async () => {
     let streamed = false;
 
@@ -197,6 +220,7 @@ describe("private Rust backend proxy", () => {
     expect(
       (await handle(new Request(`${origin}/api/storage/files/file1`, { method: "DELETE" }))).status,
     ).toBe(405);
+    expect((await handle(new Request(`${origin}/api/rpc`, { method: "HEAD" }))).status).toBe(405);
 
     for (const backendUrl of [
       "file:///etc/passwd",

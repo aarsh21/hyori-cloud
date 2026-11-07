@@ -43,9 +43,9 @@ export function preloadCloudLocation(location: CloudLocation) {
 
       return;
     case "editor":
+      // The account's editor opens inside the signed-in chunk, which owns its upload queue.
       void loadEditorScreen().catch(ignoreLoadFailure);
-
-      return;
+      break;
     case "files":
       void loadFilesScreen().catch(ignoreLoadFailure);
       break;

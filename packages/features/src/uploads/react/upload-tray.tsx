@@ -25,11 +25,16 @@ function summaryTitle({ total, active, failed, complete }: UploadSummary) {
 }
 
 /** Only rows subscribe to their task's progress, so one transfer never rerenders the tray. */
-export function UploadTray() {
+export function UploadTray({
+  defaultCollapsed = false,
+}: {
+  /** Over a screen that needs the room, such as an open document, the tray starts as its header. */
+  defaultCollapsed?: boolean;
+}) {
   const queue = useUploadQueue();
   const entries = useUploadEntries(queue);
   const summary = useUploadSummary(queue);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   if (entries.length === 0) return null;
 

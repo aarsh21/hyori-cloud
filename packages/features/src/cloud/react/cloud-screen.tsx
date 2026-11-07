@@ -1,27 +1,22 @@
 import { lazy, Suspense } from "@hyori-cloud/lib/react";
 import { AppShellFallback } from "@hyori-cloud/ui/components/app-shell-fallback";
-import { FocusLayout } from "@hyori-cloud/ui/components/focus-layout";
-import { Spinner } from "@hyori-cloud/ui/components/spinner";
-import { Row } from "@hyori-cloud/ui/components/text";
 import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
-import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { AuthBoundary } from "#features/auth/react/auth-boundary.tsx";
-import { formatCloudPath, parseCloudPath } from "#features/cloud/cloud-path.ts";
+import { parseCloudPath } from "#features/cloud/cloud-path.ts";
 import {
   CloudNavigationProvider,
   useCloudNavigation,
 } from "#features/cloud/react/cloud-navigation.tsx";
+import { FocusFallback } from "#features/cloud/react/focus-fallback.tsx";
 import type { NavigationGuard } from "#features/cloud/navigation-guard.ts";
 import {
   loadCloudShell,
-  loadEditorScreen,
   loadInviteScreen,
   loadPublicShareScreen,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
 
 const SignedInCloud = lazy(async () => ({ default: (await loadCloudShell()).SignedInCloud }));
 const InviteScreen = lazy(async () => ({ default: (await loadInviteScreen()).InviteScreen }));
-const EditorScreen = lazy(async () => ({ default: (await loadEditorScreen()).EditorScreen }));
 
 const PublicShareScreen = lazy(async () => ({
   default: (await loadPublicShareScreen()).PublicShareScreen,
@@ -56,23 +51,6 @@ export function CloudScreen({
   );
 }
 
-const ACCOUNT_DESTINATION = { kind: "folder", folderId: null } as const;
-
-function filesFolderPath(parentId: string | null) {
-  return formatCloudPath({ section: "files", folderId: parentId });
-}
-
-function FocusFallback() {
-  return (
-    <FocusLayout>
-      <Wordmark />
-      <Row className="min-h-9">
-        <Spinner />
-      </Row>
-    </FocusLayout>
-  );
-}
-
 function CloudLocationScreen() {
   const { location } = useCloudNavigation();
 
@@ -98,24 +76,10 @@ function CloudLocationScreen() {
     );
   }
 
-  if (location.section === "editor") {
-    return (
-      <AuthBoundary>
-        <Suspense fallback={<FocusFallback />}>
-          <EditorScreen
-            key={location.fileId}
-            fileId={location.fileId}
-            copyDestination={ACCOUNT_DESTINATION}
-            closePath={filesFolderPath}
-          />
-        </Suspense>
-      </AuthBoundary>
-    );
-  }
-
   return (
     <AuthBoundary>
-      <Suspense fallback={<AppShellFallback />}>
+      {/* The editor and the file manager share one signed-in owner, which keeps uploads running. */}
+      <Suspense fallback={location.section === "editor" ? <FocusFallback /> : <AppShellFallback />}>
         <SignedInCloud location={location} />
       </Suspense>
     </AuthBoundary>

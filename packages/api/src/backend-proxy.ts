@@ -74,14 +74,14 @@ export function createBackendProxy(config: BackendProxyConfig): BackendRequest {
 
     if (!isRpc && !isStorage) return failure(404, "resource.notFound", "Endpoint not found");
 
-    if (
-      (isRpc && request.method !== "POST") ||
-      (isStorage && !["GET", "PUT"].includes(request.method))
-    )
+    // Axum answers HEAD on every GET route, so storage metadata checks pass through unchanged.
+    const isRead = request.method === "GET" || request.method === "HEAD";
+
+    if ((isRpc && request.method !== "POST") || (isStorage && !isRead && request.method !== "PUT"))
       return failure(405, "input.invalid", "Method not allowed");
 
     if (
-      request.method !== "GET" &&
+      !isRead &&
       request.headers.has("cookie") &&
       !request.headers.has("origin") &&
       !["same-origin", "none"].includes(request.headers.get("sec-fetch-site") ?? "")
@@ -111,7 +111,7 @@ export function createBackendProxy(config: BackendProxyConfig): BackendRequest {
       duplex: "half",
     };
 
-    if (request.method !== "GET") init.body = request.body;
+    if (!isRead) init.body = request.body;
 
     try {
       const response = await requestBackend(new Request(target, init));
