@@ -1,10 +1,17 @@
+#[allow(dead_code)]
+#[path = "support/media_worker.rs"]
+mod media_worker;
 #[path = "support/storage.rs"]
 mod storage;
 mod support;
 use hyori_server::{
     auth::random_token,
     db::sql,
-    features::{files::purge_expired_trash, uploads::cleanup},
+    features::{
+        files::purge_expired_trash,
+        media::{cleanup as media_cleanup, jobs},
+        uploads::cleanup,
+    },
 };
 use hyori_storage::ObjectStorage;
 use sea_orm::ConnectionTrait;
@@ -72,8 +79,18 @@ async fn upload(
     name: &str,
     bytes: &[u8],
 ) -> String {
-    let mut input =
-        json!({"parentId":parent,"name":name,"size":bytes.len(),"mimeType":"text/plain"});
+    upload_as(server, cookie, parent, replace, name, "text/plain", bytes).await
+}
+async fn upload_as(
+    server: &TestServer,
+    cookie: &str,
+    parent: Option<&str>,
+    replace: Option<&str>,
+    name: &str,
+    mime: &str,
+    bytes: &[u8],
+) -> String {
+    let mut input = json!({"parentId":parent,"name":name,"size":bytes.len(),"mimeType":mime});
     if let Some(id) = replace {
         input["replaceId"] = json!(id);
     }
@@ -553,6 +570,198 @@ async fn twenty_thousand_item_subtree_trashes_restores_moves_and_deletes_atomica
     for (operation, elapsed) in timings {
         eprintln!("20,000-descendant {operation}: {} ms", elapsed.as_millis());
     }
+    drop(server);
+    pg.stop();
+}
+
+const RED_PNG: &[u8] = include_bytes!("fixtures/media/red.png");
+
+/// The real worker, so publication enqueues thumbnails as it does in production.
+async fn media_stack() -> (
+    Postgres,
+    storage::RustFs,
+    media_worker::Worker,
+    TestServer,
+    ObjectStorage,
+) {
+    let mut pg = Postgres::start().await;
+    let fs = storage::RustFs::start().await;
+    let worker = media_worker::Worker::start().await;
+    pg.config.storage = Some(fs.config.clone());
+    pg.config.media_worker_socket = Some(worker.socket.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let storage = ObjectStorage::new(fs.config.clone()).unwrap();
+    (pg, fs, worker, server, storage)
+}
+async fn photo(server: &TestServer, owner: &Account, name: &str) -> (String, String) {
+    let id = upload_as(
+        server,
+        &owner.cookie,
+        None,
+        None,
+        name,
+        "image/png",
+        RED_PNG,
+    )
+    .await;
+    let key = current_key(server, &id).await;
+    (id, key)
+}
+/// Another item refers to the same object, as deduplication would.
+async fn alias(server: &TestServer, owner: &Account, key: &str) {
+    server.state.db.execute_raw(sql("INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,size,mime_type,object_key) VALUES ($1,$2,NULL,'alias.png','file',$3,'image/png',$4)", vec![random_token().into(), owner.id.clone().into(), (RED_PNG.len() as i64).into(), key.into()])).await.unwrap();
+}
+async fn delete(server: &TestServer, owner: &Account, id: &str) {
+    for operation in ["files.trash", "files.deletePermanently"] {
+        server
+            .rpc(operation, json!({"id":id}), Some(&owner.cookie))
+            .await
+            .value();
+    }
+}
+async fn job(server: &TestServer, key: &str) -> Option<String> {
+    server
+        .state
+        .db
+        .query_one_raw(sql(
+            "SELECT state FROM hyori_media_jobs WHERE source_key=$1",
+            vec![key.into()],
+        ))
+        .await
+        .unwrap()
+        .map(|row| row.try_get("", "state").unwrap())
+}
+async fn thumbnail_key(server: &TestServer, key: &str) -> String {
+    server.state.db.query_one_raw(sql("SELECT a.object_key FROM hyori_media_artifacts a JOIN hyori_media_jobs j ON j.artifact_id=a.id WHERE j.source_key=$1", vec![key.into()])).await.unwrap().unwrap().try_get("", "object_key").unwrap()
+}
+/// Three runtime maintenance passes, with every cleanup due as if its back-off had elapsed.
+async fn maintain(server: &TestServer) {
+    for _ in 0..3 {
+        server
+            .state
+            .db
+            .execute_unprepared(
+                "UPDATE hyori_media_artifacts SET cleanup_due=now(); UPDATE hyori_uploads SET cleanup_due=now()",
+            )
+            .await
+            .unwrap();
+        media_cleanup::reclaim(&server.state).await.unwrap();
+        jobs::run_once(&server.state).await.unwrap();
+        cleanup::reclaim(&server.state).await.unwrap();
+    }
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL, pinned RustFS and the isolated media worker"]
+async fn a_thumbnail_still_queued_never_keeps_a_deleted_original() {
+    let (pg, _fs, _worker, server, storage) = media_stack().await;
+    let owner = setup(&server).await;
+    let (gone, gone_key) = photo(&server, &owner, "gone.png").await;
+    let (kept, kept_key) = photo(&server, &owner, "kept.png").await;
+    alias(&server, &owner, &kept_key).await;
+    assert_eq!(job(&server, &gone_key).await.as_deref(), Some("queued"));
+
+    // Deleted before any worker claimed its thumbnail.
+    delete(&server, &owner, &gone).await;
+    delete(&server, &owner, &kept).await;
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+    maintain(&server).await;
+    assert!(
+        storage.head(&gone_key).await.is_err(),
+        "the deleted original stayed in storage, job {:?}",
+        job(&server, &gone_key).await
+    );
+    assert_eq!(job(&server, &gone_key).await, None);
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+    // Control: an object another item still uses keeps its bytes and its thumbnail.
+    assert!(storage.head(&kept_key).await.is_ok());
+    assert_eq!(job(&server, &kept_key).await.as_deref(), Some("ready"));
+    assert!(
+        storage
+            .head(&thumbnail_key(&server, &kept_key).await)
+            .await
+            .is_ok()
+    );
+
+    // A worker holding a lease may still be reading the original: it stays until the lease ends.
+    let (busy, busy_key) = photo(&server, &owner, "busy.png").await;
+    server.state.db.execute_raw(sql("UPDATE hyori_media_jobs SET state='processing',attempts=1,lease_token='held',lease_until=now()+interval '5 minutes' WHERE source_key=$1", vec![busy_key.clone().into()])).await.unwrap();
+    delete(&server, &owner, &busy).await;
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+    maintain(&server).await;
+    assert!(
+        storage.head(&busy_key).await.is_ok(),
+        "reclaimed under a live lease"
+    );
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_media_jobs SET lease_until=now()-interval '1 second' WHERE source_key=$1",
+            vec![busy_key.clone().into()],
+        ))
+        .await
+        .unwrap();
+    maintain(&server).await;
+    assert!(
+        storage.head(&busy_key).await.is_err(),
+        "kept after the lease ended"
+    );
+    assert_eq!(job(&server, &busy_key).await, None);
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+
+    // Trashed before its first attempt, the job waits; restoring it makes the thumbnail due again.
+    let (back, back_key) = photo(&server, &owner, "back.png").await;
+    server
+        .rpc("files.trash", json!({"id":back}), Some(&owner.cookie))
+        .await
+        .value();
+    maintain(&server).await;
+    assert_eq!(job(&server, &back_key).await.as_deref(), Some("queued"));
+    server
+        .rpc("files.restore", json!({"id":back}), Some(&owner.cookie))
+        .await
+        .value();
+    jobs::run_once(&server.state).await.unwrap();
+    assert_eq!(job(&server, &back_key).await.as_deref(), Some("ready"));
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL, pinned RustFS and the isolated media worker"]
+async fn a_ready_thumbnail_goes_with_its_deleted_original() {
+    let (pg, _fs, _worker, server, storage) = media_stack().await;
+    let owner = setup(&server).await;
+    let (gone, gone_key) = photo(&server, &owner, "gone.png").await;
+    let (kept, kept_key) = photo(&server, &owner, "kept.png").await;
+    alias(&server, &owner, &kept_key).await;
+    for _ in 0..2 {
+        assert!(jobs::run_once(&server.state).await.unwrap());
+    }
+    let (gone_thumb, kept_thumb) = (
+        thumbnail_key(&server, &gone_key).await,
+        thumbnail_key(&server, &kept_key).await,
+    );
+    // The first verification pass sees both thumbnails clean.
+    media_cleanup::reclaim(&server.state).await.unwrap();
+    assert!(storage.head(&gone_thumb).await.is_ok());
+
+    delete(&server, &owner, &gone).await;
+    delete(&server, &owner, &kept).await;
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+    maintain(&server).await;
+    assert!(storage.head(&gone_key).await.is_err());
+    assert!(
+        storage.head(&gone_thumb).await.is_err(),
+        "the deleted original's thumbnail stayed in storage"
+    );
+    assert_eq!(job(&server, &gone_key).await, None);
+    assert_eq!(used(&server, &owner.id).await, RED_PNG.len() as i64);
+    // Control: a thumbnail whose source another item still uses stays, verified and ready.
+    assert!(storage.head(&kept_key).await.is_ok());
+    assert!(storage.head(&kept_thumb).await.is_ok());
+    assert_eq!(job(&server, &kept_key).await.as_deref(), Some("ready"));
     drop(server);
     pg.stop();
 }

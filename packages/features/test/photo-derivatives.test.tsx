@@ -254,7 +254,12 @@ describe("photo tiles with server thumbnails", () => {
 
     act(() => enterViewport());
 
+    const waiting = () =>
+      document.querySelectorAll('[data-slot="media-tile-image"][data-state="waiting"]');
+
     await waitFor(() => expect(imageSources()).toHaveLength(6));
+    // A ready tile behind the limit says its image is coming, unlike one with nothing to show.
+    expect(waiting()).toHaveLength(2);
 
     const first = document.querySelector("img");
 
@@ -262,6 +267,7 @@ describe("photo tiles with server thumbnails", () => {
     fireEvent.load(first);
 
     await waitFor(() => expect(imageSources()).toHaveLength(7));
+    expect(waiting()).toHaveLength(1);
   });
 });
 

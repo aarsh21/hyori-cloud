@@ -144,10 +144,13 @@ function TileImageLoad({
 
   if (failed) return fallback;
 
-  if (!granted) return null;
+  // Waiting its turn still shows the resting fill, but says an image is coming: without this, a
+  // ready tile behind others would read the same as one with nothing to show.
+  if (!granted) return <span data-slot="media-tile-image" data-state="waiting" />;
 
   return (
     <img
+      data-slot="media-tile-image"
       src={src}
       alt=""
       decoding="async"

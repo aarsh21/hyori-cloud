@@ -484,6 +484,7 @@ impl FilesService {
                 item.revision += 1;
                 item.updated_at = Utc::now();
                 item.save(tx).await?;
+                crate::features::media::jobs::wake_restored(tx, &item.owner_id, &item.id).await?;
                 policy::load_roles(tx, &actor, std::slice::from_mut(&mut item)).await?;
                 Ok(policy::project(&item, &actor))
             })

@@ -11,7 +11,7 @@ use crate::{
 use hyori_media_worker::{Failure, RECIPE, png_dimensions};
 use hyori_storage::{Bytes, PartRef};
 use sea_orm::{ConnectionTrait, QueryResult};
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 #[derive(Clone)]
 struct Job {
@@ -40,6 +40,23 @@ impl Job {
 /// Items examined per discovery pass. Publication enqueues its own job, so discovery is a
 /// bounded safety net for sources that gained bytes another way (restores, copies, upgrades).
 const DISCOVERY_PAGE: i64 = 256;
+/// Due jobs one claim examines. Those it can't run wait an hour before being looked at again;
+/// restoring from Trash makes a deferred first attempt due again (`wake_restored`).
+const CLAIM_WINDOW: i64 = 32;
+
+/// Restoring from Trash makes the restored items' deferred first attempts due again, instead of
+/// leaving them to the claim's hourly revisit. Jobs in failure back-off keep their schedule.
+pub(crate) async fn wake_restored(
+    tx: &sea_orm::DatabaseTransaction,
+    owner: &str,
+    root: &str,
+) -> DomainResult<()> {
+    tx.execute_raw(sql("UPDATE hyori_media_jobs j SET due_at=now() FROM hyori_items i
+        WHERE i.owner_id=$1 AND (i.id=$2 OR i.ancestor_ids @> jsonb_build_array($2::text)) AND i.trashed_at IS NULL
+        AND j.source_key=i.object_key AND j.owner_id=$1 AND j.state='queued' AND j.attempts=0 AND j.due_at>now()",
+        vec![owner.into(), root.into()])).await?;
+    Ok(())
+}
 
 /// One discovery page plus at most one job; no query invokes this command.
 pub async fn run_once(state: &Arc<AppState>) -> Result<bool, ApiError> {
@@ -91,20 +108,48 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
     if state.media_worker.is_none() || state.storage.is_none() {
         return Ok(false);
     }
-    let job=db::domain(&state.db,|tx|Box::pin(async move {
-        tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='failed',failure='timeout',lease_token=NULL,lease_until=NULL WHERE id IN
-            (SELECT id FROM hyori_media_jobs WHERE state='processing' AND lease_until<=now() AND attempts>=3 ORDER BY due_at,id LIMIT 32 FOR UPDATE SKIP LOCKED)",vec![])).await?;
-        let row=tx.query_one_raw(sql("SELECT j.id FROM hyori_media_jobs j JOIN hyori_users u ON u.id=j.owner_id AND u.status='active'
-            WHERE j.due_at<=now() AND j.attempts<6 AND (j.state='queued' OR (j.state='processing' AND j.lease_until<=now() AND j.attempts<3))
-            AND EXISTS(SELECT 1 FROM hyori_items i WHERE i.owner_id=j.owner_id AND i.object_key=j.source_key AND i.trashed_at IS NULL)
-            ORDER BY j.due_at,j.id LIMIT 1 FOR UPDATE OF j SKIP LOCKED",vec![])).await?;
-        let Some(row)=row else {return Ok(None);};
-        let id:String=row.try_get("","id")?;
+    let (job,settled)=db::domain(&state.db,|tx|Box::pin(async move {
+        // Only the head of the due queue is read, so jobs no claim can run never make every claim
+        // scan them. Each one examined is settled so it leaves the head: a source nothing refers
+        // to any more can never be reached again, so its job goes (until then a queued job keeps
+        // the original from being reclaimed); one only in Trash, or whose owner can't run work,
+        // waits; a third expired lease ends the job. The first runnable one is claimed.
+        let rows=tx.query_all_raw(sql("SELECT j.id,CASE
+                WHEN NOT EXISTS(SELECT 1 FROM hyori_items i WHERE i.object_key=j.source_key)
+                    AND NOT EXISTS(SELECT 1 FROM hyori_versions v WHERE v.object_key=j.source_key) THEN 'retire'
+                WHEN j.state='processing' AND j.attempts>=3 THEN 'timeout'
+                WHEN EXISTS(SELECT 1 FROM hyori_users u WHERE u.id=j.owner_id AND u.status='active')
+                    AND EXISTS(SELECT 1 FROM hyori_items i WHERE i.owner_id=j.owner_id AND i.object_key=j.source_key AND i.trashed_at IS NULL) THEN 'claim'
+                ELSE 'defer' END AS action
+            FROM hyori_media_jobs j WHERE j.due_at<=now() AND j.attempts<6 AND (j.state='queued' OR (j.state='processing' AND j.lease_until<=now()))
+            ORDER BY j.due_at,j.id LIMIT $1 FOR UPDATE OF j SKIP LOCKED",vec![CLAIM_WINDOW.into()])).await?;
+        let mut claim=None;
+        let mut settle:HashMap<String,Vec<String>>=HashMap::new();
+        for row in rows {
+            let (id,action)=(row.try_get::<String>("","id")?,row.try_get::<String>("","action")?);
+            match action.as_str() {
+                "claim" if claim.is_none() => claim=Some(id),
+                "claim" => {}
+                _ => settle.entry(action).or_default().push(id),
+            }
+        }
+        for (action,statement) in [
+            ("retire","DELETE FROM hyori_media_jobs WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
+            ("timeout","UPDATE hyori_media_jobs SET state='failed',failure='timeout',lease_token=NULL,lease_until=NULL WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
+            ("defer","UPDATE hyori_media_jobs SET state='queued',lease_token=NULL,lease_until=NULL,due_at=now()+interval '1 hour' WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
+        ] {
+            if let Some(ids)=settle.get(action) {
+                tx.execute_raw(sql(statement,vec![serde_json::json!(ids).into()])).await?;
+            }
+        }
+        let settled=!settle.is_empty();
+        let Some(id)=claim else {return Ok((None,settled));};
         let claimed=tx.query_one_raw(sql("UPDATE hyori_media_jobs SET state='processing',attempts=attempts+1,lease_token=$2,lease_until=now()+interval '5 minutes' WHERE id=$1 RETURNING *",vec![id.into(),random_token().into()])).await?.ok_or_else(ApiError::unavailable)?;
-        Ok(Some(Job::from_row(claimed)?))
+        Ok((Some(Job::from_row(claimed)?),settled))
     })).await?;
     let Some(job) = job else {
-        return Ok(false);
+        // Settling the head is progress: the next claim reaches what was waiting behind it.
+        return Ok(settled);
     };
     let result = tokio::time::timeout(Duration::from_secs(120), process(state, &job))
         .await

@@ -12,6 +12,7 @@ use crate::{
     features::{
         auth::api::Bytes,
         files::api::{PermanentDeletion, TrashSummary},
+        media::cleanup::RELEASE_DERIVATIVES,
     },
 };
 use sea_orm::{ConnectionTrait, DatabaseTransaction, Value};
@@ -58,7 +59,8 @@ fn free_keys(scope: &str) -> String {
 }
 
 /// Release `free` keys: drop their one distinct-object charge and turn each committed upload into
-/// a fenced tombstone (a claimed cleanup must not certify the new deletion state).
+/// a fenced tombstone (a claimed cleanup must not certify the new deletion state). Always followed
+/// by `RELEASE_DERIVATIVES`, so no thumbnail job keeps a released original or outlives it.
 const RELEASE: &str = "released AS (DELETE FROM hyori_objects o USING free f
         WHERE o.object_key=f.object_key AND o.owner_id=$1 RETURNING o.size),
      marked AS (UPDATE hyori_uploads u
@@ -87,7 +89,7 @@ pub(crate) async fn delete_trashed(
     let freed: i64 = tx
         .query_one_raw(sql(
             &format!(
-                "WITH {}, {RELEASE} SELECT coalesce((SELECT sum(size) FROM released),0)::bigint AS freed",
+                "WITH {}, {RELEASE}, {RELEASE_DERIVATIVES} SELECT coalesce((SELECT sum(size) FROM released),0)::bigint AS freed",
                 free_keys(scope)
             ),
             values.clone(),
@@ -157,7 +159,7 @@ pub(crate) async fn delete_version(
                  free AS MATERIALIZED (SELECT t.object_key FROM target t
                     WHERE NOT EXISTS (SELECT 1 FROM hyori_items i WHERE i.object_key=t.object_key)
                       AND NOT EXISTS (SELECT 1 FROM hyori_versions v WHERE v.object_key=t.object_key AND v.id<>t.id)),
-                 {RELEASE},
+                 {RELEASE}, {RELEASE_DERIVATIVES},
                  removed AS (DELETE FROM hyori_versions v USING target t WHERE v.id=t.id RETURNING 1)
                  SELECT (SELECT count(*) FROM removed) AS removed,
                     coalesce((SELECT sum(size) FROM released),0)::bigint AS freed"

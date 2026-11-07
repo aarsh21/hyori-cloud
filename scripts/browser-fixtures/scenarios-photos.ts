@@ -305,11 +305,14 @@ async function thumbnailOutcome(page: Page, name: string) {
   await page.waitForFunction(
     (selector) => {
       const button = document.querySelector(selector);
-      const image = button?.querySelector("img");
+      // A ready tile behind others' loads has no <img> yet, but says one is coming.
+      const image = button?.querySelector('[data-slot="media-tile-image"]');
 
       if (button === null || button === undefined) return false;
 
-      if (image !== null && image !== undefined) return image.complete;
+      if (image !== null && image !== undefined) {
+        return image instanceof HTMLImageElement && image.complete;
+      }
 
       return !(button.getAttribute("aria-label") ?? "").includes("Preparing");
     },

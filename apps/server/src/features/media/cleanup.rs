@@ -8,6 +8,17 @@ use crate::{
 use sea_orm::ConnectionTrait;
 use std::{sync::Arc, time::Duration};
 
+/// Data-modifying CTEs for a permanent deletion's `free` keys, which nothing refers to any more and
+/// nothing can refer to again, in the transaction releasing them. A queued job would otherwise
+/// count as a reference to its original forever, since no claim can reach it. A live processing
+/// lease stays: the original outlives its reader, and the claim retires the job once the lease
+/// lapses. A ready thumbnail is fenced from a claimed check and becomes due for exact-key removal.
+pub(crate) const RELEASE_DERIVATIVES: &str = "retired_jobs AS (DELETE FROM hyori_media_jobs j USING free f
+        WHERE j.source_key=f.object_key AND (j.state<>'processing' OR j.lease_until<=now()) RETURNING j.artifact_id),
+     fenced_thumbnails AS (UPDATE hyori_media_artifacts a SET state='aborted',job_id='',checked_at=NULL,
+        cleanup_due=now(),clean_checks=0,cleanup_token=NULL,cleanup_until=NULL
+        FROM retired_jobs r WHERE a.id=r.artifact_id AND a.state='ready' RETURNING a.id)";
+
 /// Reconcile at most eight retained derivative keys, unverified ones before clean revisits. This also runs when the decoder is disabled.
 pub async fn reclaim(state: &Arc<AppState>) -> Result<usize, ApiError> {
     reclaim_scope(state, None).await
