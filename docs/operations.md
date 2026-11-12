@@ -32,6 +32,10 @@ Requirements: Docker Engine with the **Compose v2 and Buildx plugins** (`docker 
 
 4. Open the site and complete setup with `HYORI_SETUP_TOKEN`.
 
+## Authentication secret rotation
+
+Public link cookies are signed credentials, not stored grants: each lives at most 12 hours (less when the link expires sooner), and the server still checks on every request that the link exists, has not expired and has the same password. They are signed with a key derived from `HYORI_AUTH_SECRET`, so rotating that secret ends every open public link as well as every session: visitors open the link again, and unlock it again when it has a password.
+
 ## What an operator can observe today
 
 | Signal                                  | Where                                   | What it tells you                                                                                                                                                                                                                                                                                 |

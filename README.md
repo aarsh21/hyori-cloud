@@ -88,7 +88,7 @@ First create a **new** ignored `.env.deployment` from [.env.deployment.example](
 
 Generate the setup token with `openssl rand -hex 32`. Setup answers wrong tokens without counting them, so a stranger's guesses cannot lock you out; in exchange, until the first administrator exists the backend refuses to start with a setup token shorter than 32 characters or one that repeats a shorter text (such as `aaaa…` or `abcabc…`). Once set up, the token is never used again and the backend starts with whatever token it has.
 
-Public link cookies are signed credentials, not stored grants: each lives at most 12 hours (less when the link expires sooner), and the server still checks on every request that the link exists, has not expired and has the same password. They are signed with a key derived from `HYORI_AUTH_SECRET`, so rotating that secret ends every open public link as well as every session: visitors open the link again, and unlock it again when it has a password.
+See [authentication secret rotation](docs/operations.md#authentication-secret-rotation) before rotating `HYORI_AUTH_SECRET`.
 
 Compose publishes only the loopback web port (`HYORI_WEB_PORT`, default 3001), behind your HTTPS gateway; DB/storage/Rust ports have no host bindings. The gateway must preserve the exact configured public **Host** on its private HTTP hop and sanitize forwarded headers. The web host validates Host and Origin instead of trusting `X-Forwarded-*`, then the Node transport preserves configured public authority toward Rust. Do not disable TLS/origin checks. This documentation does not install or reconfigure a gateway or expose a final LAN service. Builds exclude actual env files from image layers; `docker:down` stops only this new project and does not remove its volumes.
 
