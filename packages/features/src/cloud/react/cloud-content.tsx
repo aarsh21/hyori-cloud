@@ -30,7 +30,7 @@ const AdminScreen = lazyScreen(loadAdminScreen, (module) => module.AdminScreen);
 
 type ShellLocation = Exclude<
   CloudLocation,
-  { section: "invite" | "publicShare" | "publicEditor" | "editor" }
+  { section: "invite" | "passwordReset" | "publicShare" | "publicEditor" | "editor" }
 >;
 
 function CloudSection({ location }: { location: ShellLocation }) {

@@ -13,11 +13,18 @@ import {
   lazyScreen,
   loadCloudShell,
   loadInviteScreen,
+  loadPasswordResetScreen,
   loadPublicShareScreen,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
 
 const SignedInCloud = lazyScreen(loadCloudShell, (module) => module.SignedInCloud);
 const InviteScreen = lazyScreen(loadInviteScreen, (module) => module.InviteScreen);
+
+const PasswordResetScreen = lazyScreen(
+  loadPasswordResetScreen,
+  (module) => module.PasswordResetScreen,
+);
+
 const PublicShareScreen = lazyScreen(loadPublicShareScreen, (module) => module.PublicShareScreen);
 
 /**
@@ -56,6 +63,14 @@ function CloudLocationScreen() {
     return (
       <Suspense fallback={<FocusFallback />}>
         <InviteScreen token={location.token} />
+      </Suspense>
+    );
+  }
+
+  if (location.section === "passwordReset") {
+    return (
+      <Suspense fallback={<FocusFallback />}>
+        <PasswordResetScreen token={location.token} />
       </Suspense>
     );
   }

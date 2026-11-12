@@ -1,4 +1,4 @@
-import { HardDrive, Trash2, User as UserIcon } from "@hyori-cloud/lib/icons";
+import { HardDrive, KeyRound, Trash2, User as UserIcon } from "@hyori-cloud/lib/icons";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@hyori-cloud/ui/components/dropdown-menu";
 import { ItemActionMenu } from "@hyori-cloud/ui/components/item-action-menu";
 import {
@@ -16,10 +16,12 @@ import { formatUsage } from "#features/shared/format.ts";
 export function AdminUserRow({
   user,
   onSetQuota,
+  onResetPassword,
   onDelete,
 }: {
   user: AdminUser;
   onSetQuota: () => void;
+  onResetPassword: () => void;
   onDelete: () => void;
 }) {
   const usage = formatUsage(user.usedBytes, user.quotaBytes);
@@ -56,6 +58,10 @@ export function AdminUserRow({
               <DropdownMenuItem onClick={onSetQuota}>
                 <HardDrive />
                 Set storage quota…
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onResetPassword}>
+                <KeyRound />
+                Reset password…
               </DropdownMenuItem>
               {user.role === "admin" ? null : (
                 <>

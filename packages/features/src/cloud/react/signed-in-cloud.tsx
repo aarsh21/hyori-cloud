@@ -13,7 +13,7 @@ const EditorScreen = lazyScreen(loadEditorScreen, (module) => module.EditorScree
 
 type SignedInLocation = Exclude<
   CloudLocation,
-  { section: "invite" | "publicShare" | "publicEditor" }
+  { section: "invite" | "passwordReset" | "publicShare" | "publicEditor" }
 >;
 
 const ACCOUNT_DESTINATION = { kind: "folder", folderId: null } as const;

@@ -85,6 +85,10 @@ export const loadCloudShell = chunk(() => import("#features/cloud/react/signed-i
 
 export const loadInviteScreen = chunk(() => import("#features/auth/react/invite-screen.tsx"));
 
+export const loadPasswordResetScreen = chunk(
+  () => import("#features/auth/react/password-reset-screen.tsx"),
+);
+
 export const loadPublicShareScreen = chunk(
   () => import("#features/sharing/react/public-share-screen.tsx"),
 );
@@ -112,6 +116,10 @@ export function preloadCloudLocation(location: CloudLocation) {
   switch (location.section) {
     case "invite":
       void loadInviteScreen().catch(ignoreLoadFailure);
+
+      return;
+    case "passwordReset":
+      void loadPasswordResetScreen().catch(ignoreLoadFailure);
 
       return;
     case "publicShare":

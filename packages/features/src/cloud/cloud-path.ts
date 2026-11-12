@@ -8,6 +8,7 @@ export type CloudLocation =
   | { readonly section: "admin" }
   | { readonly section: "editor"; readonly fileId: string }
   | { readonly section: "invite"; readonly token: string }
+  | { readonly section: "passwordReset"; readonly token: string }
   | { readonly section: "publicShare"; readonly token: string; readonly folderId: string | null }
   | { readonly section: "publicEditor"; readonly token: string; readonly fileId: string }
   | { readonly section: "notFound" };
@@ -59,6 +60,10 @@ export function parseCloudPath(path: string): CloudLocation {
     return { section: "invite", token: second };
   }
 
+  if (head === "reset-password" && second && segments.length === 2) {
+    return { section: "passwordReset", token: second };
+  }
+
   if (head === "share" && second && third === "edit" && segments.length === 4) {
     const fileId = decodeSegment(segments[3] ?? "");
 
@@ -92,6 +97,8 @@ export function formatCloudPath(location: CloudLocation): string {
       return `/edit/${encodeURIComponent(location.fileId)}`;
     case "invite":
       return `/invite/${encodeURIComponent(location.token)}`;
+    case "passwordReset":
+      return `/reset-password/${encodeURIComponent(location.token)}`;
     case "publicShare": {
       const base = `/share/${encodeURIComponent(location.token)}`;
 

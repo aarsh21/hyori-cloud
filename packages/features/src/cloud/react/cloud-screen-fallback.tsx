@@ -5,7 +5,7 @@ import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 
 type ShellLocation = Exclude<
   CloudLocation,
-  { section: "invite" | "publicShare" | "publicEditor" | "editor" }
+  { section: "invite" | "passwordReset" | "publicShare" | "publicEditor" | "editor" }
 >;
 
 function FallbackFrame({ children }: { children: React.ReactNode }) {
