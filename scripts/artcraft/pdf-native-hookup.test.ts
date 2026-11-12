@@ -105,7 +105,8 @@ test.skipIf(!inputs.ARTCRAFT_TEST_PDF_ARCHIVE)(
       /mod host\s*\{|bridge\.listen|bridge\.save_fn|bridge\.post_ready|host::Bridge/,
     );
     expect(web.indexOf("NativeHostFrame::ready()")).toBeGreaterThan(web.indexOf(".await;"));
-    expect(web).toContain('if !hosted && let Some(url) = query_param("file")');
+    expect(web).toContain("if let Some(url) = None::<String> { // Hyori: no `?file=` URL intake");
+    expect(web).not.toContain('query_param("file")');
     expect(web).toContain("warn_before_unload(app.unsaved_flag.clone())");
     const save = result.files.get("crates/ui-egui/src/editing/save.rs")!.toString();
 
