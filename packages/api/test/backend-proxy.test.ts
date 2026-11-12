@@ -165,6 +165,7 @@ describe("private Rust backend proxy", () => {
           "x-forwarded-host",
           "x-forwarded-proto",
           "x-real-ip",
+          "x-hyori-client-address",
           "x-hop",
         ])
           expect(request.headers.has(name)).toBe(false);
@@ -190,6 +191,7 @@ describe("private Rust backend proxy", () => {
         "X-Forwarded-Host": "attacker.example",
         "X-Forwarded-Proto": "http",
         "X-Real-IP": "127.0.0.1",
+        "X-Hyori-Client-Address": "192.0.2.250",
         Connection: "x-hop",
         "X-Hop": "ignored",
       }),

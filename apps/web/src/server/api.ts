@@ -10,6 +10,7 @@ export const handleApiRequest = createServerOnlyFn(async (request: Request): Pro
     origin: ENV.APP_ORIGIN,
     backendUrl: ENV.HYORI_BACKEND_URL,
     production: ENV.APP_ENV === "production",
+    gatewayClientAddressHeader: ENV.HYORI_GATEWAY_CLIENT_ADDRESS_HEADER,
   });
 
   return apiHandler(request);

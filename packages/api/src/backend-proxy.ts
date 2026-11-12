@@ -1,8 +1,11 @@
+import { isIP } from "node:net";
+
 type BackendRequest = (request: Request) => Promise<Response>;
 
 export type BackendProxyConfig = {
   origin: string;
   backendUrl: string;
+  gatewayClientAddressHeader?: string;
   request?: BackendRequest;
 };
 
@@ -54,12 +57,21 @@ function configuredOrigin(value: string): URL {
 }
 
 /** Streams only the product API to an operator-configured backend; never follows redirects. */
-export function createBackendProxy(config: BackendProxyConfig): BackendRequest {
+export function createBackendProxy(config: BackendProxyConfig) {
   const origin = configuredOrigin(config.origin);
   const backend = configuredOrigin(config.backendUrl);
   const requestBackend = config.request ?? fetch;
+  const addressHeader = config.gatewayClientAddressHeader?.toLowerCase() || undefined;
 
-  return async (request) => {
+  if (
+    addressHeader &&
+    (!/^[!#$%&'*+.^_`|~0-9a-z-]+$/.test(addressHeader) ||
+      addressHeader === "x-hyori-client-address")
+  )
+    throw new Error("Gateway client address header must name a separate HTTP header");
+
+  // rawHeaders must come from the host's HTTP runtime, never from another request header.
+  return async (request: Request, rawHeaders?: readonly string[]): Promise<Response> => {
     const url = new URL(request.url);
 
     if (
@@ -95,8 +107,30 @@ export function createBackendProxy(config: BackendProxyConfig): BackendRequest {
     const headers = endToEndHeaders(request.headers);
 
     for (const name of request.headers.keys())
-      if (name === "forwarded" || name.startsWith("x-forwarded-") || name === "x-real-ip")
+      if (
+        name === "forwarded" ||
+        name.startsWith("x-forwarded-") ||
+        name === "x-real-ip" ||
+        name === "x-hyori-client-address"
+      )
         headers.delete(name);
+
+    if (addressHeader) {
+      const value = request.headers.get(addressHeader);
+
+      const occurrences = rawHeaders?.filter(
+        (name, index) => index % 2 === 0 && name.toLowerCase() === addressHeader,
+      ).length;
+
+      // Fetch folds duplicate physical fields into a comma list. Without raw evidence, fail
+      // closed on lists rather than confuse duplicated fields with one gateway-appended chain.
+      if (value && (occurrences === 1 || (occurrences === undefined && !value.includes(",")))) {
+        const address = value.split(",").at(-1)?.trim();
+
+        if (address && !address.includes("%") && isIP(address))
+          headers.set("x-hyori-client-address", address);
+      }
+    }
 
     // The private backend sees the configured public host, never caller-supplied proxy evidence.
     headers.set("host", origin.host);

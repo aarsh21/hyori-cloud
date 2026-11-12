@@ -70,6 +70,34 @@ test("fails closed on authority, cross-origin and missing cookie-write evidence"
   expect(calls).toBe(0);
 });
 
+test("gateway opt-in retains original Node duplicate evidence across public-origin mapping", async () => {
+  const backendUrl = serve((incoming) =>
+    Response.json({ address: incoming.headers.get("x-hyori-client-address") }),
+  );
+
+  const handler = createWebBackendHandler({
+    origin,
+    backendUrl,
+    production: true,
+    gatewayClientAddressHeader: "x-forwarded-for",
+  });
+
+  for (const [rawHeaders, expected] of [
+    [["X-Forwarded-For", "192.0.2.250, 203.0.113.8"], "203.0.113.8"],
+    [["X-Forwarded-For", "192.0.2.250", "X-Forwarded-For", "203.0.113.8"], null],
+  ] as const) {
+    const incoming = Object.assign(
+      request("cloud.example.test", {
+        "X-Forwarded-For": "192.0.2.250, 203.0.113.8",
+        "X-Hyori-Client-Address": "192.0.2.250",
+      }),
+      { runtime: { node: { req: { rawHeaders: [...rawHeaders] } } } },
+    );
+
+    expect(await (await handler(incoming)).json()).toEqual({ address: expected });
+  }
+});
+
 test("missing or unsafe config never connects and returns a private noncached 503", async () => {
   for (const config of [
     { origin, backendUrl: undefined, production: true },
@@ -77,6 +105,18 @@ test("missing or unsafe config never connects and returns a private noncached 50
     { origin, backendUrl: "https://secret:password@private.test", production: true },
     { origin, backendUrl: "http://private.test/prefix", production: true },
     { origin: "bad", backendUrl: "http://127.0.0.1:9", production: false },
+    {
+      origin,
+      backendUrl: "http://127.0.0.1:9",
+      production: true,
+      gatewayClientAddressHeader: "x-hyori-client-address",
+    },
+    {
+      origin,
+      backendUrl: "http://127.0.0.1:9",
+      production: true,
+      gatewayClientAddressHeader: "x-forwarded-for, x-real-ip",
+    },
   ]) {
     const response = await createWebBackendHandler(config)(request());
     expect(response.status).toBe(503);

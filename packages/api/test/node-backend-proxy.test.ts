@@ -8,6 +8,67 @@ import { Schema } from "@hyori-cloud/lib/effect";
 
 const origin = "https://cloud.example.test";
 
+test("gateway address opt-in strips spoofed evidence, selects the last entry and rejects ambiguous or invalid IPs", async () => {
+  const fixture = await backend((request, response) => {
+    response.setHeader("Content-Type", "application/json");
+    response.end(JSON.stringify(request.headers));
+  });
+
+  try {
+    for (const gatewayClientAddressHeader of [undefined, "X-Forwarded-For", "X-Gateway-Client"]) {
+      const proxy = createNodeBackendProxy({
+        origin,
+        backendUrl: fixture.url,
+        gatewayClientAddressHeader,
+      });
+
+      const source = gatewayClientAddressHeader ?? "X-Forwarded-For";
+
+      for (const [value, rawHeaders, expected] of [
+        ["203.0.113.8", undefined, "203.0.113.8"],
+        ["2001:db8::5", undefined, "2001:db8::5"],
+        ["198.51.100.99, 203.0.113.8", [source, "198.51.100.99, 203.0.113.8"], "203.0.113.8"],
+        ["198.51.100.99, 203.0.113.8", [source, "198.51.100.99", source, "203.0.113.8"], undefined],
+        ["198.51.100.99, 203.0.113.8", undefined, undefined],
+        ["garbage", undefined, undefined],
+        ["203.0.113.8, garbage", [source, "203.0.113.8, garbage"], undefined],
+        ["203.0.113.8:443", undefined, undefined],
+        ["[2001:db8::5]", undefined, undefined],
+        ["fe80::1%eth0", undefined, undefined],
+        ["203.0.113.999", undefined, undefined],
+      ] as const) {
+        const response = await proxy(
+          new Request(`${origin}/api/storage/files/file1`, {
+            headers: {
+              [source]: value,
+              "X-Hyori-Client-Address": "192.0.2.250",
+              Forwarded: "for=192.0.2.250",
+              "X-Real-IP": "192.0.2.250",
+              "X-Forwarded-Host": "attacker.test",
+            },
+          }),
+          rawHeaders,
+        );
+
+        const headers = Schema.decodeUnknownSync(
+          Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+        )(await response.json());
+
+        assert.equal(
+          headers["x-hyori-client-address"],
+          gatewayClientAddressHeader ? expected : undefined,
+          `${source}: ${value}`,
+        );
+
+        for (const name of ["forwarded", "x-real-ip", "x-forwarded-for", "x-forwarded-host"])
+          assert.equal(headers[name], undefined);
+      }
+    }
+  } finally {
+    fixture.close();
+  }
+});
+
 async function backend(listener: RequestListener) {
   const server = createServer(listener);
   server.listen(0, "127.0.0.1");
