@@ -247,7 +247,7 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
     const photo = await tileState(page, PHOTO);
 
     assert.match(String(photo.src), /^\/api\/storage\/derivatives\/.+[?&]revision=\d+/);
-    assert.ok(photo.width <= 256 && photo.height <= 256, `${photo.width}x${photo.height}`);
+    assert.ok(photo.width <= 384 && photo.height <= 384, `${photo.width}x${photo.height}`);
     assert.equal(photo.badge, false);
     report.observe("real thumbnail, as decoded", photo);
   });
@@ -258,7 +258,7 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
     const clip = await tileState(page, CLIP);
 
     assert.match(String(clip.src), /^\/api\/storage\/derivatives\//);
-    assert.ok(clip.width <= 256 && clip.height <= 256, `${clip.width}x${clip.height}`);
+    assert.ok(clip.width <= 384 && clip.height <= 384, `${clip.width}x${clip.height}`);
     assert.equal(clip.badge, true);
     assert.equal(clip.label, `${CLIP}. Video.`);
     report.observe("real poster, as decoded", clip);
@@ -277,7 +277,7 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
   const clip = await tileState(page, CLIP);
   const thumbnailUrl = String(photo.src);
 
-  await report.check("a thumbnail is a small PNG, revalidated, through the real host", async () => {
+  await report.check("a thumbnail is a small WebP, revalidated, through the real host", async () => {
     const reply = await page.evaluate(async (target) => {
       const read = async (range: string | null) => {
         const response = await fetch(target, range === null ? {} : { headers: { Range: range } });
@@ -311,7 +311,7 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
       originalBytes: { photo: files.photo, clip: files.clip },
     });
     assert.equal(reply.whole.status, 200);
-    assert.equal(reply.whole.contentType, "image/png");
+    assert.equal(reply.whole.contentType, "image/webp");
     assert.equal(reply.whole.cacheControl, "private, no-cache");
     assert.ok(reply.whole.etag);
     assert.equal(reply.conditional.status, 304);

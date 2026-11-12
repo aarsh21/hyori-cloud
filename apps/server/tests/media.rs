@@ -5,7 +5,7 @@ mod media_worker;
 #[path = "support/storage.rs"]
 mod storage;
 mod support;
-use hyori_media_worker::{MAX_INPUT, MAX_OUTPUT, png_dimensions};
+use hyori_media_worker::{MAX_INPUT, MAX_OUTPUT, webp_dimensions};
 use hyori_server::{
     auth::random_token,
     db::sql,
@@ -285,7 +285,7 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
             .unwrap();
         let output = response.bytes().await.unwrap();
         assert!(output.len() <= MAX_OUTPUT);
-        assert!(png_dimensions(&output).is_some());
+        assert!(webp_dimensions(&output).is_some());
         worker.decode_output(&output);
     }
     let oriented = include_bytes!("fixtures/media/oriented.jpg");
@@ -299,7 +299,7 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
         .unwrap();
     assert_eq!(response.status(), 200);
     let bytes = response.bytes().await.unwrap();
-    assert_eq!(png_dimensions(&bytes), Some((16, 32)));
+    assert_eq!(webp_dimensions(&bytes), Some((16, 32)));
     assert!(!bytes.windows(4).any(|w| w == b"Exif"));
     worker.decode_output(&bytes);
     for (mime, bytes) in [
@@ -457,7 +457,7 @@ async fn durable_derivatives_preserve_originals_scope_restore_quota_and_purge_la
         assert_eq!(media.value()["status"], "ready", "{}", media.body);
         let response = get(&server, &cookie, media.value()["url"].as_str().unwrap()).await;
         assert_eq!(response.status(), 200);
-        assert_eq!(response.headers()["content-type"], "image/png");
+        assert_eq!(response.headers()["content-type"], "image/webp");
         assert_eq!(response.headers()["cache-control"], "private, no-cache");
         assert!(response.headers().contains_key("etag"));
         assert_eq!(response.headers()["x-content-type-options"], "nosniff");
