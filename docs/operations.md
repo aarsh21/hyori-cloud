@@ -129,6 +129,15 @@ The global slot is acquired before database authorization, bounding even unknown
 part lookups to sixteen concurrent upload operations. A principal or link refusal immediately
 releases that slot; a waiting client holds no global slot and no database transaction.
 
+Anonymous request volume can still slow legitimate uploads. Waiting clients poll rather than
+receive first-come admission, and each operation gives up after 195 seconds of busy answers.
+One run per identity on a shared two-CPU orb, with 500 concurrent anonymous unknown-ID PUT
+workers and a six-part 41,943,043-byte SDK upload, completed intact in 343.782 seconds for an
+account (quiet: 1.546 seconds) and 244.769 seconds for a contributor (quiet: 0.367 seconds).
+The original `6b08373` backend failed the same runs after 11.786 and 8.123 seconds respectively.
+These are single-run failure-drill observations, not deployment performance targets. Limit
+request volume at the gateway; gateway rate limiting is outside this reliability change.
+
 A part body that supplies no chunk for thirty seconds is abandoned. The storage operation has
 a 120-second deadline and the leased worker a 125-second deadline, so sending occasional tiny
 chunks cannot hold admission forever. Admission remains owned by the worker across a caller
