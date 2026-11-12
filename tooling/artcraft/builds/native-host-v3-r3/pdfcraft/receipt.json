@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-receipt",
+  "app": "pdfcraft",
+  "artifactVersion": "0.17.0-hyori-host.3",
+  "bridge": "hyori-correlated-host-v3",
+  "protocol": 3,
+  "sourceArchiveSha256": "51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+  "buildManifestSha256": "1757ca0dc1452b4a73a89299ba522a5ab9353631715b2d40d056083c99045eea",
+  "sourceSummarySha256": "69b7919e6c9b40900200fc28446034e0d59702235956b6b42dcb0d051815ccce",
+  "wasmSha256": "a16a0c87566dbfd5c6a602058539cd899cd56e0a51d38808004c5cb4ad1ca837",
+  "payloadSha256": "74e4a6c8a07b605f73b3e40a38a8567c68f35ede70b6ab12f65b2516ee7ab928",
+  "cspScriptHashes": [
+    "sha256-P666hU+giahuDi4trESZYH/God0uNacD7fmPdf+crxM="
+  ],
+  "files": [
+    {
+      "path": "pdfcraft/0.17.0-hyori-host.3/hyori-mark-1e3aa2eda2b94725.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "pdfcraft/0.17.0-hyori-host.3/index.html",
+      "bytes": 1749,
+      "sha256": "e7cda87e074eeb3bc839f528b6e8ea095d8ebafaacfa53ddde8dd3afa3f23f86"
+    },
+    {
+      "path": "pdfcraft/0.17.0-hyori-host.3/pdfcraft-web-951fa5aea2bb0fee.js",
+      "bytes": 174237,
+      "sha256": "390eb7292559c3812f58a4b1756615e29094f6fe8f3724790b62a206d1380721"
+    },
+    {
+      "path": "pdfcraft/0.17.0-hyori-host.3/pdfcraft-web-951fa5aea2bb0fee_bg.wasm",
+      "bytes": 47338746,
+      "sha256": "a16a0c87566dbfd5c6a602058539cd899cd56e0a51d38808004c5cb4ad1ca837"
+    },
+    {
+      "path": "pdfcraft/0.17.0-hyori-host.3/snippets/eframe-d31a8450ea12dfc1/inline0.js",
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    },
+    {
+      "path": "pdfcraft/0.17.0-hyori-host.3/snippets/pdfcraft-web-85c6df8f3dce9a06/hyori-native-host.js",
+      "bytes": 183973,
+      "sha256": "b4c0c55396f8ea59bd45c6aed39f089ffc6b5dcfb7a892ff864339e5e4360d8f"
+    }
+  ]
+}
