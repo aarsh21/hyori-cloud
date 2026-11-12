@@ -7,7 +7,7 @@ export type CloudErrorCode = CloudError["code"];
 export type ErrorCopy = { readonly title: string; readonly detail?: string };
 
 // Keyed by the declared union, so a new API failure fails typechecking here until it has copy.
-const COPY: Record<Exclude<CloudErrorCode, "uploads.limitReached">, ErrorCopy> = {
+const COPY: Record<CloudErrorCode, ErrorCopy> = {
   "auth.required": { title: "Your session has ended", detail: "Sign in again to continue." },
   "auth.invalidCredentials": { title: "That email and password don’t match" },
   "auth.setupDenied": {
@@ -24,6 +24,12 @@ const COPY: Record<Exclude<CloudErrorCode, "uploads.limitReached">, ErrorCopy> =
   "resource.conflict": {
     title: "That couldn’t be applied",
     detail: "It conflicts with something that already exists or just changed.",
+  },
+  "uploads.limitReached": {
+    title: "Too many unfinished uploads",
+    // Upload rows show only the detail, so it carries the reason as well as the way out.
+    detail:
+      "You’ve reached the limit on unfinished uploads. Cancel some in Unfinished uploads, in your account menu, then try again.",
   },
   "storage.quotaExceeded": {
     title: "Not enough storage",
@@ -60,8 +66,5 @@ export function endsItemAccess(error: CloudError): boolean {
 }
 
 export function describeCloudError(error: CloudError): ErrorCopy {
-  // Preserve existing copy until the interface worker adds the pending-upload recovery view.
-  if (error.code === "uploads.limitReached") return COPY["resource.conflict"];
-
   return COPY[error.code];
 }
