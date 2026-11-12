@@ -1,4 +1,5 @@
 import { ChevronRight, Folder } from "@hyori-cloud/lib/icons";
+import { useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
   Dialog,
@@ -33,6 +34,10 @@ export function DestinationDialog({
   destination: CopyDestination;
 }) {
   const output = useStoreValue(requests);
+  const [name, setName] = useState(output?.name ?? "");
+
+  // Answer immediately, but keep the last request's title throughout the exit transition.
+  if (output !== null && output.name !== name) setName(output.name);
 
   return (
     <Dialog
@@ -43,7 +48,7 @@ export function DestinationDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save “{output?.name}” to…</DialogTitle>
+          <DialogTitle>Save “{name}” to…</DialogTitle>
         </DialogHeader>
         {destination.kind === "folder" ? (
           <FolderChoice requests={requests} rootFolderId={destination.folderId} />

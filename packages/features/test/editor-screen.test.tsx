@@ -9,8 +9,10 @@ import { DropdownMenu, DropdownMenuContent } from "@hyori-cloud/ui/components/dr
 import { createNavigationGuard } from "#features/cloud/navigation-guard.ts";
 import { CloudNavigationProvider } from "#features/cloud/react/cloud-navigation.tsx";
 import { createEditorAttachment } from "#features/editors/editor-attachment.ts";
+import { createDestinationRequests } from "#features/editors/destination-requests.ts";
 import { editorForFile } from "#features/editors/editor-files.ts";
 import type { AvailableEditor } from "#features/editors/editor-files.ts";
+import { DestinationDialog } from "#features/editors/react/destination-dialog.tsx";
 import { EditorScreen } from "#features/editors/react/editor-screen.tsx";
 import { OpenInEditorItem } from "#features/editors/react/open-in-editor-item.tsx";
 import {
@@ -43,6 +45,34 @@ const DOCUMENT = {
   outputFormats: [{ extension: ".docx", kind: "document" }],
   assetUrl: ASSET_URL,
 } satisfies EditorDocument;
+
+test("a cancelled destination keeps its filename through exit and uses the next request's name", async () => {
+  const requests = createDestinationRequests();
+
+  mount(
+    <DestinationDialog requests={requests} destination={{ kind: "none" }} />,
+    createFakeApi({}),
+  );
+  const options = { signal: new AbortController().signal };
+  let choice: Promise<{ parentId: string | null } | null>;
+
+  act(() => {
+    choice = requests.choose({ name: "Quarterly report.docx", intent: "save-as" }, options);
+  });
+  const title = await screen.findByRole("heading", { name: "Save “Quarterly report.docx” to…" });
+
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(await choice!).toBeNull();
+  expect(requests.getSnapshot()).toBeNull();
+  expect(title.textContent).toBe("Save “Quarterly report.docx” to…");
+
+  act(() => {
+    choice = requests.choose({ name: "Budget.xlsx", intent: "save-as" }, options);
+  });
+  expect(await screen.findByRole("heading", { name: "Save “Budget.xlsx” to…" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(await choice!).toBeNull();
+});
 
 function mountedFrame() {
   const frame = document.createElement("iframe");
