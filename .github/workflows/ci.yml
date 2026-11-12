@@ -205,3 +205,44 @@ jobs:
         run: docker build --file apps/web/Dockerfile --tag hyori-web-ci:${{ github.sha }} .
       - name: Verify read-only nonroot frontend runtime and environment isolation
         run: bun run test:web-image hyori-web-ci:${{ github.sha }}
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Install browser and synthetic media prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          bun x --no-install playwright-core install --with-deps chromium
+      # Serial compilation bounds peak memory, including on the smaller local proof runner.
+      - name: Build the release server and isolated decoder without publishing
+        run: |
+          docker build --progress plain --build-arg CARGO_BUILD_JOBS=1 --file apps/server/Dockerfile --tag hyori-browser-server:ci .
+          docker build --progress plain --build-arg CARGO_BUILD_JOBS=1 --file apps/media-worker/Dockerfile --tag hyori-browser-worker:ci .
+      - name: Build the actual web host
+        run: bun run --cwd apps/web build
+      - name: Exercise every non-editor browser scenario without retries
+        shell: bash
+        run: |
+          failed=0
+          # Fresh stacks keep account/library mutations and simulated thumbnail states isolated.
+          for scenarios in \
+            files,replacement,sharing,admin,derivatives,photos,concurrency,touch,readiness,screens \
+            interface account phone-auth phone-completion resume \
+            download-soak download-network-change thumbnail-latency thumbnail-states; do
+            bun run test:rust-browser hyori-browser-server:ci \
+              --worker=hyori-browser-worker:ci --fresh-image --no-build \
+              --scenarios="$scenarios" --artifacts="browser-results/$scenarios" || failed=1
+          done
+          exit "$failed"
+      - name: Upload browser reports, transport evidence and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-results
+          path: browser-results/
+          if-no-files-found: error
+          retention-days: 14
