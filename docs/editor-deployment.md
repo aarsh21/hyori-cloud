@@ -74,6 +74,45 @@ The executable handler owner is `scripts/editor-static-handler.ts`, exercised ag
 
 The runtime notice entry is `/artcraft/legal/RUNTIME-NOTICE-INDEX.md`; retain its linked notices and source references alongside the payloads. A checksum is not a legal opinion or a substitute for those obligations.
 
+## Opt-in gateway client addresses for authentication limits
+
+Client-address attribution requires **both** settings below. They are runtime settings, not browser variables. Merely adding them to `.env.deployment` does not pass them into the shipped Compose services; supply a Compose override too. With both unset, the web host removes forwarded client-address headers, Rust does not trust the web host to name a client, and unknown browsers behind it retain one shared ten-attempt login budget per email per 15 minutes. A previously authenticated device retains its separate budget. This preserves the default behavior, including the ability for someone who knows an email to exhaust that shared budget.
+
+- Web service: `HYORI_GATEWAY_CLIENT_ADDRESS_HEADER=x-forwarded-for`. The web host accepts only one physical instance of this header, takes its last comma-separated entry, requires an IPv4 or IPv6 literal without a port, brackets or zone identifier, and forwards that address as `x-hyori-client-address`. It always removes a caller-supplied `x-hyori-client-address`, even when the setting is unset.
+- Backend service: `HYORI_TRUSTED_PROXIES=<web host's TCP source IP>`. This is a comma-separated list of IP literals or canonical CIDRs, not hostnames, URLs or Caddy's address. Rust trusts only the immediate web-host peer to supply exactly one valid `x-hyori-client-address`. Empty/unset means no trusted proxies. Do not trust every address or a whole Docker subnet when one fixed web address is sufficient. Missing, duplicate or malformed address evidence from a trusted peer leaves the client unknown; it does not use the proxy's address as a shared client budget.
+
+For the shipped stack behind **one Caddy directly facing clients**, retain the existing HTTPS site and `/artcraft/*` handler above. Its fallback `reverse_proxy web:3001 { header_up -Forwarded }` is sufficient when Caddy shares the Docker network. A host-installed Caddy instead uses `reverse_proxy 127.0.0.1:3001` (or `HYORI_WEB_PORT`) with the same `header_up -Forwarded`. Caddy's default reverse proxy replaces untrusted incoming `X-Forwarded-For` with its TCP peer address; do not enable broad `trusted_proxies`, preserve arbitrary caller forwarding headers, or override that behavior with a caller-provided value. Preserve the public Host and keep `APP_ORIGIN` identical on web and backend.
+
+For example, save this as an operator-owned `compose.gateway-address.yml`. Choose an unused private subnet appropriate to the host; these addresses are examples, not autodiscovery. This pins the web host's backend-facing source address so recreation does not silently invalidate Rust's allowlist:
+
+```yaml
+services:
+  web:
+    environment:
+      HYORI_GATEWAY_CLIENT_ADDRESS_HEADER: x-forwarded-for
+    networks:
+      default:
+        ipv4_address: 172.30.0.10
+  backend:
+    environment:
+      HYORI_TRUSTED_PROXIES: 172.30.0.10/32
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+```
+
+Include that override with the same project, deployment environment and existing editor overlay when starting the stack. Inspect the resolved configuration with `docker compose --env-file .env.deployment -f docker-compose.yml -f compose.gateway-address.yml config` (add the editor overlay if used). Confirm the actual web source address observed by the backend matches the allowlist. Changing an existing network requires planned downtime and configuration review; never remove persistent volumes, rename the project or reset data for this setting. If instead using a dynamically allocated web IP, discover it with `docker inspect` and update the backend allowlist after every web recreation; a stale entry silently restores unknown-client limits. If the web host reaches Rust over loopback outside Docker, trust only that observed loopback address, not the example Docker IP.
+
+With both settings working, unknown-browser logins spend ten attempts per email and client address and at most 100 attempts per address across emails per 15 minutes. IPv4 uses the address; IPv6 shares a budget across its /64, including privacy addresses. Setup, invite and link-password attempts have ten attempts per client per secret and a 100-attempt ceiling per secret across identified clients. Failed attempts from one address therefore do not alone exhaust a different address's login budget. Shared NATs and IPv6 /64s still share budgets. This is abuse attribution, not authentication or authorization.
+
+With only the web setting, Rust ignores the forwarded address from the unlisted private peer. With only the backend setting, the web host supplies no address. Neither half-configuration refuses startup or breaks ordinary requests; both silently retain unknown-client/shared-email limits. Verify attribution after deployment rather than treating a healthy response as proof of correct configuration. A direct public TCP peer reaching Rust has its own address-based budget even without trusted proxies; do not expose the private Rust port.
+
+**Only the gateway may reach the web host.** Its opt-in trusts the configured header without authenticating the upstream sender. A caller reaching the web host directly can select its own rate-limit address. The shipped Compose publication remains `127.0.0.1:${HYORI_WEB_PORT:-3001}:3001`, not a public bind; keep it that way for host Caddy and firewall untrusted local workloads. Loopback publication does not isolate other containers on the Docker network or processes on the host. Restrict network membership and do not expose another route to the web service. Keep the backend unexposed as well. This accepted deployment trust boundary is essential, not an optional hardening step.
+
+A CDN or second reverse proxy changes the meaning of Caddy's TCP peer. With the recipe unchanged, the address counted is the CDN/outer proxy, so its users share a budget. Do not simply point the web setting at the CDN's header: an untrusted caller could supply it. Configure Caddy using that provider's authenticated, restricted ingress and exact trusted proxy ranges, strip/replace the provider header at the ingress, and deliberately emit one sanitized IP literal into a dedicated gateway-owned header (then name that header in the web setting). Simply preserving an `X-Forwarded-For` chain can leave the nearest proxy as its last entry, which this web host would count instead of the browser. Restrict Caddy to traffic from the outer proxy where required, account for every hop, and repeat the spoofing and two-client lockout checks on the actual topology. The single-hop evidence does not validate a CDN or multi-proxy deployment.
+
 ## Acceptance and data-preserving upgrade
 
 Before upgrading a user-facing instance, verify the exact final bundle with the built backend and HTTPS web host, then open, edit, save and freshly reopen a synthetic document in each of WordCraft, GridCraft, DeckCraft and PdfCraft. Check the reopened content, not merely a frame-ready message. Exercise explicit destinations, read-only copies, stale-revision conflicts and recovery through the public SDK. Keep asset composition, functional evidence and architecture checks separate.
