@@ -41,7 +41,9 @@ const PINNED_BUN = z
   .packageManager.slice("bun@".length);
 
 if (Bun.semver.order(Bun.version, PINNED_BUN) < 0) {
-  throw new Error(`Bun ${Bun.version} at ${process.execPath} is older than the pinned ${PINNED_BUN}.`);
+  throw new Error(
+    `Bun ${Bun.version} at ${process.execPath} is older than the pinned ${PINNED_BUN}.`,
+  );
 }
 
 const EDITOR_RECEIPT =
