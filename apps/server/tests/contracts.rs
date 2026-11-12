@@ -156,6 +156,7 @@ fn production_configuration_and_cookie_policy() {
         storage: None,
         media_worker_socket: None,
         editor_assets: None,
+        trusted_proxies: vec![],
     };
     config.validate().unwrap();
     let adapter = AuthAdapter::new(std::sync::Arc::new(config.clone()));

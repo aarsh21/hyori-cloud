@@ -258,7 +258,11 @@ async fn auth_postgres_http_lifecycle() {
         fresh
             .state
             .auth
-            .rate_limit(&fresh.state.db, "persistent-rate-test")
+            .rate_limit(
+                &fresh.state.db,
+                "persistent-rate-test",
+                hyori_server::auth::SECRET_ATTEMPTS,
+            )
             .await
             .unwrap();
     }
@@ -266,7 +270,11 @@ async fn auth_postgres_http_lifecycle() {
         server
             .state
             .auth
-            .rate_limit(&server.state.db, "persistent-rate-test")
+            .rate_limit(
+                &server.state.db,
+                "persistent-rate-test",
+                hyori_server::auth::SECRET_ATTEMPTS
+            )
             .await
             .is_err()
     );
@@ -500,7 +508,11 @@ async fn authentication_cleanup_is_bounded_restart_safe_and_preserves_live_autho
         server
             .state
             .auth
-            .rate_limit(db, "cleanup-live-window")
+            .rate_limit(
+                db,
+                "cleanup-live-window",
+                hyori_server::auth::SECRET_ATTEMPTS,
+            )
             .await
             .unwrap();
     }
@@ -565,7 +577,11 @@ async fn authentication_cleanup_is_bounded_restart_safe_and_preserves_live_autho
         server
             .state
             .auth
-            .rate_limit(db, "cleanup-live-window")
+            .rate_limit(
+                db,
+                "cleanup-live-window",
+                hyori_server::auth::SECRET_ATTEMPTS
+            )
             .await
             .is_err()
     );
@@ -620,7 +636,11 @@ async fn authentication_cleanup_preserves_concurrent_refreshes_and_cooperates_be
     assert_eq!(current.try_get::<i32>("", "attempts").unwrap(), 10);
     state
         .auth
-        .rate_limit(db, "refresh-in-progress")
+        .rate_limit(
+            db,
+            "refresh-in-progress",
+            hyori_server::auth::SECRET_ATTEMPTS,
+        )
         .await
         .unwrap_err();
     restarted.db.clone().close().await.unwrap();

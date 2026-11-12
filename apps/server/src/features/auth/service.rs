@@ -1,6 +1,6 @@
 use crate::{
     AppState,
-    auth::{IssuedSession, RATE_LIMIT_WINDOW_SECONDS, digest, random_token},
+    auth::{IssuedSession, digest, random_token},
     db::{begin, sql},
     error::{ApiError, ErrorCode},
     features::{
@@ -41,8 +41,13 @@ impl<'a> AuthService<'a> {
         tx.commit().await?;
         Ok(status)
     }
-    pub async fn setup(&self, mut input: Setup) -> Result<IssuedSession, ApiError> {
-        self.state.auth.rate_limit(&self.state.db, "setup").await?;
+    pub async fn setup(
+        &self,
+        mut input: Setup,
+        context: &RequestContext,
+    ) -> Result<IssuedSession, ApiError> {
+        let limits = crate::auth::secret_limits("setup", context.client);
+        self.state.auth.rate_limits(&self.state.db, &limits).await?;
         if !bool::from(
             digest(&input.setup_token)
                 .as_bytes()
@@ -90,9 +95,8 @@ impl<'a> AuthService<'a> {
             .device
             .as_deref()
             .filter(|token| device_nonce(secret, &input.email, token).is_some());
-        for (key, limit) in login_limits(secret, &input.email, device, context.peer) {
-            self.limit(&key, limit).await?;
-        }
+        let limits = login_limits(secret, &input.email, device, context.client);
+        self.state.auth.rate_limits(&self.state.db, &limits).await?;
         let tx = Arc::new(begin(&self.state.db).await?);
         let session = self.state.auth.login(tx.clone(), &input).await?;
         commit(tx).await?;
@@ -109,26 +113,20 @@ impl<'a> AuthService<'a> {
             }
         )
     }
-    /// Fixed-window attempt counter shared with the other authentication limits.
-    async fn limit(&self, key: &str, attempts: i32) -> Result<(), ApiError> {
-        let row = self.state.db.query_one_raw(sql("INSERT INTO hyori_rate_limits(key_digest,window_start,attempts) VALUES ($1,now(),1) ON CONFLICT(key_digest) DO UPDATE SET window_start=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN now() ELSE hyori_rate_limits.window_start END, attempts=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN 1 ELSE LEAST(hyori_rate_limits.attempts+1,$3+1) END RETURNING attempts", vec![digest(key).into(), RATE_LIMIT_WINDOW_SECONDS.into(), attempts.into()])).await?.ok_or_else(ApiError::unavailable)?;
-        if row.try_get::<i32>("", "attempts")? > attempts {
-            Err(ApiError::limited())
-        } else {
-            Ok(())
-        }
-    }
     pub async fn logout(&self, token: Option<&str>) -> Result<Done, ApiError> {
         let tx = Arc::new(begin(&self.state.db).await?);
         self.state.auth.logout(tx.clone(), token).await?;
         commit(tx).await?;
         Ok(Done { success: true })
     }
-    pub async fn accept_invite(&self, mut input: AcceptInvite) -> Result<IssuedSession, ApiError> {
-        self.state
-            .auth
-            .rate_limit(&self.state.db, &format!("invite:{}", digest(&input.token)))
-            .await?;
+    pub async fn accept_invite(
+        &self,
+        mut input: AcceptInvite,
+        context: &RequestContext,
+    ) -> Result<IssuedSession, ApiError> {
+        let scope = format!("invite:{}", digest(&input.token));
+        let limits = crate::auth::secret_limits(&scope, context.client);
+        self.state.auth.rate_limits(&self.state.db, &limits).await?;
         normalize_account(&mut input.account)?;
         let tx = Arc::new(begin(&self.state.db).await?);
         let invite = tx.query_one_raw(sql("SELECT i.email FROM hyori_invites i JOIN hyori_users u ON u.id=i.issuer_id WHERE i.token_digest=$1 AND i.expires_at>now() AND i.consumed_at IS NULL AND u.status='active' AND u.role='admin' FOR UPDATE OF i FOR SHARE OF u", vec![digest(&input.token).into()])).await?.ok_or_else(ApiError::denied)?;
@@ -190,6 +188,7 @@ impl<'a> AuthService<'a> {
             .rate_limit(
                 &self.state.db,
                 &format!("create-account:{}", admin.user_id().0),
+                crate::auth::SECRET_ATTEMPTS,
             )
             .await?;
         let tx = Arc::new(begin(&self.state.db).await?);
@@ -244,41 +243,27 @@ const DEVICE_SECONDS: i64 = 180 * 24 * 60 * 60;
 
 /// Which counters a login attempt consumes. A browser that has signed in to this email before
 /// presents a MAC-bound device cookie and gets its own budget, so strangers' failures cannot lock
-/// it out. Other attempts are keyed per email and client address. Behind the web host every
-/// request arrives from one private address, which is not a client identity: those attempts
-/// share one per-email budget and no per-address limit applies (it would be a global limit).
+/// it out. Other attempts are keyed per email and client address (see `rpc::client_address`),
+/// with a per-client ceiling across emails. With no known client (behind a web host that is not a
+/// listed proxy) those attempts share one per-email budget and no per-client limit applies.
 fn login_limits(
     secret: &str,
     email: &str,
     device: Option<&str>,
-    peer: Option<IpAddr>,
+    client: Option<IpAddr>,
 ) -> Vec<(String, i32)> {
     if let Some(nonce) = device.and_then(|token| device_nonce(secret, email, token)) {
         return vec![(format!("login-device:{email}:{nonce}"), LOGIN_ATTEMPTS)];
     }
-    match peer.filter(|ip| direct_client(*ip)) {
-        Some(ip) => vec![
-            (format!("login:{email}:{ip}"), LOGIN_ATTEMPTS),
-            (format!("login-address:{ip}"), LOGIN_ATTEMPTS_PER_ADDRESS),
+    match client.map(crate::rpc::client_key) {
+        Some(client) => vec![
+            (format!("login:{email}:{client}"), LOGIN_ATTEMPTS),
+            (
+                format!("login-address:{client}"),
+                LOGIN_ATTEMPTS_PER_ADDRESS,
+            ),
         ],
         None => vec![(format!("login:{email}"), LOGIN_ATTEMPTS)],
-    }
-}
-/// Loopback, private and link-local peers are proxies or local tooling, not end clients.
-fn direct_client(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(ip) => {
-            !(ip.is_loopback() || ip.is_private() || ip.is_link_local() || ip.is_unspecified())
-        }
-        IpAddr::V6(ip) => match ip.to_ipv4_mapped() {
-            Some(mapped) => direct_client(IpAddr::V4(mapped)),
-            None => {
-                !(ip.is_loopback()
-                    || ip.is_unspecified()
-                    || ip.is_unique_local()
-                    || ip.is_unicast_link_local())
-            }
-        },
     }
 }
 fn device_token(secret: &str, email: &str) -> String {
@@ -425,8 +410,9 @@ mod tests {
             "::ffff:192.168.1.2",
         ] {
             let proxy: IpAddr = proxy.parse().unwrap();
+            let client = crate::rpc::client_address(&Default::default(), Some(proxy), &[]);
             assert_eq!(
-                login_limits(SECRET, "u@example.test", None, Some(proxy)).len(),
+                login_limits(SECRET, "u@example.test", None, client).len(),
                 1,
                 "{proxy}"
             );

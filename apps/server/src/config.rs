@@ -1,5 +1,8 @@
 use crate::features::auth::api::{SETUP_TOKEN_MAX_CHARS, SETUP_TOKEN_MIN_CHARS};
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    net::{IpAddr, SocketAddr},
+    time::Duration,
+};
 use url::Url;
 
 #[derive(Clone)]
@@ -27,6 +30,68 @@ pub struct Config {
     pub media_worker_socket: Option<std::path::PathBuf>,
     /// Explicit operator-selected, pinned read-only editor bundle; absence disables runtime editing.
     pub editor_assets: Option<EditorAssetsConfig>,
+    /// Peers whose `x-hyori-client-address` names the end client (`HYORI_TRUSTED_PROXIES`).
+    /// Empty: the header is ignored and only a public TCP peer identifies a client.
+    pub trusted_proxies: Vec<ProxyRange>,
+}
+/// One address or CIDR range of `HYORI_TRUSTED_PROXIES`, such as `10.0.0.0/8` or `::1`.
+/// IPv4-mapped IPv6 peers match IPv4 ranges.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProxyRange {
+    network: IpAddr,
+    prefix: u8,
+}
+impl ProxyRange {
+    pub fn contains(&self, address: IpAddr) -> bool {
+        let address = address.to_canonical();
+        address.is_ipv4() == self.network.is_ipv4() && network(address, self.prefix) == self.network
+    }
+}
+/// The lowest address of the `prefix`-bit network containing `address`.
+pub(crate) fn network(address: IpAddr, prefix: u8) -> IpAddr {
+    let keep = |width: u8| {
+        u128::MAX
+            .checked_shl(u32::from(width.saturating_sub(prefix)))
+            .unwrap_or(0)
+    };
+    match address {
+        IpAddr::V4(address) => IpAddr::V4((u32::from(address) & keep(32) as u32).into()),
+        IpAddr::V6(address) => IpAddr::V6((u128::from(address) & keep(128)).into()),
+    }
+}
+impl std::str::FromStr for ProxyRange {
+    type Err = ConfigError;
+    /// Refuses a range with host bits set or one covering every address: both are likely typos.
+    fn from_str(value: &str) -> Result<Self, ConfigError> {
+        let invalid =
+            || ConfigError("HYORI_TRUSTED_PROXIES entries must be addresses or CIDR ranges");
+        let (address, prefix) = match value.split_once('/') {
+            Some((address, prefix)) => (address, Some(prefix)),
+            None => (value, None),
+        };
+        let address: IpAddr = address.parse().map_err(|_| invalid())?;
+        let width = if address.is_ipv4() { 32 } else { 128 };
+        let prefix = match prefix {
+            None => width,
+            Some(digits)
+                if (1..=3).contains(&digits.len())
+                    && digits.bytes().all(|b| b.is_ascii_digit()) =>
+            {
+                digits.parse().map_err(|_| invalid())?
+            }
+            Some(_) => return Err(invalid()),
+        };
+        if address.to_canonical() != address
+            || !(1..=width).contains(&prefix)
+            || network(address, prefix) != address
+        {
+            return Err(invalid());
+        }
+        Ok(Self {
+            network: address,
+            prefix,
+        })
+    }
 }
 #[derive(Debug, thiserror::Error)]
 #[error("Invalid server configuration: {0}")]
@@ -96,6 +161,16 @@ impl Config {
                     ))?,
             },
             media_worker_socket: std::env::var_os("HYORI_MEDIA_WORKER_SOCKET").map(Into::into),
+            trusted_proxies: match std::env::var("HYORI_TRUSTED_PROXIES") {
+                Err(std::env::VarError::NotPresent) => vec![],
+                value => value
+                    .map_err(|_| ConfigError("HYORI_TRUSTED_PROXIES must be text"))?
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                    .map(str::parse)
+                    .collect::<Result<_, _>>()?,
+            },
             editor_assets: match (
                 std::env::var_os("HYORI_EDITOR_ASSETS_DIR"),
                 std::env::var("HYORI_EDITOR_ASSETS_MANIFEST_SHA256"),
@@ -223,5 +298,34 @@ impl Config {
             ));
         }
         Ok(())
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn proxy_ranges_match_their_members_only() {
+        let range: ProxyRange = "172.16.0.0/12".parse().unwrap();
+        assert!(range.contains("172.31.255.255".parse().unwrap()));
+        assert!(range.contains("::ffff:172.16.0.1".parse().unwrap()));
+        assert!(!range.contains("172.32.0.0".parse().unwrap()));
+        let host: ProxyRange = "fd00::7".parse().unwrap();
+        assert!(host.contains("fd00::7".parse().unwrap()));
+        assert!(!host.contains("fd00::8".parse().unwrap()));
+    }
+    #[test]
+    fn ambiguous_proxy_ranges_are_refused() {
+        for entry in [
+            "10.0.0.1/8",
+            "0.0.0.0/0",
+            "::/0",
+            "10.0.0.0/33",
+            "10.0.0.0/",
+            "10.0.0.0/+8",
+            "::ffff:10.0.0.1",
+            "proxy.internal",
+        ] {
+            assert!(entry.parse::<ProxyRange>().is_err(), "{entry}");
+        }
     }
 }
