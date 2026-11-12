@@ -46,6 +46,7 @@ function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = 
   const finished: { intentId: string; ran: boolean }[] = [];
   const model = { revision: 1, dirty: false };
   const captures: Capture[] = [];
+  const reconnectListeners = new Set<() => void>();
   let ignoreDiscard = false;
   let themeMs = 0;
   let pumping = false;
@@ -197,6 +198,15 @@ function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = 
     autosave: { idleMs: 5, maxWaitMs: 20 },
     theme: "system",
     visibility: { hidden: options.hidden ?? (() => false), subscribe: () => () => {} },
+    connectivity: {
+      subscribe(listener) {
+        reconnectListeners.add(listener);
+
+        return () => {
+          reconnectListeners.delete(listener);
+        };
+      },
+    },
   });
 
   sessions.push(session);
@@ -209,6 +219,10 @@ function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = 
     applied,
     finished,
     captures,
+    reconnect() {
+      for (const listener of reconnectListeners) listener();
+    },
+    reconnectListeners,
     requests: () =>
       commands.filter(
         (command): command is Extract<NativeHostCommand, { type: `${string}:request-save` }> =>
@@ -243,6 +257,64 @@ const sourceSaves = (h: ReturnType<typeof harness>) =>
   h.saves.filter((save) => save.output.intent === "replace");
 
 describe("SDK against the real frame protocol state machine (scripted engine, not WASM)", () => {
+  test("an unreachable save retries its exact snapshot then autosaves edits made during the outage", async () => {
+    const h = harness();
+    h.setSave(async () => ({ status: "failed", message: "Offline", retryable: true }));
+    await h.open();
+    h.edit();
+    await until(() => h.session.getSnapshot().status === "save-failed");
+    const first = structuredClone(h.saves[0]);
+    h.edit();
+    h.setSave(async () => ({ status: "saved", revision: String(h.saves.length + 1) }));
+    await until(() => h.saves.length >= 3);
+    await until(() => !h.session.getSnapshot().hasUnsavedChanges);
+    expect(h.saves[1]).toEqual(first);
+    expect(h.saves[2]?.saveId).not.toBe(first?.saveId);
+    expect(h.requests()).toHaveLength(2);
+    expect(h.session.getSnapshot().autosave.status).toBe("idle");
+  });
+
+  test("reconnect retries share a three-attempt budget and disposal unsubscribes", async () => {
+    const h = harness();
+    h.setSave(async () => ({ status: "failed", message: "Offline", retryable: true }));
+    await h.open();
+    h.edit();
+    await until(() => h.session.getSnapshot().status === "save-failed");
+    const first = structuredClone(h.saves[0]);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      h.reconnect();
+      await until(
+        () => h.saves.length === attempt + 2 && h.session.getSnapshot().status === "save-failed",
+      );
+      expect(h.saves.at(-1)).toEqual(first);
+    }
+
+    h.reconnect();
+    await delay(1100);
+    expect(h.saves).toHaveLength(4);
+    h.setSave(async () => ({ status: "saved", revision: "2" }));
+    expect(h.session.retry()).toBe(true);
+    await until(() => !h.session.getSnapshot().hasUnsavedChanges);
+    h.session.dispose();
+    expect(h.reconnectListeners.size).toBe(0);
+  });
+
+  for (const status of ["conflict", "access-ended", "failed"] as const) {
+    test(`${status} without transport retry permission never retries on reconnect`, async () => {
+      const h = harness();
+      h.setSave(async () => ({ status, message: "Rejected", retryable: false }));
+      await h.open();
+      h.edit();
+      await until(
+        () => h.session.getSnapshot().status === (status === "failed" ? "save-failed" : status),
+      );
+      h.reconnect();
+      await delay(1100);
+      expect(h.saves).toHaveLength(1);
+    });
+  }
+
   for (const outcome of ["cancelled", "conflict"] as const) {
     test(`a ${outcome} copy releases its snapshot on both sides and autosave resumes`, async () => {
       const h = harness();

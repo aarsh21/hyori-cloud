@@ -49,6 +49,13 @@ export function createEditorAttachment({
     maxBytes: MAX_EDITOR_BYTES,
     autosave: { idleMs: 750, maxWaitMs: 5000 },
     visibility: createBrowserEditorVisibility(frame.ownerDocument),
+    connectivity: {
+      subscribe(listener) {
+        host.addEventListener("online", listener);
+
+        return () => host.removeEventListener("online", listener);
+      },
+    },
     messages: createBrowserEditorMessages({
       host,
       editorWindow,

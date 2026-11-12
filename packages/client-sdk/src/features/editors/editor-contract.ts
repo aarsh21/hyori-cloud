@@ -55,7 +55,7 @@ export type EditorSaveResult =
     }
   /** Nothing was written: the person declined to choose a destination. */
   | { status: "cancelled"; message: string }
-  | { status: "failed"; message: string };
+  | { status: "failed"; message: string; retryable?: boolean };
 
 export interface EditorBackendPort {
   open(options: { signal: AbortSignal }): Promise<EditorDocument>;
@@ -150,6 +150,8 @@ export interface EditorSessionOptions {
   autosave?: { idleMs: number; maxWaitMs: number };
   theme?: NativeTheme;
   visibility?: EditorVisibilityPort;
+  /** Signals restored connectivity; retries still share the snapshot's bounded attempt budget. */
+  connectivity?: { subscribe(listener: () => void): () => void };
 }
 
 export interface EditorSnapshot {

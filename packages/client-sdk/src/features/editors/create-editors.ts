@@ -66,6 +66,7 @@ function saveFailure(
     default:
       return {
         status: "failed",
+        retryable: error.code === "SDK_TRANSPORT" || error.code === "service.unavailable",
         message: "Could not confirm the save; retry uses the same save ID and retained bytes.",
       };
   }
