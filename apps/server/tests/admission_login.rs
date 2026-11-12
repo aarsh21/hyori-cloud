@@ -217,11 +217,12 @@ async fn a_full_sign_in_lane_signs_everyone_in_and_answers_busy_without_counting
     let places = SIGN_IN_RUNNING + SIGN_IN_WAITING;
     let extra = 4;
     members(&server, places + extra, &password).await;
-    // Holding the attempt-counter table stops each admitted sign-in where it spends its counter,
-    // inside the lane, so the lane fills deterministically rather than by timing.
+    // Blocking writes to the attempt counters (reads still pass) stops each admitted sign-in
+    // where it spends its counter, inside the lane, so the lane fills deterministically rather
+    // than by timing.
     let counters = server.state.db.begin().await.unwrap();
     counters
-        .execute_unprepared("LOCK TABLE hyori_rate_limits IN ACCESS EXCLUSIVE MODE")
+        .execute_unprepared("LOCK TABLE hyori_rate_limits IN SHARE MODE")
         .await
         .unwrap();
     let admitted: Vec<_> = (0..places)
@@ -293,4 +294,100 @@ async fn a_full_sign_in_lane_signs_everyone_in_and_answers_busy_without_counting
         assert_eq!(counted(index).await, 1);
     }
     pg.stop();
+}
+
+/// Floods sign-ins with wrong passwords for `flooded` known emails whose attempt budgets are
+/// already spent, while other members sign in one at a time with the right password. Every one of
+/// them must be signed in on the first answer: a spent budget never holds a place in the lane.
+async fn spent_budget_flood(flooded: usize) {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    let pg = Postgres::start().await;
+    let mut config = pg.config.clone();
+    config.sign_in_answer = hyori_server::config::SIGN_IN_ANSWER;
+    let server = Arc::new(TestServer::start(config).await);
+    let password = random_token();
+    let people = 16;
+    members(&server, flooded + people, &password).await;
+    let wrong = |index: usize| json!({"email":format!("member-{index}@example.test"),"password":"wrong password"});
+    for index in 0..flooded {
+        for _ in 0..10 {
+            server
+                .rpc("auth.login", wrong(index), None)
+                .await
+                .error(401, "auth.invalidCredentials");
+        }
+        server
+            .rpc("auth.login", wrong(index), None)
+            .await
+            .error(429, "auth.rateLimited");
+    }
+    let stop = Arc::new(AtomicBool::new(false));
+    let (limited, other) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(0)));
+    let mut flood = JoinSet::new();
+    for worker in 0..96 {
+        let (server, stop, limited, other) =
+            (server.clone(), stop.clone(), limited.clone(), other.clone());
+        flood.spawn(async move {
+            while !stop.load(Ordering::Relaxed) {
+                let reply = server
+                    .rpc("auth.login", wrong(worker % flooded), None)
+                    .await;
+                let counter =
+                    if reply.status == 429 && reply.body["error"]["code"] == "auth.rateLimited" {
+                        &limited
+                    } else {
+                        &other
+                    };
+                counter.fetch_add(1, Ordering::Relaxed);
+            }
+        });
+    }
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let mut first_answers = Vec::new();
+    let mut slowest = Duration::ZERO;
+    for index in flooded..flooded + people {
+        let start = Instant::now();
+        let reply = sign_in(&server, index, &password).await.unwrap();
+        slowest = slowest.max(start.elapsed());
+        first_answers.push(
+            reply.body["error"]["code"]
+                .as_str()
+                .unwrap_or("signed in")
+                .to_owned(),
+        );
+    }
+    stop.store(true, Ordering::Relaxed);
+    flood.join_all().await;
+    let signed_in = first_answers
+        .iter()
+        .filter(|code| *code == "signed in")
+        .count();
+    eprintln!(
+        "{flooded} spent email(s) flooded by 96 callers: {} answered auth.rateLimited, {} otherwise; {people} correct sign-ins by others: {signed_in} signed in on the first answer, first answers {first_answers:?}, slowest {} ms",
+        limited.load(Ordering::Relaxed),
+        other.load(Ordering::Relaxed),
+        slowest.as_millis()
+    );
+    assert_eq!(
+        signed_in, people,
+        "a spent budget made someone else's sign-in busy"
+    );
+    assert_eq!(
+        other.load(Ordering::Relaxed),
+        0,
+        "a spent budget must be refused before the lane"
+    );
+    pg.stop();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "real concurrent HTTP and PostgreSQL: sign-ins with a spent budget never take a place in the lane"]
+async fn a_flood_on_one_spent_email_never_makes_other_sign_ins_busy() {
+    spent_budget_flood(1).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "real concurrent HTTP and PostgreSQL: sign-ins with a spent budget never take a place in the lane"]
+async fn a_flood_on_several_spent_emails_never_makes_other_sign_ins_busy() {
+    spent_budget_flood(4).await;
 }

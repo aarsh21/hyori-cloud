@@ -213,9 +213,11 @@ impl AuthAdapter {
     /// wrong password, a check unfinished by `deadline`, or a password replaced meanwhile. The
     /// caller answers them all alike at the deadline. A busy answer depends on the lane only.
     ///
-    /// Whether the lane is busy is decided before `limits` are spent, so a busy answer is never
-    /// counted as an attempt. An email with an account takes a place in the lane there; one
-    /// without is answered busy under exactly the same lane state and holds no place.
+    /// A spent budget in `limits` is refused first, by reading the counters only, so such a
+    /// sign-in never holds a place in the lane or waits on a counter row. Whether the lane is busy
+    /// is decided before `limits` are spent, so a busy answer is never counted as an attempt. An
+    /// email with an account takes a place in the lane there; one without is answered busy under
+    /// exactly the same lane state and holds no place.
     pub async fn login(
         &self,
         db: &DatabaseConnection,
@@ -224,6 +226,7 @@ impl AuthAdapter {
         deadline: Instant,
     ) -> Result<Option<IssuedSession>, ApiError> {
         validate_password_length(&input.password, 1)?;
+        self.refuse_spent(db, limits).await?;
         let account = db
             .query_one_raw(sql(
                 "SELECT u.id,c.password_hash FROM hyori_users u JOIN hyori_credentials c ON c.user_id=u.id WHERE u.email=$1 AND u.status='active'",
@@ -405,6 +408,33 @@ impl AuthAdapter {
     ) -> Result<(), ApiError> {
         let row = db.query_one_raw(sql("INSERT INTO hyori_rate_limits(key_digest,window_start,attempts) VALUES ($1,now(),1) ON CONFLICT(key_digest) DO UPDATE SET window_start=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN now() ELSE hyori_rate_limits.window_start END, attempts=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN 1 ELSE LEAST(hyori_rate_limits.attempts+1,$3+1) END RETURNING attempts", vec![digest(key).into(), RATE_LIMIT_WINDOW_SECONDS.into(), attempts.into()])).await?.ok_or_else(ApiError::unavailable)?;
         if row.try_get::<i32>("", "attempts")? > attempts {
+            Err(ApiError::limited())
+        } else {
+            Ok(())
+        }
+    }
+    /// Refuses when any of `limits` is already spent in its current window, without spending or
+    /// locking anything.
+    async fn refuse_spent(
+        &self,
+        db: &DatabaseConnection,
+        limits: &[(String, i32)],
+    ) -> Result<(), ApiError> {
+        let limits: Vec<_> = limits
+            .iter()
+            .map(|(key, attempts)| serde_json::json!({"key": digest(key), "attempts": attempts}))
+            .collect();
+        let spent = db
+            .query_one_raw(sql(
+                "SELECT EXISTS (SELECT 1 FROM jsonb_to_recordset($1::jsonb) AS l(key text, attempts integer)
+                 JOIN hyori_rate_limits r ON r.key_digest=l.key
+                 WHERE r.attempts >= l.attempts AND r.window_start > now()-$2::bigint * interval '1 second') AS spent",
+                vec![serde_json::json!(limits).into(), RATE_LIMIT_WINDOW_SECONDS.into()],
+            ))
+            .await?
+            .ok_or_else(ApiError::unavailable)?
+            .try_get::<bool>("", "spent")?;
+        if spent {
             Err(ApiError::limited())
         } else {
             Ok(())
