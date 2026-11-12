@@ -212,10 +212,15 @@ impl AuthAdapter {
     /// None is a failed sign-in, whatever the reason: no usable account (nothing is hashed), a
     /// wrong password, a check unfinished by `deadline`, or a password replaced meanwhile. The
     /// caller answers them all alike at the deadline. A busy answer depends on the lane only.
+    ///
+    /// Whether the lane is busy is decided before `limits` are spent, so a busy answer is never
+    /// counted as an attempt. An email with an account takes a place in the lane there; one
+    /// without is answered busy under exactly the same lane state and holds no place.
     pub async fn login(
         &self,
         db: &DatabaseConnection,
         input: &crate::features::auth::api::Credentials,
+        limits: &[(String, i32)],
         deadline: Instant,
     ) -> Result<Option<IssuedSession>, ApiError> {
         validate_password_length(&input.password, 1)?;
@@ -225,15 +230,21 @@ impl AuthAdapter {
                 vec![input.email.clone().into()],
             ))
             .await?;
-        let place = self.sign_in.admit().ok_or_else(|| {
+        let busy = || {
             ApiError::new(
-                ErrorCode::RateLimited,
+                ErrorCode::SignInBusy,
                 "Sign-in is busy. Try again in a moment",
             )
-        })?;
+        };
         let Some(account) = account else {
+            if self.sign_in.is_full() {
+                return Err(busy());
+            }
+            self.rate_limits(db, limits).await?;
             return Ok(None);
         };
+        let place = self.sign_in.admit().ok_or_else(busy)?;
+        self.rate_limits(db, limits).await?;
         let user_id: String = account.try_get("", "id")?;
         let verified: String = account.try_get("", "password_hash")?;
         if place

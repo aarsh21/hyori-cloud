@@ -34,6 +34,8 @@ Functional acceptance: `bun run test:node-proxy` exercises actual Node HTTP tran
 
 Login rate limits: a successful `auth.login` also sets `hyori_device` (HttpOnly, `SameSite=Strict`, `Path=/api/rpc`, 180 days), a random nonce with an HMAC binding it to that email under the auth secret. A browser presenting a valid device token for the email gets its own budget of 10 attempts per 15 minutes, so other people's failures can't lock it out. The optional gateway-derived `x-hyori-client-address` contract above lets Rust identify clients behind the host rather than treat its private TCP peer as every user's address. Without opt-in, the outgoing address evidence is unchanged: no forwarded address is sent. The backend owns the exact budgets and address eligibility; verify its deployed contract before relying on client-address limiting. New browsers can still be locked out of an email for a window; known ones can't.
 
+Sign-in checks passwords in its own lane of 16 places. When every place is taken, `auth.login` answers `auth.signInBusy` (429) at once, without checking the password or counting an attempt, so retrying it is safe; the web sign-in retries it for about 3 seconds before showing that sign-in is busy. `auth.rateLimited` still means the attempt budget is spent: do not retry it automatically.
+
 Each backend process holds at most `HYORI_DATABASE_MAX_CONNECTIONS` PostgreSQL connections (8 to 1024; default 48, a quarter of the 128 RPC slots plus the 16 upload operations). Keep the sum across replicas below PostgreSQL's `max_connections`.
 
 ### Password change and administrator recovery

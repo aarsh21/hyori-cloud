@@ -92,13 +92,12 @@ impl<'a> AuthService<'a> {
             .as_deref()
             .filter(|token| device_nonce(secret, &input.email, token).is_some());
         let limits = login_limits(secret, &input.email, device, context.client);
-        self.state.auth.rate_limits(&self.state.db, &limits).await?;
         let deadline = context.arrived.unwrap_or_else(tokio::time::Instant::now)
             + self.state.config.sign_in_answer;
         let Some(session) = self
             .state
             .auth
-            .login(&self.state.db, &input, deadline)
+            .login(&self.state.db, &input, &limits, deadline)
             .await?
         else {
             context.answer_not_before.get_or_init(|| deadline);

@@ -9,7 +9,10 @@ use tokio::{
 /// Sign-in verifications computing at once, in their own lane.
 pub const SIGN_IN_RUNNING: usize = 2;
 /// Sign-in verifications that may wait for the lane; beyond them a sign-in is answered as busy.
-pub const SIGN_IN_WAITING: usize = 4;
+/// Sized so the last of them still finishes well inside `config::SIGN_IN_ANSWER`: 16 places are
+/// 8 rounds of 2, and one verification takes about 75 ms alone or 150 ms while the general pool
+/// also runs 2, so the last finishes after about 1.2 s. Waiting holds no scrypt memory.
+pub const SIGN_IN_WAITING: usize = 14;
 
 /// Sign-in verification has its own scrypt computations, so hashing for link passwords, new
 /// accounts and password changes ([`BoundedHasher`]) never queues ahead of a sign-in.
@@ -24,9 +27,11 @@ impl SignInLane {
             admitted: Arc::new(Semaphore::new(SIGN_IN_RUNNING + SIGN_IN_WAITING)),
         }
     }
-    /// A place in the lane, or None when every place is taken. Every sign-in takes one at the
-    /// same point, whether or not its email has an account, so a busy answer depends on the
-    /// lane only; one for an email without an account is dropped at once.
+    /// Every place is taken. Depends on the lane only, never on who is signing in.
+    pub fn is_full(&self) -> bool {
+        self.admitted.available_permits() == 0
+    }
+    /// A place in the lane, or None when every place is taken.
     pub fn admit(&self) -> Option<SignInPlace> {
         self.admitted
             .clone()
@@ -159,5 +164,6 @@ mod tests {
         );
         let places: Vec<_> = std::iter::from_fn(|| lane.admit()).collect();
         assert_eq!(places.len(), SIGN_IN_RUNNING + SIGN_IN_WAITING - 1);
+        assert!(lane.is_full());
     }
 }

@@ -15,6 +15,10 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
     detail: "Check the token on your server, or sign in if setup has already finished.",
   },
   "auth.rateLimited": { title: "Too many attempts", detail: "Wait a moment and try again." },
+  "auth.signInBusy": {
+    title: "Sign-in is busy right now",
+    detail: "Lots of people are signing in. Try again in a moment.",
+  },
   "access.denied": { title: "You don’t have access to this" },
   "input.invalid": { title: "That doesn’t look right" },
   "resource.notFound": {

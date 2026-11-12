@@ -35,6 +35,8 @@ export type RequestInput = ReturnType<typeof decodeInput>;
 
 type ApiCode =
   | "auth.required"
+  | "auth.rateLimited"
+  | "auth.signInBusy"
   | "access.denied"
   | "input.invalid"
   | "resource.notFound"

@@ -1,13 +1,16 @@
 mod support;
 
-use hyori_server::{auth::random_token, db::sql};
-use sea_orm::ConnectionTrait;
+use hyori_server::{
+    auth::{SIGN_IN_RUNNING, SIGN_IN_WAITING, random_token},
+    db::sql,
+};
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::json;
 use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use support::{Postgres, TestServer};
+use support::{Postgres, Reply, TestServer};
 use tokio::task::JoinSet;
 
 /// More failing sign-ins than there are RPC slots (128), so the test also fails if their wait
@@ -174,19 +177,12 @@ async fn known_and_unknown_accounts_have_matching_failure_responses_and_timing()
     pg.stop();
 }
 
-#[tokio::test]
-#[ignore = "real concurrent HTTP and PostgreSQL: a correct password is never answered as a wrong one"]
-async fn simultaneous_correct_sign_ins_succeed_or_are_told_to_retry() {
+/// Accounts `member-<n>@example.test` sharing one password, inserted directly so creating them
+/// spends no sign-in or hashing capacity.
+async fn members(server: &TestServer, count: usize, password: &str) {
     use better_auth::{PasswordHasher, ScryptPasswordHasher};
-    let pg = Postgres::start().await;
-    let mut config = pg.config.clone();
-    config.sign_in_answer = hyori_server::config::SIGN_IN_ANSWER;
-    let server = Arc::new(TestServer::start(config).await);
-    let password = random_token();
-    let hash = ScryptPasswordHasher.hash(&password).await.unwrap();
-    // Separate accounts, so no per-email attempt limit is involved.
-    let accounts = 16;
-    for index in 0..accounts {
+    let hash = ScryptPasswordHasher.hash(password).await.unwrap();
+    for index in 0..count {
         let id = random_token();
         server.state.db.execute_raw(sql("INSERT INTO hyori_users(id,email,name,role,quota_bytes) VALUES ($1,$2,'Member','user',0)", vec![id.clone().into(), format!("member-{index}@example.test").into()])).await.unwrap();
         server
@@ -199,44 +195,102 @@ async fn simultaneous_correct_sign_ins_succeed_or_are_told_to_retry() {
             .await
             .unwrap();
     }
-    let mut sign_ins = JoinSet::new();
-    for index in 0..accounts {
-        let server = server.clone();
-        let password = password.clone();
-        sign_ins.spawn(async move {
-            server
-                .rpc(
-                    "auth.login",
-                    json!({"email":format!("member-{index}@example.test"),"password":password}),
-                    None,
-                )
-                .await
-        });
-    }
-    let replies = sign_ins.join_all().await;
-    let count = |status| {
-        replies
-            .iter()
-            .filter(|reply| reply.status == status)
-            .count()
-    };
-    eprintln!(
-        "{accounts} simultaneous correct sign-ins: 200={} 429={} other={}",
-        count(200),
-        count(429),
-        accounts - count(200) - count(429)
-    );
-    for reply in &replies {
-        if reply.status == 429 {
-            assert_eq!(
-                reply.body["error"]["message"],
-                "Sign-in is busy. Try again in a moment"
-            );
-        } else {
-            reply.value();
+}
+fn sign_in(
+    server: &Arc<TestServer>,
+    index: usize,
+    password: &str,
+) -> tokio::task::JoinHandle<Reply> {
+    let server = server.clone();
+    let body = json!({"email":format!("member-{index}@example.test"),"password":password});
+    tokio::spawn(async move { server.rpc("auth.login", body, None).await })
+}
+
+#[tokio::test]
+#[ignore = "real concurrent HTTP and PostgreSQL: every place in the sign-in lane ends signed in, and busy answers are not attempts"]
+async fn a_full_sign_in_lane_signs_everyone_in_and_answers_busy_without_counting() {
+    let pg = Postgres::start().await;
+    let mut config = pg.config.clone();
+    config.sign_in_answer = hyori_server::config::SIGN_IN_ANSWER;
+    let server = Arc::new(TestServer::start(config).await);
+    let password = random_token();
+    let places = SIGN_IN_RUNNING + SIGN_IN_WAITING;
+    let extra = 4;
+    members(&server, places + extra, &password).await;
+    // Holding the attempt-counter table stops each admitted sign-in where it spends its counter,
+    // inside the lane, so the lane fills deterministically rather than by timing.
+    let counters = server.state.db.begin().await.unwrap();
+    counters
+        .execute_unprepared("LOCK TABLE hyori_rate_limits IN ACCESS EXCLUSIVE MODE")
+        .await
+        .unwrap();
+    let admitted: Vec<_> = (0..places)
+        .map(|index| sign_in(&server, index, &password))
+        .collect();
+    let start = Instant::now();
+    loop {
+        let row = server.state.db.query_one_raw(sql("SELECT count(*) AS n FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock'", vec![])).await.unwrap().unwrap();
+        if row.try_get::<i64>("", "n").unwrap() >= places as i64 {
+            break;
         }
+        assert!(
+            start.elapsed() < Duration::from_secs(30),
+            "the lane never filled"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
     }
-    use hyori_server::auth::{SIGN_IN_RUNNING, SIGN_IN_WAITING};
-    assert!(count(200) >= SIGN_IN_RUNNING + SIGN_IN_WAITING);
+    // The lane is full: these are told it is busy straight away, and spend nothing.
+    let mut busy = Vec::new();
+    for index in places..places + extra {
+        let reply =
+            tokio::time::timeout(Duration::from_secs(2), sign_in(&server, index, &password))
+                .await
+                .expect("a busy lane must answer at once")
+                .unwrap();
+        busy.push(reply);
+    }
+    counters.rollback().await.unwrap();
+    let mut statuses = Vec::new();
+    for reply in admitted {
+        let reply = reply.await.unwrap();
+        statuses.push(reply.status);
+        reply.value();
+    }
+    let elapsed = start.elapsed();
+    let counted = |index: usize| {
+        let key = hyori_server::auth::digest(&format!("login:member-{index}@example.test"));
+        let server = server.clone();
+        async move {
+            server
+                .state
+                .db
+                .query_one_raw(sql(
+                    "SELECT count(*) AS n FROM hyori_rate_limits WHERE key_digest=$1",
+                    vec![key.into()],
+                ))
+                .await
+                .unwrap()
+                .unwrap()
+                .try_get::<i64>("", "n")
+                .unwrap()
+        }
+    };
+    let mut busy_counted = 0;
+    for index in places..places + extra {
+        busy_counted += counted(index).await;
+    }
+    eprintln!(
+        "{places} places: {} signed in within {} ms; {extra} more answered {:?} with {busy_counted} attempts counted",
+        statuses.iter().filter(|&&status| status == 200).count(),
+        elapsed.as_millis(),
+        busy.iter().map(|reply| reply.status).collect::<Vec<_>>(),
+    );
+    for reply in &busy {
+        reply.error(429, "auth.signInBusy");
+    }
+    assert_eq!(busy_counted, 0, "busy answers must not count as attempts");
+    for index in 0..places {
+        assert_eq!(counted(index).await, 1);
+    }
     pg.stop();
 }

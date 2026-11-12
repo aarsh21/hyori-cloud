@@ -12,7 +12,8 @@ crate::wire_enum!(ErrorCode {
     AccessDenied => "access.denied", InvalidInput => "input.invalid",
     NotFound => "resource.notFound", Conflict => "resource.conflict",
     UploadLimit => "uploads.limitReached", UploadBusy => "uploads.busy",
-    QuotaExceeded => "storage.quotaExceeded", Unavailable => "service.unavailable"
+    QuotaExceeded => "storage.quotaExceeded", Unavailable => "service.unavailable",
+    SignInBusy => "auth.signInBusy"
 });
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, thiserror::Error)]
 #[error("{message}")]
@@ -70,7 +71,7 @@ impl ApiError {
             | ErrorCode::QuotaExceeded
             | ErrorCode::UploadLimit
             | ErrorCode::UploadBusy => StatusCode::CONFLICT,
-            ErrorCode::RateLimited => StatusCode::TOO_MANY_REQUESTS,
+            ErrorCode::RateLimited | ErrorCode::SignInBusy => StatusCode::TOO_MANY_REQUESTS,
             ErrorCode::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
