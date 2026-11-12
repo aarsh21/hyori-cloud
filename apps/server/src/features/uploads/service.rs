@@ -27,6 +27,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 use tracing::Instrument;
 
 pub(crate) fn storage_error(error: StorageError) -> ApiError {
+    crate::observability::storage_error();
     // StorageError contains only owned operation/status/code diagnostics, never keys or requests.
     tracing::error!(category = "storage", %error, "storage operation failed");
     ApiError::unavailable()

@@ -234,6 +234,11 @@ impl AuthAdapter {
             ))
             .await?;
         let busy = || {
+            crate::observability::admission(
+                crate::observability::Lane::SignIn,
+                std::time::Instant::now(),
+                false,
+            );
             ApiError::new(
                 ErrorCode::SignInBusy,
                 "Sign-in is busy. Try again in a moment",

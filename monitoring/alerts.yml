@@ -1,0 +1,81 @@
+groups:
+  - name: hyori
+    rules:
+      - alert: HyoriBackendNotReady
+        expr: up{job="hyori-backend"} == 0 or hyori_ready == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Backend is unavailable or cannot query PostgreSQL
+          runbook: See docs/monitoring.md#hyoribackendnotready
+      - alert: HyoriErrorRate
+        expr: sum(rate(hyori_requests_total{status_class="5xx",operation!~"health.*|metrics"}[5m])) / clamp_min(sum(rate(hyori_requests_total{operation!~"health.*|metrics"}[5m])), 0.001) > 0.05 and sum(increase(hyori_requests_total{status_class="5xx",operation!~"health.*|metrics"}[5m])) >= 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than five percent of product requests fail
+          runbook: See docs/monitoring.md#hyorierrorrate
+      - alert: HyoriBusy
+        expr: sum by (instance, lane) (rate(hyori_busy_refusals_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Admission has refused more than six requests per minute for five minutes
+          runbook: See docs/monitoring.md#hyoribusy
+      - alert: HyoriStorageErrors
+        expr: increase(hyori_storage_errors_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: An object storage operation failed
+          runbook: See docs/monitoring.md#hyoristorageerrors
+      - alert: HyoriVolumeLowSpace
+        # No hold time: even a small volume or rapid burst needs the earliest warning.
+        expr: node_filesystem_avail_bytes{job="hyori-volumes",volume!=""} / node_filesystem_size_bytes{job="hyori-volumes",volume!=""} < 0.15
+        labels:
+          severity: critical
+        annotations:
+          summary: A data volume has less than fifteen percent available
+          runbook: See docs/monitoring.md#hyorivolumelowspace
+      - alert: HyoriVolumeLowInodes
+        expr: node_filesystem_files_free{job="hyori-volumes",volume!=""} / node_filesystem_files{job="hyori-volumes",volume!=""} < 0.1
+        labels:
+          severity: critical
+        annotations:
+          summary: A data volume has less than ten percent free inodes
+          runbook: See docs/monitoring.md#hyorivolumelowspace
+      - alert: HyoriVolumeTelemetryMissing
+        expr: up{job="hyori-volumes"} == 0 or absent(node_filesystem_avail_bytes{job="hyori-volumes",volume="rust-storage-data"}) or absent(node_filesystem_avail_bytes{job="hyori-volumes",volume="rust-postgres-data"}) or node_filesystem_device_error{job="hyori-volumes"} != 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Volume capacity cannot be measured
+          runbook: See docs/monitoring.md#hyorivolumetelemetrymissing
+      - alert: HyoriMaintenanceStale
+        expr: time() - hyori_maintenance_last_success_timestamp_seconds > 300
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: A maintenance task has not completed successfully for five minutes
+          runbook: See docs/monitoring.md#hyorimaintenancestale
+      - alert: HyoriMediaBacklog
+        expr: hyori_media_jobs{state="queued"} > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than one hundred media jobs remain queued
+          runbook: See docs/monitoring.md#hyorimediabacklog
+      - alert: HyoriMediaFailures
+        expr: hyori_media_jobs{state="failed"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Media jobs exhausted their retries
+          runbook: See docs/monitoring.md#hyorimediafailures

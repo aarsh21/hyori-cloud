@@ -100,7 +100,8 @@ async fn authorization(
     } else {
         0
     };
-    state
+    let started = std::time::Instant::now();
+    let admitted = state
         .upload_principals
         .acquire(
             "authorization".into(),
@@ -112,8 +113,13 @@ async fn authorization(
                 Duration::from_secs(1)
             },
         )
-        .await
-        .ok_or_else(ApiError::upload_busy)
+        .await;
+    crate::observability::admission(
+        crate::observability::Lane::UploadAuthorization,
+        started,
+        admitted.is_some(),
+    );
+    admitted.ok_or_else(ApiError::upload_busy)
 }
 
 fn principal(context: &RequestContext, actor: &files::ProductActor) -> String {
@@ -161,30 +167,36 @@ async fn keys(
 }
 
 async fn acquire(state: &Arc<AppState>, keys: Vec<(String, usize)>) -> Result<Admission, ApiError> {
-    let mut principals = Vec::with_capacity(keys.len());
-    let deadline = tokio::time::Instant::now() + QUEUE_WAIT;
-    for (key, limit) in keys {
-        principals.push(
-            state
-                .upload_principals
-                .acquire(
-                    key,
-                    limit,
-                    limit * 2,
-                    deadline.saturating_duration_since(tokio::time::Instant::now()),
-                )
-                .await
-                .ok_or_else(ApiError::upload_busy)?,
-        );
+    let started = std::time::Instant::now();
+    let result = async {
+        let mut principals = Vec::with_capacity(keys.len());
+        let deadline = tokio::time::Instant::now() + QUEUE_WAIT;
+        for (key, limit) in keys {
+            principals.push(
+                state
+                    .upload_principals
+                    .acquire(
+                        key,
+                        limit,
+                        limit * 2,
+                        deadline.saturating_duration_since(tokio::time::Instant::now()),
+                    )
+                    .await
+                    .ok_or_else(ApiError::upload_busy)?,
+            );
+        }
+        // No transfer permit or SQL transaction is held while waiting for an account/link turn.
+        let global = state
+            .uploads
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| ApiError::upload_busy())?;
+        Ok(Admission {
+            _principals: principals,
+            _global: global,
+        })
     }
-    // No transfer permit or SQL transaction is held while waiting for an account/link turn.
-    let global = state
-        .uploads
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| ApiError::upload_busy())?;
-    Ok(Admission {
-        _principals: principals,
-        _global: global,
-    })
+    .await;
+    crate::observability::admission(crate::observability::Lane::Upload, started, result.is_ok());
+    result
 }

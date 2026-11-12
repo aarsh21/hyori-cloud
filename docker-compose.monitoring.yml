@@ -1,0 +1,43 @@
+# Opt in with: docker compose --env-file .env.deployment -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# No monitoring port is published. Reach Prometheus with a private tunnel, not the public gateway.
+services:
+  prometheus:
+    image: prom/prometheus:v3.8.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=1GB
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - rust-prometheus-data:/prometheus
+    depends_on:
+      backend:
+        condition: service_started
+      volume-exporter:
+        condition: service_started
+    restart: unless-stopped
+
+  # Statfs on the actual mounted volumes, not object/quota accounting. No Docker socket,
+  # host root, credentials, privileged mode, or host PID/network namespace is needed.
+  volume-exporter:
+    image: prom/node-exporter:v1.10.2
+    command:
+      - --collector.disable-defaults
+      - --collector.filesystem
+      - --collector.filesystem.mount-points-include=^/volumes/(storage|postgres)$$
+      - --web.listen-address=:9100
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - rust-storage-data:/volumes/storage:ro
+      - rust-postgres-data:/volumes/postgres:ro
+    restart: unless-stopped
+
+volumes:
+  rust-prometheus-data:

@@ -136,7 +136,7 @@ pub(crate) async fn inspect(
         let mut read = storage
             .read(key, None)
             .await
-            .map_err(|_| ApiError::unavailable())?;
+            .map_err(crate::features::uploads::service::storage_error)?;
         if read.size != size || size == 0 || size > max_bytes(&app(name)?) {
             return Err(ApiError::invalid());
         }
@@ -146,7 +146,7 @@ pub(crate) async fn inspect(
         let mut tail = Vec::new();
         const TAIL: usize = 1024 * 1024;
         while let Some(chunk) = read.body.next().await {
-            let chunk = chunk.map_err(|_| ApiError::unavailable())?;
+            let chunk = chunk.map_err(crate::features::uploads::service::storage_error)?;
             seen = seen
                 .checked_add(chunk.len() as u64)
                 .ok_or_else(ApiError::invalid)?;
@@ -185,13 +185,13 @@ async fn read_range(
     let mut read = storage
         .read(key, Some(&format!("bytes={start}-{end}")))
         .await
-        .map_err(|_| ApiError::unavailable())?;
+        .map_err(crate::features::uploads::service::storage_error)?;
     if read.size != expected {
         return Err(ApiError::invalid());
     }
     let mut bytes = Vec::new();
     while let Some(chunk) = read.body.next().await {
-        let chunk = chunk.map_err(|_| ApiError::unavailable())?;
+        let chunk = chunk.map_err(crate::features::uploads::service::storage_error)?;
         if bytes.len() as u64 + chunk.len() as u64 > expected {
             return Err(ApiError::invalid());
         }

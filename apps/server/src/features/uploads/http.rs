@@ -418,6 +418,10 @@ fn relay<A: Send + 'static>(
                 }
                 Err(_) => Err(StorageError::Body("download deadline exceeded")),
             };
+            if let Err(error) = &item {
+                crate::observability::storage_error();
+                tracing::error!(category = "storage", %error, "storage stream failed");
+            }
             let failed = item.is_err();
             let sent = tokio::time::timeout_at(until(), sender.send(item)).await;
             if failed || !matches!(sent, Ok(Ok(()))) {

@@ -114,10 +114,13 @@ impl From<sea_orm::DbErr> for ApiError {
 }
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
+        let code = self.code.clone();
+        let mut response = (
             self.status(),
             Json(serde_json::json!({"ok": false, "error": self})),
         )
-            .into_response()
+            .into_response();
+        response.extensions_mut().insert(code);
+        response
     }
 }
