@@ -96,6 +96,9 @@ export function createTransport(options: TransportOptions) {
         try {
           return decodeEnvelope(JSON.parse(body));
         } catch (cause) {
+          // Gateways cannot emit our envelope when their upstream is unavailable.
+          if ([502, 503, 504].includes(response.status))
+            throw { code: "service.unavailable", message: "Service temporarily unavailable" };
           throw new SDKError(
             "SDK_PROTOCOL",
             `The server returned an invalid RPC envelope (${response.status}).`,
