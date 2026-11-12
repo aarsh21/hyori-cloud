@@ -16,12 +16,16 @@ function Breadcrumbs({ className, children, ...props }: React.ComponentProps<"na
   );
 }
 
+/**
+ * On phones only the root and the immediate parent stay, and an ellipsis stands in for the folders
+ * between them, so a deep path never reads as a shallow one.
+ */
 function BreadcrumbLink({ className, ...props }: React.ComponentProps<typeof AppLink>) {
   return (
-    <li className="flex min-w-0 shrink items-center gap-0.5 first:shrink-0 max-md:flex-1 max-md:first:flex-none max-md:[&:not(:first-child):not(:nth-last-child(2))]:hidden">
+    <li className="flex min-w-0 shrink items-center gap-0.5 text-[13px] text-muted-foreground first:shrink-0 max-md:flex-1 max-md:first:flex-none max-md:[&:nth-child(n+3):not(:nth-last-child(2))]:hidden max-md:[&:nth-child(2):not(:nth-last-child(2))]:flex-none max-md:[&:nth-child(2):not(:nth-last-child(2))]:before:px-1 max-md:[&:nth-child(2):not(:nth-last-child(2))]:before:content-['…'] max-md:[&:nth-child(2):not(:nth-last-child(2))>a]:hidden">
       <AppLink
         className={cn(
-          "max-w-40 truncate rounded-sm px-1 py-0.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:py-3",
+          "max-w-40 truncate rounded-sm px-1 py-0.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:py-3 max-md:max-w-none",
           className,
         )}
         {...props}
