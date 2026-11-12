@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import type { Page } from "playwright-core";
 import { signIn, uploadFiles, uploadsTray } from "./page-actions.ts";
-import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
+import { freshContext, openPage, ownerPage, waitForHydration } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 
 export const accountPassword = () => `fixture ${randomBytes(12).toString("hex")} words`;
@@ -22,6 +22,8 @@ export async function addUser(page: Page, name: string, email: string, password:
 }
 
 export async function openUsers(page: Page) {
+  await waitForHydration(page);
+
   if (await page.getByRole("button", { name: "Account", exact: true }).isVisible()) {
     await page.getByRole("button", { name: "Account", exact: true }).press("Enter");
     await page.getByRole("menuitem", { name: "Users", exact: true }).press("Enter");

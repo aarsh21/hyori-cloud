@@ -231,6 +231,11 @@ export async function runInterfaceScenarios(run: CoreRun) {
         try {
           await warm.page.getByRole("link", { name: "Trash", exact: true }).first().click();
           await warm.page.getByRole("heading", { name: "Trash", exact: true }).waitFor();
+          // The fallback has the same heading. Finish the first visit before testing a return.
+          await warm.page.waitForFunction(
+            () =>
+              document.querySelector('[data-slot="skeleton"], [data-slot$="-skeleton"]') === null,
+          );
           await warm.page.getByRole("link", { name: "Files", exact: true }).first().click();
           await warm.page.getByRole("heading", { name: "Files", exact: true }).waitFor();
           await run.report.check(
