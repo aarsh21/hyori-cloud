@@ -136,3 +136,124 @@ async fn a_password_replaced_while_signing_in_creates_no_session() {
     assert!(status.value()["user"].is_null());
     pg.stop();
 }
+
+/// An administrator, a member signed in once, and the member's password.
+async fn member(server: &TestServer, setup_token: &str) -> (String, serde_json::Value, String) {
+    let admin = server.rpc("auth.setup", json!({"email":"admin@example.test","name":"Admin","password":random_token(),"setupToken":setup_token}), None).await.credential();
+    let password = random_token();
+    let user = server
+        .rpc(
+            "admin.createUser",
+            json!({"email":"member@example.test","name":"Member","password":password}),
+            Some(&admin),
+        )
+        .await
+        .value()
+        .clone();
+    (admin, user, password)
+}
+fn session_token(credential: &str) -> &str {
+    credential
+        .split("; ")
+        .find_map(|cookie| cookie.strip_prefix("hyori_session="))
+        .unwrap()
+}
+
+#[tokio::test]
+#[ignore = "real HTTP and PostgreSQL: a password reset during sign-in leaves no session from the old password"]
+async fn a_reset_committed_while_signing_in_leaves_no_session() {
+    let pg = Postgres::start().await;
+    let server = Arc::new(TestServer::start(pg.config.clone()).await);
+    let (admin, user, old) = member(&server, &pg.config.setup_token).await;
+    let user_id = user["id"].as_str().unwrap().to_owned();
+    let link = server
+        .rpc(
+            "admin.createPasswordReset",
+            json!({"userId":user_id}),
+            Some(&admin),
+        )
+        .await
+        .value()["token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let replace = {
+        let server = server.clone();
+        async move {
+            server
+                .rpc(
+                    "auth.resetPassword",
+                    json!({"token":link,"newPassword":random_token()}),
+                    None,
+                )
+                .await
+                .value();
+        }
+    };
+    let (reply, sessions) = race(
+        &server,
+        "member@example.test",
+        &old,
+        &user_id,
+        None,
+        replace,
+    )
+    .await;
+    eprintln!(
+        "sign-in racing auth.resetPassword: status={} body={}; sessions afterwards={sessions}",
+        reply.status, reply.body
+    );
+    assert_eq!(sessions, 0, "the old password produced a live session");
+    reply.error(401, "auth.invalidCredentials");
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real HTTP and PostgreSQL: a password change during sign-in leaves no session from the old password"]
+async fn a_change_committed_while_signing_in_leaves_no_session() {
+    let pg = Postgres::start().await;
+    let server = Arc::new(TestServer::start(pg.config.clone()).await);
+    let (_, user, old) = member(&server, &pg.config.setup_token).await;
+    let user_id = user["id"].as_str().unwrap().to_owned();
+    let changing = server
+        .rpc(
+            "auth.login",
+            json!({"email":"member@example.test","password":old}),
+            None,
+        )
+        .await;
+    assert!(changing.cookie.is_some());
+    let changing = changing.credential();
+    let replace = {
+        let server = server.clone();
+        let changing = changing.clone();
+        let old = old.clone();
+        async move {
+            server
+                .rpc(
+                    "auth.changePassword",
+                    json!({"currentPassword":old,"newPassword":random_token()}),
+                    Some(&changing),
+                )
+                .await
+                .value();
+        }
+    };
+    // The change keeps the session that made it; every other session must be gone.
+    let (reply, sessions) = race(
+        &server,
+        "member@example.test",
+        &old,
+        &user_id,
+        Some(session_token(&changing)),
+        replace,
+    )
+    .await;
+    eprintln!(
+        "sign-in racing auth.changePassword: status={} body={}; other sessions afterwards={sessions}",
+        reply.status, reply.body
+    );
+    assert_eq!(sessions, 0, "the old password produced a live session");
+    reply.error(401, "auth.invalidCredentials");
+    pg.stop();
+}
