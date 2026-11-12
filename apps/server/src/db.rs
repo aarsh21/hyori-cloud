@@ -153,8 +153,8 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             include_str!("../migrations/0015_media_lease_settlement.sql"),
         ),
         (
-            16_i32,
-            include_str!("../migrations/0016_upload_idle_expiry.sql"),
+            18_i32,
+            include_str!("../migrations/0018_upload_idle_expiry.sql"),
         ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
