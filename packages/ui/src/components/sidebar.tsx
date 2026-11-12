@@ -7,6 +7,7 @@ import { Button } from "@hyori-cloud/ui/components/button";
 import { Kbd } from "@hyori-cloud/ui/components/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@hyori-cloud/ui/components/tooltip";
 import { useDocumentKeydown } from "@hyori-cloud/ui/hooks/use-document-keydown";
+import { useBrowserPreferencesReady } from "@hyori-cloud/ui/hooks/use-browser-preferences-ready";
 import {
   readSidebarOpen,
   subscribeSidebarOpen,
@@ -59,6 +60,7 @@ function isEditing(target: EventTarget | null) {
  */
 function SidebarProvider({ className, children, ...props }: React.ComponentProps<"div">) {
   const open = React.useSyncExternalStore(subscribeSidebarOpen, readSidebarOpen, serverSidebarOpen);
+  const ready = useBrowserPreferencesReady();
 
   useDocumentKeydown((event) => {
     if (event.key.toLowerCase() !== SIDEBAR_SHORTCUT_KEY) return;
@@ -75,6 +77,7 @@ function SidebarProvider({ className, children, ...props }: React.ComponentProps
       <AppShell
         data-slot="sidebar-wrapper"
         data-state={open ? "expanded" : "collapsed"}
+        data-browser-ready={ready}
         className={cn("group/sidebar-wrapper", className)}
         {...props}
       >

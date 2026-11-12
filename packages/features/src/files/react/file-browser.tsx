@@ -25,6 +25,7 @@ import { InlineText, Row } from "@hyori-cloud/ui/components/text";
 import { useDocumentKeydown } from "@hyori-cloud/ui/hooks/use-document-keydown";
 import { useItemLayout } from "@hyori-cloud/ui/hooks/use-item-layout";
 import { useSingleKeyShortcuts } from "@hyori-cloud/ui/hooks/use-single-key-shortcuts";
+import { useBrowserPreferencesReady } from "@hyori-cloud/ui/hooks/use-browser-preferences-ready";
 import { isAppShortcut } from "@hyori-cloud/ui/lib/browser";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
 import { useAvailableEditors } from "#features/editors/react/use-available-editors.ts";
@@ -96,6 +97,7 @@ export function FileBrowser({
   // Resolve the default open action alongside the listing, not after its rows arrive.
   useAvailableEditors();
   const [layout, setLayout] = useItemLayout();
+  const ready = useBrowserPreferencesReady();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { filters, patch, clear } = useBrowserFilters(parentId);
 
@@ -124,7 +126,7 @@ export function FileBrowser({
       <FileActionsProvider entries={entries} folderId={parentId}>
         <FilePicker ref={picker} onFiles={addFiles} />
         <BrowserShortcuts canCreate={canCreate} picker={picker} searchInput={searchInput} />
-        <PageBar>
+        <PageBar data-browser-ready={ready}>
           <BrowserLocation
             root={
               folder !== null && !folder.access.isOwner && foreignRoot
@@ -175,7 +177,7 @@ export function FileBrowser({
         {filtersOpen ? <FileFilterBar filters={filters} onChange={patch} onClear={clear} /> : null}
         <DropZone disabled={!canCreate} label={`Drop to upload to ${title}`} onFiles={addFiles}>
           {/* Keyed so entering a folder starts at its top instead of the last one's scroll offset. */}
-          <PageBody key={parentId}>
+          <PageBody key={parentId} data-browser-ready={ready}>
             <PageSection>
               <ActionFailureNotice />
               <FileListingView

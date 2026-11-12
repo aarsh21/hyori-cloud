@@ -12,6 +12,19 @@
 
 @custom-variant fine (@media (hover: hover) and (pointer: fine));
 
+/* A nonce-authorized head script marks browsers whose saved preferences differ from SSR defaults.
+   Keep geometry but paint no incorrect rows or expanded chrome until client snapshots commit. */
+html[data-local-preferences] [data-browser-ready="false"] {
+  visibility: hidden;
+}
+
+/* Phones display neither the sidebar nor shortcut badges; those choices need no client wait. */
+@media (width >= 48rem) {
+  html[data-local-desktop-preferences] [data-browser-ready="false"] {
+    visibility: hidden;
+  }
+}
+
 :root {
   /* Porcelain: warm, opaque surfaces separated by hairlines. See DESIGN.md. */
   --background: oklch(0.95 0.009 85);
