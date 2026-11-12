@@ -21,7 +21,12 @@
 
 Dockerfile
 **/Dockerfile
-docker-compose.yml
+docker-compose*.yml
+
+# Amp workspace files and operator backups hold credentials (backups copy the deployment env).
+.amp
+**/env.deployment
+*.dump
 
 # Env value files stay out of COPY layers; runtime env comes from compose env_file,
 # build-time configuration uses BuildKit secrets; public values use build args

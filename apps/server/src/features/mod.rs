@@ -26,6 +26,7 @@ pub mod editors {
     pub(crate) mod service;
 }
 pub mod uploads {
+    pub(crate) mod admission;
     pub mod api;
     pub mod cleanup;
     pub(crate) mod db;

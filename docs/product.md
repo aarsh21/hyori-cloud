@@ -392,3 +392,15 @@ Validate capabilities against the selected versions and official documentation b
 - **Decision:** Use server-readable files and defer E2EE from v1 under the user's instruction to omit it if it adds performance cost.
 - **Rationale:** The user prioritized speed over adding E2EE. It can add client-side work and materially change previews/editor workflows, although no application-specific slowdown has been measured and encryption is not inherently slow.
 - **Scope consequence:** Plan the selected server-readable workflows with HTTPS and authorization. Keep at-rest encryption/key management as separate design work, preserve the admin privacy boundary, and do not claim protection against the infrastructure operator.
+
+### 2026-11-12: unfinished-upload recovery
+
+- **Decision:** New owner uploads expire after 24 hours without a successful part transfer; existing uploads keep their original expiry. List an authenticated account's own unfinished uploads and allow cancellation from any browser. Distinguish the 128-reservation limit from a file conflict.
+- **Rationale:** The production-readiness lead, acting on aarsh's delegated product decisions, chose bounded idle reservations and account-wide discovery so lost browser checkpoints cannot permanently trap capacity.
+- **Scope consequence:** Rust owns the listing and limit-error contracts. The SDK marks which listed uploads have a valid local checkpoint; those still require file reselection to resume. The Opus interface worker owns the list and limit message; this server/SDK change adds neither screens nor new interface copy.
+
+### 2026-11-12: fair upload admission
+
+- **Decision:** Bound upload operations per authenticated account (across sessions) or anonymous visitor, and additionally per applicable public link, inside the sixteen per-process upload slots. The implementation uses two per principal and four per link, matching two concurrent SDK files with serial parts and permitting two visitor queues per link.
+- **Rationale:** The production-readiness lead chose separate principal/link budgets so one slow contributor cannot prevent unrelated accounts from uploading. Public grants can be reissued, so grant identity alone is insufficient.
+- **Scope consequence:** Begin, part and complete share admission; rejected requests hold no global slot and no server queue. These are per-process budgets, not cluster-wide quotas. Thirty-second body idle and 125-second whole-worker bounds limit slow part lifetimes.

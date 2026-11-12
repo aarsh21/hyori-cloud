@@ -104,6 +104,309 @@ async fn accounting(server: &TestServer, owner: &str) -> (i64, i64) {
 
 #[tokio::test]
 #[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
+async fn owner_idle_expiry_inventory_cross_session_cancel_and_pending_limit() {
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let owner_password = random_token();
+    let setup = server.rpc("auth.setup", json!({"email":"owner@example.test","name":"Owner","password":owner_password,"setupToken":server.state.config.setup_token}), None).await;
+    let owner = setup.value()["id"].as_str().unwrap().to_owned();
+    let cookie = setup.credential();
+    let abandoned = begin(&server, &cookie, "abandoned", 7, None, None).await;
+    let row = server.state.db.query_one_raw(sql(
+        "SELECT extract(epoch FROM expires_at-created_at)::bigint AS seconds FROM hyori_uploads WHERE id=$1",
+        vec![abandoned.clone().into()],
+    )).await.unwrap().unwrap();
+    assert_eq!(
+        row.try_get::<i64>("", "seconds").unwrap(),
+        86400,
+        "new owner reservations expire after 24 idle hours"
+    );
+
+    // Test-only acceleration of the per-row policy, not an operator knob or a changed clock.
+    server.state.db.execute_raw(sql(
+        "UPDATE hyori_uploads SET idle_seconds=2,expires_at=now()+interval '2 seconds',cleanup_due=now()+interval '2 seconds' WHERE id=$1",
+        vec![abandoned.clone().into()],
+    )).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+    assert_eq!(
+        put(&server, &cookie, &abandoned, b"1234567").await.status(),
+        200
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+    cleanup::reclaim(&server.state).await.unwrap();
+    assert_eq!(
+        accounting(&server, &owner).await,
+        (0, 7),
+        "activity extended the idle window"
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    cleanup::reclaim(&server.state).await.unwrap();
+    assert_eq!(accounting(&server, &owner).await, (0, 0));
+    server
+        .rpc(
+            "uploads.status",
+            json!({"uploadId":abandoned}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+
+    let legacy = begin(&server, &cookie, "legacy", 3, None, None).await;
+    server.state.db.execute_raw(sql("UPDATE hyori_uploads SET idle_seconds=NULL,expires_at=created_at+interval '7 days' WHERE id=$1", vec![legacy.clone().into()])).await.unwrap();
+    assert_eq!(put(&server, &cookie, &legacy, b"old").await.status(), 200);
+    let row = server.state.db.query_one_raw(sql("SELECT extract(epoch FROM expires_at-created_at)::bigint AS seconds FROM hyori_uploads WHERE id=$1",vec![legacy.clone().into()])).await.unwrap().unwrap();
+    assert_eq!(
+        row.try_get::<i64>("", "seconds").unwrap(),
+        604800,
+        "legacy expiry is preserved"
+    );
+    server
+        .rpc("uploads.pending", json!({"cursor":null,"limit":1}), None)
+        .await
+        .error(401, "auth.required");
+    let password = random_token();
+    server
+        .rpc(
+            "admin.createUser",
+            json!({"email":"other@example.test","name":"Other","password":password}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    let other = server
+        .rpc(
+            "auth.login",
+            json!({"email":"other@example.test","password":password}),
+            None,
+        )
+        .await
+        .credential();
+    let first = server
+        .rpc(
+            "uploads.pending",
+            json!({"cursor":null,"limit":1}),
+            Some(&other),
+        )
+        .await;
+    assert_eq!(first.value()["items"], json!([]));
+    server
+        .rpc("uploads.abort", json!({"uploadId":legacy}), Some(&other))
+        .await
+        .error(403, "access.denied");
+
+    // Re-authentication in another browser needs no local checkpoint to discover/cancel.
+    let second_cookie = server
+        .rpc(
+            "auth.login",
+            json!({"email":"owner@example.test","password":owner_password}),
+            None,
+        )
+        .await
+        .credential();
+    let first = server
+        .rpc(
+            "uploads.pending",
+            json!({"cursor":null,"limit":1}),
+            Some(&second_cookie),
+        )
+        .await;
+    assert_eq!(first.value()["items"][0]["uploadId"], legacy);
+    server
+        .rpc(
+            "uploads.abort",
+            json!({"uploadId":legacy}),
+            Some(&second_cookie),
+        )
+        .await
+        .value();
+    assert_eq!(accounting(&server, &owner).await, (0, 0));
+
+    // Seed disposable reservations instead of paying 128 external multipart initiations.
+    for _ in 0..128 {
+        let id = random_token();
+        server.state.db.execute_raw(sql("INSERT INTO hyori_uploads(id,owner_id,uploader_id,initiator,name,size,mime_type,object_key,state) VALUES($1,$2,$2,$2,'pending',0,'text/plain',$3,'starting')",vec![id.clone().into(),owner.clone().into(),format!("owners/{owner}/{id}").into()])).await.unwrap();
+    }
+    server
+        .rpc(
+            "uploads.begin",
+            json!({"parentId":null,"name":"over-limit","size":0,"mimeType":""}),
+            Some(&cookie),
+        )
+        .await
+        .error(409, "uploads.limitReached");
+    let page = server
+        .rpc(
+            "uploads.pending",
+            json!({"cursor":null,"limit":100}),
+            Some(&cookie),
+        )
+        .await;
+    assert_eq!(page.value()["items"].as_array().unwrap().len(), 100);
+    let next = server
+        .rpc(
+            "uploads.pending",
+            json!({"cursor":page.value()["cursor"],"limit":100}),
+            Some(&cookie),
+        )
+        .await;
+    assert_eq!(next.value()["items"].as_array().unwrap().len(), 28);
+    assert!(next.value()["cursor"].is_null());
+    server
+        .rpc(
+            "uploads.abort",
+            json!({"uploadId":page.value()["items"][0]["uploadId"]}),
+            Some(&second_cookie),
+        )
+        .await
+        .value();
+    begin(&server, &cookie, "slot-released", 0, None, None).await;
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
+async fn slow_parts_cannot_exhaust_another_principals_upload_admission() {
+    use tokio::io::AsyncWriteExt;
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (_owner, cookie) = setup(&server).await;
+    let password = random_token();
+    server
+        .rpc(
+            "admin.createUser",
+            json!({"email":"independent@example.test","name":"Independent","password":password}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    let other = server
+        .rpc(
+            "auth.login",
+            json!({"email":"independent@example.test","password":password}),
+            None,
+        )
+        .await
+        .credential();
+    let independent = begin(&server, &other, "independent", 3, None, None).await;
+    let mut ids = vec![];
+    for index in 0..16 {
+        ids.push(begin(&server, &cookie, &format!("slow-{index}"), 3, None, None).await);
+    }
+    let mut sockets = vec![];
+    for id in &ids {
+        let mut socket = tokio::net::TcpStream::connect(server.url.trim_start_matches("http://"))
+            .await
+            .unwrap();
+        socket.write_all(format!("PUT /api/storage/uploads/{id}/1 HTTP/1.1\r\nHost: localhost:3001\r\nOrigin: http://localhost:3001\r\nCookie: {cookie}\r\nContent-Length: 3\r\n\r\n").as_bytes()).await.unwrap();
+        sockets.push(socket);
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let response = put(&server, &other, &independent, b"abc").await;
+    assert_eq!(
+        response.status(),
+        200,
+        "one account's slow bodies must leave other accounts able to write: {}",
+        response.text().await.unwrap()
+    );
+    let active = server
+        .state
+        .db
+        .query_one_raw(sql(
+            "SELECT count(*)::bigint AS n FROM hyori_uploads WHERE lease_until>now()",
+            vec![],
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get::<i64>("", "n")
+        .unwrap();
+    assert_eq!(
+        active, 2,
+        "SDK queue sends two files, each with one serial part"
+    );
+    drop(sockets);
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let folder = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":null,"name":"public-slow"}),
+            Some(&cookie),
+        )
+        .await
+        .value()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let link = server
+        .rpc(
+            "shares.create",
+            json!({"itemId":folder,"role":"contributor","public":true}),
+            Some(&cookie),
+        )
+        .await;
+    let mut visitors = vec![];
+    for index in 0..16 {
+        let grant = server
+            .rpc(
+                "shares.resolve",
+                json!({"token":share_token(link.value())}),
+                None,
+            )
+            .await
+            .credential();
+        let id = begin(
+            &server,
+            &grant,
+            &format!("visitor-{index}"),
+            3,
+            Some(&folder),
+            None,
+        )
+        .await;
+        visitors.push((id, grant));
+    }
+    let mut sockets = vec![];
+    for (id, grant) in &visitors {
+        let mut socket = tokio::net::TcpStream::connect(server.url.trim_start_matches("http://"))
+            .await
+            .unwrap();
+        socket.write_all(format!("PUT /api/storage/uploads/{id}/1 HTTP/1.1\r\nHost: localhost:3001\r\nOrigin: http://localhost:3001\r\nCookie: {grant}\r\nContent-Length: 3\r\n\r\n").as_bytes()).await.unwrap();
+        sockets.push(socket);
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let response = put(&server, &other, &independent, b"abc").await;
+    assert_eq!(response.status(), 200);
+    let active = server.state.db.query_one_raw(sql("SELECT count(*)::bigint AS n FROM hyori_uploads WHERE parent_id=$1 AND lease_until>now()",vec![folder.clone().into()])).await.unwrap().unwrap().try_get::<i64>("","n").unwrap();
+    assert_eq!(
+        active, 4,
+        "independent visitor grants still share the public link's four slots"
+    );
+    // Keep their connections open: the server, not client disconnect, must release idle bodies.
+    tokio::time::timeout(std::time::Duration::from_secs(35), async {
+        loop {
+            let active = server.state.db.query_one_raw(sql("SELECT count(*)::bigint AS n FROM hyori_uploads WHERE parent_id=$1 AND lease_until>now()",vec![folder.clone().into()])).await.unwrap().unwrap().try_get::<i64>("","n").unwrap();
+            if active == 0 { break; }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    }).await.expect("thirty-second body idle timeout releases leases and admission");
+    assert_eq!(
+        put(&server, &visitors[0].1, &visitors[0].0, b"abc")
+            .await
+            .status(),
+        200
+    );
+    drop(sockets);
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
 async fn upload_download_replay_versions_ranges_quota_and_shared_authority() {
     let mut pg = Postgres::start().await;
     let metadata = TestServer::start(pg.config.clone()).await;

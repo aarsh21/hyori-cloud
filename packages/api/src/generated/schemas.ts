@@ -96,7 +96,7 @@ export const Albums = Schema.Struct({ "items": Schema.Array(Album) });
 
 export type Albums = typeof Albums.Type;
 
-export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable")), Schema.String);
+export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable")), Schema.String);
 
 export type ErrorCode = typeof ErrorCode.Type;
 
@@ -323,6 +323,18 @@ export type PasswordResetLink = typeof PasswordResetLink.Type;
 export const PasswordResetResult = Schema.Struct({ "success": intersection(Schema.Literal(true), Schema.Boolean), "userId": Id });
 
 export type PasswordResetResult = typeof PasswordResetResult.Type;
+
+export const PendingUpload = Schema.Struct({ "expiresAt": Schema.String, "name": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
+
+export type PendingUpload = typeof PendingUpload.Type;
+
+export const PendingUploads = Schema.Struct({ "cursor": Schema.Union(Id, Schema.Null), "items": Schema.Array(PendingUpload).pipe(Schema.maxItems(100)) });
+
+export type PendingUploads = typeof PendingUploads.Type;
+
+export const PendingUploadsInput = Schema.Struct({ "cursor": Schema.Union(Id, Schema.Null), "limit": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(100)) });
+
+export type PendingUploadsInput = typeof PendingUploadsInput.Type;
 
 export const PermanentDeletion = Schema.Struct({ "freedBytes": Bytes, "items": Bytes });
 
