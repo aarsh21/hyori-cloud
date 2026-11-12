@@ -1,4 +1,4 @@
-import { Cloud, File as FileIcon } from "@hyori-cloud/lib/icons";
+import { File as FileIcon } from "@hyori-cloud/lib/icons";
 import { onlineManager } from "@hyori-cloud/lib/query-core";
 import { Component, Suspense, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
@@ -18,6 +18,7 @@ import {
   loadTrashScreen,
   lazyScreen,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
+import { OfflineState } from "#features/shared/react/offline-state.tsx";
 
 const FilesScreen = lazyScreen(loadFilesScreen, (module) => module.FilesScreen);
 const SharedScreen = lazyScreen(loadSharedScreen, (module) => module.SharedScreen);
@@ -111,11 +112,7 @@ function ScreenLoadFailure({ error, onRetry }: { error: Error; onRetry: () => vo
   if (!offlineFailure) throw error;
 
   return (
-    <RegionState
-      role="status"
-      icon={<Cloud />}
-      title="You’re offline"
-      description="This screen couldn’t load without a connection. We’ll retry when you’re online."
+    <OfflineState
       action={
         <Button variant="outline" onClick={onRetry}>
           Retry
