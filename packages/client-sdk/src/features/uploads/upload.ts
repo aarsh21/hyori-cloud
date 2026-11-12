@@ -174,8 +174,8 @@ export function createUploads(
       );
     }
 
-    const retries = options.maxRetries ?? 2;
-    const delay = options.retryDelayMs ?? 250;
+    const retries = options.maxRetries ?? 3;
+    const delay = options.retryDelayMs ?? 1000;
 
     if (
       !Number.isInteger(retries) ||
@@ -231,11 +231,12 @@ export function createUploads(
         try {
           return await run();
         } catch (error) {
+          const failure = normalizeUploadError(error);
+
           if (
             signal.aborted ||
             index >= retries ||
-            !(error instanceof SDKError) ||
-            error.code !== "SDK_TRANSPORT"
+            (failure.code !== "SDK_TRANSPORT" && failure.code !== "service.unavailable")
           )
             throw error;
           await wait(delay * 2 ** index, signal);
