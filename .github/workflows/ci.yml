@@ -205,3 +205,92 @@ jobs:
         run: docker build --file apps/web/Dockerfile --tag hyori-web-ci:${{ github.sha }} .
       - name: Verify read-only nonroot frontend runtime and environment isolation
         run: bun run test:web-image hyori-web-ci:${{ github.sha }}
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Install browser and synthetic media prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          bun x --no-install playwright-core install --with-deps chromium
+      # Serial compilation bounds peak memory, including on the smaller local proof runner.
+      - name: Build the release server and isolated decoder without publishing
+        run: |
+          docker build --progress plain --build-arg CARGO_BUILD_JOBS=1 --file apps/server/Dockerfile --tag hyori-browser-server:ci .
+          docker build --progress plain --build-arg CARGO_BUILD_JOBS=1 --file apps/media-worker/Dockerfile --tag hyori-browser-worker:ci .
+      - name: Build the actual web host
+        run: bun run --cwd apps/web build
+      - name: Exercise every non-editor browser scenario without retries
+        shell: bash
+        run: |
+          failed=0
+          # Fresh stacks keep account/library mutations and simulated thumbnail states isolated.
+          for scenarios in \
+            files,replacement,sharing,admin,derivatives,photos,concurrency,touch,readiness,screens \
+            interface account phone-auth phone-completion resume \
+            download-soak download-network-change thumbnail-latency thumbnail-states; do
+            bun run test:rust-browser hyori-browser-server:ci \
+              --worker=hyori-browser-worker:ci --fresh-image --no-build \
+              --scenarios="$scenarios" --artifacts="browser-results/$scenarios" || failed=1
+          done
+          exit "$failed"
+      - name: Upload browser reports, transport evidence and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-results
+          path: browser-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          rust: "true"
+      - name: Install the pinned Rust advisory checker
+        run: cargo install cargo-audit --locked --version 0.23.0
+      - name: Reject new Rust advisories, including unmaintained and unsound warnings
+        # Baseline exceptions, not security clearance. The owner decides which block release.
+        # aws-sdk-s3 =1.157.0 retains its hyper 0.14 storage client: h2 0.3.27,
+        # rustls 0.21.12 and rustls-webpki 0.101.7. Keep the storage network private;
+        # these seven IDs remain open pending an SDK upgrade, especially for TLS storage.
+        # Better Auth =1.0.0-alpha.5 -> jsonwebtoken 11.1.0 retains crypto-bigint 0.5.5
+        # and rsa 0.9.10. Hyori uses opaque sessions; an auth upgrade is separate work.
+        # libsqlite3-sys 0.30.1 is retained by optional sqlx-sqlite 0.8.6 in Cargo.lock
+        # (sea-orm =2.0.0-rc.37); cargo tree --target all finds no active SQLite path.
+        # Better Auth's rust_icu_* 5.8.0 retains paste 1.0.15 (build-time macro),
+        # and its serde_yaml 0.9.34 retains unsafe-libyaml 0.2.11. Both unmaintained
+        # dependencies need an upstream auth upgrade; do not ignore the warning category.
+        run: |
+          cargo audit --deny warnings \
+            --ignore RUSTSEC-2026-0258 \
+            --ignore RUSTSEC-2026-0346 \
+            --ignore RUSTSEC-2026-0349 \
+            --ignore RUSTSEC-2026-0098 \
+            --ignore RUSTSEC-2026-0099 \
+            --ignore RUSTSEC-2026-0104 \
+            --ignore RUSTSEC-2026-0382 \
+            --ignore RUSTSEC-2026-0387 \
+            --ignore RUSTSEC-2023-0071 \
+            --ignore RUSTSEC-2026-0459 \
+            --ignore RUSTSEC-2024-0436 \
+            --ignore RUSTSEC-2024-0449
+      - name: Reject new JavaScript advisories in Bun's locked graph
+        # apps/web pins @babel/core 7.29.0: sourceMappingURL local-file read during builds.
+        # shadcn 4.23.0 -> @shadcn/registry 0.2.1 retains deepmerge 4.3.1:
+        # prototype poisoning in tooling. Both need deliberate tooling upgrades.
+        # eslint 10.14.0 and shadcn's ts-morph 26.0.0 retain minimatch 10.2.6:
+        # glob amplification DoS in development tooling. No severity-wide suppression.
+        run: |
+          bun audit \
+            --ignore GHSA-4x5r-pxfx-6jf8 \
+            --ignore GHSA-gcqx-w48m-w2h4 \
+            --ignore GHSA-g3hv-75wg-m249

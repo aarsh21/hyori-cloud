@@ -120,7 +120,7 @@ function tileNamed(page: Page, name: string) {
 
 /**
  * Layout and interaction of every thumbnail state, in a real browser through the real host. States
- * are injected at the gateway because the image under test has no worker. This says nothing about
+ * are injected at the gateway rather than awaited from the worker. This says nothing about
  * how a worker reaches them, what its thumbnails look like, or how fast anything is.
  */
 export async function runThumbnailStateScenario(run: CoreRun) {
@@ -194,8 +194,9 @@ export async function runThumbnailStateScenario(run: CoreRun) {
     });
 
     await report.check("Retry doesn't open the photo, and a refusal says so", async () => {
+      // This is the injected refusal presentation, not a real worker-recovery check.
+      front.refuse((record) => record.operation === "media.retry");
       await page.getByRole("button", { name: `Retry thumbnail of ${FAILED_RETRYABLE}` }).click();
-      // This image predates the operation, so the real backend's refusal is what's being shown.
       await page.getByText("Couldn’t retry", { exact: true }).waitFor();
       assert.equal(await page.locator('[data-slot="lightbox"]').count(), 0);
       assert.equal(front.records.filter((record) => record.operation === "media.retry").length, 1);

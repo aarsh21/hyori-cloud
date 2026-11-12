@@ -567,6 +567,9 @@ export async function runDownloadSoak(run: CoreRun, attempts: number, disturb?: 
       results.filter(({ result }) => result !== "ok"),
     );
     run.report.observe("download soak attempts", attempts);
+    await run.report.check("all downloads finish with their original bytes", () => {
+      assert.ok(results.every(({ result }) => result === "ok"));
+    });
     await context.close();
   });
 }

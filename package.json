@@ -56,6 +56,7 @@
     "test": "bun test packages/api/test packages/client-sdk/tests packages/features/src apps/web/test/backend-handler.test.ts",
     "test:services": "bun run test:rust-services && bun run test:rust-sdk && bun run test:rust-upload-sdk && bun run test:rust-photos-sdk && bun run test:rust-admin-sdk && bun run test:rust-media-sdk && bun run test:rust-editors-sdk",
     "test:rust-web-host": "bun scripts/test-rust-web-host.ts",
+    "test:rust-browser": "bun scripts/test-rust-browser.ts",
     "test:node-proxy": "node --test packages/api/test/node-backend-proxy.test.ts",
     "test:web-image": "bun scripts/test-web-image.ts",
     "test:deployment": "bun test scripts/check-media-deployment.test.ts scripts/editor-assets-fixture.test.ts scripts/artcraft/native-clock-provenance.test.ts",
