@@ -1,0 +1,36 @@
+name: ArtCraft upstream drift
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  pull_request:
+    paths:
+      - "tooling/artcraft/**"
+      - "scripts/artcraft/**"
+      - ".github/workflows/artcraft-drift.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/hyori-artcraft-drift
+          key: artcraft-drift-${{ hashFiles('tooling/artcraft/manifest.json') }}-${{ github.run_id }}
+          restore-keys: artcraft-drift-${{ hashFiles('tooling/artcraft/manifest.json') }}-
+      # The script always fails for moved/broken pins and writes its table to GITHUB_STEP_SUMMARY.
+      # New upstream releases are advisory on both PRs and the weekly run: no --fail-on-drift.
+      - name: Check pinned composition and report upstream drift
+        run: bun scripts/artcraft/native-v3-drift.ts --cache ~/.cache/hyori-artcraft-drift --json drift.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artcraft-drift
+          path: drift.json
