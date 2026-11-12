@@ -279,10 +279,7 @@ async fn held_credential(
         })
         .max_by_key(|(_, parsed)| parsed.expires);
     if let Some((token, parsed)) = capability {
-        return Ok(Some((
-            token.clone(),
-            (parsed.expires - now.timestamp()).max(1),
-        )));
+        return Ok(Some((token.clone(), parsed.remaining_seconds(now))));
     }
     let digests: Vec<_> = credentials
         .iter()

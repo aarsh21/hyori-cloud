@@ -16,16 +16,16 @@ pub async fn expired(server: &TestServer, share_id: &str) -> String {
         .unwrap()
         .unwrap();
     let hash: Option<String> = row.try_get("", "password_hash").unwrap();
-    let now = chrono::Utc::now().timestamp();
+    let now = chrono::Utc::now().timestamp_millis();
     hyori_server::features::shares::capability::mint(
         &server.state.config.auth_secret,
         share_id,
         hash.as_deref(),
-        now - 60,
-        now - 1,
+        now - 60_000,
+        now - 1_000,
     )
 }
-/// The issue and expiry Unix seconds of a link capability cookie value.
+/// The issue and expiry Unix milliseconds of a link capability cookie value.
 pub fn times(value: &str) -> (i64, i64) {
     let parts: Vec<_> = value.split('.').collect();
     assert_eq!(parts.len(), 6, "not a link capability: {value}");

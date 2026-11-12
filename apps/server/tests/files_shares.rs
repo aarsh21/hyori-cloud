@@ -532,7 +532,7 @@ async fn files_shares_postgres_http_parity() {
     );
     // The visitor's credential is a capability living at most 12 hours; nothing was stored.
     let (issued, expires) = link_capability::times(grant1.split_once('=').unwrap().1);
-    assert!((1..=43200).contains(&(expires - issued)));
+    assert!((1..=43_200_000).contains(&(expires - issued)));
     let stored = server
         .state
         .db

@@ -131,7 +131,7 @@ async fn link_capabilities_are_refused_when_forged_expired_moved_revoked_or_outd
     let (name, value) = opened.split_once('=').unwrap();
     assert_eq!(name, format!("hyori_grant_{a}"));
     let (issued, expires) = link_capability::times(value);
-    assert_eq!(expires - issued, 12 * 60 * 60);
+    assert_eq!(expires - issued, 12 * 60 * 60 * 1000);
     list(&server, &a_folder, &opened).await.value();
     // A password-protected link issues nothing until it is unlocked.
     let refused = server
@@ -284,5 +284,50 @@ async fn grants_stored_before_capabilities_stay_valid_until_they_expire() {
         .await
         .unwrap();
     assert_ne!(list(&server, &folder, &cookie).await.status, 200);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real HTTP and unique loopback PostgreSQL: links opened within one second keep their order"]
+async fn the_newest_of_seventeen_links_opened_within_one_second_is_kept() {
+    let pg = Postgres::start().await;
+    let server = TestServer::start(pg.config.clone()).await;
+    let admin = server.rpc("auth.setup", json!({"email":"admin@example.test","name":"Admin","password":random_token(),"setupToken":pg.config.setup_token}), None).await.credential();
+    let mut links = Vec::new();
+    for index in 0..17 {
+        links.push(link(&server, &admin, &format!("Scope-{index}"), json!({})).await);
+    }
+    // Opened in ascending share id, so the newest is also the one an id tie-break drops.
+    links.sort();
+    let since_second = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .subsec_millis();
+    tokio::time::sleep(std::time::Duration::from_millis(u64::from(
+        1010 - since_second,
+    )))
+    .await;
+    let mut cookies = Vec::new();
+    for (_, token, _) in &links {
+        cookies.push(
+            server
+                .rpc("shares.resolve", json!({"token":token}), None)
+                .await
+                .credential(),
+        );
+    }
+    let issued: Vec<_> = cookies
+        .iter()
+        .map(|cookie| link_capability::times(cookie.split_once('=').unwrap().1).0)
+        .collect();
+    eprintln!("issue times of the 17 capabilities: {issued:?}");
+    // A browser holding all 17 is admitted to the 16 most recently opened, the newest included.
+    let jar = cookies.join("; ");
+    let (_, _, newest) = links.last().unwrap();
+    list(&server, newest, &jar).await.value();
+    let (_, _, oldest) = &links[0];
+    list(&server, oldest, &jar)
+        .await
+        .error(403, "access.denied");
     pg.stop();
 }

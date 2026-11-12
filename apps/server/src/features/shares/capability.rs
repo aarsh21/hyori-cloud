@@ -21,9 +21,10 @@ pub(crate) fn key(secret: &str) -> [u8; 32] {
 pub(crate) struct Capability<'a> {
     pub share_id: &'a str,
     nonce: &'a str,
-    /// Unix seconds.
+    /// Unix milliseconds. Fine enough to order links a visitor opens within the same second: when
+    /// more than 16 arrive, the most recently issued are kept.
     pub issued: i64,
-    /// Unix seconds.
+    /// Unix milliseconds.
     pub expires: i64,
     mac: &'a str,
 }
@@ -50,8 +51,8 @@ impl<'a> Capability<'a> {
         else {
             return None;
         };
-        let seconds = |value: &str| -> Option<i64> {
-            ((1..=12).contains(&value.len()) && value.bytes().all(|b| b.is_ascii_digit()))
+        let millis = |value: &str| -> Option<i64> {
+            ((1..=15).contains(&value.len()) && value.bytes().all(|b| b.is_ascii_digit()))
                 .then(|| value.parse().ok())
                 .flatten()
         };
@@ -65,8 +66,8 @@ impl<'a> Capability<'a> {
         Some(Self {
             share_id,
             nonce,
-            issued: seconds(issued)?,
-            expires: seconds(expires)?,
+            issued: millis(issued)?,
+            expires: millis(expires)?,
             mac,
         })
     }
@@ -74,7 +75,7 @@ impl<'a> Capability<'a> {
     /// is not checked here: see [`Self::live`].
     pub fn verifies(&self, key: &[u8; 32], password_hash: Option<&str>) -> bool {
         let lifetime = self.expires - self.issued;
-        (1..=LIFETIME_SECONDS).contains(&lifetime)
+        (1..=LIFETIME_SECONDS * 1000).contains(&lifetime)
             && bool::from(
                 mac(
                     key,
@@ -89,13 +90,17 @@ impl<'a> Capability<'a> {
             )
     }
     pub fn live(&self, now: DateTime<Utc>) -> bool {
-        self.expires > now.timestamp()
+        self.expires > now.timestamp_millis()
+    }
+    /// Whole seconds left at `now`, at least 1: the cookie's Max-Age.
+    pub fn remaining_seconds(&self, now: DateTime<Utc>) -> i64 {
+        ((self.expires - now.timestamp_millis() + 999) / 1000).max(1)
     }
     pub fn issued_at(&self) -> DateTime<Utc> {
-        DateTime::from_timestamp(self.issued, 0).unwrap_or_default()
+        DateTime::from_timestamp_millis(self.issued).unwrap_or_default()
     }
     pub fn expires_at(&self) -> DateTime<Utc> {
-        DateTime::from_timestamp(self.expires, 0).unwrap_or_default()
+        DateTime::from_timestamp_millis(self.expires).unwrap_or_default()
     }
 }
 /// A new capability for a visitor of `share_id`, living [`LIFETIME_SECONDS`] or until the link
@@ -106,18 +111,17 @@ pub(crate) fn issue(
     password_hash: Option<&str>,
     link_expiry: Option<DateTime<Utc>>,
 ) -> (String, i64) {
-    let issued = Utc::now().timestamp();
+    let issued = Utc::now().timestamp_millis();
+    let longest = issued + LIFETIME_SECONDS * 1000;
     let expires = link_expiry
-        .map_or(issued + LIFETIME_SECONDS, |expiry| {
-            expiry.timestamp().min(issued + LIFETIME_SECONDS)
-        })
-        .max(issued + 1);
+        .map_or(longest, |expiry| expiry.timestamp_millis().min(longest))
+        .max(issued + 1000);
     (
         written(key, share_id, password_hash, issued, expires),
-        expires - issued,
+        (expires - issued + 999) / 1000,
     )
 }
-/// A capability with chosen times, as [`issue`] writes them. For tests and tools that hold
+/// A capability with chosen times in Unix milliseconds, as [`issue`] writes them. For tests and tools that hold
 /// `HYORI_AUTH_SECRET`, such as ones that need an already expired capability.
 pub fn mint(
     secret: &str,
@@ -196,7 +200,10 @@ mod tests {
         let soon = Utc::now() + chrono::Duration::minutes(5);
         let (token, remaining) = issue(&key, SHARE, None, Some(soon));
         assert!((299..=300).contains(&remaining));
-        assert_eq!(Capability::parse(&token).unwrap().expires, soon.timestamp());
+        assert_eq!(
+            Capability::parse(&token).unwrap().expires,
+            soon.timestamp_millis()
+        );
     }
     #[test]
     fn malformed_capabilities_do_not_parse() {
