@@ -81,6 +81,21 @@ export function patchWordNativeHookup(source: ReadonlyMap<string, Buffer>, frame
     `${intent}        // Web: saving and exporting become downloads.`,
   );
 
+  replace(
+    `${ui}/file_dialogs.rs`,
+    "    pub fn save_as_dialog(&mut self) {",
+    `    pub fn save_as_dialog(&mut self) {
+        // Browse is a copy request; the web picker otherwise turns it into file.save(path).
+        // Do not infer this from path: ordinary Save commands can carry a path too.
+        if self.native_host_intents.is_some() {
+            let name = self.default_save_name();
+            if let Err(error) = self.native_host_begin_intent(true, Some(name), None, None) {
+                self.status(error.to_string());
+            }
+            return;
+        }`,
+  );
+
   const continuation = `        if choice == SaveChoice::Save && self.native_host_intents.is_some() {
             let retry_then = then.clone();
             let retry_params = params.clone();
