@@ -45,7 +45,8 @@ const browserSecurity = createMiddleware().server(async ({ next, handlerType, re
     );
     headers.set("Cache-Control", "private, no-store");
 
-    if (new URL(ENV.APP_ORIGIN).protocol === "https:")
+    // The API proxy rejects a malformed origin with 503; the shell must still render to say so.
+    if (URL.canParse(ENV.APP_ORIGIN) && new URL(ENV.APP_ORIGIN).protocol === "https:")
       headers.set("Strict-Transport-Security", "max-age=31536000");
 
     // HTML now contains the first page of data. Stream it rather than buffering a large document.
