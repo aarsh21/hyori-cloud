@@ -33,6 +33,17 @@ const HOME = process.env.HYORI_DEV_HOME ?? join(homedir(), "hyori-dev");
 const POSTGRES_BIN = process.env.HYORI_POSTGRES_BIN ?? "/usr/lib/postgresql/17/bin";
 const RUSTFS = process.env.HYORI_RUSTFS_BIN ?? join(homedir(), "opt/rustfs/rustfs");
 
+// Bun 1.3 forwards a request body that arrives in pieces chunked, without its Content-Length,
+// and the server rejects such upload parts. A stale system Bun ahead on PATH fails silently.
+const PINNED_BUN = z
+  .object({ packageManager: z.string().regex(/^bun@/) })
+  .parse(JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")))
+  .packageManager.slice("bun@".length);
+
+if (Bun.semver.order(Bun.version, PINNED_BUN) < 0) {
+  throw new Error(`Bun ${Bun.version} at ${process.execPath} is older than the pinned ${PINNED_BUN}.`);
+}
+
 const EDITOR_RECEIPT =
   process.env.HYORI_DEV_EDITOR_RECEIPT ?? "tooling/artcraft/runtime-all4-native-v3-r2.json";
 
