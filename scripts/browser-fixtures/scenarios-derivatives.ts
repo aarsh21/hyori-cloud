@@ -277,7 +277,7 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
   const clip = await tileState(page, CLIP);
   const thumbnailUrl = String(photo.src);
 
-  await report.check("a thumbnail is a small PNG, uncached, through the real host", async () => {
+  await report.check("a thumbnail is a small PNG, revalidated, through the real host", async () => {
     const reply = await page.evaluate(async (target) => {
       const read = async (range: string | null) => {
         const response = await fetch(target, range === null ? {} : { headers: { Range: range } });
@@ -288,11 +288,22 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
           bytes: body.byteLength,
           contentType: response.headers.get("content-type"),
           cacheControl: response.headers.get("cache-control"),
+          etag: response.headers.get("etag"),
           contentTypeOptions: response.headers.get("x-content-type-options"),
         };
       };
 
-      return { whole: await read(null), part: await read("bytes=0-99") };
+      const whole = await read(null);
+      const conditional = await fetch(target, { headers: { "If-None-Match": whole.etag! } });
+
+      return {
+        whole,
+        part: await read("bytes=0-99"),
+        conditional: {
+          status: conditional.status,
+          bytes: (await conditional.arrayBuffer()).byteLength,
+        },
+      };
     }, thumbnailUrl);
 
     report.observe("thumbnail response", {
@@ -301,7 +312,10 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
     });
     assert.equal(reply.whole.status, 200);
     assert.equal(reply.whole.contentType, "image/png");
-    assert.match(reply.whole.cacheControl ?? "", /no-store/);
+    assert.equal(reply.whole.cacheControl, "private, no-cache");
+    assert.ok(reply.whole.etag);
+    assert.equal(reply.conditional.status, 304);
+    assert.equal(reply.conditional.bytes, 0);
     assert.equal(reply.whole.contentTypeOptions, "nosniff");
     assert.ok(reply.whole.bytes <= 256 * 1024, `${reply.whole.bytes} bytes`);
     assert.equal(reply.part.status, 206);

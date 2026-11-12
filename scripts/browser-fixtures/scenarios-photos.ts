@@ -502,7 +502,7 @@ async function ranges(run: CoreRun, page: Page) {
   assert.ok(src !== null, "the viewer's video has no source");
 
   await report.check(
-    "the preview answers 200, 206 and 416 honestly, inline and uncached",
+    "the preview answers 200, 206, 304 and 416 honestly, inline and revalidated",
     async () => {
       // From the page, as the app's own code would: outside it the server rightly refuses the origin.
       const results = await page.evaluate(async (target) => {
@@ -519,12 +519,20 @@ async function ranges(run: CoreRun, page: Page) {
             contentDisposition: response.headers.get("content-disposition"),
             contentType: response.headers.get("content-type"),
             cacheControl: response.headers.get("cache-control"),
+            etag: response.headers.get("etag"),
             contentTypeOptions: response.headers.get("x-content-type-options"),
           };
         };
 
+        const whole = await read(null);
+        const conditional = await fetch(target, { headers: { "If-None-Match": whole.etag! } });
+
         return {
-          whole: await read(null),
+          whole,
+          conditional: {
+            status: conditional.status,
+            bytes: (await conditional.arrayBuffer()).byteLength,
+          },
           part: await read("bytes=0-99"),
           open: await read("bytes=100-"),
           beyond: await read("bytes=999999999-"),
@@ -538,7 +546,10 @@ async function ranges(run: CoreRun, page: Page) {
       assert.equal(results.open.status, 206, "an open range");
       assert.equal(results.open.bytes, results.whole.bytes - 100, "bytes in an open range");
       assert.equal(results.beyond.status, 416, "a range past the end");
-      assert.match(results.whole.cacheControl ?? "", /no-store/);
+      assert.equal(results.whole.cacheControl, "private, no-cache");
+      assert.ok(results.whole.etag);
+      assert.equal(results.conditional.status, 304);
+      assert.equal(results.conditional.bytes, 0);
       assert.equal(results.whole.contentTypeOptions, "nosniff");
       assert.match(results.whole.contentDisposition ?? "", /^inline/);
     },
