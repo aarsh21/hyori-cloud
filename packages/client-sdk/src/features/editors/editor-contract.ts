@@ -1,4 +1,4 @@
-import { EditorApp, EditorDocument as ProductEditorDocument, Name } from "@hyori-cloud/api/rpc";
+import { EditorApp, EditorDocument as ProductEditorDocument } from "@hyori-cloud/api/rpc";
 import type { EditorIntent, EditorPrepareSave, EditorSaved } from "@hyori-cloud/api/rpc";
 import { Schema } from "@hyori-cloud/lib/effect";
 
@@ -11,15 +11,7 @@ export const BridgedArtCraftApp = EditorApp;
 
 export type BridgedArtCraftApp = typeof BridgedArtCraftApp.Type;
 
-export const EditorName = Name.pipe(
-  Schema.filter(
-    (value) =>
-      value === value.trim() &&
-      value !== "." &&
-      value !== ".." &&
-      !/[\\/\p{Cc}\p{Cf}]/u.test(value),
-  ),
-);
+export { EditorName } from "#client-sdk/features/editors/native-runtime";
 
 export const EditorDocument = ProductEditorDocument;
 

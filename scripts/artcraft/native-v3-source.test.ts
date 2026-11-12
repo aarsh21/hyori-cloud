@@ -38,6 +38,13 @@ test("hosted polish fails closed on a missing upstream anchor", () => {
     expect(() => patchNativePolish(new Map([["Cargo.lock", Buffer.from("lock")]]), app)).toThrow();
 });
 
+test("isolated host bridge composition includes the licences of its bundled dependencies", async () => {
+  const authored = await nativeAuthoredInputs();
+
+  expect([...authored.hostLegal.keys()]).toEqual(["effect/LICENSE", "effect/package.json"]);
+  expect(authored.hostLegal.get("effect/LICENSE")!.toString()).toContain("MIT");
+});
+
 for (const app of nativeApps)
   test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
     `${app} v3 composition connects the host, removes upstream marks and keeps legal bytes and locks`,

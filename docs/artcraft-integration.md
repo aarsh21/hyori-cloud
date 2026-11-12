@@ -605,3 +605,11 @@ The generated list preserves the committed-source trust rule. Alternatives that 
 2. **Operator pin only (no rebuild, weaker provenance).** Accept any bundle whose manifest matches `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`, still running the full inventory checks. Trade-off: anyone who can change deployment configuration and the mounted directory can run arbitrary same-origin code with users' full account privileges. The compiled-in list exists to prevent that.
 
 Independently, excluding `elapsedMs`, stdout and stderr from the hashed build manifest, with the logs kept beside it, would let a rebuild elsewhere reproduce an authority whenever the payload is reproducible. Grid r2 reproduced r1's payload bit for bit.
+
+### The frame bridge's dependency boundary
+
+The earlier cross-machine nondeterminism hypothesis was incorrect. At `6b08373`, Bun 1.4.4 builds the bridge as 219,942 bytes with SHA-256 `bdfaa8e114dfccabce6343065ef2842ea7a8c83fa26d03e99df7baf362b51849`. The runtime codec imported `EditorName` from `editor-contract.ts`, which imported the product RPC barrel; initializing that barrel pulled the unrelated generated operation catalog into the frame. The frame never calls those operations. That dependency, rather than a host-protocol change, made later API additions change the bridge relative to r2.
+
+`native-runtime.ts` now owns the leaf filename codec and `editor-contract.ts` re-exports it. Protocol 2's existing filename constraints, discriminants, bytes, opaque revisions and message shapes stay unchanged. The product descriptors remain Rust-owned; no product RPC schema is hand-copied into the frame.
+
+`bun test scripts/artcraft/native-host-entry.test.ts` builds the browser bridge twice, changing an unrelated admin RPC name in the bundler's catalog input for the second build, without rewriting generated files. The regression failed before isolation (`bdfaa8e1…1849` versus `2ac346d0…366a`) and passes after it (both `0cd1cd7fadcef5c2a0968fc7b749614b85f9b21e1954158ee4ad555a96f7d2ba`). This builds only the authored JavaScript entry in memory, not an editor bundle. A new editor bundle revision is still required to ship the changed bridge; the committed r1/r2 authorities and receipts are not rewritten.

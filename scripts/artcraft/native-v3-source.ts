@@ -27,7 +27,7 @@ export const nativeSourceCommits: Record<NativeApp, string> = {
 const patches = "tooling/artcraft/patches/native-host-v3";
 
 /** Third-party packages compiled into the host bridge; their licences ship with every artifact. */
-const bridgePackages = ["@effect/rpc", "effect"] as const;
+const bridgePackages = ["effect"] as const;
 
 async function bundleHostEntry(minify: boolean) {
   const bundle = await Bun.build({
