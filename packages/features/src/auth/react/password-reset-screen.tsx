@@ -16,6 +16,7 @@ import { NewPasswordField } from "#features/auth/react/new-password-field.tsx";
 import { useResetPassword } from "#features/auth/react/use-password.ts";
 import { useNavigateTo } from "#features/cloud/react/cloud-navigation.tsx";
 import { formText } from "#features/shared/form-values.ts";
+import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 
 /**
@@ -24,6 +25,7 @@ import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
  */
 export function PasswordResetScreen({ token }: { token: string }) {
   const reset = useResetPassword();
+  const ready = useHydrated();
   const navigateTo = useNavigateTo();
   const [problem, setProblem] = useState<string | null>(null);
   const signIn = () => navigateTo({ section: "files", folderId: null });
@@ -76,7 +78,13 @@ export function PasswordResetScreen({ token }: { token: string }) {
           autoFocus
         />
         <MutationFailure error={reset.error} describe={describeResetPasswordError} />
-        <Button type="submit" size="lg" pending={reset.isPending} pendingLabel="Saving…">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!ready}
+          pending={reset.isPending}
+          pendingLabel="Saving…"
+        >
           Save password
         </Button>
       </Form>

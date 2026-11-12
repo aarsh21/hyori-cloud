@@ -9,10 +9,12 @@ import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { AccountFields } from "#features/auth/react/account-fields.tsx";
 import { useSetup } from "#features/auth/react/use-setup.ts";
 import { formText } from "#features/shared/form-values.ts";
+import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 
 export function SetupScreen() {
   const setup = useSetup();
+  const ready = useHydrated();
 
   return (
     <FocusLayout footer={<AppearanceMenu />}>
@@ -49,7 +51,13 @@ export function SetupScreen() {
         </Field>
         <AccountFields idPrefix="setup" />
         <MutationFailure error={setup.error} />
-        <Button type="submit" size="lg" pending={setup.isPending} pendingLabel="Creating account…">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!ready}
+          pending={setup.isPending}
+          pendingLabel="Creating account…"
+        >
           Create admin account
         </Button>
       </Form>
