@@ -66,6 +66,20 @@ test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
       commands.indexOf("// Web: saving and exporting become downloads."),
     );
     expect(commands).toContain("&options, native_save");
+    // Browse is an explicit Save As entry point. A path is not enough to infer it:
+    // Word also accepts paths on ordinary file.save calls.
+    const dialogs = result.files.get("crates/ui-egui/src/file_dialogs.rs")!.toString();
+
+    const browse = dialogs.slice(
+      dialogs.indexOf("pub fn save_as_dialog"),
+      dialogs.indexOf("fn fail_save_as"),
+    );
+
+    expect(browse).toContain("native_host_begin_intent(true, Some(name), None, None)");
+    expect(browse.indexOf("native_host_begin_intent")).toBeLessThan(
+      browse.indexOf("self.save_as(AfterSave::Nothing)"),
+    );
+    expect(commands).toContain('let save_as = id != "file.save";');
     const files = result.files.get("crates/ui-egui/src/app/files.rs")!.toString();
     expect(files).toContain("Some(continuation)");
     expect(files.indexOf("Some(continuation)")).toBeLessThan(

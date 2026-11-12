@@ -59,3 +59,44 @@ Keep the profile/cache mode explicit: a large WASM response may exceed an epheme
 The retained public-asset probe is `/tmp/hyori-editor-asset-profile-znbtsJ/report.json`. It sampled each shipping WASM once per requested encoding through the live verified-CA HTTP/2 gateway from the deployment host, discarded bodies, and touched no private files. Dynamic gzip reduced transferred bytes but took longer on that local path than identity delivery. This motivates deterministic precompressed sidecars, not a conclusion that compression explains complete editor startup. Browser compile, parse, first input, and durable save were not measured by that probe.
 
 Immutable sidecars must be independently hash/length verified against their original JS/WASM, served with correct content negotiation/MIME/cache/range behavior, and installed only in a distinct immutable runtime. Keep the old runtime available for already-open sessions. Removing fonts, weakening validation, or relabeling old events is not a performance fix.
+
+## What an editor downloads before it is usable (r2, 2026-11-12)
+
+Sizes come from the committed r2 receipts (`tooling/artcraft/builds/native-host-v3-r2/<app>/receipt.json`). Compressed sizes are **estimates**: they apply the ratios measured on the official upstream WASM of the same upstream version (measured in a review orb on 2026-11-12 with Node zlib and zstd; gzip at the sidecar encoder's level 6). The r2 bundle's eight recorded gzip sidecars total 56,026,063 bytes, against 55.8 MB predicted by those ratios, so the transfer is credible but still not a measurement of the r2 bytes.
+
+| Editor | r2 WASM raw | gzip-6 (shipped sidecar, est.) | Brotli-11 (est.) | zstd-19 (est.) | Other first-load files                               |
+| ------ | ----------- | ------------------------------ | ---------------- | -------------- | ---------------------------------------------------- |
+| Word   | 46,509,177  | 17.4 MB (37.4%)                | 10.0 MB (21.6%)  | 11.1 MB        | 178 KB JS, 219 KB host bridge, 2 KB index, 4 KB icon |
+| Grid   | 23,063,754  | 8.6 MB (37.5%)                 | 5.5 MB (24.0%)   | 6.0 MB         | 170 KB JS, 219 KB host bridge                        |
+| PDF    | 47,343,900  | 17.6 MB (37.3%)                | 10.8 MB (22.9%)  | 11.7 MB        | 175 KB JS, 219 KB host bridge                        |
+| Deck   | 33,240,933  | 12.1 MB (36.4%)                | 7.4 MB (22.2%)   | 8.0 MB         | 167 KB JS, 219 KB host bridge                        |
+
+- Brotli-11 sidecars would cut each WASM transfer by a further 36–42% compared with the shipped gzip-6 sidecars (about 22 MB across the four editors). Brotli-11 took 77–153 s per WASM on a 2-CPU orb, which is build time, not request time. Shipping them needs `.br` sidecars in a new verified runtime inventory, Brotli verification beside `verify_sidecar` in `apps/server/src/editor_assets.rs`, and `precompressed br gzip` in `scripts/editor-static-handler.ts`; none of this is implemented.
+- The top-level hashed JS and WASM are `immutable` for a year. `index.html`, `snippets/**` (including the 219 KB `hyori-native-host.js`) and the icon are `no-cache`, so every open revalidates them, and the bridge has no precompressed sidecar (dynamic gzip only).
+- Nothing warms an editor before the click. The frame starts empty, the SDK calls `editors.open`, and only its reply supplies `assetUrl`. The WASM request therefore starts after that round trip. The document download runs in parallel with frame loading.
+- Every attachment instantiates a fresh engine. Browser compiled-code caching of a 23–47 MB module across attachments is implementation-dependent and unmeasured here.
+
+## Commands for real open and save timings
+
+None of the committed tools produces parsed-open or durable-save timings yet. The packet observer in `scripts/browser-fixtures/native-performance*.ts` and its phase calculator are not wired into any scenario. Until a runner exists, these commands produce the parts that can be measured, on a machine with the verified r2 bundle:
+
+```sh
+# 1. Asset transfer per editor, fresh persistent Chromium profile, through the HTTPS gateway.
+#    ORIGIN and CA are the gateway serving the r2 bundle and the public CA that signed its certificate.
+ORIGIN=https://127.0.0.1:8443 CA=/path/to/public-ca.pem
+for asset in \
+  wordcraft/0.14.0-hyori-host.3/wordcraft-web-65bd673cf0c3364e_bg.wasm \
+  gridcraft/0.15.0-hyori-host.2/gridcraft-web-57265ae799a7cc55_bg.wasm \
+  pdfcraft/0.17.0-hyori-host.2/pdfcraft-web-9c9ec45fae5d0a94_bg.wasm \
+  deckcraft/0.14.1-hyori-host.5/deckcraft-web-a9f16458dc3db0aa_bg.wasm; do
+  bun scripts/profile-editor-static.ts "$ORIGIN" "/artcraft/$asset" "$CA" "/tmp/editor-static-${asset%%/*}.json"
+done
+
+# 2. Real editors in a real browser against a built server image and the bundle (pass/fail per step).
+bun scripts/test-rust-browser.ts hyori-server:local --scenarios=editors \
+  --editor-bundle=tooling/artcraft/.generated/runtime-all4-native-v3-r2 \
+  --editor-bundle-sha256=8c8998f74a6d11b4ebc84f70f70adb284b9e1bed6ea3f6c9b26e99030e5ab4a4 \
+  --artifacts=/tmp/editor-browser-$(date +%s)
+```
+
+A timing runner should call `installNativePerformanceObserver` before navigation, mark `activation` on the click and `input-start` before typing, then report `nativePerformancePhases` over the `nativePerformanceMatrix` profiles (five fresh profiles, one cold and two warm attachments each), plus the `completeSave` response time from the SDK for durability. Measure each editor with the small fixtures in the workload table above.

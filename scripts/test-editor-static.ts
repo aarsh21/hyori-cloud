@@ -171,7 +171,7 @@ try {
   assert.equal(identity.headers.get("x-frame-options"), "SAMEORIGIN");
   assert.equal(
     identity.headers.get("content-security-policy"),
-    `frame-ancestors 'self'; object-src 'none'; base-uri 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash(loader)}'; style-src 'self' 'sha256-${hash(style)}'`,
+    `default-src 'self'; connect-src 'self'; img-src 'self' blob: data:; frame-src 'self' blob:; form-action 'none'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash(loader)}'; style-src 'self' 'sha256-${hash(style)}'`,
   );
 
   const gzip = await request(path, ["Accept-Encoding: gzip"]);

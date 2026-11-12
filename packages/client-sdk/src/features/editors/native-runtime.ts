@@ -1,10 +1,21 @@
 import { Either, Schema } from "@hyori-cloud/lib/effect";
 
-import { EditorName } from "#client-sdk/features/editors/editor-contract";
-
 // This is the local frame IPC contract, not the Rust-owned product API.
 export const NATIVE_HOST_PROTOCOL = 2;
 export const NATIVE_MAX_BYTES = 64 * 1024 * 1024;
+
+// Keep this leaf contract independent of product RPC schemas: the frame never calls the API.
+export const EditorName = Schema.String.pipe(
+  Schema.filter((value) => Array.from(value).length >= 1),
+  Schema.filter((value) => Array.from(value).length <= 255),
+  Schema.filter(
+    (value) =>
+      value === value.trim() &&
+      value !== "." &&
+      value !== ".." &&
+      !/[\\/\p{Cc}\p{Cf}]/u.test(value),
+  ),
+);
 
 const id = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128));
 

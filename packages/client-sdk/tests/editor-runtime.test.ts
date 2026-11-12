@@ -10,6 +10,46 @@ const identity = { openId: "open-1", documentId: "18446744073709551615", revisio
 const snapshot = { ...identity, requestId: "request-1", saveId: "save-1" };
 
 describe("canonical native editor IPC", () => {
+  test("frame names preserve protocol 2 length, Unicode and path restrictions", () => {
+    for (const name of ["Report.docx", "報告.docx", "a".repeat(255), "😀".repeat(127)]) {
+      expect(
+        decodeNativeHostEvent({
+          ...envelope,
+          ...snapshot,
+          type: "wordcraft:save",
+          name,
+          bytes: new Uint8Array([1]),
+          saveAs: false,
+        }),
+      ).not.toBeNull();
+    }
+
+    for (const name of [
+      "",
+      ".",
+      "..",
+      " Report.docx",
+      "Report.docx ",
+      "a/b",
+      "a\\b",
+      "a\u0000b",
+      "a\u200bb",
+      "a".repeat(256),
+      "😀".repeat(128),
+    ]) {
+      expect(
+        decodeNativeHostEvent({
+          ...envelope,
+          ...snapshot,
+          type: "wordcraft:save",
+          name,
+          bytes: new Uint8Array([1]),
+          saveAs: false,
+        }),
+      ).toBeNull();
+    }
+  });
+
   test("preserves opaque u64 strings, full identity and all four families", () => {
     for (const app of ["wordcraft", "gridcraft", "pdfcraft", "deckcraft"] as const) {
       const value = { ...envelope, ...identity, type: `${app}:opened` } as const;

@@ -542,10 +542,10 @@ r1 ran natively without network isolation. r2 runs each editor in `scripts/artcr
 ~/.bun/bin/bun scripts/artcraft/native-v3-rebuild.ts [WORK_DIR]
 ```
 
-Each step is skipped when its result exists, and a failed step's partial output is removed before it reruns. For the next revision, after patches change:
+Each step is skipped when its result exists, and a failed step's partial output is removed before it reruns. Before changing patches or pins, measure how far upstream has moved (see [Upstream drift](#upstream-drift-and-the-upgrade-path--2026-11-12)). For the next revision, after patches change:
 
 1. Append a revision to `revisions` in `native-v3-runtime.ts`, with a new authority, receipt root, bundle and handoff name.
-2. Append the authority file to `NATIVE_AUTHORITIES` in `apps/server/src/editor_assets.rs`.
+2. Commit the new `tooling/artcraft/runtime-native-v3-rN.json` authority alongside its receipts, leaving earlier revisions unchanged. The server build discovers these files automatically; no Rust constant edit is needed.
 3. Bump `nativeArtifactVersions` for every app whose payload changes.
 4. Run the command above with a fresh `WORK_DIR`, or delete the native `stage/*` and `evidence/*` directories in the old one. The downloads, tools, Cargo cache and bb6 base are reused.
 
@@ -564,3 +564,52 @@ Trunk's `index.html` starts the engine from one inline `<script type="module">`.
 - `bun run check:rust` passes. `bun run test:rust-services` passes with `HYORI_EDITOR_TEST_BUNDLE_DIR`/`SHA256` set to this bundle: 64 tests. The actual-bundle activation test now reads its expectations from the bundle manifest; it used to hard-code the official-three bundle, so it failed for every all-four bundle. On this runner `/tmp` is a small tmpfs, so set `TMPDIR` to a short on-disk path. A long path overflows the media worker's Unix socket limit.
 - `scripts/test-rust-browser.ts` editors scenarios, with the server image built from this branch and `hyori-media-worker:local`: 114 passed, 0 failed, 12 unverified. Ten of the unverified items were reopened-document screenshots, and a person read all ten as correct. The other two are documented behaviour: repeat PPTX saves ask each time, and the read-only Save As Browse… control can't be located automatically.
 - `scripts/dev-stack.ts` now defaults to `runtime-all4-native-v3-r2.json`.
+
+## Upstream drift and the upgrade path — 2026-11-12
+
+### Drift check
+
+```sh
+# Network: git ls-remote and codeload archives only. Nothing upstream is executed.
+bun scripts/artcraft/native-v3-drift.ts [--cache DIR] [--json FILE] [--target APP=vX.Y.Z]... [--fail-on-drift]
+```
+
+For each editor it checks that the pinned tag still points at the pinned commit and still composes, then composes the fork on the newest upstream tag (or `--target`), and three-way merges every upstream file the fork edits (base: pinned tag, ours: composed fork, theirs: target). It reports the composer's first failure, conflicting files, hunks and lines, and the fork's size per composition stage. Exit 1 means a pin broke; with `--fail-on-drift`, exit 2 means the target does not apply cleanly. Textual success is not a build: authored Rust modules can still fail to compile against a newer upstream API.
+
+Results on 2026-11-12 (pins: Word 0.14.0, Grid 0.15.0, PDF 0.17.0, Deck 0.14.1, all released 2026-11-01; upstream ships every two to three days):
+
+| Editor | Newest tag (releases since pin) | Fork: upstream files edited + files added | Changed lines: host protocol / theming, branding, polish | Last tag the composer applies to | Three-way conflicts on newest tag                                                    |
+| ------ | ------------------------------- | ----------------------------------------- | -------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| Word   | v0.18.1 (7)                     | 20 + 7                                    | 1,041 / 208                                              | v0.15.0                          | 6 files, 7 hunks, 322 lines                                                          |
+| Grid   | v0.19.1 (6)                     | 21 + 7                                    | 1,132 / 141                                              | none                             | 2 files, 4 hunks, 34 lines                                                           |
+| PDF    | v0.21.1 (7)                     | 15 + 7                                    | 1,250 / 159                                              | none                             | 4 files, 7 hunks, 166 lines                                                          |
+| Deck   | v0.18.1 (6)                     | 22 + 9                                    | 7,352 / 195                                              | none                             | 5 files, 8 hunks, 132 lines; upstream added its own `apps/deckcraft-web/src/host.rs` |
+
+- Grid v0.16.0 and PDF v0.18.0–v0.18.2 merge without a single textual conflict, yet the composer refuses them. `grid-native-hookup.ts` and `pdf-native-hookup.ts` pin the SHA-256 of 11 and 6 whole upstream files, so any upstream edit anywhere in those files stops the build until someone re-pins by hand.
+- Deck's 6,329-line `deck-host-engine-base` stage, mostly the frozen protocol-1 `host-bridge.js.source`, is the largest and most conflict-prone part of the fork. The r2 payload does not ship that JavaScript.
+- Upstream's toolchain has not moved: the newest tags still declare `rust-version = "1.95"` and lock wasm-bindgen 0.2.129, matching `tool-pins.json`.
+
+### Upstream now has a host contract
+
+Since the pins, all four upstream web builds use `craft-web-host` (storytold/craft-libs `crates/web-host`, rev `fd5e2fef…` in the newest tags), described as one contract "for pages that embed DeckCraft and keep its files (a Nextcloud app, a personal file server)". Its version 1 has `ready`, `open`, `save` with an optional `id`, a host `saved {id}` acknowledgement that clears dirty, `dirty`, `failed` and `handoff`. Upstream `craft-web-api` adds `window.<app>.execute`, including `ui.theme`. Protocol 2 still needs pieces upstream lacks: host-initiated `request-save` for autosave, a parsed `opened` acknowledgement, opaque document revisions on `dirty`, correlated error codes and `cancel-intent`. Rebasing onto `craft-web-host` and proposing those additions upstream would turn most of the host-protocol stage into upstream code.
+
+### Server rebuilds and authority trust
+
+Every new authority still needs a server image rebuild. `apps/server/build.rs` discovers `tooling/artcraft/runtime-native-v3*.json` in the build source, orders the unsuffixed r1 then numeric revisions, and fails if none exist. The server Dockerfile copies the same wildcard files into the builder. No Git checkout is required inside the image build, and no runtime operator-supplied authority is trusted. A build elsewhere still cannot reuse an authority because `build-manifest.json` hashes command timings and logs.
+
+Protocol-2 acceptance uses the source archive pinned by the exact committed authority carried in the bundle, not the composer's current `sourceSha256` in `manifest.json`. Raising the current upstream pin therefore preserves earlier authorities' bundles, while a source hash absent from that authority is refused. The upgrade regression tests both outcomes for every committed authority. The official/legacy protocol acceptance rules are unchanged.
+
+The generated list preserves the committed-source trust rule. Alternatives that would remove the image rebuild remain unapproved proposals for aarsh:
+
+1. **Signed authorities (same provenance, no rebuild).** Compile in one Ed25519 public key; a bundle carries an authority signed with the offline key. Any machine can build, and the server accepts it if the signature verifies. Trade-off: the private key becomes the root of trust and needs rotation and revocation, and the server gains a signature dependency.
+2. **Operator pin only (no rebuild, weaker provenance).** Accept any bundle whose manifest matches `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`, still running the full inventory checks. Trade-off: anyone who can change deployment configuration and the mounted directory can run arbitrary same-origin code with users' full account privileges. The compiled-in list exists to prevent that.
+
+Independently, excluding `elapsedMs`, stdout and stderr from the hashed build manifest, with the logs kept beside it, would let a rebuild elsewhere reproduce an authority whenever the payload is reproducible. Grid r2 reproduced r1's payload bit for bit.
+
+### The frame bridge's dependency boundary
+
+The earlier cross-machine nondeterminism hypothesis was incorrect. At `6b08373`, Bun 1.4.4 builds the bridge as 219,942 bytes with SHA-256 `bdfaa8e114dfccabce6343065ef2842ea7a8c83fa26d03e99df7baf362b51849`. The runtime codec imported `EditorName` from `editor-contract.ts`, which imported the product RPC barrel; initializing that barrel pulled the unrelated generated operation catalog into the frame. The frame never calls those operations. That dependency, rather than a host-protocol change, made later API additions change the bridge relative to r2.
+
+`native-runtime.ts` now owns the leaf filename codec and `editor-contract.ts` re-exports it. Protocol 2's existing filename constraints, discriminants, bytes, opaque revisions and message shapes stay unchanged. The product descriptors remain Rust-owned; no product RPC schema is hand-copied into the frame.
+
+`bun test scripts/artcraft/native-host-entry.test.ts` builds the browser bridge twice, changing an unrelated admin RPC name in the bundler's catalog input for the second build, without rewriting generated files. The regression failed before isolation (`bdfaa8e1…1849` versus `2ac346d0…366a`) and passes after it (both `0cd1cd7fadcef5c2a0968fc7b749614b85f9b21e1954158ee4ad555a96f7d2ba`). This builds only the authored JavaScript entry in memory, not an editor bundle. A new editor bundle revision is still required to ship the changed bridge; the committed r1/r2 authorities and receipts are not rewritten.

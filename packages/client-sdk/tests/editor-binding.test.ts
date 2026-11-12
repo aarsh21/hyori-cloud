@@ -57,6 +57,7 @@ function fixture(overrides: Partial<EditorDocument> = {}) {
       | "access.denied"
       | "resource.notFound"
       | "auth.required"
+      | "input.invalid"
       | "service.unavailable";
     message: string;
   } | null = null;
@@ -191,6 +192,20 @@ function fixture(overrides: Partial<EditorDocument> = {}) {
     },
   };
 }
+
+test("rejected save input says that retrying the same snapshot cannot succeed", async () => {
+  const f = fixture();
+  f.failPreparation({ code: "input.invalid", message: "Save ID has different bytes" });
+  const backend = f.backend();
+  await backend.open({ signal: active() });
+  expect(await backend.save(f.input, { signal: active() })).toEqual({
+    status: "failed",
+    retryable: false,
+    message:
+      "The server rejected this save. Retrying it cannot succeed. Download your changes and reopen the file.",
+  });
+  expect(f.resumes).toHaveLength(0);
+});
 
 test("binding reuses prepared multipart identity and passes the actual committed file through", async () => {
   const f = fixture();

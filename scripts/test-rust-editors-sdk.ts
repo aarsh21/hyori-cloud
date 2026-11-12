@@ -498,8 +498,94 @@ try {
   assert.ok(automaticHistory.items.length >= 1 && automaticHistory.items.length < 140);
   await automaticBackend.close();
 
+  // A reused save ID cannot carry other bytes, a rename fences the open session, and an expired
+  // session ends rather than writing.
+  const fenced = await owner.sdk.uploads.start(
+    { parentId: null, file: new File([pdf], "fenced.pdf", { type: "application/pdf" }) },
+    { signal: automaticSignal },
+  ).result;
+
+  const fencedBackend = owner.sdk.editors.backend({ id: fenced.id });
+  const fencedDocument = await fencedBackend.open({ signal: automaticSignal });
+
+  const fencedSave = {
+    sessionId: fencedDocument.sessionId,
+    expectedRevision: fencedDocument.revision,
+    saveId: randomUUID(),
+    output: { name: fencedDocument.name, bytes: changedPdf, intent: "replace" as const },
+  };
+
+  const fencedSaved = await fencedBackend.save(fencedSave, { signal: automaticSignal });
+  assert.equal(fencedSaved.status, "saved");
+
+  if (fencedSaved.status !== "saved") throw new Error("No fenced editor revision");
+
+  const reused = await fencedBackend.save(
+    { ...fencedSave, output: { ...fencedSave.output, bytes: pdf } },
+    { signal: automaticSignal },
+  );
+
+  assert.deepEqual(reused, {
+    status: "failed",
+    retryable: false,
+    message:
+      "The server rejected this save. Retrying it cannot succeed. Download your changes and reopen the file.",
+  });
+  const fencedCurrent = { ...fencedDocument, revision: fencedSaved.revision };
+  assert.deepEqual(
+    await fencedBackend.download(fencedCurrent, { signal: automaticSignal }),
+    changedPdf,
+  );
+
+  const expiring = owner.sdk.editors.backend({ id: fenced.id });
+  const expiringDocument = await expiring.open({ signal: automaticSignal });
+  assert.match(expiringDocument.sessionId, /^[A-Za-z0-9_-]+$/);
+  docker([
+    "exec",
+    postgres,
+    "psql",
+    "-U",
+    "hyori_sdk",
+    "-d",
+    "hyori_sdk",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    `UPDATE hyori_editor_sessions SET expires_at=now() WHERE id='${expiringDocument.sessionId}'`,
+  ]);
+
+  const expired = await expiring.save(
+    {
+      sessionId: expiringDocument.sessionId,
+      expectedRevision: expiringDocument.revision,
+      saveId: randomUUID(),
+      output: { name: expiringDocument.name, bytes: pdf, intent: "replace" },
+    },
+    { signal: automaticSignal },
+  );
+
+  assert.equal(expired.status, "access-ended");
+  assert.equal(expired.status === "access-ended" ? expired.reason : null, "session-ended");
+
+  await owner.sdk.rpc.files.rename({ id: fenced.id, name: "renamed.pdf" });
+  assert.equal(
+    (
+      await fencedBackend.save(
+        {
+          sessionId: fencedDocument.sessionId,
+          expectedRevision: fencedSaved.revision,
+          saveId: randomUUID(),
+          output: { name: fencedDocument.name, bytes: pdf, intent: "replace" },
+        },
+        { signal: automaticSignal },
+      )
+    ).status,
+    "conflict",
+  );
+  await Promise.all([fencedBackend.close(), expiring.close()]);
+
   console.log(
-    "Real public SDK editor persistence passed: bounded download, durable lost-reply/restart replay, conflicts, explicit copy/export, native Deck fixture, anonymous Editor and revocation, 40 sequential open/close cycles, 140 automatic replacements with checkpoint grouping, lost-reply/restart recovery past the old 128-save limit, and retired-ID mutation fenced without changing current bytes. No browser/WASM/fidelity or measured speed approval.",
+    "Real public SDK editor persistence passed: bounded download, durable lost-reply/restart replay, conflicts, explicit copy/export, native Deck fixture, anonymous Editor and revocation, 40 sequential open/close cycles, 140 automatic replacements with checkpoint grouping, lost-reply/restart recovery past the old 128-save limit, and retired-ID mutation fenced without changing current bytes, reused save ID with other bytes, expired session and rename fenced. No browser/WASM/fidelity or measured speed approval.",
   );
 } finally {
   for (const sdk of clients) await sdk.dispose();

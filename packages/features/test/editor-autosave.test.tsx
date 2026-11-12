@@ -241,6 +241,39 @@ function fixture(
 }
 
 describe("autosave shell consuming the real SDK over explicit synthetic transport", () => {
+  test("restored connectivity retries retained bytes and resumes autosave without a click", async () => {
+    let offline = true;
+
+    const f = fixture(
+      {},
+      {
+        "editors.prepareSave": () => {
+          if (offline) throw new ApiFailure("service.unavailable", "Offline");
+
+          return UPLOADING;
+        },
+      },
+    );
+
+    await f.ready();
+    f.dirty();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    f.output();
+    await screen.findByRole("button", { name: "Retry save" });
+    f.dirty();
+    offline = false;
+    act(() => window.dispatchEvent(new Event("online")));
+    await waitFor(() => expect(f.api.callsTo("editors.prepareSave")).toHaveLength(2));
+    expect(f.api.callsTo("editors.prepareSave")[1]?.input).toEqual(
+      f.api.callsTo("editors.prepareSave")[0]?.input,
+    );
+    await waitFor(() => expect(f.requests()).toHaveLength(2));
+    f.output();
+    expect(await screen.findByText("All changes saved")).toBeTruthy();
+    expect(f.guard.isHeld()).toBe(false);
+    expect(f.view.container.querySelector("iframe")).toBe(f.frame);
+  });
+
   test("default idle timing schedules once; the UI stays unsaved until durable replacement", async () => {
     const committed = deferred<object>();
     const f = fixture({}, { "editors.completeSave": () => committed.promise });

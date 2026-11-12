@@ -27,7 +27,7 @@ export const nativeSourceCommits: Record<NativeApp, string> = {
 const patches = "tooling/artcraft/patches/native-host-v3";
 
 /** Third-party packages compiled into the host bridge; their licences ship with every artifact. */
-const bridgePackages = ["@effect/rpc", "effect"] as const;
+const bridgePackages = ["effect"] as const;
 
 async function bundleHostEntry(minify: boolean) {
   const bundle = await Bun.build({
@@ -129,10 +129,17 @@ export async function composeNativeSource(
   app: NativeApp,
   original: ReadonlyMap<string, Buffer>,
   authored: NativeAuthoredInputs,
+  /** Observes each stage's whole tree as it completes, such as to measure upstream drift. */
+  onStage?: (stage: string, files: ReadonlyMap<string, Buffer>) => void,
 ) {
   const own = await authored.app(app);
   const stages: string[] = [];
   let files = new Map(original);
+
+  function completed(stage: string) {
+    stages.push(stage);
+    onStage?.(stage, files);
+  }
 
   if (app === "deckcraft") {
     // Deck .3 composes over the retained host-engine APIs of .2 (frozen inputs, not re-authored).
@@ -140,7 +147,7 @@ export async function composeNativeSource(
       hostRust: authored.deckHostRust,
       hostJavaScript: authored.deckHostJavaScript,
     }).files;
-    stages.push("deck-host-engine-base");
+    completed("deck-host-engine-base");
   }
 
   files = patchNativeMethods(files, app, {
@@ -149,13 +156,13 @@ export async function composeNativeSource(
     methods: own.methods,
     jobs: own.jobs,
   }).files;
-  stages.push("direct-native-methods");
+  completed("direct-native-methods");
 
   if (app === "wordcraft") files = patchWordNativeHookup(files, own.frame).files;
   else if (app === "gridcraft") files = patchGridNativeHookup(files).files;
   else if (app === "pdfcraft") files = patchPdfNativeHookup(files).files;
   else files = patchDeckNativeHookup(files, own.frame).files;
-  stages.push("app-native-hookup");
+  completed("app-native-hookup");
 
   files = patchNativeFrame(files, app, {
     imports: authored.imports,
@@ -164,18 +171,18 @@ export async function composeNativeSource(
     clock: authored.clock,
     hostJavaScript: authored.hostJavaScript,
   }).files;
-  stages.push("shared-native-frame");
+  completed("shared-native-frame");
 
   const chrome = patchNativeChrome(files, app, authored.css);
   files = chrome.files;
-  stages.push("hyori-chrome-palette");
+  completed("hyori-chrome-palette");
 
   files = patchNativeMarks(files, app, { favicon: authored.favicon, icon: authored.icon });
-  stages.push("marks-removed");
+  completed("marks-removed");
 
   if (app === "wordcraft" || app === "deckcraft") {
     files = patchNativePolish(files, app).files;
-    stages.push("hyori-host-polish");
+    completed("hyori-host-polish");
   }
 
   if (!files.get("Cargo.lock")?.equals(original.get("Cargo.lock")!))

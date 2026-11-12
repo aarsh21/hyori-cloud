@@ -442,6 +442,17 @@ fn known_identity(
     editor: &Editor,
     inventory: &BTreeMap<&str, &InventoryFile>,
 ) -> Result<bool, ApiError> {
+    known_identity_with_pins(
+        editor,
+        inventory,
+        include_str!("../../../tooling/artcraft/manifest.json"),
+    )
+}
+fn known_identity_with_pins(
+    editor: &Editor,
+    inventory: &BTreeMap<&str, &InventoryFile>,
+    pins: &str,
+) -> Result<bool, ApiError> {
     #[derive(Deserialize)]
     struct Pins {
         editors: Vec<Pin>,
@@ -453,15 +464,9 @@ fn known_identity(
         sha256: String,
         source_sha256: String,
     }
-    let pins: Pins = serde_json::from_str(include_str!("../../../tooling/artcraft/manifest.json"))
-        .map_err(|_| ApiError::unavailable())?;
+    let pins: Pins = serde_json::from_str(pins).map_err(|_| ApiError::unavailable())?;
     if editor.protocol == Some(2) {
-        let source_pin = pins
-            .editors
-            .iter()
-            .find(|pin| pin.app == formats::app_name(&editor.app))
-            .ok_or_else(ApiError::unavailable)?;
-        return known_native_identity(editor, inventory, &source_pin.source_sha256);
+        return known_native_identity(editor, inventory);
     }
     if editor.app == EditorApp::Deckcraft {
         let source_pin = pins
@@ -551,12 +556,9 @@ fn payload_sha256(files: &[InventoryFile]) -> Result<Option<String>, ApiError> {
     let json = serde_json::to_vec(&files).map_err(|_| ApiError::unavailable())?;
     Ok(Some(hex::encode(Sha256::digest(json))))
 }
-/// Every committed native host v3 authority revision, oldest first. A revision is never rewritten,
-/// so bundles it identifies keep verifying; each bundle carries exactly one of them.
-const NATIVE_AUTHORITIES: [&str; 2] = [
-    include_str!("../../../tooling/artcraft/runtime-native-v3.json"),
-    include_str!("../../../tooling/artcraft/runtime-native-v3-r2.json"),
-];
+// Every committed native host v3 authority revision, oldest first. A revision is never rewritten,
+// so bundles it identifies keep verifying; each bundle carries exactly one of them.
+include!(concat!(env!("OUT_DIR"), "/native_authorities.rs"));
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct NativeAuthority {
@@ -595,7 +597,6 @@ fn native_authorities() -> Result<Vec<(NativeAuthority, String)>, ApiError> {
 fn known_native_identity(
     editor: &Editor,
     inventory: &BTreeMap<&str, &InventoryFile>,
-    source_pin: &str,
 ) -> Result<bool, ApiError> {
     let Some(carried) = inventory.get("legal/native-host-v3/authority.json") else {
         return Ok(false);
@@ -615,7 +616,6 @@ fn known_native_identity(
         || Some(authority.protocol) != editor.protocol
         || entry.artifact_version != editor.version
         || editor.archive_sha256.is_some()
-        || entry.source_archive_sha256 != source_pin
         || editor.source_archive_sha256.as_deref() != Some(entry.source_archive_sha256.as_str())
         || editor.build_manifest_sha256.as_deref() != Some(entry.build_manifest_sha256.as_str())
         || editor.payload_sha256.as_deref() != Some(entry.payload_sha256.as_str())
@@ -868,6 +868,20 @@ mod identity_tests {
                     "r{revision} {app}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn native_builds_survive_a_source_pin_upgrade_but_refuse_unknown_sources() {
+        let mut pins: serde_json::Value =
+            serde_json::from_str(include_str!("../../../tooling/artcraft/manifest.json")).unwrap();
+        pins["editors"][0]["sourceSha256"] = serde_json::json!("a".repeat(64));
+        let pins = serde_json::to_string(&pins).unwrap();
+        for revision in revisions() {
+            let (mut editor, legal) = native_bundle(revision, "wordcraft");
+            assert!(known_identity_with_pins(&editor, &inventory(&legal), &pins).unwrap());
+            editor.source_archive_sha256 = Some("b".repeat(64));
+            assert!(!known_identity_with_pins(&editor, &inventory(&legal), &pins).unwrap());
         }
     }
 

@@ -34,6 +34,13 @@ function saveFailure(
   const error = normalizeClientError(cause);
 
   switch (error.code) {
+    case "input.invalid":
+      return {
+        status: "failed",
+        retryable: false,
+        message:
+          "The server rejected this save. Retrying it cannot succeed. Download your changes and reopen the file.",
+      };
     case "resource.conflict":
       return intent === "replace"
         ? {
@@ -66,6 +73,7 @@ function saveFailure(
     default:
       return {
         status: "failed",
+        retryable: error.code === "SDK_TRANSPORT" || error.code === "service.unavailable",
         message: "Could not confirm the save; retry uses the same save ID and retained bytes.",
       };
   }

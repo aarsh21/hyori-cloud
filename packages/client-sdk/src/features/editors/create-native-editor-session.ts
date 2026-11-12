@@ -1,4 +1,5 @@
 import { Schema } from "@hyori-cloud/lib/effect";
+import { normalizeClientError } from "#client-sdk/errors";
 import type {
   EditorAutosave,
   EditorDocument,
@@ -50,6 +51,8 @@ type Pending = {
   mode: RequestSave["reason"];
   intent?: Intent;
   persisted?: Extract<EditorSaveResult, { status: "saved" }>;
+  retryAttempts?: number;
+  retryable?: boolean;
 };
 
 const MAX_BUSY_ATTEMPTS = 3;
@@ -107,6 +110,7 @@ export function createNativeEditorSession(
   let themeTimer: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let operationTimer: ReturnType<typeof setTimeout> | undefined;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
   const scheduler =
     options.autosave === undefined
@@ -236,7 +240,9 @@ export function createNativeEditorSession(
     clearTimeout(timer);
     clearTimeout(operationTimer);
     clearTimeout(themeTimer);
+    clearTimeout(retryTimer);
     stopWatching?.();
+    stopConnectivity?.();
     bytes = null;
     capture = null;
     stale = null;
@@ -617,6 +623,7 @@ export function createNativeEditorSession(
   }
 
   function refused(saved: Pending, result: Exclude<EditorSaveResult, { status: "saved" }>) {
+    saved.retryable = result.status === "failed" && result.retryable === true;
     cancelIntent(saved.intent);
     scheduler?.cancel();
     queuedFlush = null;
@@ -670,8 +677,34 @@ export function createNativeEditorSession(
     send({ ...envelope, status: "failed", message: result.message });
   }
 
+  function retryPersistence(immediate = false) {
+    const saved = pending;
+
+    if (
+      !active() ||
+      status !== "save-failed" ||
+      persisting ||
+      saved === null ||
+      !saved.retryable ||
+      (saved.retryAttempts ?? 0) >= 3
+    )
+      return;
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(
+      () => {
+        if (!active() || pending !== saved || persisting || status !== "save-failed") return;
+        saved.retryAttempts = (saved.retryAttempts ?? 0) + 1;
+        pause = null;
+        void persist(saved);
+      },
+      immediate ? 0 : 1000 * 2 ** (saved.retryAttempts ?? 0),
+    );
+  }
+
   async function persist(saved: Pending) {
     if (!active() || persisting || pending !== saved) return;
+    clearTimeout(retryTimer);
+    saved.retryable = false;
     persisting = true;
     status = "saving";
     publish();
@@ -681,6 +714,8 @@ export function createNativeEditorSession(
 
       return;
     }
+
+    let awaitingBackend = saved.persisted === undefined;
 
     try {
       const result =
@@ -696,6 +731,8 @@ export function createNativeEditorSession(
           },
           { signal: abort.signal },
         ));
+
+      awaitingBackend = false;
 
       if (!active() || pending !== saved) return;
 
@@ -714,10 +751,14 @@ export function createNativeEditorSession(
 
         acknowledge(saved);
       } else refused(saved, result);
-    } catch {
+    } catch (cause) {
       cancelIntent(saved.intent);
 
       if (active() && pending === saved) {
+        const error = normalizeClientError(cause);
+        saved.retryable ||=
+          awaitingBackend &&
+          (error.code === "SDK_TRANSPORT" || error.code === "service.unavailable");
         status = "save-failed";
         pause = "save-failed";
         scheduler?.cancel();
@@ -732,6 +773,7 @@ export function createNativeEditorSession(
       if (active()) {
         publish();
         drain();
+        retryPersistence();
       }
     }
   }
@@ -1152,6 +1194,8 @@ export function createNativeEditorSession(
     if (visibility.hidden() && active() && opened && epoch > savedEpoch) flush("automatic");
   });
 
+  const stopConnectivity = options.connectivity?.subscribe(() => retryPersistence(true));
+
   async function download() {
     try {
       const downloaded = await backend.download(document, { signal: abort.signal });
@@ -1226,11 +1270,13 @@ export function createNativeEditorSession(
       waitingForNative = false;
       unsubscribe();
       stopWatching?.();
+      stopConnectivity?.();
       abort.abort();
       scheduler?.cancel();
       clearTimeout(timer);
       clearTimeout(operationTimer);
       clearTimeout(themeTimer);
+      clearTimeout(retryTimer);
       capture = null;
       stale = null;
       bytes = null;
