@@ -1,4 +1,4 @@
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { type ChildProcess, execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   cpSync,
@@ -23,6 +23,8 @@ import { editorContentSecurityPolicy } from "./editor-csp.ts";
  *   bun scripts/dev-stack.ts db|storage|server|web|gateway
  *
  * State and generated credentials live in HYORI_DEV_HOME (default ~/hyori-dev), never in the repo.
+ * Without native PostgreSQL or RustFS binaries, db and storage run the deployment's pinned images
+ * in Docker instead, keeping their data in the `hyori-dev-pg` and `hyori-dev-rustfs` volumes.
  * Not a deployment recipe: TLS terminates at Amp's portal, and there is no isolated media worker.
  */
 const PORTS = { db: 25432, storage: 29000, server: 23003, web: 23001 } as const;
@@ -89,8 +91,28 @@ function run(command: string, args: readonly string[], env: NodeJS.ProcessEnv) {
   return child;
 }
 
+/** Secrets reach the container through the CLI's environment, never its argument list. */
+function container(name: string, args: readonly string[], secretEnv: Record<string, string>) {
+  // A container left behind by an unclean stop would still hold the name and the port.
+  spawnSync("docker", ["rm", "--force", name], { stdio: "ignore" });
+  run("docker", ["run", "--rm", "--name", name].concat(args), { ...process.env, ...secretEnv });
+}
+
 async function db() {
   const { pg } = secrets();
+
+  if (!existsSync(join(POSTGRES_BIN, "postgres"))) {
+    container(
+      "hyori-dev-pg",
+      ["-p", `127.0.0.1:${PORTS.db}:5432`, "-e", "POSTGRES_USER=hyori", "-e", "POSTGRES_DB=hyori"]
+        .concat(["-e", "POSTGRES_PASSWORD", "-v", "hyori-dev-pg:/var/lib/postgresql/data"])
+        .concat("postgres:17"),
+      { POSTGRES_PASSWORD: pg },
+    );
+
+    return;
+  }
+
   const data = join(HOME, "pgdata");
 
   if (!existsSync(data)) {
@@ -140,6 +162,19 @@ async function db() {
 
 function storage() {
   const { s3Key, s3Secret } = secrets();
+
+  if (!existsSync(RUSTFS)) {
+    container(
+      "hyori-dev-rustfs",
+      ["-p", `127.0.0.1:${PORTS.storage}:9000`, "-e", "RUSTFS_ADDRESS=:9000"]
+        .concat(["-e", "RUSTFS_CONSOLE_ENABLE=false", "-e", "RUSTFS_ACCESS_KEY"])
+        .concat(["-e", "RUSTFS_SECRET_KEY", "-v", "hyori-dev-rustfs:/data"])
+        .concat(["rustfs/rustfs:1.0.0-alpha.85", "/data"]),
+      { RUSTFS_ACCESS_KEY: s3Key, RUSTFS_SECRET_KEY: s3Secret },
+    );
+
+    return;
+  }
 
   mkdirSync(join(HOME, "rustfs-data"), { recursive: true });
   run(RUSTFS, [join(HOME, "rustfs-data")], {
@@ -351,7 +386,9 @@ function gateway() {
         for (const name of HOP) out.delete(name);
 
         return new Response(response.body, { status: response.status, headers: out });
-      } catch {
+      } catch (error) {
+        console.error(`${request.method} ${url.pathname}:`, error);
+
         return new Response("Hyori is starting. Reload in a moment.", { status: 503 });
       }
     },
