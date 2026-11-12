@@ -317,6 +317,9 @@ impl UploadsService {
                 let stored = tx.query_one_raw(sql("SELECT editor_sha256 FROM hyori_upload_parts WHERE upload_id=$1 AND part_number=$2",vec![id.into(),(number as i32).into()])).await?.ok_or_else(ApiError::conflict)?;
                 if stored.try_get::<Option<String>>("","editor_sha256")?.as_deref() != Some(&checksum) { return Err(ApiError::invalid().into()); }
             }
+            // Only useful transfer activity extends new owner reservations, not list/status polls.
+            // NULL is the migration boundary: old reservations keep their original expiry.
+            tx.execute_raw(sql("UPDATE hyori_uploads SET expires_at=now()+idle_seconds*interval '1 second',cleanup_due=now()+idle_seconds*interval '1 second' WHERE id=$1 AND idle_seconds IS NOT NULL",vec![current.id.into()])).await?;
             Ok(AcknowledgedPart { part_number: number, size: crate::features::auth::api::Bytes(length) })
         }) }).instrument(tracing::info_span!("upload_part_acknowledgement")).await;
         if recorded.is_err() && !acknowledged {
@@ -598,6 +601,31 @@ impl UploadsService {
         })
         .await
     }
+    /// Uploads initiated by this account, including reservations in shared spaces. No local
+    /// browser checkpoint or continuing destination access is needed to find/cancel one's work.
+    pub async fn pending(&self, input: PendingUploadsInput) -> Result<PendingUploads, ApiError> {
+        db::domain(&self.state.db, |tx| {
+            let (context, input) = (self.context.clone(), input.clone());
+            Box::pin(async move {
+                let actor = files::resolve_actor(tx, &context).await?;
+                let user = actor.require_user()?;
+                let cursor = input.cursor.0.map(|id| id.0).unwrap_or_default();
+                let rows = tx.query_all_raw(sql(
+                    "SELECT id,name,size,expires_at FROM hyori_uploads WHERE uploader_id=$1 AND reservation_held AND id>$2 ORDER BY id LIMIT $3",
+                    vec![user.into(),cursor.into(),(i64::from(input.limit)+1).into()],
+                )).await?;
+                let has_next = rows.len() > input.limit as usize;
+                let items = rows.into_iter().take(input.limit as usize).map(|row| Ok(PendingUpload {
+                    upload_id: crate::features::auth::api::Id(row.try_get("", "id")?),
+                    name: row.try_get("", "name")?,
+                    size: crate::features::auth::api::Bytes(row.try_get::<i64>("", "size")? as u64),
+                    expires_at: row.try_get::<chrono::DateTime<Utc>>("", "expires_at")?.to_rfc3339(),
+                })).collect::<db::DomainResult<Vec<_>>>()?;
+                let cursor = crate::wire::Nullable(if has_next { items.last().map(|item| item.upload_id.clone()) } else { None });
+                Ok(PendingUploads { items, cursor })
+            })
+        }).await
+    }
     /// Other people's pending uploads into the signed-in owner's space, oldest first, so the
     /// owner can see and cancel reservations held against their quota.
     pub async fn incoming(&self) -> Result<IncomingUploads, ApiError> {
@@ -655,7 +683,9 @@ pub(crate) async fn reserve(
         .await?
         .ok_or_else(ApiError::unavailable)?;
     if owner.try_get::<i32>("", "pending_uploads")? >= 128 {
-        return Err(ApiError::conflict().into());
+        return Err(
+            ApiError::new(ErrorCode::UploadLimit, "Unfinished upload limit reached").into(),
+        );
     }
     let initiator = match actor.user_id() {
         Some(user) => user.to_owned(),
@@ -693,15 +723,16 @@ pub(crate) async fn reserve(
         }
     }
     // Inventory and full reservation commit before any storage effect. A contribution expires
-    // unless parts keep arriving; the owner's own uploads stay resumable for seven days.
+    // unless parts keep arriving; new owner uploads expire after 24 hours without a part ack.
     tx.execute_raw(sql(
-        "INSERT INTO hyori_uploads(id,owner_id,uploader_id,grant_digests,parent_id,name,size,mime_type,object_key,replace_id,replace_revision,state,initiator,expires_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'starting',$12,now()+$13::bigint*interval '1 second')",
+        "INSERT INTO hyori_uploads(id,owner_id,uploader_id,grant_digests,parent_id,name,size,mime_type,object_key,replace_id,replace_revision,state,initiator,expires_at,idle_seconds)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'starting',$12,now()+$13::bigint*interval '1 second',$14)",
         vec![id.into(), destination.owner_id.clone().into(), actor.user_id().into(),
             serde_json::json!(context.grants.iter().map(|t| digest(t)).collect::<Vec<_>>()).into(),
             parent.into(), input.name.0.clone().into(), (input.size.0 as i64).into(), input.mime_type.clone().into(),
             format!("owners/{}/{id}",destination.owner_id).into(), replacement.into(), previous.map(|p| p.revision).into(),
-            initiator.into(), if contribution { CONTRIBUTION_IDLE_SECONDS } else { OWN_UPLOAD_SECONDS }.into()],
+            initiator.into(), if contribution { CONTRIBUTION_IDLE_SECONDS } else { OWN_UPLOAD_SECONDS }.into(),
+            if contribution { None } else { Some(OWN_UPLOAD_SECONDS) }.into()],
     )).await?;
     tx.execute_raw(sql(
         "UPDATE hyori_users SET reserved_bytes=reserved_bytes+$2 WHERE id=$1",
@@ -712,7 +743,7 @@ pub(crate) async fn reserve(
 }
 /// A contribution reservation must arrive within, and is extended by each part to, this window.
 pub(crate) const CONTRIBUTION_IDLE_SECONDS: i64 = 60 * 60;
-const OWN_UPLOAD_SECONDS: i64 = 7 * 24 * 60 * 60;
+const OWN_UPLOAD_SECONDS: i64 = 24 * 60 * 60;
 /// Pending uploads one contributor may hold in another account's space.
 pub(crate) const CONTRIBUTION_PENDING_LIMIT: i64 = 16;
 /// A contributor may reserve at most half of the space still available to them (the owner's

@@ -247,7 +247,7 @@ async fn zero_byte_reservations_keep_the_admission_cap_and_rollback_with_invento
     assert_eq!(full.try_get::<i32>("", "pending_uploads").unwrap(), 128);
     assert_eq!(full.try_get::<i64>("", "actual").unwrap(), 128);
     assert_eq!(full.try_get::<i64>("", "reserved_bytes").unwrap(), 0);
-    server.rpc("uploads.begin",json!({"parentId":null,"name":"one-too-many.bin","size":0,"mimeType":"application/octet-stream"}),Some(&cookie)).await.error(409,"resource.conflict");
+    server.rpc("uploads.begin",json!({"parentId":null,"name":"one-too-many.bin","size":0,"mimeType":"application/octet-stream"}),Some(&cookie)).await.error(409,"uploads.limitReached");
     let first = format!("{prefix}-1");
     for _ in 0..2 {
         server
