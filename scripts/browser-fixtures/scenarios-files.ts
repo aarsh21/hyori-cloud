@@ -218,13 +218,22 @@ async function keyboard(run: CoreRun) {
 
     await field.waitFor();
 
-    const selected = await field.evaluate((element) =>
-      element instanceof HTMLInputElement
-        ? element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0)
-        : "",
-    );
+    const deadline = Date.now() + 3000;
+    let selected = "";
 
-    assert.deepEqual(selected, "kyoto notes", "selected text");
+    while (Date.now() < deadline) {
+      selected = await field.evaluate((element) =>
+        element instanceof HTMLInputElement
+          ? element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0)
+          : "",
+      );
+
+      if (selected === "kyoto notes") break;
+
+      await page.waitForTimeout(50);
+    }
+
+    assert.deepEqual(selected, "kyoto notes", `last selected text: ${JSON.stringify(selected)}`);
     await page.keyboard.press("Escape");
     await page.getByRole("dialog").waitFor({ state: "detached" });
     await page.waitForFunction(() => document.activeElement !== document.body);
