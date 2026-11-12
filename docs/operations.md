@@ -119,24 +119,42 @@ Each backend admits sixteen concurrent upload operations. Within those slots, on
 account (across all its sessions) or anonymous visitor grant set may hold two. Each applicable
 public contributor/editor link may hold four across all visitors. The SDK queues two files and
 sends their parts serially; the link budget allows two such queues. Begin, part and complete
-share these limits. Excess work gets HTTP 409 `uploads.busy` without waiting in a server queue.
-The SDK waits five seconds between attempts, for at most 195 seconds or 39 additional attempts,
-then retains its checkpoint for explicit Retry. This also applies to begin and completion only
+share these limits. Each account/link has a FIFO queue of at most twice its allowance, waiting
+at most 130 seconds, with no database transaction or global upload slot held while waiting.
+Server-bound editor saves have independent two/four allowances, still inside the same sixteen
+global slots, so background uploads do not consume that person's editor allowance.
+Queue overflow, queue timeout or global saturation gets HTTP 409 `uploads.busy`. The SDK waits
+five seconds between attempts, for at most 195 seconds or 39 additional attempts after its first
+busy answer, then retains its checkpoint for explicit Retry. This also applies to begin and completion only
 when the server explicitly refused with `uploads.busy`; ambiguous begin/completion failures
-are never replayed automatically. These are per-process limits, so replicas multiply capacity.
+are never replayed automatically. A queued request's in-flight time is additional to client
+retry delays. These are per-process limits, so replicas multiply capacity.
 
-The global slot is acquired before database authorization, bounding even unknown/anonymous
-part lookups to sixteen concurrent upload operations. A principal or link refusal immediately
-releases that slot; a waiting client holds no global slot and no database transaction.
+A separate sixteen-query authorization gate bounds even unknown/anonymous part lookups before
+the database pool. Credential-bearing requests may queue there for up to one second (at most
+sixteen waiters); credentials still require database validation. Credential-less requests do not
+queue. Unknown or unauthorized uploads never consume a global transfer slot. The upload/save
+RPC deadline is 270 seconds to include a queue turn and bounded storage work; reading JSON and
+all other RPCs retain the original thirty-second overall deadline.
 
-Anonymous request volume can still slow legitimate uploads. Waiting clients poll rather than
-receive first-come admission, and each operation gives up after 195 seconds of busy answers.
-One run per identity on a shared two-CPU orb, with 500 concurrent anonymous unknown-ID PUT
+Anonymous request volume can still slow legitimate uploads; rate limiting at the gateway is
+outside this reliability change. Before FIFO admission and separating the authorization gate,
+waiting clients polled rather than receiving first-come admission. One run per identity on a
+shared two-CPU orb, with 500 concurrent anonymous unknown-ID PUT
 workers and a six-part 41,943,043-byte SDK upload, completed intact in 343.782 seconds for an
 account (quiet: 1.546 seconds) and 244.769 seconds for a contributor (quiet: 0.367 seconds).
 The original `6b08373` backend failed the same runs after 11.786 and 8.123 seconds respectively.
-These are single-run failure-drill observations, not deployment performance targets. Limit
-request volume at the gateway; gateway rate limiting is outside this reliability change.
+These are single-run failure-drill observations, not deployment performance targets.
+
+After adding FIFO turns, a gateway SDK run with two 167,772,163-byte files (twenty full
+8-MiB parts plus three bytes each, about twelve seconds per full part) let another device's
+small upload finish in 8.508 seconds while both large files continued. A third contributor
+visitor finished in 8.068 seconds while four such files continued on the same link. Both
+observed zero busy responses. A same-account SDK editor replace save took 155 ms during those
+uploads versus 151 ms quiet, with zero busy responses. All six large-file readbacks across
+these runs matched their source SHA-256. These were single runs through the built web host
+and Caddy on the shared two-CPU orb, with synthetic editor inventory, not real vendor UI.
+They do not establish latency under a simultaneous anonymous flood or cluster-wide fairness.
 
 A part body that supplies no chunk for thirty seconds is abandoned. The storage operation has
 a 120-second deadline and the leased worker a 125-second deadline, so sending occasional tiny

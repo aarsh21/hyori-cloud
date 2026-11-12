@@ -18,6 +18,8 @@ use std::{sync::Arc, time::Duration};
 // admits two such queues, but cannot exhaust all sixteen process-wide operations.
 const PER_PRINCIPAL: usize = 2;
 const PER_LINK: usize = 4;
+// Outlast a bounded 125-second part writer, including its five-second lease release.
+pub(crate) const QUEUE_WAIT: Duration = Duration::from_secs(130);
 
 pub(crate) struct Admission {
     _principals: Vec<PrincipalSlot>,
@@ -29,13 +31,7 @@ pub(crate) async fn begin(
     context: &RequestContext,
     input: &BeginUpload,
 ) -> Result<Admission, ApiError> {
-    // Bound even untrusted authorization lookups. A principal refusal drops this immediately;
-    // no request waits for a principal while holding a global slot.
-    let global = state
-        .uploads
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| ApiError::upload_busy())?;
+    let authorization = authorization(state, context).await?;
     let keys = db::domain(&state.db, |tx| {
         let (context, input) = (context.clone(), input.clone());
         Box::pin(async move {
@@ -51,7 +47,8 @@ pub(crate) async fn begin(
         })
     })
     .await?;
-    acquire(state, keys, global).await
+    drop(authorization);
+    acquire(state, keys).await
 }
 
 pub(crate) async fn existing(
@@ -59,31 +56,64 @@ pub(crate) async fn existing(
     context: &RequestContext,
     id: &str,
 ) -> Result<Admission, ApiError> {
-    let global = state
-        .uploads
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| ApiError::upload_busy())?;
+    let authorization = authorization(state, context).await?;
     let keys = db::domain(&state.db, |tx| {
         let (context, id) = (context.clone(), id.to_owned());
         Box::pin(async move {
             let (upload, actor) = policy::initiated(tx, &context, &id).await?;
-            if matches!(upload.state.as_str(), "complete" | "aborted") {
+            let mut keys = if matches!(upload.state.as_str(), "complete" | "aborted") {
                 // Terminal replay still gets admission, but must not require the old folder.
-                return Ok(vec![(principal(&context, &actor), PER_PRINCIPAL)]);
+                vec![(principal(&context, &actor), PER_PRINCIPAL)]
+            } else {
+                keys(
+                    tx,
+                    &context,
+                    &actor,
+                    upload.parent_id.as_deref(),
+                    upload.replace_id.as_deref(),
+                )
+                .await?
+            };
+            // Only the server's editor binding selects this independent allowance. A caller
+            // cannot turn an ordinary upload into an editor save to evade its normal budget.
+            if upload.editor_bound {
+                for (key, _) in &mut keys {
+                    *key = format!("editor:{key}");
+                }
             }
-            keys(
-                tx,
-                &context,
-                &actor,
-                upload.parent_id.as_deref(),
-                upload.replace_id.as_deref(),
-            )
-            .await
+            Ok(keys)
         })
     })
     .await?;
-    acquire(state, keys, global).await
+    drop(authorization);
+    acquire(state, keys).await
+}
+
+async fn authorization(
+    state: &Arc<AppState>,
+    context: &RequestContext,
+) -> Result<PrincipalSlot, ApiError> {
+    // A separate gate bounds untrusted SQL without letting unknown IDs consume transfer slots.
+    // Credential material permits a bounded FIFO wait, not authority; SQL still validates it.
+    let queue = if context.session.is_some() || !context.grants.is_empty() {
+        16
+    } else {
+        0
+    };
+    state
+        .upload_principals
+        .acquire(
+            "authorization".into(),
+            16,
+            queue,
+            if queue == 0 {
+                Duration::ZERO
+            } else {
+                Duration::from_secs(1)
+            },
+        )
+        .await
+        .ok_or_else(ApiError::upload_busy)
 }
 
 fn principal(context: &RequestContext, actor: &files::ProductActor) -> String {
@@ -115,8 +145,9 @@ async fn keys(
         };
         // Charge every applicable link, not a caller-selected one or a grant-set hash. Changing
         // sessions, acquiring new grants or adding an unrelated grant cannot evade this budget.
+        // Shared budgets use a stable order now that admission can wait on more than one link.
         let links = tx.query_all_raw(sql(
-            "SELECT id FROM hyori_shares WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb)) AND item_id IN (SELECT jsonb_array_elements_text($2::jsonb)) AND (role='editor' OR (role='contributor' AND NOT $3)) LIMIT 16",
+            "SELECT id FROM hyori_shares WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb)) AND item_id IN (SELECT jsonb_array_elements_text($2::jsonb)) AND (role='editor' OR (role='contributor' AND NOT $3)) ORDER BY id LIMIT 16",
             vec![serde_json::json!(actor.public_shares()).into(),serde_json::json!(roots).into(),replacement.is_some().into()],
         )).await?;
         for link in links {
@@ -129,21 +160,29 @@ async fn keys(
     Ok(keys)
 }
 
-async fn acquire(
-    state: &Arc<AppState>,
-    keys: Vec<(String, usize)>,
-    global: tokio::sync::OwnedSemaphorePermit,
-) -> Result<Admission, ApiError> {
+async fn acquire(state: &Arc<AppState>, keys: Vec<(String, usize)>) -> Result<Admission, ApiError> {
     let mut principals = Vec::with_capacity(keys.len());
+    let deadline = tokio::time::Instant::now() + QUEUE_WAIT;
     for (key, limit) in keys {
         principals.push(
             state
                 .upload_principals
-                .acquire(key, limit, 0, Duration::ZERO)
+                .acquire(
+                    key,
+                    limit,
+                    limit * 2,
+                    deadline.saturating_duration_since(tokio::time::Instant::now()),
+                )
                 .await
                 .ok_or_else(ApiError::upload_busy)?,
         );
     }
+    // No transfer permit or SQL transaction is held while waiting for an account/link turn.
+    let global = state
+        .uploads
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| ApiError::upload_busy())?;
     Ok(Admission {
         _principals: principals,
         _global: global,

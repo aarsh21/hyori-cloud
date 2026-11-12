@@ -407,6 +407,80 @@ async fn slow_parts_cannot_exhaust_another_principals_upload_admission() {
 
 #[tokio::test]
 #[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
+async fn another_device_waits_for_a_part_boundary_instead_of_failing_admission() {
+    use tokio::io::AsyncWriteExt;
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (_, cookie) = setup(&server).await;
+    let mut sockets = vec![];
+    for name in ["first-device-a", "first-device-b"] {
+        let id = begin(&server, &cookie, name, 3, None, None).await;
+        let mut socket = tokio::net::TcpStream::connect(server.url.trim_start_matches("http://"))
+            .await
+            .unwrap();
+        socket.write_all(format!("PUT /api/storage/uploads/{id}/1 HTTP/1.1\r\nHost: localhost:3001\r\nOrigin: http://localhost:3001\r\nCookie: {cookie}\r\nContent-Length: 3\r\n\r\n").as_bytes()).await.unwrap();
+        sockets.push(socket);
+    }
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let active = server
+                .state
+                .db
+                .query_one_raw(sql(
+                    "SELECT count(*)::bigint AS n FROM hyori_uploads WHERE lease_until>now()",
+                    vec![],
+                ))
+                .await
+                .unwrap()
+                .unwrap()
+                .try_get::<i64>("", "n")
+                .unwrap();
+            if active == 2 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let waiting = {
+        let (client, url, cookie) = (server.client.clone(), server.url.clone(), cookie.clone());
+        tokio::spawn(async move {
+            client.post(format!("{url}/api/rpc"))
+                .header("host", "localhost:3001")
+                .header("origin", "http://localhost:3001")
+                .header("cookie", cookie)
+                .json(&json!({"operation":"uploads.begin","input":{"parentId":null,"name":"second-device","size":3,"mimeType":"text/plain"}}))
+                .send().await.unwrap()
+        })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert!(
+        !waiting.is_finished(),
+        "admission should wait for a part boundary"
+    );
+    sockets[0].write_all(b"abc").await.unwrap();
+    let response = tokio::time::timeout(std::time::Duration::from_secs(5), waiting)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let value: Value = response.json().await.unwrap();
+    let id = value["value"]["uploadId"].as_str().unwrap();
+    assert_eq!(put(&server, &cookie, id, b"xyz").await.status(), 200);
+    let completed = server
+        .rpc("uploads.complete", json!({"uploadId":id}), Some(&cookie))
+        .await;
+    assert_eq!(completed.value()["size"], 3);
+    drop(sockets);
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
 async fn held_upload_lease_is_distinct_from_outage_for_part_and_completion() {
     let mut pg = Postgres::start().await;
     let rustfs = storage::RustFs::start().await;
