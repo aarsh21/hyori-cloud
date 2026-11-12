@@ -28,6 +28,7 @@ fn config_with_token(setup_token: String) -> Config {
         storage: None,
         media_worker_socket: None,
         editor_assets: None,
+        trusted_proxies: vec![],
     }
 }
 

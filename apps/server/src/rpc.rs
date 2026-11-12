@@ -15,13 +15,58 @@ use axum::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
+use std::{collections::HashMap, future::Future, net::IpAddr, pin::Pin, sync::Arc};
 
 /// Candidate parsing permits bounded concurrent overflow; policy admits only the newest 16
 /// database-validated public shares. Cookie names are only replacement/eviction addresses.
 pub(crate) const MAX_GRANT_CANDIDATES: usize = 64;
 pub(crate) const GRANT_COOKIE_PREFIX: &str = "hyori_grant_";
 pub(crate) const DEVICE_COOKIE: &str = "hyori_device";
+/// Set by a trusted proxy (the web host) to the one address its own client connected from.
+pub const CLIENT_ADDRESS_HEADER: &str = "x-hyori-client-address";
+
+/// Who the client is, for attempt limits. A peer listed in `trusted_proxies` names its client in
+/// exactly one [`CLIENT_ADDRESS_HEADER`] holding one IP literal; a missing, repeated or malformed
+/// value leaves the client unknown rather than falling back to the proxy itself. From any other
+/// peer the header is ignored and a public peer is the client. Unlisted loopback, private and
+/// link-local peers are proxies or local tooling, not client identities.
+pub fn client_address(
+    headers: &HeaderMap,
+    peer: Option<IpAddr>,
+    trusted_proxies: &[crate::config::ProxyRange],
+) -> Option<IpAddr> {
+    let peer = peer?.to_canonical();
+    if !trusted_proxies.iter().any(|range| range.contains(peer)) {
+        return direct_client(peer).then_some(peer);
+    }
+    let mut values = headers.get_all(CLIENT_ADDRESS_HEADER).iter();
+    let (Some(value), None) = (values.next(), values.next()) else {
+        return None;
+    };
+    value.to_str().ok()?.trim().parse().ok()
+}
+fn direct_client(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
+            !(ip.is_loopback() || ip.is_private() || ip.is_link_local() || ip.is_unspecified())
+        }
+        IpAddr::V6(ip) => {
+            !(ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local())
+        }
+    }
+}
+/// The rate-limit identity of a client address: the address itself for IPv4, its /64 for IPv6.
+/// One IPv6 host picks any address in its /64 at will (privacy addresses, SLAAC), so a full
+/// address would hand it 2^64 budgets; a /64 is the smallest prefix normally assigned to a site.
+pub(crate) fn client_key(address: IpAddr) -> String {
+    match address.to_canonical() {
+        IpAddr::V4(address) => address.to_string(),
+        address => format!("{}/64", crate::config::network(address, 64)),
+    }
+}
 
 #[derive(Clone, Default)]
 pub struct RequestContext {
@@ -30,9 +75,9 @@ pub struct RequestContext {
     pub grant_cookie_names: Vec<String>,
     /// Unverified `hyori_device` cookie; the login rate limiter checks its MAC.
     pub device: Option<String>,
-    /// TCP peer of this connection when the server was started with connect info. Behind the
-    /// web host this is the web host, not the end client; forwarded headers are never trusted.
-    pub peer: Option<std::net::IpAddr>,
+    /// The end client's address for per-client limits, from [`client_address`]; absent when
+    /// unknown. Never authority: it only selects which attempt budgets a request spends.
+    pub client: Option<IpAddr>,
 }
 impl RequestContext {
     /// Parse bounded credential material only. This is not authority: every product transaction
@@ -44,7 +89,7 @@ impl RequestContext {
             grants,
             grant_cookie_names,
             device: cookie(headers, DEVICE_COOKIE).filter(|value| value.len() <= 160),
-            peer: None,
+            client: None,
         }
     }
 }
@@ -210,10 +255,6 @@ async fn handle_inner(
     state: Arc<AppState>,
     request: Request<Body>,
 ) -> Result<RpcResult<Value>, ApiError> {
-    let _admission = state
-        .requests
-        .try_acquire()
-        .map_err(|_| ApiError::unavailable())?;
     validate_origin(request.headers(), &state.config.origin)?;
     if request
         .headers()
@@ -225,14 +266,24 @@ async fn handle_inner(
         return Err(ApiError::invalid());
     }
     let mut context = RequestContext::from_headers(request.headers());
-    context.peer = request
-        .extensions()
-        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
-        .map(|info| info.0.ip());
+    context.client = client_address(
+        request.headers(),
+        request
+            .extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+            .map(|info| info.0.ip()),
+        &state.config.trusted_proxies,
+    );
     let bytes = to_bytes(request.into_body(), MAX_JSON_BYTES)
         .await
         .map_err(|_| ApiError::invalid())?;
     let envelope: Envelope = serde_json::from_slice(&bytes).map_err(|_| ApiError::invalid())?;
+    // Admission bounds handler work, not clients: taken only once the whole bounded body has
+    // arrived, so connections that never finish sending one cannot hold every slot.
+    let _admission = state
+        .requests
+        .try_acquire()
+        .map_err(|_| ApiError::unavailable())?;
     state.rpc.dispatch(state.clone(), context, envelope).await
 }
 pub fn validate_origin(headers: &HeaderMap, origin: &str) -> Result<(), ApiError> {
@@ -444,5 +495,77 @@ mod cache_policy_tests {
             );
             assert_eq!(response.headers()["x-content-type-options"], "nosniff");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::ProxyRange;
+    fn ip(value: &str) -> IpAddr {
+        value.parse().unwrap()
+    }
+    fn header(values: &[&str]) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        for value in values {
+            headers.append(CLIENT_ADDRESS_HEADER, HeaderValue::from_str(value).unwrap());
+        }
+        headers
+    }
+    fn proxies() -> Vec<ProxyRange> {
+        vec!["10.0.0.0/8".parse().unwrap(), "::1".parse().unwrap()]
+    }
+    #[test]
+    fn an_unlisted_peer_cannot_name_a_client() {
+        let named = header(&["198.51.100.4"]);
+        // A private peer stays unknown; a public one is the client, whatever it claims.
+        assert_eq!(
+            client_address(&named, Some(ip("172.16.0.9")), &proxies()),
+            None
+        );
+        let public = Some(ip("203.0.113.7"));
+        assert_eq!(client_address(&named, public, &proxies()), public);
+        assert_eq!(client_address(&named, Some(ip("10.1.2.3")), &[]), None);
+    }
+    #[test]
+    fn a_listed_proxy_names_exactly_one_well_formed_client() {
+        let proxy = Some(ip("::ffff:10.1.2.3"));
+        assert_eq!(
+            client_address(&header(&["198.51.100.4"]), proxy, &proxies()),
+            Some(ip("198.51.100.4"))
+        );
+        for bad in [
+            &[][..],
+            &["198.51.100.4", "198.51.100.5"],
+            &["198.051.100.4"],
+            &["198.51.100.4, 10.0.0.1"],
+            &["unknown"],
+            &["[2001:db8::1]"],
+        ] {
+            assert_eq!(
+                client_address(&header(bad), proxy, &proxies()),
+                None,
+                "{bad:?}"
+            );
+        }
+    }
+    #[test]
+    fn spellings_of_one_client_share_one_key() {
+        let key = |value: &str| {
+            client_address(&header(&[value]), Some(ip("::1")), &proxies()).map(client_key)
+        };
+        let v4 = Some("198.51.100.4".to_owned());
+        for spelling in [" 198.51.100.4 ", "::ffff:198.51.100.4", "::FFFF:C633:6404"] {
+            assert_eq!(key(spelling), v4, "{spelling}");
+        }
+        let v6 = Some("2001:db8:1:2::/64".to_owned());
+        for spelling in [
+            "2001:db8:1:2::1",
+            "2001:0DB8:0001:0002:0:0:0:0001",
+            "2001:db8:1:2:ffff::9",
+        ] {
+            assert_eq!(key(spelling), v6, "{spelling}");
+        }
+        assert_ne!(key("2001:db8:1:3::1"), v6);
     }
 }

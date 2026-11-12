@@ -59,7 +59,9 @@ impl AppState {
         Ok(())
     }
     pub async fn connect(config: Config) -> Result<Arc<Self>, ApiError> {
-        config.validate().map_err(|_| ApiError::unavailable())?;
+        config
+            .validate()
+            .map_err(|error| startup_failure("configuration", error))?;
         let editor_assets = editor_assets::EditorAssets::load(&config).await?;
         let mut rpc = RpcRegistry::new().map_err(contract_failure)?;
         features::auth::api::bind(&mut rpc).map_err(contract_failure)?;
@@ -80,7 +82,7 @@ impl AppState {
             .clone()
             .map(hyori_storage::ObjectStorage::new)
             .transpose()
-            .map_err(|_| ApiError::unavailable())?;
+            .map_err(|error| startup_failure("storage client", error))?;
         let db = db::connect(&config).await?;
         db::migrate(&db).await?;
         editor_assets.activate(&db).await?;
@@ -88,7 +90,7 @@ impl AppState {
             storage
                 .ensure_bucket()
                 .await
-                .map_err(|_| ApiError::unavailable())?;
+                .map_err(|error| startup_failure("storage bucket", error))?;
         }
         let config = Arc::new(config);
         Ok(Arc::new(Self {
@@ -109,6 +111,12 @@ impl AppState {
             owner_locks: db::OwnerLocks::new(),
         }))
     }
+}
+/// Configuration and storage errors carry only static text, operation names, HTTP status and S3
+/// error codes, never credentials, so the operator can tell a rejected key from an outage.
+fn startup_failure(stage: &'static str, error: impl std::fmt::Display) -> ApiError {
+    tracing::error!(stage, %error, "startup failed");
+    ApiError::unavailable()
 }
 fn contract_failure(error: wire::ContractError) -> ApiError {
     tracing::error!(%error, "application contract initialization failed");

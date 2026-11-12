@@ -258,7 +258,11 @@ async fn auth_postgres_http_lifecycle() {
         fresh
             .state
             .auth
-            .rate_limit(&fresh.state.db, "persistent-rate-test")
+            .rate_limit(
+                &fresh.state.db,
+                "persistent-rate-test",
+                hyori_server::auth::SECRET_ATTEMPTS,
+            )
             .await
             .unwrap();
     }
@@ -266,7 +270,11 @@ async fn auth_postgres_http_lifecycle() {
         server
             .state
             .auth
-            .rate_limit(&server.state.db, "persistent-rate-test")
+            .rate_limit(
+                &server.state.db,
+                "persistent-rate-test",
+                hyori_server::auth::SECRET_ATTEMPTS
+            )
             .await
             .is_err()
     );
@@ -407,6 +415,29 @@ async fn auth_postgres_http_lifecycle() {
 
 #[tokio::test]
 #[ignore = "starts a unique loopback Docker PostgreSQL container; run with --ignored"]
+async fn unfinished_request_bodies_do_not_hold_rpc_admission() {
+    use tokio::io::AsyncWriteExt;
+    let postgres = Postgres::start().await;
+    let server = TestServer::start(postgres.config.clone()).await;
+    let address = server.url.trim_start_matches("http://").to_owned();
+    // Anonymous clients that announce a body and never finish sending it.
+    let mut stalled = vec![];
+    for _ in 0..hyori_server::config::RPC_CONCURRENCY {
+        let mut stream = tokio::net::TcpStream::connect(&address).await.unwrap();
+        let head = format!(
+            "POST /api/rpc HTTP/1.1\r\nhost: localhost:3001\r\norigin: {}\r\ncontent-type: application/json\r\ncontent-length: 1024\r\n\r\n{{",
+            postgres.config.origin
+        );
+        stream.write_all(head.as_bytes()).await.unwrap();
+        stalled.push(stream);
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    server.rpc("auth.status", json!({}), None).await.value();
+    drop(stalled);
+}
+
+#[tokio::test]
+#[ignore = "starts a unique loopback Docker PostgreSQL container; run with --ignored"]
 async fn migrations_refuse_foreign_data_without_touching_it() {
     let postgres = Postgres::start().await;
     let db = hyori_server::db::connect(&postgres.config).await.unwrap();
@@ -477,7 +508,11 @@ async fn authentication_cleanup_is_bounded_restart_safe_and_preserves_live_autho
         server
             .state
             .auth
-            .rate_limit(db, "cleanup-live-window")
+            .rate_limit(
+                db,
+                "cleanup-live-window",
+                hyori_server::auth::SECRET_ATTEMPTS,
+            )
             .await
             .unwrap();
     }
@@ -542,7 +577,11 @@ async fn authentication_cleanup_is_bounded_restart_safe_and_preserves_live_autho
         server
             .state
             .auth
-            .rate_limit(db, "cleanup-live-window")
+            .rate_limit(
+                db,
+                "cleanup-live-window",
+                hyori_server::auth::SECRET_ATTEMPTS
+            )
             .await
             .is_err()
     );
@@ -597,7 +636,11 @@ async fn authentication_cleanup_preserves_concurrent_refreshes_and_cooperates_be
     assert_eq!(current.try_get::<i32>("", "attempts").unwrap(), 10);
     state
         .auth
-        .rate_limit(db, "refresh-in-progress")
+        .rate_limit(
+            db,
+            "refresh-in-progress",
+            hyori_server::auth::SECRET_ATTEMPTS,
+        )
         .await
         .unwrap_err();
     restarted.db.clone().close().await.unwrap();

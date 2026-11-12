@@ -34,6 +34,7 @@ fn config(fixture: &BundleFixture) -> Config {
         storage: None,
         media_worker_socket: None,
         editor_assets: Some(fixture.persist()),
+        trusted_proxies: vec![],
     }
 }
 fn gzip(bytes: &[u8]) -> Vec<u8> {

@@ -152,6 +152,10 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             15_i32,
             include_str!("../migrations/0015_media_lease_settlement.sql"),
         ),
+        (
+            16_i32,
+            include_str!("../migrations/0016_rate_limit_ceilings.sql"),
+        ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
         let old = tx
@@ -162,6 +166,7 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             .await?;
         if let Some(old) = old {
             if old.try_get::<String>("", "checksum")? != checksum {
+                tracing::error!(version, "applied migration differs from this build");
                 return Err(ApiError::unavailable());
             }
         } else {
