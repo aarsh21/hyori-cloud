@@ -233,6 +233,33 @@ export async function runInterfaceScenarios(run: CoreRun) {
           await warm.page.getByRole("heading", { name: "Trash", exact: true }).waitFor();
           await warm.page.getByRole("link", { name: "Files", exact: true }).first().click();
           await warm.page.getByRole("heading", { name: "Files", exact: true }).waitFor();
+          await run.report.check(
+            `${label}: returning to a loaded section shows no skeleton`,
+            async () => {
+              await warm.page.evaluate(() => {
+                const skeleton = '[data-slot="skeleton"], [data-slot$="-skeleton"]';
+                new MutationObserver((records) => {
+                  for (const record of records)
+                    for (const node of record.addedNodes)
+                      if (
+                        node instanceof Element &&
+                        (node.matches(skeleton) || node.querySelector(skeleton) !== null)
+                      )
+                        document.body.dataset.skeletonsShown = `${document.body.dataset.skeletonsShown ?? ""}${location.pathname} `;
+                }).observe(document.body, { childList: true, subtree: true });
+              });
+
+              for (const name of ["Trash", "Files", "Trash", "Files"]) {
+                await warm.page.getByRole("link", { name, exact: true }).first().click();
+                await warm.page.getByRole("heading", { name, exact: true }).waitFor();
+              }
+
+              assert.deepEqual(
+                await warm.page.evaluate(() => document.body.dataset.skeletonsShown),
+                undefined,
+              );
+            },
+          );
           await warm.page.waitForLoadState("networkidle");
           await warm.context.setOffline(true);
           await warm.page.getByRole("link", { name: "Shared", exact: true }).first().click();

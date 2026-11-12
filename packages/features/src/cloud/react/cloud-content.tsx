@@ -1,6 +1,6 @@
 import { Cloud, File as FileIcon } from "@hyori-cloud/lib/icons";
 import { onlineManager } from "@hyori-cloud/lib/query-core";
-import { Component, lazy, Suspense, useState } from "@hyori-cloud/lib/react";
+import { Component, Suspense, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { useRetryOnReconnect } from "@hyori-cloud/ui/hooks/use-retry-on-reconnect";
@@ -8,6 +8,7 @@ import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { useNavigateTo } from "#features/cloud/react/cloud-navigation.tsx";
 import { CloudScreenFallback } from "#features/cloud/react/cloud-screen-fallback.tsx";
 import {
+  forgetFailedChunks,
   loadAdminScreen,
   loadAlbumScreen,
   loadAlbumsScreen,
@@ -15,43 +16,23 @@ import {
   loadPhotosScreen,
   loadSharedScreen,
   loadTrashScreen,
+  lazyScreen,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
 
-function createScreens() {
-  // React.lazy retains rejected promises. A retry needs new wrappers, not just a boundary reset.
-  return {
-    FilesScreen: lazy(async () => ({ default: (await loadFilesScreen()).FilesScreen })),
-    SharedScreen: lazy(async () => ({ default: (await loadSharedScreen()).SharedScreen })),
-    TrashScreen: lazy(async () => ({ default: (await loadTrashScreen()).TrashScreen })),
-    PhotosScreen: lazy(async () => ({ default: (await loadPhotosScreen()).PhotosScreen })),
-    AlbumsScreen: lazy(async () => ({ default: (await loadAlbumsScreen()).AlbumsScreen })),
-    AlbumScreen: lazy(async () => ({ default: (await loadAlbumScreen()).AlbumScreen })),
-    AdminScreen: lazy(async () => ({ default: (await loadAdminScreen()).AdminScreen })),
-  };
-}
+const FilesScreen = lazyScreen(loadFilesScreen, (module) => module.FilesScreen);
+const SharedScreen = lazyScreen(loadSharedScreen, (module) => module.SharedScreen);
+const TrashScreen = lazyScreen(loadTrashScreen, (module) => module.TrashScreen);
+const PhotosScreen = lazyScreen(loadPhotosScreen, (module) => module.PhotosScreen);
+const AlbumsScreen = lazyScreen(loadAlbumsScreen, (module) => module.AlbumsScreen);
+const AlbumScreen = lazyScreen(loadAlbumScreen, (module) => module.AlbumScreen);
+const AdminScreen = lazyScreen(loadAdminScreen, (module) => module.AdminScreen);
 
 type ShellLocation = Exclude<
   CloudLocation,
   { section: "invite" | "publicShare" | "publicEditor" | "editor" }
 >;
 
-function CloudSection({
-  location,
-  screens,
-}: {
-  location: ShellLocation;
-  screens: ReturnType<typeof createScreens>;
-}) {
-  const {
-    FilesScreen,
-    SharedScreen,
-    TrashScreen,
-    PhotosScreen,
-    AlbumsScreen,
-    AlbumScreen,
-    AdminScreen,
-  } = screens;
-
+function CloudSection({ location }: { location: ShellLocation }) {
   switch (location.section) {
     case "files":
       return <FilesScreen folderId={location.folderId} />;
@@ -76,23 +57,22 @@ function CloudSection({
   return null;
 }
 
-type CloudContentState = ({ phase: "screen" } | { phase: "failed"; error: Error }) & {
-  screens: ReturnType<typeof createScreens>;
-};
+type CloudContentState = { phase: "screen" } | { phase: "failed"; error: Error };
 
 /** Screen-code failures must not dispose the shell, navigation or upload queue. */
 export class CloudContent extends Component<{ location: ShellLocation }, CloudContentState> {
-  override state: CloudContentState = {
-    phase: "screen",
-    screens: createScreens(),
-  };
+  override state: CloudContentState = { phase: "screen" };
 
-  static getDerivedStateFromError(error: Error): Partial<CloudContentState> {
+  static getDerivedStateFromError(error: Error): CloudContentState {
     return { phase: "failed", error };
   }
 
+  override componentDidCatch() {
+    forgetFailedChunks();
+  }
+
   retry = () => {
-    this.setState({ phase: "screen", screens: createScreens() });
+    this.setState({ phase: "screen" });
   };
 
   override render() {
@@ -104,7 +84,7 @@ export class CloudContent extends Component<{ location: ShellLocation }, CloudCo
       case "screen":
         return (
           <Suspense fallback={<CloudScreenFallback location={location} />}>
-            <CloudSection location={location} screens={this.state.screens} />
+            <CloudSection location={location} />
           </Suspense>
         );
     }

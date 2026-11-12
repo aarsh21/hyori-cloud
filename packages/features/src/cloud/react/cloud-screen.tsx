@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "@hyori-cloud/lib/react";
+import { Suspense } from "@hyori-cloud/lib/react";
 import { AppShellFallback } from "@hyori-cloud/ui/components/app-shell-fallback";
 import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
 import { AuthBoundary } from "#features/auth/react/auth-boundary.tsx";
@@ -10,17 +10,15 @@ import {
 import { FocusFallback } from "#features/cloud/react/focus-fallback.tsx";
 import type { NavigationGuard } from "#features/cloud/navigation-guard.ts";
 import {
+  lazyScreen,
   loadCloudShell,
   loadInviteScreen,
   loadPublicShareScreen,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
 
-const SignedInCloud = lazy(async () => ({ default: (await loadCloudShell()).SignedInCloud }));
-const InviteScreen = lazy(async () => ({ default: (await loadInviteScreen()).InviteScreen }));
-
-const PublicShareScreen = lazy(async () => ({
-  default: (await loadPublicShareScreen()).PublicShareScreen,
-}));
+const SignedInCloud = lazyScreen(loadCloudShell, (module) => module.SignedInCloud);
+const InviteScreen = lazyScreen(loadInviteScreen, (module) => module.InviteScreen);
+const PublicShareScreen = lazyScreen(loadPublicShareScreen, (module) => module.PublicShareScreen);
 
 /**
  * The whole product surface. The host owns the router and supplies only the current path and a

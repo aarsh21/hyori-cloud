@@ -1,13 +1,13 @@
 import type { FileEntry } from "@hyori-cloud/client-sdk";
-import { lazy, Suspense } from "@hyori-cloud/lib/react";
+import { Suspense } from "@hyori-cloud/lib/react";
 import { FocusLayout } from "@hyori-cloud/ui/components/focus-layout";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { Row } from "@hyori-cloud/ui/components/text";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
-import { loadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
+import { lazyScreen, loadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
 
-const EditorScreen = lazy(async () => ({ default: (await loadEditorScreen()).EditorScreen }));
+const EditorScreen = lazyScreen(loadEditorScreen, (module) => module.EditorScreen);
 
 /** Editing through a link: nothing to sign in to, and every way out goes back to that link. */
 export function PublicEditor({
