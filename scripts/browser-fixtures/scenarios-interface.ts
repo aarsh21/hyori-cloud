@@ -59,6 +59,7 @@ async function folder(page: Page, name: string) {
 }
 
 export async function runInterfaceScenarios(run: CoreRun) {
+  await warmNavigation(run);
   // Real stored bytes and quota, not a substituted response or a fabricated storage counter.
   const seed = await ownerPage(run);
   await uploadFiles(seed.page, run.media.bytes("interface-layout.bin", 3_040_870));
@@ -382,6 +383,99 @@ export async function runInterfaceScenarios(run: CoreRun) {
   }
 
   await runFailedPreloadChecks(run);
+}
+
+/** Warm code and data first; click-to-render excludes Playwright's actionability wait. */
+async function warmNavigation(run: CoreRun) {
+  const sections = [
+    { name: "Files", path: "/", heading: "Files" },
+    { name: "Photos", path: "/photos", heading: "Photos" },
+    { name: "Albums", path: "/photos/albums", heading: "Photos" },
+    { name: "Shared", path: "/shared", heading: "Shared" },
+    { name: "Trash", path: "/trash", heading: "Trash" },
+    { name: "Users", path: "/admin", heading: "Users" },
+  ];
+
+  for (const phone of [false, true]) {
+    const label = phone ? "phone" : "desktop";
+    const { context, page } = await ownerPage(run, phone ? PHONE : { deviceScaleFactor: 2 });
+
+    async function destination(section: (typeof sections)[number]) {
+      if (section.name === "Albums") {
+        await page.getByRole("link", { name: "Photos", exact: true }).first().click();
+        await page.getByRole("heading", { name: "Photos", exact: true }).waitFor();
+      }
+
+      if (section.name === "Users" && phone) {
+        await page.getByRole("button", { name: "Account", exact: true }).press("Enter");
+
+        return page.getByRole("menuitem", { name: "Users", exact: true });
+      }
+
+      return page.getByRole("link", { name: section.name, exact: true }).first();
+    }
+
+    try {
+      for (const section of sections) {
+        await (await destination(section)).click();
+        await page.getByRole("heading", { name: section.heading, exact: true }).waitFor();
+        await page.waitForLoadState("networkidle");
+      }
+
+      for (const section of sections) {
+        await run.report.check(
+          `${label}: warm navigation into ${section.name} stays under 250 ms`,
+          async () => {
+            const times: number[] = [];
+
+            for (let repeat = 0; repeat < 10; repeat += 1) {
+              const away = section.name === "Files" ? "Trash" : "Files";
+              await page.getByRole("link", { name: away, exact: true }).first().click();
+              await page.getByRole("heading", { name: away, exact: true }).waitFor();
+              const target = await destination(section);
+
+              const elapsed = await target.evaluate(
+                (element, expected) =>
+                  new Promise<number>((resolve, reject) => {
+                    const deadline = setTimeout(
+                      () => reject(new Error(`Warm ${expected.name} did not render`)),
+                      2000,
+                    );
+
+                    const started = performance.now();
+
+                    const rendered = () => {
+                      const heading = [...document.querySelectorAll("h1")].some(
+                        (node) => node.textContent === expected.heading,
+                      );
+
+                      if (location.pathname === expected.path && heading) {
+                        clearTimeout(deadline);
+                        resolve(performance.now() - started);
+                      } else requestAnimationFrame(rendered);
+                    };
+
+                    if (!(element instanceof HTMLElement))
+                      throw new Error("Expected a navigation control");
+
+                    element.click();
+                    requestAnimationFrame(rendered);
+                  }),
+                section,
+              );
+
+              times.push(elapsed);
+            }
+
+            run.report.observe(`${label}: warm ${section.name} click-to-render ms`, times);
+            assert.ok(Math.max(...times) < 250, `${section.name}: ${times.join(", ")} ms`);
+          },
+        );
+      }
+    } finally {
+      await context.close();
+    }
+  }
 }
 
 export async function runFailedPreloadChecks(run: CoreRun) {
