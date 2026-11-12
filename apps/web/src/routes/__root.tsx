@@ -2,15 +2,10 @@ import { ClientSDKProvider } from "@hyori-cloud/client-sdk/react";
 import { QueryClientProvider } from "@hyori-cloud/lib/query";
 import { Toaster } from "@hyori-cloud/ui/components/sonner";
 import { AppearanceProvider } from "@hyori-cloud/ui/theme";
-import {
-  HeadContent,
-  Outlet,
-  Scripts,
-  createRootRouteWithContext,
-  useRouter,
-} from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext, useRouter } from "@tanstack/react-router";
 
 import type { createAppRuntime } from "@/app/runtime";
+import { DocumentHead, DocumentScripts } from "@/components/document-assets";
 import appCss from "@/index.css?url";
 
 export type RouterAppContext = ReturnType<typeof createAppRuntime>;
@@ -49,7 +44,7 @@ function RootDocument() {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <HeadContent />
+        <DocumentHead />
       </head>
       <body>
         <AppearanceProvider nonce={nonce}>
@@ -60,7 +55,7 @@ function RootDocument() {
             </ClientSDKProvider>
           </QueryClientProvider>
         </AppearanceProvider>
-        <Scripts />
+        <DocumentScripts />
       </body>
     </html>
   );

@@ -6,7 +6,7 @@
     "build": "NODE_ENV=production vp build",
     "serve": "vp preview",
     "dev": "vp dev",
-    "check-types": "NODE_ENV=production vp build && tsc --noEmit",
+    "check-types": "bun tooling/check-router-version.ts && NODE_ENV=production vp build && tsc --noEmit",
     "env:generate": "varlock codegen",
     "test:runtime": "bun test --preload ./test/client-assets.ts ./test/server-runtime.test.ts ./test/theme-contrast.test.ts && bun test --preload ./test/dom-environment.ts --preload ./test/client-assets.ts ./test/browser-runtime.test.tsx && bun test --preload ./test/dom-environment.ts ./test/browser-appearance.test.tsx",
     "test:dev-server": "node --test --test-timeout=30000 test/dev-disconnect.test.ts"
@@ -21,6 +21,7 @@
     "@tanstack/react-query": "^5.104.2",
     "@tanstack/react-router": "^1.170.44",
     "@tanstack/react-start": "^1.169.1",
+    "@tanstack/router-core": "1.171.39",
     "@varlock/vite-integration": "1.5.4",
     "lucide-react": "^1.56.0",
     "next-themes": "catalog:",

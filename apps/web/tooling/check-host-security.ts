@@ -63,6 +63,13 @@ try {
 
   assert.ok(inlineNonces.length > 0);
   assert.ok(inlineNonces.every((value) => value === nonce));
+
+  const externalNonces = await page
+    .locator('script[src], link[rel="modulepreload"]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("nonce")));
+
+  assert.ok(externalNonces.length > 0);
+  assert.ok(externalNonces.every((value) => value === null));
   await page.evaluate(() => {
     const script = document.createElement("script");
     script.textContent = 'document.documentElement.dataset.cspProbe = "executed"';
