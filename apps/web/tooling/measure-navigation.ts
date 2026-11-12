@@ -30,6 +30,8 @@ const results: { mobile: boolean; run: number; section: string; usableMs: number
 
 try {
   for (const mobile of [false, true]) {
+    if (process.argv[3] && process.argv[3] !== (mobile ? "mobile" : "desktop")) continue;
+
     for (let run = 0; run < 3; run++) {
       const context = await browser.newContext({
         viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 800 },

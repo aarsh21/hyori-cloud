@@ -5,7 +5,13 @@ const browserSecurity = createMiddleware().server(async ({ next, handlerType, re
   if (handlerType !== "router") return next();
 
   const nonce = crypto.randomUUID();
-  const result = await next({ context: { cspNonce: nonce } });
+
+  const result = await next({
+    context: {
+      cspNonce: nonce,
+      crossSiteNavigation: request.headers.get("sec-fetch-site") === "cross-site",
+    },
+  });
 
   // Binary/API routes own their stricter sandbox policy; this policy belongs to HTML only.
   if (result.response.headers.get("content-type")?.includes("text/html")) {
