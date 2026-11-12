@@ -37,7 +37,8 @@ use aws_sdk_s3::{
     Client,
     config::{
         BehaviorVersion, Credentials, Region, RequestChecksumCalculation,
-        ResponseChecksumValidation, retry::RetryConfig, timeout::TimeoutConfig,
+        ResponseChecksumValidation, StalledStreamProtectionConfig, retry::RetryConfig,
+        timeout::TimeoutConfig,
     },
     error::{ProvideErrorMetadata, SdkError},
     primitives::ByteStream,
@@ -307,6 +308,23 @@ impl ObjectStorage {
             .part_number(i32::from(part_number))
             .content_length(length as i64)
             .body(byte_stream)
+            // The response cannot start until the incoming part has streamed to storage.
+            // Keep other operations' short read bound without cutting a live writer at 30s.
+            .customize()
+            .config_override(
+                aws_sdk_s3::config::Builder::new()
+                    .timeout_config(
+                        TimeoutConfig::builder()
+                            .connect_timeout(Duration::from_secs(5))
+                            .read_timeout(Duration::from_secs(120))
+                            .operation_timeout(Duration::from_secs(120))
+                            .operation_attempt_timeout(Duration::from_secs(120))
+                            .build(),
+                    )
+                    // The product bounds incoming idle time and the writer's lifetime.
+                    // The SDK's 5s upload-stall grace cuts valid, intermittently arriving parts.
+                    .stalled_stream_protection(StalledStreamProtectionConfig::disabled()),
+            )
             .send()
             .await
             .map_err(|e| failure("part", &e))?;

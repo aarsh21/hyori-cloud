@@ -1408,3 +1408,96 @@ async fn ambiguous_completion_revocation_abort_fencing_and_late_exact_key_reconc
     drop(server);
     pg.stop();
 }
+
+/// Send a part slowly and record early replies as well as success.
+async fn lead_trickle(
+    url: &str,
+    cookie: &str,
+    id: &str,
+    seconds: u64,
+    interval: u64,
+) -> (String, f64) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let steps = seconds / interval;
+    let started = std::time::Instant::now();
+    let mut socket = tokio::net::TcpStream::connect(url.trim_start_matches("http://"))
+        .await
+        .unwrap();
+    socket.write_all(format!("PUT /api/storage/uploads/{id}/1 HTTP/1.1\r\nHost: localhost:3001\r\nOrigin: http://localhost:3001\r\nCookie: {cookie}\r\nContent-Length: {steps}\r\n\r\n").as_bytes()).await.unwrap();
+    for _ in 0..steps {
+        let mut early = vec![0; 512];
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(interval),
+            socket.read(&mut early),
+        )
+        .await
+        {
+            Err(_) => {}
+            Ok(Ok(read)) if read > 0 => {
+                let text = String::from_utf8_lossy(&early[..read]).into_owned();
+                let body = text.split("\r\n\r\n").nth(1).unwrap_or("").to_owned();
+                return (
+                    format!(
+                        "{} {body} (before the body was finished)",
+                        text.lines().next().unwrap_or("")
+                    ),
+                    started.elapsed().as_secs_f64(),
+                );
+            }
+            Ok(other) => {
+                return (
+                    format!("connection closed before the body was finished: {other:?}"),
+                    started.elapsed().as_secs_f64(),
+                );
+            }
+        }
+        if let Err(error) = socket.write_all(b"a").await {
+            return (
+                format!("write failed: {error}"),
+                started.elapsed().as_secs_f64(),
+            );
+        }
+    }
+    let mut reply = vec![0; 512];
+    let read = socket.read(&mut reply).await.unwrap_or(0);
+    let text = String::from_utf8_lossy(&reply[..read]).into_owned();
+    let body = text.split("\r\n\r\n").nth(1).unwrap_or("").to_owned();
+    (
+        format!("{} {body}", text.lines().next().unwrap_or("")),
+        started.elapsed().as_secs_f64(),
+    )
+}
+
+async fn lead_slow_part(seconds: u64, interval: u64) -> String {
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (_, cookie) = setup(&server).await;
+    let id = begin(&server, &cookie, "slow", seconds / interval, None, None).await;
+    let (answer, at) = lead_trickle(&server.url, &cookie, &id, seconds, interval).await;
+    eprintln!(
+        "LEAD one part sent as 1 byte every {interval} s for {seconds} s: answered at {at:.1} s: {answer}"
+    );
+    drop(server);
+    pg.stop();
+    answer
+}
+
+#[tokio::test]
+#[ignore = "real PostgreSQL and RustFS"]
+async fn lead_slow_part_20_seconds() {
+    assert!(lead_slow_part(20, 4).await.starts_with("HTTP/1.1 200"));
+}
+
+#[tokio::test]
+#[ignore = "real PostgreSQL and RustFS"]
+async fn lead_slow_part_40_seconds() {
+    assert!(lead_slow_part(40, 4).await.starts_with("HTTP/1.1 200"));
+}
+
+#[tokio::test]
+#[ignore = "real PostgreSQL and RustFS"]
+async fn lead_slow_part_48_seconds_with_six_second_gaps() {
+    assert!(lead_slow_part(48, 6).await.starts_with("HTTP/1.1 200"));
+}

@@ -165,6 +165,12 @@ a 120-second deadline and the leased worker a 125-second deadline, so sending oc
 chunks cannot hold admission forever. Admission remains owned by the worker across a caller
 disconnect until that worker exits; inactive principal-map entries are removed.
 
+An 8-MiB part therefore needs sustained uplink above approximately 0.56 Mbit/s of payload
+(8 MiB in 120 seconds), plus headroom for network/storage overhead; part writes use the full
+120-second response bound while other storage operations retain their thirty-second bound.
+Part writes use the product's thirty-second incoming idle rule instead of the storage SDK's
+five-second stream-stall guard; other operations keep their SDK stream protection.
+
 ## Missing for production
 
 - **Metrics and alerts.** There is no metrics endpoint for request rates, errors, latency, queue depth, transfer admission, database pool, storage usage or media job state.
