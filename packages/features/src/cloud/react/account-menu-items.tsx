@@ -1,4 +1,4 @@
-import { Link2, LogOut, Users } from "@hyori-cloud/lib/icons";
+import { KeyRound, Link2, LogOut, Users } from "@hyori-cloud/lib/icons";
 import { AppAccountSummary } from "@hyori-cloud/ui/components/app-account";
 import { AppearanceMenuItems } from "@hyori-cloud/ui/components/appearance-menu-items";
 import {
@@ -16,10 +16,12 @@ import { formatUsage } from "#features/shared/format.ts";
 export function AccountMenuItems({
   signingOut,
   onShowAccountId,
+  onChangePassword,
   onSignOut,
 }: {
   signingOut: boolean;
   onShowAccountId: () => void;
+  onChangePassword: () => void;
   onSignOut: () => void;
 }) {
   const user = useCurrentUser();
@@ -40,6 +42,10 @@ export function AccountMenuItems({
       <DropdownMenuItem onClick={onShowAccountId}>
         <Link2 />
         Your account ID
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onChangePassword}>
+        <KeyRound />
+        Change password…
       </DropdownMenuItem>
       {user.role === "admin" ? (
         <DropdownMenuItem onClick={() => navigateTo({ section: "admin" })} className="md:hidden">

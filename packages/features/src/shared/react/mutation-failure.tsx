@@ -1,6 +1,6 @@
 import { Notice } from "@hyori-cloud/ui/components/notice";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
-import type { CloudError } from "#features/shared/cloud-error.ts";
+import type { CloudError, ErrorCopy } from "#features/shared/cloud-error.ts";
 import {
   AccessRecoveryButton,
   useAccessRecovery,
@@ -10,14 +10,17 @@ import {
 export function MutationFailure({
   error,
   onRecovered,
+  describe = describeCloudError,
 }: {
   error: CloudError | null;
   onRecovered?: () => void;
+  /** An operation whose failures mean something more specific than the generic copy. */
+  describe?: (error: CloudError) => ErrorCopy;
 }) {
   const recovery = useAccessRecovery(error);
 
   if (error === null) return null;
-  const copy = recovery ?? describeCloudError(error);
+  const copy = recovery ?? describe(error);
 
   return (
     <Notice

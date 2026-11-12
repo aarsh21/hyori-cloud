@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@hyori-cloud/ui/components/dropdown-menu";
 import { toast } from "@hyori-cloud/ui/components/sonner";
+import { ChangePasswordDialog } from "#features/auth/react/change-password-dialog.tsx";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { useLogout } from "#features/auth/react/use-logout.ts";
 import { AccountIdDialog } from "#features/cloud/react/account-id-dialog.tsx";
@@ -30,6 +31,7 @@ export function AccountMenuRoot({
   const user = useCurrentUser();
   const logout = useLogout();
   const [accountIdOpen, setAccountIdOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   function signOut() {
     logout.mutate(
@@ -57,11 +59,13 @@ export function AccountMenuRoot({
           <AccountMenuItems
             signingOut={logout.isPending}
             onShowAccountId={() => setAccountIdOpen(true)}
+            onChangePassword={() => setChangePasswordOpen(true)}
             onSignOut={signOut}
           />
         </DropdownMenuContent>
       </DropdownMenu>
       <AccountIdDialog accountId={user.id} open={accountIdOpen} onOpenChange={setAccountIdOpen} />
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </>
   );
 }

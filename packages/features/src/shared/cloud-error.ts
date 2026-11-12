@@ -4,7 +4,7 @@ export type CloudError = ClientError;
 
 export type CloudErrorCode = CloudError["code"];
 
-type ErrorCopy = { readonly title: string; readonly detail?: string };
+export type ErrorCopy = { readonly title: string; readonly detail?: string };
 
 // Keyed by the declared union, so a new API failure fails typechecking here until it has copy.
 const COPY: Record<Exclude<CloudErrorCode, "uploads.limitReached">, ErrorCopy> = {
