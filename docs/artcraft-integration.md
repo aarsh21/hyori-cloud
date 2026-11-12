@@ -597,7 +597,7 @@ Since the pins, all four upstream web builds use `craft-web-host` (storytold/cra
 
 Today a new bundle needs a server image rebuilt with a new `NATIVE_AUTHORITIES` entry in `apps/server/src/editor_assets.rs`, and a build elsewhere cannot reuse an authority because `build-manifest.json` hashes command timings and logs.
 
-There is also a blocker for the first upstream upgrade. `known_identity` passes the single per-app `sourceSha256` from `tooling/artcraft/manifest.json` to `known_native_identity`, which requires every protocol-2 authority entry to carry that exact source hash. Bumping an editor's pin to a newer upstream tag therefore makes the server refuse the r1 and r2 bundles for that editor, so rollback and still-open older tabs stop verifying. Each authority already pins its own source archive, so the cross-check against the current pin could be dropped, or `manifest.json` could list several pins per app. This is a proposal, not implemented.
+Protocol-2 acceptance uses the source archive pinned by the exact committed authority carried in the bundle, not the composer's current `sourceSha256` in `manifest.json`. Raising the current upstream pin therefore preserves earlier authorities' bundles, while a source hash absent from that authority is refused. The upgrade regression tests both outcomes for every committed authority. The official/legacy protocol acceptance rules are unchanged.
 
 Options for removing the per-bundle Rust edit, for aarsh to decide:
 
