@@ -123,6 +123,37 @@ fn account_view(row: QueryResult) -> AuthResult<AccountView> {
         ),
     ]))
 }
+pub(super) struct NewSession {
+    pub id: String,
+    pub token: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+/// Records a session for `user_id`, storing only its token's digest. The caller checks the account.
+pub(super) async fn insert_session(
+    tx: &DatabaseTransaction,
+    user_id: &str,
+) -> Result<NewSession, sea_orm::DbErr> {
+    let created_at = Utc::now();
+    let session = NewSession {
+        id: random_token(),
+        token: random_token(),
+        created_at,
+        expires_at: created_at + chrono::Duration::seconds(SESSION_SECONDS),
+    };
+    tx.execute_raw(sql(
+        "INSERT INTO hyori_sessions(id,token_digest,user_id,created_at,expires_at) VALUES ($1,$2,$3,$4,$5)",
+        vec![
+            session.id.clone().into(),
+            digest(&session.token).into(),
+            user_id.into(),
+            session.created_at.into(),
+            session.expires_at.into(),
+        ],
+    ))
+    .await?;
+    Ok(session)
+}
 macro_rules! store_impl {
     ($trait:ident { $($implemented:item)* } disabled { $($(#[$attr:meta])* async fn $name:ident($($arg:tt)*) -> $result:ty;)* }) => {
         #[async_trait]
@@ -187,12 +218,10 @@ store_impl!(AccountStore {
 });
 store_impl!(SessionStore {
     async fn create_session(&self, input: CreateSession) -> AuthResult<SessionView> {
-        let id = random_token(); let token = random_token();
-        let now = Utc::now(); let expiry = now + chrono::Duration::seconds(SESSION_SECONDS);
         let user_id = input.user_id.typed()?.clone();
         if UserStore::get_user_by_id(self, &user_id).await?.is_none() { return Err(AuthError::InvalidCredentials); }
-        self.tx.execute_raw(sql("INSERT INTO hyori_sessions(id,token_digest,user_id,created_at,expires_at) VALUES ($1,$2,$3,$4,$5)", vec![id.clone().into(), digest(&token).into(), user_id.clone().into(), now.into(), expiry.into()])).await.map_err(failure)?;
-        Ok(SessionView { id: id.into(), token: token.into(), user_id: user_id.into(), created_at: ba::FieldDate::from(now).into(), updated_at: ba::FieldDate::from(now).into(), expires_at: ba::FieldDate::from(expiry).into(), active: true, ..Default::default() })
+        let session = insert_session(&self.tx, &user_id).await.map_err(failure)?;
+        Ok(SessionView { id: session.id.into(), token: session.token.into(), user_id: user_id.into(), created_at: ba::FieldDate::from(session.created_at).into(), updated_at: ba::FieldDate::from(session.created_at).into(), expires_at: ba::FieldDate::from(session.expires_at).into(), active: true, ..Default::default() })
     }
     async fn create_session_optional(&self, input: CreateSession) -> AuthResult<Option<SessionView>> { SessionStore::create_session(self, input).await.map(Some) }
     async fn get_session(&self, token: &str) -> AuthResult<Option<SessionView>> {

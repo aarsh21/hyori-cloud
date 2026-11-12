@@ -15,7 +15,14 @@ use axum::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use std::{collections::HashMap, future::Future, net::IpAddr, pin::Pin, sync::Arc};
+use std::{
+    collections::HashMap,
+    future::Future,
+    net::IpAddr,
+    pin::Pin,
+    sync::{Arc, OnceLock},
+};
+use tokio::time::Instant;
 
 /// Candidate parsing permits bounded concurrent overflow; policy admits only the newest 16
 /// database-validated public shares. Cookie names are only replacement/eviction addresses.
@@ -78,6 +85,12 @@ pub struct RequestContext {
     /// The end client's address for per-client limits, from [`client_address`]; absent when
     /// unknown. Never authority: it only selects which attempt budgets a request spends.
     pub client: Option<IpAddr>,
+    /// When the whole RPC body had arrived; absent outside RPC.
+    pub arrived: Option<Instant>,
+    /// An operation sets this to answer no earlier than an instant, as sign-in does for every
+    /// failure. The wait runs after the operation has ended, so it holds no admission slot,
+    /// database connection or transaction.
+    pub answer_not_before: Arc<OnceLock<Instant>>,
 }
 impl RequestContext {
     /// Parse bounded credential material only. This is not authority: every product transaction
@@ -90,6 +103,8 @@ impl RequestContext {
             grant_cookie_names,
             device: cookie(headers, DEVICE_COOKIE).filter(|value| value.len() <= 160),
             client: None,
+            arrived: None,
+            answer_not_before: Arc::default(),
         }
     }
 }
@@ -228,7 +243,11 @@ struct Envelope {
     input: Value,
 }
 pub async fn handle(State(state): State<Arc<AppState>>, request: Request<Body>) -> Response {
-    let result = handle_inner(state, request).await;
+    let answer_not_before = Arc::new(OnceLock::new());
+    let result = handle_inner(state, request, answer_not_before.clone()).await;
+    if let Some(instant) = answer_not_before.get() {
+        tokio::time::sleep_until(*instant).await;
+    }
     match result {
         Ok(result) => {
             let mut response =
@@ -249,6 +268,7 @@ pub async fn handle(State(state): State<Arc<AppState>>, request: Request<Body>) 
 async fn handle_inner(
     state: Arc<AppState>,
     request: Request<Body>,
+    answer_not_before: Arc<OnceLock<Instant>>,
 ) -> Result<RpcResult<Value>, ApiError> {
     let started = std::time::Instant::now();
     let ordinary_budget = std::time::Duration::from_secs(30);
@@ -279,6 +299,8 @@ async fn handle_inner(
     .map_err(|_| ApiError::unavailable())?
     .map_err(|_| ApiError::invalid())?;
     let envelope: Envelope = serde_json::from_slice(&bytes).map_err(|_| ApiError::invalid())?;
+    context.arrived = Some(Instant::now());
+    context.answer_not_before = answer_not_before;
     // Admission bounds handler work, not clients: taken only once the whole bounded body has
     // arrived, so connections that never finish sending one cannot hold every slot.
     let _admission = state

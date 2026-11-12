@@ -33,6 +33,9 @@ pub struct Config {
     /// Peers whose `x-hyori-client-address` names the end client (`HYORI_TRUSTED_PROXIES`).
     /// Empty: the header is ignored and only a public TCP peer identifies a client.
     pub trusted_proxies: Vec<ProxyRange>,
+    /// How long after a sign-in request arrived every failed sign-in is answered. Always
+    /// [`SIGN_IN_ANSWER`] in a deployment; tests shorten it.
+    pub sign_in_answer: Duration,
 }
 /// One address or CIDR range of `HYORI_TRUSTED_PROXIES`, such as `10.0.0.0/8` or `::1`.
 /// IPv4-mapped IPv6 peers match IPv4 ranges.
@@ -114,6 +117,10 @@ pub const UPLOAD_CONCURRENCY: usize = 16;
 /// bracketing transactions) keeps admitted work from timing out on pool acquisition. Downloads only
 /// use a connection while authorizing. Operators sharing PostgreSQL across replicas lower this.
 pub const DEFAULT_DATABASE_CONNECTIONS: u32 = (RPC_CONCURRENCY / 4 + UPLOAD_CONCURRENCY) as u32;
+/// Every failed sign-in is answered this long after its request arrived, whether the email has
+/// no account, the password is wrong or its check did not finish in time, so neither the answer
+/// nor its timing tells them apart. About 40 times one verification (see `auth::password`).
+pub const SIGN_IN_ANSWER: Duration = Duration::from_secs(3);
 pub const SESSION_SECONDS: i64 = 7 * 24 * 60 * 60;
 pub const MAX_JSON_BYTES: usize = 256 * 1024;
 pub const DATABASE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -171,6 +178,7 @@ impl Config {
                     .map(str::parse)
                     .collect::<Result<_, _>>()?,
             },
+            sign_in_answer: SIGN_IN_ANSWER,
             editor_assets: match (
                 std::env::var_os("HYORI_EDITOR_ASSETS_DIR"),
                 std::env::var("HYORI_EDITOR_ASSETS_MANIFEST_SHA256"),

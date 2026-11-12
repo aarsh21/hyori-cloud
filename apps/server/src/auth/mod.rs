@@ -1,11 +1,12 @@
 mod credentials;
 mod disabled;
 mod password;
+pub use password::{SIGN_IN_RUNNING, SIGN_IN_WAITING};
 mod store;
 
 use crate::{
     config::{Config, SESSION_SECONDS},
-    db::sql,
+    db::{begin, sql},
     error::{ApiError, ErrorCode},
     features::auth::api::{
         Bytes, Id, NEW_PASSWORD_MIN_CHARS, Name, PASSWORD_MAX_CHARS, User, UserRole,
@@ -15,13 +16,14 @@ use better_auth::{
     AuthConfig, BetterAuth, plugins::EmailPasswordPlugin, server_api::EndpointInput,
 };
 use better_auth_core::{HttpMethod, store::SessionStore};
-use password::BoundedHasher;
+use password::{BoundedHasher, SignInLane};
 use rand::RngCore;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DatabaseTransaction, QueryResult};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, sync::Arc};
 use store::{HyoriSchema, PgStore, Provision};
+use tokio::time::Instant;
 
 pub const RATE_LIMIT_WINDOW_SECONDS: i64 = 15 * 60;
 /// Attempts per window for one secret (a share link, invite or the setup token) from one client,
@@ -69,6 +71,7 @@ pub fn random_token() -> String {
 pub struct AuthAdapter {
     config: Arc<Config>,
     hasher: Arc<BoundedHasher>,
+    sign_in: Arc<SignInLane>,
 }
 /// Identity is derived only from a current session and active account within the caller's transaction.
 /// Deliberately no admin capability: ordinary file authorization must use identity and explicit grants.
@@ -133,6 +136,7 @@ impl AuthAdapter {
         Self {
             config,
             hasher: Arc::new(BoundedHasher::new()),
+            sign_in: Arc::new(SignInLane::new()),
         }
     }
     async fn runtime(
@@ -186,22 +190,81 @@ impl AuthAdapter {
             .map_err(map_auth_error)?;
         self.issued(&tx, response).await
     }
+    /// Signs in without holding a transaction or connection while the password is checked.
+    /// None is a failed sign-in, whatever the reason: no usable account (nothing is hashed), a
+    /// wrong password, a check unfinished by `deadline`, or a password replaced meanwhile. The
+    /// caller answers them all alike at the deadline. A busy answer depends on the lane only.
     pub async fn login(
         &self,
-        tx: Arc<DatabaseTransaction>,
+        db: &DatabaseConnection,
         input: &crate::features::auth::api::Credentials,
-    ) -> Result<IssuedSession, ApiError> {
+        deadline: Instant,
+    ) -> Result<Option<IssuedSession>, ApiError> {
         validate_password_length(&input.password, 1)?;
-        let auth = self.runtime(tx.clone(), None).await?;
-        let response = auth
-            .call_endpoint(
-                HttpMethod::Post,
-                "/sign-in/email",
-                self.input(serde_json::to_value(input).map_err(|_| ApiError::invalid())?),
+        let account = db
+            .query_one_raw(sql(
+                "SELECT u.id,c.password_hash FROM hyori_users u JOIN hyori_credentials c ON c.user_id=u.id WHERE u.email=$1 AND u.status='active'",
+                vec![input.email.clone().into()],
+            ))
+            .await?;
+        let place = self.sign_in.admit().ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::RateLimited,
+                "Sign-in is busy. Try again in a moment",
             )
+        })?;
+        let Some(account) = account else {
+            return Ok(None);
+        };
+        let user_id: String = account.try_get("", "id")?;
+        let verified: String = account.try_get("", "password_hash")?;
+        if place
+            .verify(verified.clone(), input.password.clone(), deadline)
             .await
-            .map_err(map_auth_error)?;
-        self.issued(&tx, response).await
+            != Some(true)
+        {
+            return Ok(None);
+        }
+        let tx = begin(db).await?;
+        // Locks in the order a password change takes them: the user row, then its credential.
+        // KEY SHARE fences account deletion; FOR SHARE on the credential conflicts with the FOR
+        // UPDATE a password change or reset takes on it (and with a plain UPDATE). Either the
+        // change committed first and this reads its new hash, or it waits for this session to
+        // commit and then ends it.
+        let active = tx
+            .query_one_raw(sql(
+                "SELECT id FROM hyori_users WHERE id=$1 AND status='active' FOR KEY SHARE",
+                vec![user_id.clone().into()],
+            ))
+            .await?;
+        let current = match active {
+            Some(_) => tx
+                .query_one_raw(sql(
+                    "SELECT password_hash FROM hyori_credentials WHERE user_id=$1 FOR SHARE",
+                    vec![user_id.clone().into()],
+                ))
+                .await?
+                .map(|row| row.try_get::<String>("", "password_hash"))
+                .transpose()?,
+            None => None,
+        };
+        if current.as_deref() != Some(verified.as_str()) {
+            return Ok(None);
+        }
+        let session = store::insert_session(&tx, &user_id).await?;
+        let user = tx
+            .query_one_raw(sql(
+                "SELECT * FROM hyori_users WHERE id=$1",
+                vec![user_id.into()],
+            ))
+            .await?
+            .ok_or_else(ApiError::unavailable)?;
+        let user = project_user(&user)?;
+        tx.commit().await?;
+        Ok(Some(IssuedSession {
+            user,
+            token: session.token,
+        }))
     }
     fn input(&self, body: serde_json::Value) -> EndpointInput {
         EndpointInput {
@@ -330,7 +393,8 @@ impl AuthAdapter {
         }
         Ok(())
     }
-    /// Public-link passwords share the exact bounded KDF admission pool with account passwords.
+    /// Link passwords share one bounded KDF pool with new accounts and password changes; sign-in
+    /// verification has its own lane, so none of these can delay it.
     pub async fn hash_link_password(&self, password: &str) -> Result<String, ApiError> {
         use better_auth::PasswordHasher;
         if !(8..=1024).contains(&password.chars().count()) {

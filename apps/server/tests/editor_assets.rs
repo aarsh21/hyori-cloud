@@ -35,6 +35,7 @@ fn config(fixture: &BundleFixture) -> Config {
         media_worker_socket: None,
         editor_assets: Some(fixture.persist()),
         trusted_proxies: vec![],
+        sign_in_answer: hyori_server::config::SIGN_IN_ANSWER,
     }
 }
 fn gzip(bytes: &[u8]) -> Vec<u8> {

@@ -97,9 +97,17 @@ impl<'a> AuthService<'a> {
             .filter(|token| device_nonce(secret, &input.email, token).is_some());
         let limits = login_limits(secret, &input.email, device, context.client);
         self.state.auth.rate_limits(&self.state.db, &limits).await?;
-        let tx = Arc::new(begin(&self.state.db).await?);
-        let session = self.state.auth.login(tx.clone(), &input).await?;
-        commit(tx).await?;
+        let deadline = context.arrived.unwrap_or_else(tokio::time::Instant::now)
+            + self.state.config.sign_in_answer;
+        let Some(session) = self
+            .state
+            .auth
+            .login(&self.state.db, &input, deadline)
+            .await?
+        else {
+            context.answer_not_before.get_or_init(|| deadline);
+            return Err(ApiError::credentials());
+        };
         let device = device.map_or_else(|| device_token(secret, &input.email), str::to_owned);
         Ok((session, self.device_cookie(&device)))
     }

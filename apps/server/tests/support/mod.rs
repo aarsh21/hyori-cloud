@@ -51,6 +51,9 @@ impl Postgres {
                 media_worker_socket: None,
                 editor_assets: None,
                 trusted_proxies: vec![],
+                // Well above one verification here (scrypt is optimized in test builds), and
+                // short enough that suites full of failed sign-ins stay quick.
+                sign_in_answer: std::time::Duration::from_secs(1),
             },
         };
         let output = Command::new("docker")

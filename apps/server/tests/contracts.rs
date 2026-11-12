@@ -159,6 +159,7 @@ fn production_configuration_and_cookie_policy() {
         media_worker_socket: None,
         editor_assets: None,
         trusted_proxies: vec![],
+        sign_in_answer: hyori_server::config::SIGN_IN_ANSWER,
     };
     config.validate().unwrap();
     let adapter = AuthAdapter::new(std::sync::Arc::new(config.clone()));
