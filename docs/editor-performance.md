@@ -78,24 +78,24 @@ Sizes come from the committed r2 receipts (`tooling/artcraft/builds/native-host-
 
 ## Commands for real open and save timings
 
-None of the committed tools produces parsed-open or durable-save timings yet. The packet observer in `scripts/browser-fixtures/native-performance*.ts` and its phase calculator are not wired into any scenario. Until a runner exists, these commands produce the parts that can be measured, on a machine with the verified r2 bundle:
+None of the committed tools produces parsed-open or durable-save timings yet. The packet observer in `scripts/browser-fixtures/native-performance*.ts` and its phase calculator are not wired into any scenario. Until a runner exists, these commands produce the parts that can be measured, on a machine with the verified r3 bundle (the only one this release opens):
 
 ```sh
 # 1. Asset transfer per editor, fresh persistent Chromium profile, through the HTTPS gateway.
-#    ORIGIN and CA are the gateway serving the r2 bundle and the public CA that signed its certificate.
+#    ORIGIN and CA are the gateway serving the r3 bundle and the public CA that signed its certificate.
 ORIGIN=https://127.0.0.1:8443 CA=/path/to/public-ca.pem
 for asset in \
-  wordcraft/0.14.0-hyori-host.3/wordcraft-web-65bd673cf0c3364e_bg.wasm \
-  gridcraft/0.15.0-hyori-host.2/gridcraft-web-57265ae799a7cc55_bg.wasm \
-  pdfcraft/0.17.0-hyori-host.2/pdfcraft-web-9c9ec45fae5d0a94_bg.wasm \
-  deckcraft/0.14.1-hyori-host.5/deckcraft-web-a9f16458dc3db0aa_bg.wasm; do
+  wordcraft/0.14.0-hyori-host.4/wordcraft-web-6b3ea47acb14e3b9_bg.wasm \
+  gridcraft/0.15.0-hyori-host.3/gridcraft-web-8ce58001aed44fba_bg.wasm \
+  pdfcraft/0.17.0-hyori-host.3/pdfcraft-web-951fa5aea2bb0fee_bg.wasm \
+  deckcraft/0.14.1-hyori-host.6/deckcraft-web-6cdd1e239b1a2cfd_bg.wasm; do
   bun scripts/profile-editor-static.ts "$ORIGIN" "/artcraft/$asset" "$CA" "/tmp/editor-static-${asset%%/*}.json"
 done
 
 # 2. Real editors in a real browser against a built server image and the bundle (pass/fail per step).
 bun scripts/test-rust-browser.ts hyori-server:local --scenarios=editors \
-  --editor-bundle=tooling/artcraft/.generated/runtime-all4-native-v3-r2 \
-  --editor-bundle-sha256=8c8998f74a6d11b4ebc84f70f70adb284b9e1bed6ea3f6c9b26e99030e5ab4a4 \
+  --editor-bundle=tooling/artcraft/.generated/runtime-all4-native-v3-r3 \
+  --editor-bundle-sha256=4fbf87ab7eb17b0c2009473bef195f45043e39ff8654f606692c4b4f983b615e \
   --artifacts=/tmp/editor-browser-$(date +%s)
 ```
 

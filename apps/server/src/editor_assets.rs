@@ -821,23 +821,41 @@ mod identity_tests {
     fn native_versions_cannot_borrow_the_official_archive_identity() {
         let pins: serde_json::Value =
             serde_json::from_str(include_str!("../../../tooling/artcraft/manifest.json")).unwrap();
-        for (authority, _) in native_authorities().unwrap() {
-            for entry in authority.apps {
-                let app = formats::app_name(&entry.app);
-                let pin = pins["editors"]
+        for revision in revisions() {
+            for app in APPS {
+                let official = pins["editors"]
                     .as_array()
                     .unwrap()
                     .iter()
                     .find(|pin| pin["app"] == app)
-                    .unwrap();
-                let editor: Editor = serde_json::from_value(serde_json::json!({
-                    "app":app,"version":entry.artifact_version,"bridge":"hyori-correlated-host-v2",
-                    "protocol":2,"archiveSha256":pin["sha256"],"index":"index.html",
-                    "assetUrl":"/artcraft/index.html","deployable":true,"files":[]
-                }))
-                .unwrap();
-                assert_eq!(editor_protocol(&editor).unwrap(), Some(2));
-                assert!(!known_identity(&editor, &BTreeMap::new()).unwrap());
+                    .unwrap()["sha256"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned();
+                // The native version, bridge and protocol, carried with its complete legal
+                // inventory, but identified by the official release's archive instead of its build.
+                let (mut borrowed, legal) = native_bundle(revision, app);
+                let protocol = borrowed.protocol;
+                borrowed.archive_sha256 = Some(official.clone());
+                borrowed.source_archive_sha256 = None;
+                borrowed.build_manifest_sha256 = None;
+                borrowed.payload_sha256 = None;
+                assert_eq!(
+                    editor_protocol(&borrowed).unwrap(),
+                    protocol,
+                    "r{revision} {app}"
+                );
+                assert!(
+                    !known_identity(&borrowed, &inventory(&legal)).unwrap(),
+                    "r{revision} {app}"
+                );
+                // Nor may the official archive be added to an otherwise complete native identity.
+                let (mut both, legal) = native_bundle(revision, app);
+                both.archive_sha256 = Some(official);
+                assert!(
+                    !known_identity(&both, &inventory(&legal)).unwrap(),
+                    "r{revision} {app}"
+                );
             }
         }
     }
@@ -852,7 +870,8 @@ mod identity_tests {
         .unwrap()
     }
 
-    /// The editor entry and legal inventory a correctly assembled bundle of `revision` carries.
+    /// The editor entry and legal inventory a correctly assembled bundle of `revision` carries,
+    /// under that authority's own bridge and protocol.
     fn native_bundle(revision: usize, app: &str) -> (Editor, Vec<InventoryFile>) {
         let authority = NATIVE_AUTHORITIES[revision];
         let parsed: NativeAuthority = serde_json::from_str(authority).unwrap();
@@ -861,8 +880,8 @@ mod identity_tests {
             serde_json::from_slice(&tooling(&format!("{receipts}/{app}/receipt.json"))).unwrap();
         let version = receipt["artifactVersion"].as_str().unwrap();
         let editor: Editor = serde_json::from_value(serde_json::json!({
-            "app": app, "role": "current", "protocol": 2, "version": version,
-            "bridge": "hyori-correlated-host-v2",
+            "app": app, "role": "current", "protocol": parsed.protocol, "version": version,
+            "bridge": parsed.bridge,
             "sourceArchiveSha256": receipt["sourceArchiveSha256"],
             "buildManifestSha256": receipt["buildManifestSha256"],
             "payloadSha256": receipt["payloadSha256"],
@@ -903,10 +922,19 @@ mod identity_tests {
 
     #[test]
     fn native_builds_are_known_from_every_committed_authority() {
+        // The sandboxed-frame runtime (protocol 3) is among them, so this covers both protocols.
+        assert!(
+            revisions().any(|revision| native_bundle(revision, "wordcraft").0.protocol == Some(3))
+        );
         for revision in revisions() {
             for app in APPS {
                 let (editor, legal) = native_bundle(revision, app);
-                assert_eq!(editor_protocol(&editor).unwrap(), Some(2), "{app}");
+                assert!(is_native(editor.protocol), "r{revision} {app}");
+                assert_eq!(
+                    editor_protocol(&editor).unwrap(),
+                    editor.protocol,
+                    "r{revision} {app}"
+                );
                 assert!(
                     known_identity(&editor, &inventory(&legal)).unwrap(),
                     "r{revision} {app}"
@@ -968,19 +996,17 @@ mod identity_tests {
     fn native_identity_is_checked_against_the_carried_revision_only() {
         // An editor from one revision is unknown to a bundle carrying another revision's
         // authority and receipts, even where both revisions name the same version.
-        for app in APPS {
-            let (editor, _) = native_bundle(1, app);
-            let (_, other) = native_bundle(0, app);
-            assert!(
-                !known_identity(&editor, &inventory(&other)).unwrap(),
-                "{app}"
-            );
-            let (editor, _) = native_bundle(0, app);
-            let (_, other) = native_bundle(1, app);
-            assert!(
-                !known_identity(&editor, &inventory(&other)).unwrap(),
-                "{app}"
-            );
+        for built in revisions() {
+            for carried in revisions().filter(|carried| *carried != built) {
+                for app in APPS {
+                    let (editor, _) = native_bundle(built, app);
+                    let (_, other) = native_bundle(carried, app);
+                    assert!(
+                        !known_identity(&editor, &inventory(&other)).unwrap(),
+                        "r{built} {app} under r{carried}"
+                    );
+                }
+            }
         }
     }
 

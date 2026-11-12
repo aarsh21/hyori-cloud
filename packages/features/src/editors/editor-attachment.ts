@@ -76,10 +76,8 @@ export function createEditorAttachment({
       },
     },
     messages: createBrowserEditorMessages({ host, editorWindow }),
-    engine: createBrowserEditorEngine({
-      fetch: (url, init) => host.fetch(url, init),
-      crypto: host.crypto,
-    }),
+    // The host page fetches the engine itself; the frame never names what is fetched.
+    engine: createBrowserEditorEngine(host),
   });
 
   let navigated = false;
