@@ -87,9 +87,11 @@ if (process.argv[2] === "seed") {
       { mode: 0o600 },
     );
 
-    const png = await readFile(
-      process.env.HYORI_DELIVERY_IMAGE ?? "apps/server/tests/fixtures/media/red.png",
-    );
+    const imagePaths = process.env.HYORI_DELIVERY_IMAGES
+      ? z.array(z.string()).min(1).parse(JSON.parse(process.env.HYORI_DELIVERY_IMAGES))
+      : [process.env.HYORI_DELIVERY_IMAGE ?? "apps/server/tests/fixtures/media/red.png"];
+
+    const images = await Promise.all(imagePaths.map((path) => readFile(path)));
 
     for (const [parentId, count, image] of [
       [folder.id, 1000, false],
@@ -104,9 +106,13 @@ if (process.argv[2] === "seed") {
 
             const task = sdk.uploads.start({
               parentId,
-              file: new File([image ? png : `Delivery sample ${number}\n`], name, {
-                type: image ? "image/png" : "text/plain",
-              }),
+              file: new File(
+                [image ? images[number % images.length]! : `Delivery sample ${number}\n`],
+                name,
+                {
+                  type: image ? "image/png" : "text/plain",
+                },
+              ),
             });
 
             await task.result;
@@ -315,11 +321,14 @@ if (process.argv[2] === "seed") {
                     .filter((tile) => {
                       const rect = tile.getBoundingClientRect();
                       const x = rect.left + rect.width / 2;
-                      const y = rect.top + rect.height / 2;
 
                       // Respect the app's clipped scrolling viewport, not just the document bounds.
-                      return (
-                        y > 0 && y < innerHeight && tile.contains(document.elementFromPoint(x, y))
+                      // Edge samples include a partially visible bottom row whose center is clipped.
+                      return [rect.top + 1, rect.top + rect.height / 2, rect.bottom - 1].some(
+                        (y) =>
+                          y > 0 &&
+                          y < innerHeight &&
+                          tile.contains(document.elementFromPoint(x, y)),
                       );
                     })
                     .map((tile) => tile.getAttribute("aria-label")!),
@@ -338,6 +347,19 @@ if (process.argv[2] === "seed") {
                   }),
                 visibleLabels,
                 { polling: 100 },
+              );
+              await page.evaluate(
+                (labels) =>
+                  Promise.all(
+                    labels.map((label) =>
+                      document
+                        .querySelector<HTMLImageElement>(
+                          `button[aria-label="${label}"] img[src*="/api/storage/derivatives/"]`,
+                        )!
+                        .decode(),
+                    ),
+                  ).then(() => undefined),
+                visibleLabels,
               );
             }
 
@@ -385,6 +407,24 @@ if (process.argv[2] === "seed") {
                   'img[src*="/api/storage/derivatives/"]',
                 ),
               ].filter((image) => image.complete && image.naturalWidth > 0).length,
+              photoTiles: [
+                ...document.querySelectorAll<HTMLElement>('[data-slot="media-tile"]'),
+              ].map((tile) => {
+                const rect = tile.getBoundingClientRect();
+                const image = tile.querySelector<HTMLImageElement>("img");
+
+                return {
+                  id: tile.dataset.itemKey,
+                  x: rect.x,
+                  y: rect.y,
+                  width: rect.width,
+                  height: rect.height,
+                  dpr: devicePixelRatio,
+                  image: image?.getAttribute("src"),
+                  naturalWidth: image?.naturalWidth,
+                  naturalHeight: image?.naturalHeight,
+                };
+              }),
               resources: performance
                 .getEntriesByType("resource")
                 .filter((entry) => entry instanceof PerformanceResourceTiming)
