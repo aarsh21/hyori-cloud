@@ -167,13 +167,29 @@ function bucket() {
   return name;
 }
 
+/** This is the only scheduled data writer, including concurrent readers and database dumps. */
+async function writeGuarded(stream: ReadableStream<Uint8Array>, path: string) {
+  checkBackupSpace(dir);
+  // Never truncate or rewrite a reused inode.
+  const fd = openSync(path, "wx", 0o600);
+
+  try {
+    for await (const chunk of stream) {
+      for (let offset = 0; offset < chunk.byteLength;) {
+        const part = chunk.subarray(offset, offset + 65536);
+        // No await between admission and write: readers cannot race each other's allocation.
+        checkBackupSpace(dir, part.byteLength);
+        offset += writeSync(fd, part);
+      }
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /** Stream a command's stdout to a file or a file to its stdin without buffering either in memory. */
-async function pipe(
-  argv: string[],
-  io: { stdout?: string; stdin?: string },
-  extraEnv: Record<string, string> = {},
-) {
-  const childEnv = { ...process.env, ...extraEnv };
+async function pipe(argv: string[], io: { stdout?: string; stdin?: string }) {
+  const childEnv = { ...process.env };
 
   if (direct) {
     childEnv.PGHOST = "postgres";
@@ -192,26 +208,13 @@ async function pipe(
   });
 
   if (guarded) {
-    let fd: number | undefined;
-
     try {
-      // Never truncate or rewrite a reused inode. Only newly downloaded objects and the dump write.
-      fd = openSync(guarded, "wx", 0o600);
-
       // SAFETY: guarded selected stdout: "pipe" above; Bun's union type also includes non-pipe fds.
-      for await (const chunk of child.stdout as ReadableStream<Uint8Array>) {
-        for (let offset = 0; offset < chunk.byteLength;) {
-          const part = chunk.subarray(offset, offset + 65536);
-          checkBackupSpace(dir, part.byteLength);
-          offset += writeSync(fd, part);
-        }
-      }
+      await writeGuarded(child.stdout as ReadableStream<Uint8Array>, guarded);
     } catch (error) {
       child.kill();
       await child.exited;
       throw error;
-    } finally {
-      if (fd !== undefined) closeSync(fd);
     }
   }
 
@@ -287,7 +290,7 @@ async function sha256(path: string) {
   return hash.digest("hex");
 }
 
-/** Scheduled copies have one guarded writer; rclone reads S3 but never writes linked local files. */
+/** Concurrent S3 streams avoid process startup for every small object. */
 async function copyObjects() {
   if (!direct) {
     rclone(["copy", `hyori:${bucket()}`, "/backup"]);
@@ -295,24 +298,72 @@ async function copyObjects() {
     return;
   }
 
+  const copyStarted = performance.now();
+
   const listed = z
     .array(z.object({ Path: z.string(), Size: z.number().int().nonnegative() }))
-    .parse(JSON.parse(rclone(["lsjson", "--recursive", "--files-only", `hyori:${bucket()}`])));
+    .parse(
+      JSON.parse(
+        rclone([
+          "lsjson",
+          "--recursive",
+          "--files-only",
+          "--no-modtime",
+          "--no-mimetype",
+          `hyori:${bucket()}`,
+        ]),
+      ),
+    );
 
-  for (const object of listed) {
+  const missing = listed.filter((object) => {
     const path = join(dir, "objects", object.Path);
 
-    if (existsSync(path)) {
-      if (statSync(path).size !== object.Size) throw new Error("Immutable object size changed.");
-      continue;
+    if (!existsSync(path)) return true;
+
+    if (statSync(path).size !== object.Size) throw new Error("Immutable object size changed.");
+
+    return false;
+  });
+
+  if (missing.length) {
+    const storage = new Bun.S3Client({
+      endpoint: storageEnv.RCLONE_CONFIG_HYORI_ENDPOINT,
+      region: storageEnv.RCLONE_CONFIG_HYORI_REGION,
+      accessKeyId: env.HYORI_STORAGE_ACCESS_KEY!,
+      secretAccessKey: env.HYORI_STORAGE_SECRET_KEY!,
+      bucket: bucket(),
+    });
+
+    const abort = new AbortController();
+    let cursor = 0;
+
+    const workers = Array.from({ length: Math.min(4, missing.length) }, async () => {
+      for (let object = missing[cursor++]; object; object = missing[cursor++]) {
+        checkBackupSpace(dir, object.Size);
+        const path = join(dir, "objects", object.Path);
+        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+        // Sign locally, then stream the private GET with cancellation; never log the signed URL.
+        const response = await fetch(storage.file(object.Path).presign(), { signal: abort.signal });
+
+        if (response.status !== 200 || !response.body) throw new Error("Object read failed.");
+        await writeGuarded(response.body, path);
+
+        if (statSync(path).size !== object.Size) throw new Error("Object copy is incomplete.");
+      }
+    });
+
+    try {
+      await Promise.all(workers);
+    } catch (error) {
+      abort.abort();
+      await Promise.allSettled(workers);
+      throw error;
     }
-
-    checkBackupSpace(dir, object.Size);
-    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-    await pipe(["rclone", "cat", `hyori:${bucket()}/${object.Path}`], { stdout: path }, storageEnv);
-
-    if (statSync(path).size !== object.Size) throw new Error("Object copy is incomplete.");
   }
+
+  log(
+    `object pass downloaded ${missing.length} new objects in ${Math.round(performance.now() - copyStarted)} ms`,
+  );
 }
 
 async function backup() {
