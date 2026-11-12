@@ -208,20 +208,68 @@ async fn disconnected_part_acknowledgement_can_retry_without_lease_expiry() {
 async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_and_shutdown_drains_them()
  {
     let (pg, _fs, gate, server, cookie, owner) = prepared().await;
+    let folder = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":null,"name":"drain"}),
+            Some(&cookie),
+        )
+        .await
+        .value()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mut principals = vec![cookie.clone()];
+    // Eight principals, not one bypassing the new two-operation fairness bound. Still fill
+    // all sixteen global slots and prove a disconnected worker retains every admission guard.
+    for index in 1..8 {
+        let email = format!("drain-{index}@example.test");
+        let password = random_token();
+        let user = server
+            .rpc(
+                "admin.createUser",
+                json!({"email":email,"name":"Drain","password":password}),
+                Some(&cookie),
+            )
+            .await
+            .value()["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        server
+            .rpc(
+                "shares.create",
+                json!({"itemId":folder,"role":"contributor","public":false,"recipientId":user}),
+                Some(&cookie),
+            )
+            .await
+            .value();
+        principals.push(
+            server
+                .rpc(
+                    "auth.login",
+                    json!({"email":email,"password":password}),
+                    None,
+                )
+                .await
+                .credential(),
+        );
+    }
     let mut ids = Vec::new();
     for index in 0..16 {
-        let id = begin(&server, &cookie, &format!("bounded-{index}.bin"), None).await;
-        part(&server, &cookie, &id).await;
-        ids.push(id);
+        let principal = &principals[index / 2];
+        let id = server.rpc("uploads.begin", json!({"parentId":folder,"name":format!("bounded-{index}.bin"),"size":3,"mimeType":"application/octet-stream"}), Some(principal)).await.value()["uploadId"].as_str().unwrap().to_owned();
+        part(&server, principal, &id).await;
+        ids.push((id, principal.clone()));
     }
     let mut observed = ObservedServer::start(server.state.clone()).await;
-    for id in &ids {
+    for (id, principal) in &ids {
         gate.mode.store(1, Ordering::SeqCst);
         let socket = observed
             .request(
                 "POST",
                 "/api/rpc",
-                &cookie,
+                principal,
                 json!({"operation":"uploads.complete","input":{"uploadId":id}})
                     .to_string()
                     .as_bytes(),
@@ -235,7 +283,7 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
     server
         .rpc(
             "uploads.complete",
-            json!({"uploadId":ids[0]}),
+            json!({"uploadId":ids[0].0}),
             Some(&cookie),
         )
         .await
@@ -245,7 +293,7 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
     // Same app-owned drain that main invokes after Axum stops admission.
     let mut drain = Box::pin(state.drain_transfers());
     assert!(futures_util::poll!(&mut drain).is_pending());
-    for id in &ids {
+    for (id, _) in &ids {
         gate.release.notify_one();
         settled(&server, id).await;
     }
@@ -258,7 +306,7 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
     server
         .rpc(
             "uploads.complete",
-            json!({"uploadId":ids[0]}),
+            json!({"uploadId":ids[0].0}),
             Some(&cookie),
         )
         .await
