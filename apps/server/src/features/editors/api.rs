@@ -41,6 +41,21 @@ crate::wire_struct!(EditorAvailability {
     #[schemars(length(max = 4))]
     apps: Vec<EditorAvailableApp>
 });
+// The editor's WASM engine, which the host fetches from its own cache and hands to the sandboxed
+// frame: an opaque-origin frame can't use the HTTP cache, so it would download it on every open.
+crate::wire_struct!(EditorEngine {
+    #[schemars(
+        length(max = 256),
+        regex(
+            pattern = r"^/artcraft/(wordcraft|gridcraft|deckcraft|pdfcraft)/[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+_bg\.wasm$"
+        )
+    )]
+    url: String,
+    #[schemars(regex(pattern = r"^[0-9a-f]{64}$"))]
+    sha256: String,
+    #[schemars(with = "u64", range(min = 1, max = 134217728))]
+    bytes: Bytes
+});
 crate::wire_struct!(EditorDocument {
     session_id: Id,
     app: EditorApp,
@@ -58,7 +73,10 @@ crate::wire_struct!(EditorDocument {
     max_bytes: Bytes,
     replacement_name: Nullable<Name>,
     #[schemars(length(min = 1, max = 32))]
-    output_formats: Vec<EditorOutputFormat>
+    output_formats: Vec<EditorOutputFormat>,
+    /// Present for runtimes whose sandboxed frame asks the host for its engine (protocol 3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    engine: Option<EditorEngine>
 });
 crate::wire_struct!(EditorCloseInput { session_id: Id });
 crate::wire_struct!(EditorDownloadInput {

@@ -984,6 +984,26 @@ export function createNativeEditorSession(
       return;
 
     switch (event.type) {
+      case "wordcraft:engine-request":
+      case "gridcraft:engine-request":
+      case "pdfcraft:engine-request":
+      case "deckcraft:engine-request":
+        // Asked once, before the engine starts. Asking again means the frame started over, like a
+        // second ready: it gets nothing more, and the person recovers their work.
+        if (engineRequested || ready !== null) {
+          stop(
+            "failed",
+            "The native editor restarted. Recover your work before reopening.",
+            "crashed",
+          );
+
+          return;
+        }
+
+        engineRequested = true;
+        void handEngine();
+
+        return;
       case "wordcraft:ready":
       case "gridcraft:ready":
       case "pdfcraft:ready":
@@ -1181,6 +1201,46 @@ export function createNativeEditorSession(
     }
 
     event satisfies never;
+  }
+
+  // Started with the session, so the engine is usually in hand before the frame asks for it.
+  const named = document.engine ?? null;
+
+  const engine =
+    named !== null && options.engine !== undefined
+      ? options.engine.load(named, { signal: abort.signal }).then(
+          (loaded) => loaded,
+          () => null,
+        )
+      : undefined;
+
+  let engineRequested = false;
+
+  /** Once, before ready: the descriptor's verified engine, or null to load it the ordinary way. */
+  async function handEngine() {
+    const envelope = {
+      type: `${document.app}:engine`,
+      protocol: NATIVE_HOST_PROTOCOL,
+      version: document.version,
+    } as const;
+
+    if (engine === undefined) {
+      send({ ...envelope, bytes: null });
+
+      return;
+    }
+
+    const loaded = await engine;
+
+    if (!active()) return;
+
+    if (loaded === null) {
+      stop("failed", "The editor couldn't be loaded", "unavailable");
+
+      return;
+    }
+
+    send({ ...envelope, bytes: loaded }, [loaded]);
   }
 
   const unsubscribe = messages.subscribe((event) => {

@@ -1,6 +1,7 @@
 import { createEditorSession } from "@hyori-cloud/client-sdk";
 import type { EditorBackendPort, EditorSession } from "@hyori-cloud/client-sdk";
 import {
+  createBrowserEditorEngine,
   createBrowserEditorMessages,
   createBrowserEditorVisibility,
 } from "@hyori-cloud/client-sdk/browser";
@@ -75,6 +76,10 @@ export function createEditorAttachment({
       },
     },
     messages: createBrowserEditorMessages({ host, editorWindow }),
+    engine: createBrowserEditorEngine({
+      fetch: (url, init) => host.fetch(url, init),
+      crypto: host.crypto,
+    }),
   });
 
   let navigated = false;

@@ -370,6 +370,12 @@ export function createNativeHostProtocol(ports: NativeHostPorts) {
         case "deckcraft:save-result":
           acceptAck(command);
           break;
+        case "wordcraft:engine":
+        case "gridcraft:engine":
+        case "pdfcraft:engine":
+        case "deckcraft:engine":
+          // The engine loader's own answer, consumed in host-entry before the engine starts.
+          break;
         case "wordcraft:set-theme":
         case "gridcraft:set-theme":
         case "pdfcraft:set-theme":

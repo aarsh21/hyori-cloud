@@ -215,6 +215,12 @@ ${optionsToggle}
     "",
   );
   replace(web, "let q = if app_bridge.is_some() {", "let q = if hosted {");
+  // A sandboxed frame can't print a PDF in a child frame; hosted print opens it in its own tab.
+  replace(
+    web,
+    "fn print_pdf(bytes: &[u8]) -> Result<(), String> {\n",
+    "fn print_pdf(bytes: &[u8]) -> Result<(), String> {\n    if crate::native_host::show_pdf(bytes)? { return Ok(()); }\n",
+  );
   replace(
     web,
     `                    let mut services = services(inbox.clone(), cc.egui_ctx.clone());

@@ -26,13 +26,25 @@ type Request = { path: string; host: string; session: boolean };
 
 const requests: Request[] = [];
 
-/** Every request the gateway saw, by the host it was addressed to. */
-const hosts: string[] = [];
+/** Every request the gateway saw: the host it was addressed to, its path and its Origin. */
+const gatewayRequests: { host: string; path: string; origin: string | null }[] = [];
 const reports: ProbeReport[] = [];
 const work = mkdtempSync(join(tmpdir(), "hyori-editor-isolation-"));
 let browser: Browser;
 let app: ReturnType<typeof Bun.serve>;
 let gateway: ReturnType<typeof Bun.serve>;
+
+/** A real engine: (module (func (export "answer") (result i32) i32.const 42)). */
+const WASM = new Uint8Array([
+  0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 127, 3, 2, 1, 0, 7, 10, 1, 6, 97, 110, 115, 119,
+  101, 114, 0, 0, 10, 6, 1, 4, 0, 65, 42, 11,
+]);
+
+const ENGINE = {
+  url: `${ASSET}/synthetic_bg.wasm`,
+  sha256: createHash("sha256").update(WASM).digest("hex"),
+  bytes: WASM.byteLength,
+};
 
 /** Trunk's loader shape: one inline module that imports the hashed glue and starts it. */
 function writeSyntheticBundle(engine: string) {
@@ -40,6 +52,7 @@ function writeSyntheticBundle(engine: string) {
   const directory = join(work, "bundle", "wordcraft", VERSION);
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, glue), engine);
+  writeFileSync(join(directory, "synthetic_bg.wasm"), WASM);
   writeFileSync(
     join(directory, "index.html"),
     `<!doctype html><title>Synthetic editor</title><script type="module">import "${ASSET}/${glue}";</script>`,
@@ -133,7 +146,9 @@ beforeAll(async () => {
     hostname: "127.0.0.1",
     port: 0,
     fetch(request) {
-      hosts.push(new URL(request.url).host);
+      const { host, pathname } = new URL(request.url);
+
+      gatewayRequests.push({ host, path: pathname, origin: request.headers.get("origin") });
 
       return front.handle(request, "http/1.1");
     },
@@ -154,9 +169,11 @@ afterAll(async () => {
 });
 
 test("compromised code in the editor frame reaches only what the bridge hands it", async () => {
-  const page = await browser.newPage();
-  page.on("console", (message) => console.log(`[page] ${message.text()}`));
-  page.on("pageerror", (error) => console.log(`[page error] ${error.message}`));
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const popups: string[] = [];
+
+  context.on("page", (popup) => popups.push(popup.url()));
   const origin = `http://127.0.0.1:${gateway.port}`;
 
   await page.goto(`${origin}/`);
@@ -167,7 +184,7 @@ test("compromised code in the editor frame reaches only what the bridge hands it
   ).toBe("secret of /api/rpc");
 
   await page.evaluate(
-    ({ asset, version, protocol, source }) => {
+    ({ asset, version, protocol, source, engine }) => {
       window.probe = window.startEditorProbe(
         {
           app: "wordcraft",
@@ -182,17 +199,30 @@ test("compromised code in the editor frame reaches only what the bridge hands it
           replacementName: "Report.docx",
           maxBytes: 1024,
           outputFormats: [{ extension: ".docx", kind: "document" }],
+          engine,
         },
         source,
       );
     },
-    { asset: ASSET, version: VERSION, protocol: NATIVE_HOST_PROTOCOL, source: SOURCE },
+    {
+      asset: ASSET,
+      version: VERSION,
+      protocol: NATIVE_HOST_PROTOCOL,
+      source: SOURCE,
+      engine: ENGINE,
+    },
   );
 
   // Reported to the server, so the result survives whatever the frame does to the page.
   const first = await waitForReport("first");
 
-  // The bridge's deliberate offer: exactly the opened document, and a durable save of the edit.
+  // The bridge's deliberate offer: the verified engine, fetched once by the host itself (no
+  // opaque Origin), exactly the opened document, and a durable save of the edit.
+  expect(first.engine).toBe("42");
+  expect(
+    gatewayRequests.flatMap(({ path, origin }) => (path === ENGINE.url ? [origin] : [])),
+  ).toEqual([null]);
+  expect(first.extraEngines).toBe(0);
   expect(first.received).toEqual(SOURCE);
   expect(first.autosaved).toBe(true);
 
@@ -206,6 +236,8 @@ test("compromised code in the editor frame reaches only what the bridge hands it
     "rpc",
     "storageDownload",
     "topNavigation",
+    "printHtml",
+    "printSvg",
   ] satisfies Reach[])
     expect({ reach, outcome: first[reach] }).toMatchObject({ reach, outcome: { reached: false } });
 
@@ -221,18 +253,26 @@ test("compromised code in the editor frame reaches only what the bridge hands it
     { name: "Report.docx", intent: "replace", bytes: [...SOURCE, 33] },
   ]);
 
+  // A real PDF prints in its own tab, which keeps the frame's opaque origin, never Hyori's.
+  expect(first.printPdf).toEqual({ reached: true, value: "opened" });
+
+  for (let waited = 0; popups.length === 0 && waited < 5000; waited += 100) await Bun.sleep(100);
+  expect(popups).toHaveLength(1);
+  expect(popups[0]).toStartWith("blob:null/");
+
   // A frame that navigates itself away gets no second copy of the document.
   const reloaded = await waitForReport("reloaded");
   expect(reloaded.prepared).toBe("ready");
   expect(reloaded.received).toBeUndefined();
+  expect(reloaded.engine).toBeUndefined();
   expect(await page.evaluate(() => window.probe.status())).toBe("failed");
 
   // Nor can it take the frame to another origin: the host page allows only its own in frames.
   await Bun.sleep(1500);
-  expect(hosts.filter((host) => !host.startsWith("127.0.0.1:"))).toEqual([]);
+  expect(gatewayRequests.filter(({ host }) => !host.startsWith("127.0.0.1:"))).toEqual([]);
   expect(reports.some(({ visit }) => visit === "elsewhere")).toBe(false);
 
-  await page.close();
+  await context.close();
 }, 60_000);
 
 async function waitForReport(visit: string) {

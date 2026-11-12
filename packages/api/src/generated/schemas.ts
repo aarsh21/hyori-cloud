@@ -208,6 +208,10 @@ export const EditorDestination = Schema.Struct({ "parentId": Schema.Union(Id, Sc
 
 export type EditorDestination = typeof EditorDestination.Type;
 
+export const EditorEngine = Schema.Struct({ "bytes": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.nonNegative(), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(134217728)), "sha256": Schema.String.pipe(Schema.pattern(new RegExp("^[0-9a-f]{64}$", "u"))), "url": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256), Schema.pattern(new RegExp("^/artcraft/(wordcraft|gridcraft|deckcraft|pdfcraft)/[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+_bg\\.wasm$", "u"))) });
+
+export type EditorEngine = typeof EditorEngine.Type;
+
 export const EditorOutputKind = intersection(Schema.Union(Schema.Literal("document"), Schema.Literal("export")), Schema.String);
 
 export type EditorOutputKind = typeof EditorOutputKind.Type;
@@ -220,7 +224,7 @@ export const EditorProtocol = intersection(Schema.Union(Schema.Literal(1), Schem
 
 export type EditorProtocol = typeof EditorProtocol.Type;
 
-export const EditorDocument = Schema.Struct({ "app": EditorApp, "assetUrl": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256), Schema.pattern(new RegExp("^/artcraft/(wordcraft|gridcraft|deckcraft|pdfcraft)/[a-zA-Z0-9._-]+/index\\.html\\?host=parent$", "u"))), "bridge": EditorBridge, "maxBytes": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.nonNegative(), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(67108864)), "name": Name, "outputFormats": Schema.Array(EditorOutputFormat).pipe(Schema.minItems(1), Schema.maxItems(32)), "protocol": Schema.Union(EditorProtocol, Schema.Null), "replacementName": Schema.Union(Name, Schema.Null), "revision": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 32), Schema.pattern(new RegExp("^[0-9]+$", "u"))), "sessionId": Id, "version": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 64)), "writable": Schema.Boolean });
+export const EditorDocument = Schema.Struct({ "app": EditorApp, "assetUrl": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256), Schema.pattern(new RegExp("^/artcraft/(wordcraft|gridcraft|deckcraft|pdfcraft)/[a-zA-Z0-9._-]+/index\\.html\\?host=parent$", "u"))), "bridge": EditorBridge, "engine": Schema.optional(Schema.Union(EditorEngine, Schema.Null)), "maxBytes": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.nonNegative(), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(67108864)), "name": Name, "outputFormats": Schema.Array(EditorOutputFormat).pipe(Schema.minItems(1), Schema.maxItems(32)), "protocol": Schema.Union(EditorProtocol, Schema.Null), "replacementName": Schema.Union(Name, Schema.Null), "revision": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 32), Schema.pattern(new RegExp("^[0-9]+$", "u"))), "sessionId": Id, "version": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 64)), "writable": Schema.Boolean });
 
 export type EditorDocument = typeof EditorDocument.Type;
 

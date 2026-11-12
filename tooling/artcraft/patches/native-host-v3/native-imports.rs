@@ -55,6 +55,16 @@ extern "C" {
     fn js_theme_failed(request_id: &str, message: &str) -> Result<(), JsValue>;
     #[wasm_bindgen(catch, js_name = hostThemeApplied)]
     fn js_theme_applied(request_id: &str, theme: &str, resolved: &str) -> Result<(), JsValue>;
+    #[wasm_bindgen(catch, js_name = hostShowPdf)]
+    fn js_show_pdf(bytes: &[u8]) -> Result<(), JsValue>;
+}
+
+/// Hosted print. The sandboxed frame can't show a PDF in a child frame, so the PDF opens in its
+/// own tab, still in this frame's opaque origin, where the person prints it. False when not hosted.
+#[allow(dead_code)] // PDF prints its own window and Deck downloads; only Word and Grid call this.
+pub fn show_pdf(bytes: &[u8]) -> Result<bool, String> {
+    if !js_requested() { return Ok(false) }
+    js_show_pdf(bytes).map(|()| true).map_err(|error| error.as_string().unwrap_or_else(|| format!("{error:?}")))
 }
 
 fn js_failure(value: JsValue) -> NativeHostFailure {

@@ -1,4 +1,5 @@
 import type {
+  EditorEnginePort,
   EditorMessagePort,
   EditorVisibilityPort,
 } from "#client-sdk/features/editors/editor-contract";
@@ -56,6 +57,31 @@ export function createBrowserEditorVisibility(document: {
       document.addEventListener("visibilitychange", listener);
 
       return () => document.removeEventListener("visibilitychange", listener);
+    },
+  };
+}
+
+/**
+ * The host's own fetch of the engine its descriptor names: same-origin and immutable, so it comes
+ * from the HTTP cache after the first open. Bytes that differ from the descriptor are refused.
+ */
+export function createBrowserEditorEngine(host: {
+  fetch: (url: string, init: RequestInit) => Promise<Response>;
+  crypto: { subtle: Pick<SubtleCrypto, "digest"> };
+}): EditorEnginePort {
+  return {
+    async load(engine, { signal }) {
+      const response = await host.fetch(engine.url, { signal, credentials: "same-origin" });
+
+      if (!response.ok) throw new Error("The editor engine didn't load");
+      const bytes = await response.arrayBuffer();
+      const digest = new Uint8Array(await host.crypto.subtle.digest("SHA-256", bytes));
+      const hex = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+
+      if (bytes.byteLength !== engine.bytes || hex !== engine.sha256)
+        throw new Error("The editor engine differs from its descriptor");
+
+      return bytes;
     },
   };
 }

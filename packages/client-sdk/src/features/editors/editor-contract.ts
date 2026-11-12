@@ -104,6 +104,17 @@ export interface EditorMessagePort {
   post(message: EditorHostMessage, targetOrigin: string, transfer?: ArrayBuffer[]): void;
 }
 
+/**
+ * Loads the engine a descriptor names from the host's own cache, refusing bytes that differ from
+ * the descriptor. The sandboxed frame can't use the HTTP cache, so the host hands it over.
+ */
+export interface EditorEnginePort {
+  load(
+    engine: NonNullable<EditorDocument["engine"]>,
+    options: { signal: AbortSignal },
+  ): Promise<ArrayBuffer>;
+}
+
 /** Whether the host page is hidden. Hidden frames run on throttled timers, so waits stretch. */
 export interface EditorVisibilityPort {
   hidden(): boolean;
@@ -146,6 +157,8 @@ export interface EditorSessionOptions {
   visibility?: EditorVisibilityPort;
   /** Signals restored connectivity; retries still share the snapshot's bounded attempt budget. */
   connectivity?: { subscribe(listener: () => void): () => void };
+  /** Hands a protocol 3 frame the engine its descriptor names. */
+  engine?: EditorEnginePort;
 }
 
 export interface EditorSnapshot {

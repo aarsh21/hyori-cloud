@@ -126,7 +126,7 @@ impl EditorsService {
                         _ => return Err(ApiError::unavailable().into()),
                     },
                     protocol: Nullable(capability.protocol.map(EditorProtocol)),
-                    writable: files::access(&item,&actor).can_edit, max_bytes: Bytes(formats::max_bytes(&app)), replacement_name: Nullable(formats::replacement(&item.name).map(Name)), output_formats: formats::outputs(&app), app,
+                    writable: files::access(&item,&actor).can_edit, max_bytes: Bytes(formats::max_bytes(&app)), replacement_name: Nullable(formats::replacement(&item.name).map(Name)), output_formats: formats::outputs(&app), engine: capability.engine.clone(), app,
                 })
             })
         }).await

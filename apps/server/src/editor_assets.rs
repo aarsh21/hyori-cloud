@@ -3,7 +3,13 @@ use crate::{
     config::Config,
     db::{self, sql},
     error::ApiError,
-    features::editors::{api::EditorApp, formats},
+    features::{
+        auth::api::Bytes,
+        editors::{
+            api::{EditorApp, EditorEngine},
+            formats,
+        },
+    },
 };
 use sea_orm::{ConnectionTrait, DatabaseConnection};
 use serde::Deserialize;
@@ -28,6 +34,8 @@ pub struct AssetCapability {
     pub asset_url: String,
     pub bridge: String,
     pub protocol: Option<u8>,
+    /// The verified WASM the host hands a protocol 3 frame, from this editor's own inventory.
+    pub engine: Option<EditorEngine>,
 }
 #[derive(Clone, Default)]
 pub struct EditorAssets {
@@ -279,10 +287,27 @@ impl EditorAssets {
                     }
                 }
             }
+            let engine = if protocol == Some(3) {
+                let mut wasm = editor
+                    .files
+                    .iter()
+                    .filter(|file| file.path.ends_with("_bg.wasm"));
+                let (Some(file), None) = (wasm.next(), wasm.next()) else {
+                    return Err(ApiError::unavailable());
+                };
+                Some(EditorEngine {
+                    url: format!("{PREFIX}/{}", file.path),
+                    sha256: file.sha256.clone(),
+                    bytes: Bytes(file.bytes),
+                })
+            } else {
+                None
+            };
             if entries
                 .insert(
                     (name.to_owned(), editor.version.clone()),
                     AssetCapability {
+                        engine,
                         version: editor.version,
                         asset_url: editor.asset_url,
                         bridge: editor.bridge,

@@ -70,6 +70,7 @@ export type {
   EditorStatus,
   EditorStopReason,
   EditorVisibilityPort,
+  EditorEnginePort,
 } from "#client-sdk/features/editors/editor-contract";
 
 export type {

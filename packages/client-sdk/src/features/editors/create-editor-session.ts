@@ -571,7 +571,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
               origin: expectedOrigin,
               source: expectedSource,
               subscribe: (listener) => messages.subscribe(listener),
-              post: (command, target) => messages.post(command, target),
+              post: (command, target, transfer) => messages.post(command, target, transfer),
             },
           },
           document,

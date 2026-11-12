@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
 
-import { createBrowserEditorMessages } from "@hyori-cloud/client-sdk/browser";
+import {
+  createBrowserEditorEngine,
+  createBrowserEditorMessages,
+} from "@hyori-cloud/client-sdk/browser";
 import type { EditorMessageEvent, EditorMessagePort } from "@hyori-cloud/client-sdk";
 
 // Compile the actual browser call site without requiring a browser in the vanilla consumer.
@@ -56,4 +59,30 @@ test("browser adapter owns sandboxed-frame posting, message subscription and cle
   expect(() => port.post(message, "https://cloud.example")).toThrow("target origin changed");
   unsubscribe();
   expect(listeners.size).toBe(0);
+});
+
+test("the host hands over only an engine whose size and SHA-256 match its descriptor", async () => {
+  const bytes = new TextEncoder().encode("engine");
+  const sha256 = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+  const fetched: string[] = [];
+
+  const engine = createBrowserEditorEngine({
+    fetch: async (url) => {
+      fetched.push(url);
+
+      return new Response(bytes);
+    },
+    crypto,
+  });
+
+  const url = "/artcraft/wordcraft/1/editor_bg.wasm";
+  const signal = new AbortController().signal;
+  const loaded = await engine.load({ url, sha256, bytes: bytes.byteLength }, { signal });
+
+  expect(new Uint8Array(loaded)).toEqual(bytes);
+  expect(fetched).toEqual([url]);
+  await expect(engine.load({ url, sha256: "0".repeat(64), bytes: 6 }, { signal })).rejects.toThrow(
+    "differs",
+  );
+  await expect(engine.load({ url, sha256, bytes: 7 }, { signal })).rejects.toThrow("differs");
 });

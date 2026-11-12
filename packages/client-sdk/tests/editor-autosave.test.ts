@@ -36,6 +36,7 @@ async function until(condition: () => boolean) {
 function fixture(
   overrides: Partial<EditorDocument> = {},
   autosave: EditorSessionOptions["autosave"] = { idleMs: 8, maxWaitMs: 35 },
+  engine?: EditorSessionOptions["engine"],
 ) {
   const source = {};
   const listeners = new Set<(event: EditorMessageEvent) => void>();
@@ -151,6 +152,7 @@ function fixture(
     readyTimeoutMs: 250,
     autosave,
     theme: "dark",
+    engine,
   });
 
   sessions.push(session);
@@ -1068,5 +1070,74 @@ describe("protocol2 autosave through the public SDK (synthetic ports, not native
     await delay(30);
     expect(f.requests).toHaveLength(0);
     expect(f.listeners.size).toBe(0);
+  });
+});
+
+describe("engine handoff to a sandboxed frame (synthetic ports)", () => {
+  const ENGINE = { url: "/artcraft/wordcraft/1/editor_bg.wasm", sha256: "a".repeat(64), bytes: 3 };
+
+  const engines = (f: ReturnType<typeof fixture>) =>
+    f.commands.filter((command): command is Command<"engine"> => command.type.endsWith(":engine"));
+
+  const request = (f: ReturnType<typeof fixture>, extra: Record<string, string> = {}) =>
+    f.emit({
+      type: `${f.document.app}:engine-request`,
+      protocol: 3,
+      version: f.document.version,
+      ...extra,
+    });
+
+  test("hands over exactly the descriptor's engine, once, and nothing the frame names", async () => {
+    const loads: string[] = [];
+
+    const f = fixture({ engine: ENGINE }, undefined, {
+      load: async (engine) => {
+        loads.push(engine.url);
+
+        return new Uint8Array([0, 97, 115]).buffer;
+      },
+    });
+
+    await tick();
+    // Started with the session, before the frame asks; the frame names no path of its own.
+    expect(loads).toEqual([ENGINE.url]);
+    request(f, { url: "/api/rpc" });
+    request(f, { path: "/api/storage/files/secret" });
+    await tick();
+    expect(engines(f)).toHaveLength(0);
+
+    request(f);
+    await until(() => engines(f).length === 1);
+    expect([...new Uint8Array(engines(f)[0]!.bytes!)]).toEqual([0, 97, 115]);
+
+    // Asking again means the frame started over: nothing more, and the session stops.
+    request(f);
+    await tick();
+    expect(engines(f)).toHaveLength(1);
+    expect(f.session.getSnapshot().reason).toBe("crashed");
+    expect(loads).toEqual([ENGINE.url]);
+  });
+
+  test("an engine that differs from its descriptor stops the session and is never handed over", async () => {
+    const f = fixture({ engine: ENGINE }, undefined, {
+      load: async () => {
+        throw new Error("The editor engine differs from its descriptor");
+      },
+    });
+
+    await tick();
+    request(f);
+    await until(() => f.session.getSnapshot().status === "failed");
+    expect(f.session.getSnapshot().reason).toBe("unavailable");
+    expect(engines(f)).toHaveLength(0);
+  });
+
+  test("without a named engine the frame is told to load its own", async () => {
+    const f = fixture();
+
+    await tick();
+    request(f);
+    await until(() => engines(f).length === 1);
+    expect(engines(f)[0]!.bytes).toBeNull();
   });
 });

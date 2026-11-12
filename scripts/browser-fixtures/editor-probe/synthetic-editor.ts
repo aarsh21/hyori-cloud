@@ -18,15 +18,27 @@ export type Reach =
   | "rpc"
   | "storageDownload"
   | "rpcBlind"
-  | "topNavigation";
+  | "topNavigation"
+  | "printHtml"
+  | "printSvg"
+  | "printPdf";
 
 export type ProbeReport = {
   visit: string;
+  /** What the engine handed over by the host computed, or why it couldn't load. */
+  engine?: string;
+  /** Engine replies the frame got after asking again, or asking for anything else. */
+  extraEngines?: number;
   prepared?: string;
   received?: number[];
   autosaved?: boolean;
   attacked?: boolean;
 } & Partial<Record<Reach, Outcome>>;
+
+const MINIMAL_PDF = `%PDF-1.1
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 300]>>endobj
+trailer<</Root 1 0 R>>
+%%EOF`;
 
 const query = new URLSearchParams(window.location.search);
 const app = window.location.pathname.split("/")[2] ?? "";
@@ -47,7 +59,33 @@ async function attempt(run: () => string | Promise<string>): Promise<Outcome> {
   }
 }
 
+/** Asks for the engine again, and for API paths by name; the host must answer none of them. */
+function askForMore(): Promise<number> {
+  return new Promise((resolve) => {
+    let replies = 0;
+
+    function count(event: MessageEvent<{ type?: unknown }>) {
+      if (event.source === window.parent && String(event.data?.type).endsWith(":engine"))
+        replies += 1;
+    }
+
+    window.addEventListener("message", count);
+
+    for (const extra of [{}, { url: "/api/rpc" }, { path: "/api/storage/files/secret" }])
+      window.parent.postMessage(
+        { type: `${app}:engine-request`, protocol: 3, version, ...extra },
+        window.location.origin,
+      );
+
+    setTimeout(() => {
+      window.removeEventListener("message", count);
+      resolve(replies);
+    }, 1000);
+  });
+}
+
 async function attack() {
+  report.extraEngines = await askForMore();
   report.parentDocument = await attempt(() => window.parent.document.title);
   report.parentStorage = await attempt(
     () => window.parent.localStorage.getItem("hyori-secret") ?? "empty",
@@ -88,6 +126,25 @@ async function attack() {
 
     return response.type;
   });
+  // Hosted print: only a real PDF opens, and only in this frame's own opaque origin.
+  const bytes = (text: string) => new TextEncoder().encode(text);
+  const script = `<script>fetch("/api/rpc",{method:"POST",credentials:"include"})</script>`;
+
+  report.printHtml = await attempt(() => {
+    bridge.hostShowPdf(bytes(`<!doctype html>${script}`));
+
+    return "opened";
+  });
+  report.printSvg = await attempt(() => {
+    bridge.hostShowPdf(bytes(`<svg xmlns="http://www.w3.org/2000/svg">${script}</svg>`));
+
+    return "opened";
+  });
+  report.printPdf = await attempt(() => {
+    bridge.hostShowPdf(bytes(MINIMAL_PDF));
+
+    return "opened";
+  });
   report.topNavigation = await attempt(() => {
     window.top!.location.href = "/top-navigated";
 
@@ -95,7 +152,29 @@ async function attack() {
   });
 }
 
-function run() {
+/** The loader's part: fetch the engine beside this page, as Trunk's loader does, and start it. */
+async function loadEngine() {
+  try {
+    const { instance } = await WebAssembly.instantiateStreaming(
+      fetch(new URL("synthetic_bg.wasm", window.location.href)),
+    );
+
+    const answer = instance.exports.answer;
+
+    report.engine = answer instanceof Function ? String(answer()) : "no answer";
+  } catch (error) {
+    report.engine = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function run() {
+  // A reloaded frame asks again and gets nothing; real loaders would wait, this one reports.
+  const engine = loadEngine();
+
+  await (visit === "first"
+    ? engine
+    : Promise.race([engine, new Promise((resolve) => setTimeout(resolve, 1000))]));
+
   try {
     if (!bridge.prepareHost(app, version)) throw new Error("not hosted");
   } catch (error) {
@@ -176,4 +255,4 @@ function run() {
     }, 1500);
 }
 
-run();
+void run();
