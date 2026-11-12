@@ -156,6 +156,10 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             16_i32,
             include_str!("../migrations/0016_rate_limit_ceilings.sql"),
         ),
+        (
+            17_i32,
+            include_str!("../migrations/0017_password_resets.sql"),
+        ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
         let old = tx

@@ -1,5 +1,7 @@
 pub mod auth {
     pub mod api;
+    pub mod password_api;
+    pub mod passwords;
     pub mod service;
 }
 pub mod files {

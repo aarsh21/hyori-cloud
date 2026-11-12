@@ -6,7 +6,7 @@ use serde_json::json;
 #[test]
 fn complete_deterministic_catalog() {
     let manifest = manifest().unwrap();
-    assert_eq!(manifest.operations.len(), 50);
+    assert_eq!(manifest.operations.len(), 53);
     assert_eq!(
         serde_json::to_string(&manifest).unwrap(),
         serde_json::to_string(&hyori_server::wire::manifest().unwrap()).unwrap()

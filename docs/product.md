@@ -63,6 +63,14 @@ This establishes the product areas, not their detailed feature contracts or impl
 - Bootstrap must be server-authorized and atomic so concurrent requests cannot create multiple initial admins or let an unauthenticated remote visitor claim an exposed instance. The exact setup-access mechanism still needs design; setup must not reopen automatically just because accounts are deleted.
 - Password policy, rate limiting, credential storage, session handling, invite lifecycle, and account recovery still need design. Prioritize memorable strong passwords/passphrases rather than reintroducing a short PIN fallback. See Data protection for the server-readable model and remaining at-rest encryption decisions.
 
+#### Password recovery scope confirmed during production review, 2026-11-12
+
+- Signed-in people can change their own password using their current password. New passwords use the account-creation policy; other sessions end and the current one continues. Wrong-current-password attempts are limited per account.
+- Administrators can issue a one-time, limited-lifetime reset link for an active account, shown once for private handoff. The person chooses the password; the administrator does not see or set it. Completing reset ends all account sessions and cancels earlier unused links. No email delivery is required.
+- Implementation defaults: reset links last 24 hours; issuing a second link cancels the first immediately. Password change also cancels unused reset links, so an outstanding bearer link cannot undo the change. Change attempts have a separate account-wide 10-attempt/15-minute budget, matching sign-in's window without sharing its counter.
+- Individual session listing/revocation and recovery when the only administrator forgets their password remain known gaps outside this slice. The backend and generated consumption are owned separately from the account/Users interface and browser acceptance.
+- Rationale: the review lead selected this scope under aarsh's delegated product authority. This records scope and defaults, not completed interface or production acceptance.
+
 ### Data protection — E2EE deferred from v1
 
 - Use a server-readable file model for v1; defer end-to-end encryption to prioritize the selected workflows and performance goals.
