@@ -26,9 +26,10 @@ function serverSnapshot() {
 }
 
 /** Owns browser preference storage, OS subscriptions, and the pre-paint document script. */
-export function AppearanceProvider({ children }: { children: ReactNode }) {
+export function AppearanceProvider({ children, nonce }: { children: ReactNode; nonce?: string }) {
   return (
     <ThemeProvider
+      nonce={nonce}
       attribute="class"
       storageKey={APPEARANCE_STORAGE_KEY}
       defaultTheme="system"
