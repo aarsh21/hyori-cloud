@@ -26,7 +26,7 @@ bun run dev:web
 
 Open http://localhost:3001. Enter the setup token and create the first admin with an email and password. Subsequent users are created by an admin or admitted through invite links; public registration is disabled. Email verification, PINs, and SSO are not part of v1.
 
-Password change and administrator-issued one-time password reset are implemented in the Rust API and generated SDK, but their account/Users interfaces are not yet implemented. Reset links last 24 hours and must be passed on privately; Hyori sends no email. Individual session management and recovery for a sole administrator are still missing. See [the password operation contract](packages/api/README.md#password-change-and-administrator-recovery).
+Password change (account menu › Change password) and administrator-issued one-time password reset (Users › an account's menu › Reset password) are implemented in the Rust API, generated SDK and web interface. Reset links last 24 hours and must be passed on privately; Hyori sends no email. Individual session management and recovery for a sole administrator are still missing. See [the password operation contract](packages/api/README.md#password-change-and-administrator-recovery).
 
 The fresh Compose stack keeps PostgreSQL, RustFS and Rust ports private. A narrowly scoped initialization container assigns ownership only to the **new** Rust storage volumes; `nocopy` mounts preserve that ownership. It does not touch any legacy volumes. Do not expose service credentials or private ports publicly.
 
