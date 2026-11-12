@@ -21,9 +21,15 @@ async function enter(control: Locator) {
   await control.press("Enter");
 }
 
+// The menu this row's trigger opened, by its label: the previous row's may still be closing.
 async function menu(page: Page, name: string, action: string) {
-  await enter(page.getByRole("button", { name: `Actions for ${name}`, exact: true }));
-  await enter(page.getByRole("menuitem", { name: new RegExp(`^${action}`) }));
+  const label = `Actions for ${name}`;
+  await enter(page.getByRole("button", { name: label, exact: true }));
+  await enter(
+    page
+      .getByRole("menu", { name: label, exact: true })
+      .getByRole("menuitem", { name: new RegExp(`^${action}`) }),
+  );
 }
 
 async function folder(page: Page, name: string) {
@@ -142,7 +148,11 @@ async function lifecycle(run: CoreRun, phone: boolean) {
         await menu(page, `discard-${size}.bin`, "Move to Trash");
         await page.getByRole("link", { name: "Trash", exact: true }).first().click();
         await enter(page.getByRole("button", { name: `More actions for ${name}`, exact: true }));
-        await enter(page.getByRole("menuitem", { name: "Delete permanently…" }));
+        await enter(
+          page
+            .getByRole("menu", { name: `More actions for ${name}`, exact: true })
+            .getByRole("menuitem", { name: "Delete permanently…" }),
+        );
         await report.shot(page, `readiness-${size}-permanent-delete`);
         await enter(
           page
