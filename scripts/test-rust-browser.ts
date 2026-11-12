@@ -32,6 +32,7 @@ import {
 } from "./browser-fixtures/scenarios-readiness.ts";
 import { runScreenScenarios } from "./browser-fixtures/scenarios-screens.ts";
 import { runInterfaceScenarios } from "./browser-fixtures/scenarios-interface.ts";
+import { runAccountScenarios } from "./browser-fixtures/scenarios-account.ts";
 import { runPhoneCompletionScenarios } from "./browser-fixtures/scenarios-phone-completion.ts";
 import {
   chromiumTrustFor,
@@ -278,6 +279,8 @@ try {
   if (only?.includes("screens")) await runScreenScenarios(run);
 
   if (only?.includes("interface")) await runInterfaceScenarios(run);
+
+  if (only?.includes("account")) await runAccountScenarios(run);
 
   // Own fresh account library: run separately with --scenarios=phone-completion.
   if (only?.includes("phone-completion")) await runPhoneCompletionScenarios(run);
