@@ -53,6 +53,10 @@ export function createRunReport(
     if (!captureFailures || lastPage === undefined || lastPage.isClosed()) return;
 
     shotIndex += 1;
+    observations[`failure ${shotIndex}: ${name}`] = {
+      at: Date.now(),
+      url: lastPage.url(),
+    };
 
     const safe = name.replace(/[^a-z0-9]+/gi, "-").slice(0, 60);
 
@@ -71,10 +75,14 @@ export function createRunReport(
       const text = message.text();
 
       if (NOISE.some((pattern) => pattern.test(text))) return;
-      consoleProblems.push(`[${scenario}] ${message.type()}: ${text.slice(0, 400)}`);
+      consoleProblems.push(
+        `[${scenario}] ${new Date().toISOString()} ${message.type()}: ${text.slice(0, 400)}`,
+      );
     });
     page.on("pageerror", (error) => {
-      consoleProblems.push(`[${scenario}] pageerror: ${error.message.slice(0, 400)}`);
+      consoleProblems.push(
+        `[${scenario}] ${new Date().toISOString()} pageerror: ${error.message.slice(0, 400)}`,
+      );
     });
     // Each failed request's own reason, which a console line alone doesn't tie to a request.
     page.on("requestfailed", (request) => {

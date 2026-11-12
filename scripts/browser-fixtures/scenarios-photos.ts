@@ -52,6 +52,20 @@ export async function waitForTrayIdle(run: CoreRun, page: Page, expected: number
 
     if ((await retry.count()) > 0) {
       await assertRowsDontOverlap(run, page);
+
+      const failure = await retry.first().evaluate((button) => {
+        const row = button.closest('[data-slot="transfer-item"]');
+
+        return {
+          at: Date.now(),
+          fileName: button.getAttribute("aria-label")?.slice("Retry upload of ".length) ?? null,
+          errorText: row?.querySelector("p.text-destructive")?.textContent ?? null,
+          rowText: row?.textContent ?? null,
+          url: location.href,
+        };
+      });
+
+      run.report.observe(`manual upload retry ${failure.fileName} at ${failure.at}`, failure);
       failedRows.add(await retry.first().getAttribute("aria-label"));
       await retry.first().click();
       clicks += 1;

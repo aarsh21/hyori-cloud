@@ -183,6 +183,7 @@ try {
     : await startRustStack(image, origin, backendPort, worker, editorBundle);
 
   cleanups.push(stack.stop);
+  cleanups.push(() => writeFileSync(join(artifacts, "backend.log"), stack.serverLogs()));
 
   async function startWeb() {
     if (webImage === null) {

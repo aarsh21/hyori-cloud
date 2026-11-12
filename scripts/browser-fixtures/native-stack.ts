@@ -1,6 +1,6 @@
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { EditorBundle } from "./editor-bundle.ts";
@@ -251,7 +251,7 @@ export async function startNativeRustStack(
     stopWorker: noWorker,
     startWorker: async () => noWorker(),
     sql: psql,
-    serverLogs: () => logs.slice(-60).join(""),
+    serverLogs: () => readFileSync(tools.logFile, "utf8"),
     stop,
   };
 }
