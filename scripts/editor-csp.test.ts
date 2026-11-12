@@ -36,3 +36,12 @@ test("a bundle that predates sandboxed editor frames is refused before it is ser
     "frame-ancestors 'self'",
   );
 });
+
+// Not only in the host's frame: a page reached by a popup, a link or the address bar is opaque too.
+test("every editor response is sandboxed without same-origin or top navigation", () => {
+  const [sandbox] = editorContentSecurityPolicy(bundle("hyori-correlated-host-v3")).split("; ");
+
+  expect(sandbox).toBe(
+    "sandbox allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads",
+  );
+});

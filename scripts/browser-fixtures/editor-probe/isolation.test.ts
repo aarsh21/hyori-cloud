@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { chromium } from "playwright-core";
 import type { Browser } from "playwright-core";
 import { NATIVE_HOST_PROTOCOL } from "@hyori-cloud/client-sdk/editor-runtime";
+import { EDITOR_FRAME_SANDBOX } from "../../../packages/features/src/editors/editor-attachment.ts";
 import { createFrontHandler } from "../front-proxy.ts";
 import type {} from "./host-entry.ts";
 import type { ProbeReport, Reach } from "./synthetic-editor.ts";
@@ -19,10 +20,11 @@ import type { ProbeReport, Reach } from "./synthetic-editor.ts";
  */
 const VERSION = "0.14.0-isolation.1";
 const ASSET = `/artcraft/wordcraft/${VERSION}`;
+const PDF_ASSET = `/artcraft/pdfcraft/${VERSION}`;
 const SOURCE = [104, 121, 111, 114, 105];
 const SESSION = "hyori_session=person-session";
 
-type Request = { path: string; host: string; session: boolean };
+type Request = { path: string; visit: string | null; host: string; session: boolean };
 
 const requests: Request[] = [];
 
@@ -46,22 +48,30 @@ const ENGINE = {
   bytes: WASM.byteLength,
 };
 
-/** Trunk's loader shape: one inline module that imports the hashed glue and starts it. */
+/**
+ * Trunk's loader shape: one inline module that imports the hashed glue and starts it. The same
+ * synthetic page stands in for Word and for PdfCraft, whose upstream page takes `?file=<url>`.
+ */
 function writeSyntheticBundle(engine: string) {
   const glue = `synthetic-${createHash("sha256").update(engine).digest("hex").slice(0, 16)}.js`;
-  const directory = join(work, "bundle", "wordcraft", VERSION);
-  mkdirSync(directory, { recursive: true });
-  writeFileSync(join(directory, glue), engine);
-  writeFileSync(join(directory, "synthetic_bg.wasm"), WASM);
-  writeFileSync(
-    join(directory, "index.html"),
-    `<!doctype html><title>Synthetic editor</title><script type="module">import "${ASSET}/${glue}";</script>`,
-  );
+
+  for (const asset of [ASSET, PDF_ASSET]) {
+    const directory = join(work, "bundle", asset.replace(/^\/artcraft\//, ""));
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, glue), engine);
+    writeFileSync(join(directory, "synthetic_bg.wasm"), WASM);
+    writeFileSync(
+      join(directory, "index.html"),
+      `<!doctype html><title>Synthetic editor</title><script type="module">import "${asset}/${glue}";</script>`,
+    );
+  }
+
   writeFileSync(
     join(work, "bundle", "runtime-bundle-manifest.json"),
     JSON.stringify({
       editors: [
         { app: "wordcraft", version: VERSION, assetUrl: `${ASSET}/index.html?host=parent` },
+        { app: "pdfcraft", version: VERSION, assetUrl: `${PDF_ASSET}/index.html?host=parent` },
       ],
     }),
   );
@@ -108,7 +118,12 @@ beforeAll(async () => {
     async fetch(request) {
       const url = new URL(request.url);
       const session = request.headers.get("cookie")?.includes(SESSION) === true;
-      requests.push({ path: url.pathname, host: request.headers.get("host") ?? "", session });
+      requests.push({
+        path: url.pathname,
+        visit: url.searchParams.get("visit"),
+        host: request.headers.get("host") ?? "",
+        session,
+      });
 
       if (url.pathname === "/report") {
         reports.push(JSON.parse(await request.text()));
@@ -120,6 +135,12 @@ beforeAll(async () => {
         return session
           ? new Response(`secret of ${url.pathname}`)
           : new Response("signed out", { status: 401 });
+
+      // A public share page stands in for the host's other pages.
+      if (url.pathname.startsWith("/s/"))
+        return new Response("<!doctype html><title>Shared</title>Shared page", {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
 
       if (url.pathname !== "/") return new Response("Not found", { status: 404 });
       const nonce = crypto.randomUUID();
@@ -171,8 +192,15 @@ afterAll(async () => {
 test("compromised code in the editor frame reaches only what the bridge hands it", async () => {
   const context = await browser.newContext();
   const page = await context.newPage();
+  const popups: string[] = [];
   const downloads: { name: string; bytes: string }[] = [];
 
+  context.on("page", (popup) =>
+    popup.waitForLoadState().then(
+      () => popups.push(popup.url()),
+      () => popups.push(popup.url()),
+    ),
+  );
   page.on("download", (download) =>
     download
       .path()
@@ -243,6 +271,9 @@ test("compromised code in the editor frame reaches only what the bridge hands it
     "topNavigation",
     "printHtml",
     "printSvg",
+    "openedHost",
+    "openedStorage",
+    "openedShare",
   ] satisfies Reach[])
     expect({ reach, outcome: first[reach] }).toMatchObject({ reach, outcome: { reached: false } });
 
@@ -266,6 +297,17 @@ test("compromised code in the editor frame reaches only what the bridge hands it
   expect(downloads[0]!.name).toBe("Print.pdf");
   expect(downloads[0]!.bytes).toStartWith("%PDF-");
 
+  // The frame opened an editor page and the host's other pages as popups, and could read none of
+  // them (above). What the editor page itself could do is the next test.
+  expect(popups.toSorted()).toEqual(
+    [
+      `${origin}/`,
+      `${origin}/api/storage/files/secret?visit=opened`,
+      `${origin}/s/share-token`,
+      `${origin}${ASSET}/index.html?visit=popup`,
+    ].toSorted(),
+  );
+
   // A frame that navigates itself away gets no second copy of the document.
   const reloaded = await waitForReport("reloaded");
   expect(reloaded.prepared).toBe("ready");
@@ -280,6 +322,76 @@ test("compromised code in the editor frame reaches only what the bridge hands it
 
   await context.close();
 }, 60_000);
+
+// The editor page the frame above opened as a popup escapes the frame's sandbox, but its own
+// response sandboxes it again: none of the person's authority, and no session on anything it sends.
+test("an editor page the frame opens as a popup holds no authority", async () => {
+  expectOpaque(await waitForReport("popup"));
+});
+
+// Typed in, or followed from a link on any site.
+test("an editor page navigated to directly holds no authority", async () => {
+  const { context, page, origin } = await signedIn();
+
+  await page.goto(`${origin}${ASSET}/index.html?visit=direct`);
+  expectOpaque(await waitForReport("direct"));
+
+  // Enforced on the response, with exactly the host frame's tokens.
+  const index = await fetch(`${origin}${ASSET}/index.html`);
+  expect(index.headers.get("content-security-policy")).toStartWith(
+    `sandbox ${EDITOR_FRAME_SANDBOX};`,
+  );
+  await context.close();
+}, 30_000);
+
+// PdfCraft's upstream page fetches the URL it is handed; here it has no session to fetch with. (The
+// Hyori build also drops that intake; `scripts/artcraft/pdf-native-hookup.test.ts` holds it.)
+test("a PDF editor page handed `?file=` a session-only path gets nothing", async () => {
+  const { context, page, origin } = await signedIn();
+  const file = encodeURIComponent("/api/storage/files/secret?visit=file");
+
+  await page.goto(`${origin}${PDF_ASSET}/index.html?visit=file&file=${file}`);
+  expectOpaque(await waitForReport("file"), ["file"]);
+  await context.close();
+}, 30_000);
+
+/** A fresh browser profile, signed in, with something in the host's storage. */
+async function signedIn() {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const origin = `http://127.0.0.1:${gateway.port}`;
+
+  await page.goto(`${origin}/`);
+  await page.evaluate(() => localStorage.setItem("hyori-secret", "parent storage"));
+
+  return { context, page, origin };
+}
+
+/** The page ran in an opaque origin, reached none of the person's authority and sent no session. */
+function expectOpaque(report: ProbeReport, more: Reach[] = []) {
+  const reaches: Reach[] = ["storage", "indexedDb", "cookie", "rpc", "storageDownload", ...more];
+  const sent = requests.filter(({ visit }) => visit === report.visit);
+
+  // One comparison, so a failure shows everything the page did get.
+  expect({
+    origin: report.origin,
+    reached: Object.fromEntries(
+      reaches.map((reach) => {
+        const outcome = report[reach];
+
+        return [reach, outcome?.reached === true ? outcome.value : false];
+      }),
+    ),
+    withSession: sent.flatMap(({ session, path }) => (session ? [path] : [])),
+  }).toEqual({
+    origin: "null",
+    reached: Object.fromEntries(reaches.map((reach) => [reach, false])),
+    withSession: [],
+  });
+  expect(sent.map(({ path }) => path)).toEqual(
+    expect.arrayContaining(["/api/rpc", "/api/storage/files/secret"]),
+  );
+}
 
 async function waitForReport(visit: string) {
   for (let waited = 0; waited < 15_000; waited += 100) {

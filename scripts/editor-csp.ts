@@ -66,6 +66,14 @@ function findReceipt(manifestSha256: string) {
 }
 
 /**
+ * Every `/artcraft` response is sandboxed into an opaque origin, however it is reached: in the
+ * host's frame, opened by it as a popup, followed from a link or typed in. The tokens are exactly the
+ * host frame's (`EDITOR_FRAME_SANDBOX`), so its hyperlinks still open ordinary pages.
+ */
+export const EDITOR_DOCUMENT_SANDBOX =
+  "sandbox allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads";
+
+/**
  * Reads the bundle's index pages and, when a receipt records them, requires its loader hashes to be
  * exactly the ones in those pages, so a stale receipt or a modified bundle fails at startup.
  */
@@ -121,6 +129,7 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
   }
 
   return [
+    EDITOR_DOCUMENT_SANDBOX,
     "default-src 'self'",
     "connect-src 'self'",
     "img-src 'self' blob: data:",

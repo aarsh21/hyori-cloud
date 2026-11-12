@@ -88,16 +88,23 @@ const STATIC_TYPES = new Map([
 function staticResponse(root: string, contentSecurityPolicy: string, pathname: string) {
   const directory = resolve(root);
 
+  // Sandboxed like every other response under `/artcraft`, as Caddy's `header` does.
+  const missing = () =>
+    new Response("Not found", {
+      status: 404,
+      headers: { "content-security-policy": contentSecurityPolicy },
+    });
+
   const path = resolve(
     directory,
     `.${decodeURIComponent(pathname.slice(STATIC_PREFIX.length - 1))}`,
   );
 
-  if (!path.startsWith(`${directory}${sep}`)) return new Response("Not found", { status: 404 });
+  if (!path.startsWith(`${directory}${sep}`)) return missing();
 
   const file = lstatSync(path, { throwIfNoEntry: false });
 
-  if (file === undefined || !file.isFile()) return new Response("Not found", { status: 404 });
+  if (file === undefined || !file.isFile()) return missing();
 
   return new Response(Bun.file(path), {
     headers: {

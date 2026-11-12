@@ -21,10 +21,16 @@ export type Reach =
   | "topNavigation"
   | "printHtml"
   | "printSvg"
-  | "printPdf";
+  | "printPdf"
+  | "file"
+  | "openedHost"
+  | "openedStorage"
+  | "openedShare";
 
 export type ProbeReport = {
   visit: string;
+  /** The origin this page ran with. */
+  origin?: string;
   /** What the engine handed over by the host computed, or why it couldn't load. */
   engine?: string;
   /** Engine replies the frame got after asking again, or asking for anything else. */
@@ -44,7 +50,7 @@ const query = new URLSearchParams(window.location.search);
 const app = window.location.pathname.split("/")[2] ?? "";
 const version = decodeURIComponent(window.location.pathname.split("/")[3] ?? "");
 const visit = query.get("visit") ?? "first";
-const report: ProbeReport = { visit };
+const report: ProbeReport = { visit, origin: window.origin };
 
 function send() {
   // A no-cors text body: the report itself must not need any of the authority it tests for.
@@ -84,12 +90,17 @@ function askForMore(): Promise<number> {
   });
 }
 
-async function attack() {
-  report.extraEngines = await askForMore();
-  report.parentDocument = await attempt(() => window.parent.document.title);
-  report.parentStorage = await attempt(
-    () => window.parent.localStorage.getItem("hyori-secret") ?? "empty",
-  );
+/** Opens a page of the host's origin as a popup and tries to read it once it has loaded. */
+async function openAndRead(path: string): Promise<Outcome> {
+  const tab = window.open(path, "_blank");
+
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  return attempt(() => `${tab?.location.href} ${tab?.document.body.innerText}`);
+}
+
+/** What any code on this page could take of the person's: storage, cookies and their session. */
+async function takeAuthority() {
   report.storage = await attempt(() => window.localStorage.getItem("hyori-secret") ?? "empty");
   report.indexedDb = await attempt(
     () =>
@@ -101,7 +112,7 @@ async function attack() {
   );
   report.cookie = await attempt(() => document.cookie);
   report.rpc = await attempt(async () => {
-    const response = await fetch("/api/rpc", {
+    const response = await fetch(`/api/rpc?visit=${visit}`, {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
@@ -111,10 +122,21 @@ async function attack() {
     return `${response.status} ${await response.text()}`;
   });
   report.storageDownload = await attempt(async () => {
-    const response = await fetch("/api/storage/files/secret", { credentials: "include" });
+    const response = await fetch(`/api/storage/files/secret?visit=${visit}`, {
+      credentials: "include",
+    });
 
     return `${response.status} ${await response.text()}`;
   });
+}
+
+async function attack() {
+  report.extraEngines = await askForMore();
+  report.parentDocument = await attempt(() => window.parent.document.title);
+  report.parentStorage = await attempt(
+    () => window.parent.localStorage.getItem("hyori-secret") ?? "empty",
+  );
+  await takeAuthority();
   // Unreadable even when sent; the server records whether the person's session came with it.
   report.rpcBlind = await attempt(async () => {
     const response = await fetch("/api/rpc", {
@@ -145,6 +167,12 @@ async function attack() {
 
     return "accepted";
   });
+  // An editor page of its own, outside any frame: it must be just as opaque (it reports itself).
+  window.open(new URL("index.html?visit=popup", window.location.href).href, "_blank");
+  // The host's other pages, opened as popups: the frame may open them, as any site may, but read none.
+  report.openedHost = await openAndRead("/");
+  report.openedStorage = await openAndRead("/api/storage/files/secret?visit=opened");
+  report.openedShare = await openAndRead("/s/share-token");
   report.topNavigation = await attempt(() => {
     window.top!.location.href = "/top-navigated";
 
@@ -168,8 +196,9 @@ async function loadEngine() {
 }
 
 async function run() {
-  // A reloaded frame asks again and gets nothing; real loaders would wait, this one reports.
-  const engine = loadEngine();
+  // A reloaded frame asks again and gets nothing; real loaders would wait, this one reports. A page
+  // outside the host's frame has no engine to ask for, and its attempts below don't need one.
+  const engine = query.get("host") === "parent" ? loadEngine() : Promise.resolve();
 
   await (visit === "first"
     ? engine
@@ -178,7 +207,18 @@ async function run() {
   try {
     if (!bridge.prepareHost(app, version)) throw new Error("not hosted");
   } catch (error) {
+    // Not in the host's frame: a popup, a link or the address bar. Behave as compromised code would,
+    // including PdfCraft's upstream `?file=<url>`, which fetches the URL it is handed.
     report.prepared = error instanceof Error ? error.message : String(error);
+    await takeAuthority();
+    const file = query.get("file");
+
+    if (file !== null)
+      report.file = await attempt(async () => {
+        const response = await fetch(file);
+
+        return `${response.status} ${await response.text()}`;
+      });
     void send();
 
     return;

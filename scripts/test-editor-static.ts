@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { createGzipTransportSidecar } from "./artcraft/transport-sidecars.ts";
-import { editorContentSecurityPolicy } from "./editor-csp.ts";
+import { EDITOR_DOCUMENT_SANDBOX, editorContentSecurityPolicy } from "./editor-csp.ts";
 import { editorStaticHandler } from "./editor-static-handler.ts";
 
 const directory = await mkdtemp(join(tmpdir(), "hyori-static-delivery-"));
@@ -172,7 +172,7 @@ try {
   assert.equal(identity.headers.get("access-control-allow-origin"), "*");
   assert.equal(
     identity.headers.get("content-security-policy"),
-    `default-src 'self'; connect-src 'self'; img-src 'self' blob: data:; frame-src 'self' blob:; form-action 'none'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash(loader)}'; style-src 'self' 'sha256-${hash(style)}'`,
+    `${EDITOR_DOCUMENT_SANDBOX}; default-src 'self'; connect-src 'self'; img-src 'self' blob: data:; frame-src 'self' blob:; form-action 'none'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash(loader)}'; style-src 'self' 'sha256-${hash(style)}'`,
   );
 
   const gzip = await request(path, ["Accept-Encoding: gzip"]);
@@ -216,13 +216,16 @@ try {
     const response = await request(asset);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-cache");
+    // However a page here is reached, it runs in an opaque origin, never Hyori's.
+    assert.equal(response.headers.get("content-security-policy"), contentSecurityPolicy);
   }
 
   const missing = await request("wordcraft/fixture/missing-0123456789abcdef.js");
   assert.equal(missing.status, 404);
   assert.equal(missing.headers.get("cache-control"), "no-cache");
+  assert.equal(missing.headers.get("content-security-policy"), contentSecurityPolicy);
   console.log(
-    "PASS real Caddy: exact precompressed bytes, decoded identity, MIME/security headers, immutable existing hashed assets only, revalidated index/notices, missing404 not immutable, identity range206 and conditional304. Synthetic transport only; no editor startup/speed or live deployment claim.",
+    "PASS real Caddy: exact precompressed bytes, decoded identity, MIME/security headers, sandboxed pages and 404s, immutable existing hashed assets only, revalidated index/notices, missing404 not immutable, identity range206 and conditional304. Synthetic transport only; no editor startup/speed or live deployment claim.",
   );
 } finally {
   if (created) docker(["rm", "--force", container]);
