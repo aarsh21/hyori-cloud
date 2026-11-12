@@ -277,53 +277,56 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
   const clip = await tileState(page, CLIP);
   const thumbnailUrl = String(photo.src);
 
-  await report.check("a thumbnail is a small WebP, revalidated, through the real host", async () => {
-    const reply = await page.evaluate(async (target) => {
-      const read = async (range: string | null) => {
-        const response = await fetch(target, range === null ? {} : { headers: { Range: range } });
-        const body = await response.arrayBuffer();
+  await report.check(
+    "a thumbnail is a small WebP, revalidated, through the real host",
+    async () => {
+      const reply = await page.evaluate(async (target) => {
+        const read = async (range: string | null) => {
+          const response = await fetch(target, range === null ? {} : { headers: { Range: range } });
+          const body = await response.arrayBuffer();
+
+          return {
+            status: response.status,
+            bytes: body.byteLength,
+            contentType: response.headers.get("content-type"),
+            cacheControl: response.headers.get("cache-control"),
+            etag: response.headers.get("etag"),
+            contentTypeOptions: response.headers.get("x-content-type-options"),
+          };
+        };
+
+        const whole = await read(null);
+        const conditional = await fetch(target, { headers: { "If-None-Match": whole.etag! } });
 
         return {
-          status: response.status,
-          bytes: body.byteLength,
-          contentType: response.headers.get("content-type"),
-          cacheControl: response.headers.get("cache-control"),
-          etag: response.headers.get("etag"),
-          contentTypeOptions: response.headers.get("x-content-type-options"),
+          whole,
+          part: await read("bytes=0-99"),
+          conditional: {
+            status: conditional.status,
+            bytes: (await conditional.arrayBuffer()).byteLength,
+          },
         };
-      };
+      }, thumbnailUrl);
 
-      const whole = await read(null);
-      const conditional = await fetch(target, { headers: { "If-None-Match": whole.etag! } });
-
-      return {
-        whole,
-        part: await read("bytes=0-99"),
-        conditional: {
-          status: conditional.status,
-          bytes: (await conditional.arrayBuffer()).byteLength,
-        },
-      };
-    }, thumbnailUrl);
-
-    report.observe("thumbnail response", {
-      ...reply,
-      originalBytes: { photo: files.photo, clip: files.clip },
-    });
-    assert.equal(reply.whole.status, 200);
-    assert.equal(reply.whole.contentType, "image/webp");
-    assert.equal(reply.whole.cacheControl, "private, no-cache");
-    assert.ok(reply.whole.etag);
-    assert.equal(reply.conditional.status, 304);
-    assert.equal(reply.conditional.bytes, 0);
-    assert.equal(reply.whole.contentTypeOptions, "nosniff");
-    assert.ok(reply.whole.bytes <= 256 * 1024, `${reply.whole.bytes} bytes`);
-    assert.equal(reply.part.status, 206);
-    assert.ok(
-      front.trace.some(({ path, status }) => path === thumbnailUrl && status === 200),
-      "the gateway, and so the host behind it, didn't serve this",
-    );
-  });
+      report.observe("thumbnail response", {
+        ...reply,
+        originalBytes: { photo: files.photo, clip: files.clip },
+      });
+      assert.equal(reply.whole.status, 200);
+      assert.equal(reply.whole.contentType, "image/webp");
+      assert.equal(reply.whole.cacheControl, "private, no-cache");
+      assert.ok(reply.whole.etag);
+      assert.equal(reply.conditional.status, 304);
+      assert.equal(reply.conditional.bytes, 0);
+      assert.equal(reply.whole.contentTypeOptions, "nosniff");
+      assert.ok(reply.whole.bytes <= 256 * 1024, `${reply.whole.bytes} bytes`);
+      assert.equal(reply.part.status, 206);
+      assert.ok(
+        front.trace.some(({ path, status }) => path === thumbnailUrl && status === 200),
+        "the gateway, and so the host behind it, didn't serve this",
+      );
+    },
+  );
 
   await report.check("opening a photo shows the original, not its thumbnail", async () => {
     await tile(page, PHOTO).click();
