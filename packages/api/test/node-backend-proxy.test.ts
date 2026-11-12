@@ -144,6 +144,42 @@ test("Node transport decodes compressed upstream responses with Fetch-compatible
   }
 });
 
+test("an early upload rejection closes the gateway hop rather than reusing an unfinished body", async () => {
+  const fixture = await backend((_request, response) => {
+    response.writeHead(503, { Connection: "close", "Content-Type": "application/json" });
+    response.end(
+      JSON.stringify({ ok: false, error: { code: "service.unavailable", message: "Offline" } }),
+    );
+  });
+
+  const controller = new AbortController();
+
+  try {
+    const init: RequestInit & { duplex: "half" } = {
+      method: "PUT",
+      headers: { Origin: origin, "Content-Length": "8388608" },
+      body: new ReadableStream<Uint8Array>({
+        start(stream) {
+          stream.enqueue(new Uint8Array(1024));
+        },
+      }),
+      duplex: "half",
+      signal: controller.signal,
+    };
+
+    const response = await createNodeBackendProxy({ origin, backendUrl: fixture.url })(
+      new Request(`${origin}/api/storage/uploads/upload1/1`, init),
+    );
+
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("connection"), "close");
+    assert.equal((await response.json()).error.code, "service.unavailable");
+  } finally {
+    controller.abort();
+    fixture.close();
+  }
+});
+
 test(
   "Node transport sends upload chunks before source completion and forwards cancellation",
   { timeout: 5000 },

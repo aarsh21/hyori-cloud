@@ -74,6 +74,44 @@ test("fully received invalid JSON and invalid envelopes remain protocol failures
   }
 });
 
+test("gateway unavailable statuses without an RPC envelope are retryable unavailable failures", async () => {
+  for (const status of [502, 503, 504]) {
+    for (const body of ["", "<html>Gateway unavailable</html>", '{"error":"upstream"}']) {
+      const client = createClient({ fetch: async () => new Response(body, { status }) });
+
+      try {
+        await expect(client.rpc.auth.status({})).rejects.toMatchObject({
+          code: "service.unavailable",
+        });
+      } finally {
+        client.dispose();
+      }
+    }
+  }
+});
+
+test("gateway status does not hide a valid declared RPC error or a malformed success", async () => {
+  const client = createClient({
+    fetch: async () =>
+      Response.json(
+        { ok: false, error: { code: "access.denied", message: "Denied" } },
+        { status: 503 },
+      ),
+  });
+
+  const malformed = createClient({
+    fetch: async () => Response.json({ ok: true, value: "invalid" }, { status: 502 }),
+  });
+
+  try {
+    await expect(client.rpc.auth.status({})).rejects.toMatchObject({ code: "access.denied" });
+    await expect(malformed.rpc.auth.status({})).rejects.toMatchObject({ code: "SDK_TRANSPORT" });
+  } finally {
+    client.dispose();
+    malformed.dispose();
+  }
+});
+
 test("cancellation after RPC headers remains cancellation even when reading the body fails", async () => {
   const controller = new AbortController();
 

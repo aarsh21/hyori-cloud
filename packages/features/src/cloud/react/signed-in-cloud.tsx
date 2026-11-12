@@ -1,19 +1,19 @@
-import { lazy, Suspense } from "@hyori-cloud/lib/react";
+import { Suspense } from "@hyori-cloud/lib/react";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { CloudContent } from "#features/cloud/react/cloud-content.tsx";
-import { loadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
+import { lazyScreen, loadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { CloudShell } from "#features/cloud/react/cloud-shell.tsx";
 import { FocusFallback } from "#features/cloud/react/focus-fallback.tsx";
 import { UploadTray } from "#features/uploads/react/upload-tray.tsx";
 import { UploadsProvider } from "#features/uploads/react/uploads-provider.tsx";
 
-const EditorScreen = lazy(async () => ({ default: (await loadEditorScreen()).EditorScreen }));
+const EditorScreen = lazyScreen(loadEditorScreen, (module) => module.EditorScreen);
 
 type SignedInLocation = Exclude<
   CloudLocation,
-  { section: "invite" | "publicShare" | "publicEditor" }
+  { section: "invite" | "passwordReset" | "publicShare" | "publicEditor" }
 >;
 
 const ACCOUNT_DESTINATION = { kind: "folder", folderId: null } as const;
@@ -59,7 +59,7 @@ function SignedInLocationScreen({ location }: { location: SignedInLocation }) {
 
   return (
     <CloudShell>
-      <CloudContent location={location} />
+      <CloudContent key={location.section} location={location} />
     </CloudShell>
   );
 }

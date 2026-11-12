@@ -1,5 +1,7 @@
 pub mod auth {
     pub mod api;
+    pub mod password_api;
+    pub mod passwords;
     pub mod service;
 }
 pub mod files {
@@ -24,6 +26,7 @@ pub mod editors {
     pub(crate) mod service;
 }
 pub mod uploads {
+    pub(crate) mod admission;
     pub mod api;
     pub mod cleanup;
     pub(crate) mod db;

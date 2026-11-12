@@ -22,7 +22,13 @@ export async function addUser(page: Page, name: string, email: string, password:
 }
 
 export async function openUsers(page: Page) {
-  await page.getByRole("link", { name: "Users" }).first().click();
+  if (await page.getByRole("button", { name: "Account", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "Account", exact: true }).press("Enter");
+    await page.getByRole("menuitem", { name: "Users", exact: true }).press("Enter");
+  } else {
+    await page.getByRole("link", { name: "Users" }).first().click();
+  }
+
   await page.getByRole("heading", { name: "Users" }).waitFor();
 }
 
@@ -45,6 +51,8 @@ async function administration(run: CoreRun) {
   await report.check("an admin can add a user", () =>
     addUser(page, "Imran Qureshi", email, password),
   );
+
+  const memberId = run.stack.sql(`SELECT id FROM hyori_users WHERE email='${email}'`);
 
   const memberContext = await freshContext(run);
   const member = await openPage(run, memberContext);
@@ -135,6 +143,17 @@ async function administration(run: CoreRun) {
     await member.getByRole("heading", { name: "Sign in" }).waitFor();
   });
 
+  await report.check("account purge removes its file, version and object metadata", () => {
+    assert.notEqual(memberId, "");
+
+    const remaining = run.stack.sql(`SELECT
+      (SELECT count(*) FROM hyori_items WHERE owner_id='${memberId}') +
+      (SELECT count(*) FROM hyori_versions WHERE owner_id='${memberId}') +
+      (SELECT count(*) FROM hyori_objects WHERE owner_id='${memberId}')`);
+
+    assert.equal(remaining, "0");
+  });
+
   await report.check(
     "an invite link creates an account without an admin choosing a password",
     async () => {
@@ -154,7 +173,7 @@ async function administration(run: CoreRun) {
 
       await guest.getByRole("heading", { name: "Create your account" }).waitFor();
       await guest.getByLabel("Name", { exact: true }).fill("Ines Duarte");
-      await guest.getByLabel("Email").fill("ines@example.test");
+      await guest.getByLabel("Email").fill(`ines-${randomBytes(6).toString("hex")}@example.test`);
       await guest.getByLabel("Password", { exact: true }).fill(accountPassword());
       await guest.getByRole("button", { name: "Create account" }).click();
       await guest.getByText("No files yet").waitFor();
@@ -167,5 +186,8 @@ async function administration(run: CoreRun) {
 }
 
 export async function runAdminScenarios(run: CoreRun) {
-  await run.report.scenario("Administration", () => administration(run));
+  await run.report.scenario(
+    run.contextOptions?.isMobile ? "Administration (phone)" : "Administration",
+    () => administration(run),
+  );
 }

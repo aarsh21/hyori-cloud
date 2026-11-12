@@ -45,4 +45,5 @@ COPY --from=builder /usr/local/bin/hyori-server /usr/local/bin/hyori-server
 USER 10001:10001
 ENV APP_ENV=production HYORI_SERVER_BIND=0.0.0.0:3002
 EXPOSE 3002
+HEALTHCHECK --interval=5s --timeout=5s --start-period=10s --retries=3 CMD ["/usr/local/bin/hyori-server", "--health"]
 ENTRYPOINT ["/usr/local/bin/hyori-server"]

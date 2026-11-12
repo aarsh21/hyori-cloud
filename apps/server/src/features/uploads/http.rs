@@ -46,11 +46,6 @@ pub(crate) async fn put(
     Path((id, number)): Path<(String, u32)>,
     request: Request<Body>,
 ) -> Result<Response, ApiError> {
-    let permit = state
-        .uploads
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| ApiError::unavailable())?;
     validate_origin(request.headers(), &state.config.origin)?;
     if request.headers().get_all("content-length").iter().count() != 1
         || request.headers().contains_key("transfer-encoding")
@@ -85,7 +80,7 @@ pub(crate) async fn put(
     );
     let service = UploadsService::new(state.clone(), context);
     let acknowledged = service
-        .write_part(id, number, length, Box::pin(body), permit)
+        .write_part(id, number, length, Box::pin(body))
         .await?;
     Ok(Json(serde_json::json!({"ok":true,"value":acknowledged})).into_response())
 }
@@ -168,7 +163,7 @@ impl Drop for PrincipalUser {
 impl PrincipalLimiter {
     /// Wait up to `wait` for one of `limit` slots, unless `limit + queue` requests already hold
     /// or await this principal's slots. Waiting holds no process-wide download admission.
-    async fn acquire(
+    pub(crate) async fn acquire(
         &self,
         key: String,
         limit: usize,

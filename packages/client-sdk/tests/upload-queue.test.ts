@@ -369,6 +369,41 @@ describe("public vanilla upload queue with explicit task fakes", () => {
     sdk.dispose();
   });
 
+  test("classifies pending uploads by this browser's validated checkpoints without inferring from names", async () => {
+    const checkpoint: UploadCheckpoint = {
+      version: 1,
+      uploadId: "upload_saved",
+      file: { name: "same.txt", size: 7, type: "text/plain", lastModified: 42 },
+    };
+
+    const sdk = createClient({
+      fetch: async () =>
+        Response.json({
+          ok: true,
+          value: {
+            items: ["upload_saved", "upload_elsewhere"].map((uploadId) => ({
+              uploadId,
+              name: "same.txt",
+              size: 7,
+              expiresAt: "2026-11-13T00:00:00Z",
+            })),
+            cursor: null,
+          },
+        }),
+    });
+
+    const queue = createUploadQueue(sdk, {
+      read: () => [checkpoint, { version: "invalid", uploadId: "upload_elsewhere" }],
+      write: () => undefined,
+    });
+
+    const page = await queue.listPending({ cursor: null, limit: 100 });
+    expect(page.items.map((upload) => upload.checkpoint)).toEqual([checkpoint, null]);
+    expect(page.cursor).toBeNull();
+    queue.dispose();
+    sdk.dispose();
+  });
+
   test("keeps queued resume checkpoints, validates metadata once, and pauses owned tasks on disposal", () => {
     const sdk = createClient();
     const original = file();

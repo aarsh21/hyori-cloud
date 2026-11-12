@@ -21,6 +21,7 @@ export type CoreRun = {
   readonly worker: string | null;
   readonly front: FrontHandler;
   readonly media: MediaKit;
+  readonly contextOptions?: Parameters<Browser["newContext"]>[0];
   readonly web: { readonly publicDirectory: string; readonly backendUrl: string };
 };
 
@@ -37,6 +38,7 @@ export async function freshContext(
   const context = await run.browser.newContext({
     viewport: { width: 1280, height: 800 },
     acceptDownloads: true,
+    ...run.contextOptions,
     ...options,
   });
 
@@ -68,7 +70,10 @@ async function authScenario(run: CoreRun) {
   await report.check("a fresh server asks for setup", () =>
     page.getByRole("heading", { name: "Set up this server" }).waitFor(),
   );
-  await report.shot(page, "setup-desktop-light");
+  await report.shot(
+    page,
+    run.contextOptions?.isMobile ? "setup-phone-light" : "setup-desktop-light",
+  );
 
   await report.check("a wrong setup token is refused, keeping what was typed", async () => {
     await setupAdmin(page, {
@@ -132,7 +137,9 @@ async function authScenario(run: CoreRun) {
   await report.check(
     "signing out returns to sign-in, and a wrong password stays there",
     async () => {
-      await page.getByRole("button", { name: /Noor Haddad/ }).click();
+      await page
+        .getByRole("button", { name: run.contextOptions?.isMobile ? "Account" : /Noor Haddad/ })
+        .click();
       await page.getByRole("menuitem", { name: "Sign out" }).click();
       await page.getByRole("heading", { name: "Sign in" }).waitFor();
       await signIn(page, OWNER.email, "definitely wrong password");

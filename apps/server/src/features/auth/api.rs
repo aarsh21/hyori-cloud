@@ -122,7 +122,7 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
             })
         },
     )?;
-    Ok(())
+    super::password_api::bind(registry)
 }
 
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
@@ -148,5 +148,5 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         ["auth"],
         true
     );
-    Ok(())
+    super::password_api::register(m)
 }

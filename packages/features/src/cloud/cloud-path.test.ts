@@ -11,6 +11,7 @@ const locations: CloudLocation[] = [
   { section: "album", albumId: "a1" },
   { section: "admin" },
   { section: "invite", token: "tok/en" },
+  { section: "passwordReset", token: "tok/en" },
   { section: "publicShare", token: "tok", folderId: null },
   { section: "publicShare", token: "tok", folderId: "f1" },
 ];

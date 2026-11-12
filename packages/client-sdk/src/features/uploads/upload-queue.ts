@@ -1,5 +1,7 @@
 import { Schema } from "@hyori-cloud/lib/effect";
 import type { Client } from "#client-sdk/client";
+import type { InputOf } from "#client-sdk/inference";
+import type { RequestOptions } from "#client-sdk/operation-catalog";
 import { normalizeError, SDKError } from "#client-sdk/errors";
 import { confirmUploadAbort, normalizeUploadError } from "#client-sdk/features/uploads/upload";
 import {
@@ -400,6 +402,25 @@ export function createUploadQueue(
     getPersistenceError: () => persistenceError,
     getServerEntries: () => emptyEntries,
     getServerSummary: () => emptySummary,
+    /** Discovery works across browsers. A null checkpoint means cancel-only here; resumable
+     * entries still require file reselection and explicit same-file confirmation. */
+    async listPending(
+      input: InputOf<Client["rpc"]["uploads"]["pending"]>,
+      options?: RequestOptions,
+    ) {
+      assertActive();
+      const page = await sdkClient.rpc.uploads.pending(input, options);
+      const checkpoints = readCheckpoints(store);
+
+      return {
+        ...page,
+        items: page.items.map((upload) => ({
+          ...upload,
+          checkpoint:
+            checkpoints.find((checkpoint) => checkpoint.uploadId === upload.uploadId) ?? null,
+        })),
+      };
+    },
     add(files: readonly UploadFile[], parentId: string | null) {
       assertActive();
 

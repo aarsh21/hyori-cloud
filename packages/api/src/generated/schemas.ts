@@ -96,7 +96,7 @@ export const Albums = Schema.Struct({ "items": Schema.Array(Album) });
 
 export type Albums = typeof Albums.Type;
 
-export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable")), Schema.String);
+export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable")), Schema.String);
 
 export type ErrorCode = typeof ErrorCode.Type;
 
@@ -120,6 +120,10 @@ export const Breadcrumb = Schema.Struct({ "id": Id, "name": Name });
 
 export type Breadcrumb = typeof Breadcrumb.Type;
 
+export const ChangePassword = Schema.Struct({ "currentPassword": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 1024)), "newPassword": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 12), Schema.filter((value) => Array.from(value).length <= 1024)) });
+
+export type ChangePassword = typeof ChangePassword.Type;
+
 export const CreateAlbum = Schema.Struct({ "name": Name });
 
 export type CreateAlbum = typeof CreateAlbum.Type;
@@ -135,6 +139,10 @@ export type Timestamp = typeof Timestamp.Type;
 export const CreateInvite = Schema.Struct({ "email": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 254))), "expiresAt": Schema.optional(Timestamp) });
 
 export type CreateInvite = typeof CreateInvite.Type;
+
+export const CreatePasswordReset = Schema.Struct({ "userId": Id });
+
+export type CreatePasswordReset = typeof CreatePasswordReset.Type;
 
 export const CreateShare = Schema.Struct({ "expiresAt": Schema.optional(Schema.Union(Timestamp, Schema.Null)), "itemId": Id, "password": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 8), Schema.filter((value) => Array.from(value).length <= 1024))), "public": Schema.Boolean, "recipientId": Schema.optional(Schema.Union(Id, Schema.Null)), "role": ShareRole });
 
@@ -308,6 +316,26 @@ export const NewAccount = Schema.Struct({ "email": Schema.String.pipe(Schema.fil
 
 export type NewAccount = typeof NewAccount.Type;
 
+export const PasswordResetLink = Schema.Struct({ "expiresAt": Schema.String, "token": Schema.String });
+
+export type PasswordResetLink = typeof PasswordResetLink.Type;
+
+export const PasswordResetResult = Schema.Struct({ "success": intersection(Schema.Literal(true), Schema.Boolean), "userId": Id });
+
+export type PasswordResetResult = typeof PasswordResetResult.Type;
+
+export const PendingUpload = Schema.Struct({ "expiresAt": Schema.String, "name": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
+
+export type PendingUpload = typeof PendingUpload.Type;
+
+export const PendingUploads = Schema.Struct({ "cursor": Schema.Union(Id, Schema.Null), "items": Schema.Array(PendingUpload).pipe(Schema.maxItems(100)) });
+
+export type PendingUploads = typeof PendingUploads.Type;
+
+export const PendingUploadsInput = Schema.Struct({ "cursor": Schema.Union(Id, Schema.Null), "limit": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(100)) });
+
+export type PendingUploadsInput = typeof PendingUploadsInput.Type;
+
 export const PermanentDeletion = Schema.Struct({ "freedBytes": Bytes, "items": Bytes });
 
 export type PermanentDeletion = typeof PermanentDeletion.Type;
@@ -331,6 +359,10 @@ export type PutMethod = typeof PutMethod.Type;
 export const RenameFile = Schema.Struct({ "id": Id, "name": Schema.String });
 
 export type RenameFile = typeof RenameFile.Type;
+
+export const ResetPassword = Schema.Struct({ "newPassword": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 12), Schema.filter((value) => Array.from(value).length <= 1024)), "token": Schema.String.pipe(Schema.pattern(new RegExp("^[a-f0-9]{64}$", "u"))) });
+
+export type ResetPassword = typeof ResetPassword.Type;
 
 export const ResolveShare = Schema.Struct({ "token": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256)) });
 

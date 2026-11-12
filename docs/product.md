@@ -63,6 +63,14 @@ This establishes the product areas, not their detailed feature contracts or impl
 - Bootstrap must be server-authorized and atomic so concurrent requests cannot create multiple initial admins or let an unauthenticated remote visitor claim an exposed instance. The exact setup-access mechanism still needs design; setup must not reopen automatically just because accounts are deleted.
 - Password policy, rate limiting, credential storage, session handling, invite lifecycle, and account recovery still need design. Prioritize memorable strong passwords/passphrases rather than reintroducing a short PIN fallback. See Data protection for the server-readable model and remaining at-rest encryption decisions.
 
+#### Password recovery scope confirmed during production review, 2026-11-12
+
+- Signed-in people can change their own password using their current password. New passwords use the account-creation policy; other sessions end and the current one continues. Wrong-current-password attempts are limited per account.
+- Administrators can issue a one-time, limited-lifetime reset link for an active account, shown once for private handoff. The person chooses the password; the administrator does not see or set it. Completing reset ends all account sessions and cancels earlier unused links. No email delivery is required.
+- Implementation defaults: reset links last 24 hours; issuing a second link cancels the first immediately. Password change also cancels unused reset links, so an outstanding bearer link cannot undo the change. Change attempts have a separate account-wide 10-attempt/15-minute budget, matching sign-in's window without sharing its counter.
+- Individual session listing/revocation and recovery when the only administrator forgets their password remain known gaps outside this slice. The backend and generated consumption are owned separately from the account/Users interface and browser acceptance.
+- Rationale: the review lead selected this scope under aarsh's delegated product authority. This records scope and defaults, not completed interface or production acceptance.
+
 ### Data protection — E2EE deferred from v1
 
 - Use a server-readable file model for v1; defer end-to-end encryption to prioritize the selected workflows and performance goals.
@@ -384,3 +392,15 @@ Validate capabilities against the selected versions and official documentation b
 - **Decision:** Use server-readable files and defer E2EE from v1 under the user's instruction to omit it if it adds performance cost.
 - **Rationale:** The user prioritized speed over adding E2EE. It can add client-side work and materially change previews/editor workflows, although no application-specific slowdown has been measured and encryption is not inherently slow.
 - **Scope consequence:** Plan the selected server-readable workflows with HTTPS and authorization. Keep at-rest encryption/key management as separate design work, preserve the admin privacy boundary, and do not claim protection against the infrastructure operator.
+
+### 2026-11-12: unfinished-upload recovery
+
+- **Decision:** New owner uploads expire after 24 hours without a successful part transfer; existing uploads keep their original expiry. List an authenticated account's own unfinished uploads and allow cancellation from any browser. Distinguish the 128-reservation limit from a file conflict.
+- **Rationale:** The production-readiness lead, acting on aarsh's delegated product decisions, chose bounded idle reservations and account-wide discovery so lost browser checkpoints cannot permanently trap capacity.
+- **Scope consequence:** Rust owns the listing and limit-error contracts. The SDK marks which listed uploads have a valid local checkpoint; those still require file reselection to resume. The Opus interface worker owns the list and limit message; this server/SDK change adds neither screens nor new interface copy.
+
+### 2026-11-12: fair upload admission
+
+- **Decision:** Bound upload operations per authenticated account (across sessions) or anonymous visitor, and additionally per applicable public link, inside the sixteen per-process upload slots. The implementation uses two per principal and four per link, matching two concurrent SDK files with serial parts and permitting two visitor queues per link.
+- **Rationale:** The production-readiness lead chose separate principal/link budgets so one slow contributor cannot prevent unrelated accounts from uploading. Public grants can be reissued, so grant identity alone is insufficient.
+- **Scope consequence:** Begin, part and complete share admission; rejected requests hold no global slot and no server queue. These are per-process budgets, not cluster-wide quotas. Thirty-second body idle and 125-second whole-worker bounds limit slow part lifetimes.

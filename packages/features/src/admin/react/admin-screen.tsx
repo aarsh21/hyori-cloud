@@ -22,6 +22,7 @@ import { AdminUserRow } from "#features/admin/react/admin-user-row.tsx";
 import { CreateUserDialog } from "#features/admin/react/create-user-dialog.tsx";
 import { DeleteUserDialog } from "#features/admin/react/delete-user-dialog.tsx";
 import { InviteDialog } from "#features/admin/react/invite-dialog.tsx";
+import { PasswordResetDialog } from "#features/admin/react/password-reset-dialog.tsx";
 import { QuotaDialog } from "#features/admin/react/quota-dialog.tsx";
 import { useAdminUsers } from "#features/admin/react/use-admin.ts";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
@@ -35,6 +36,7 @@ type AdminDialog =
   | { readonly kind: "create" }
   | { readonly kind: "invite" }
   | { readonly kind: "quota"; readonly userId: string }
+  | { readonly kind: "passwordReset"; readonly userId: string }
   | { readonly kind: "delete"; readonly userId: string };
 
 export function AdminScreen() {
@@ -84,6 +86,9 @@ function AdminUsers() {
                   user={item}
                   onSetQuota={() =>
                     setActive({ dialog: { kind: "quota", userId: item.id }, open: true })
+                  }
+                  onResetPassword={() =>
+                    setActive({ dialog: { kind: "passwordReset", userId: item.id }, open: true })
                   }
                   onDelete={() =>
                     setActive({ dialog: { kind: "delete", userId: item.id }, open: true })
@@ -158,6 +163,19 @@ function AdminDialogs({
 
       return target === undefined ? null : (
         <QuotaDialog key={target.id} user={target} open={open} onOpenChange={onOpenChange} />
+      );
+    }
+
+    case "passwordReset": {
+      const target = users.find((candidate) => candidate.id === dialog.userId);
+
+      return target === undefined ? null : (
+        <PasswordResetDialog
+          key={target.id}
+          user={target}
+          open={open}
+          onOpenChange={onOpenChange}
+        />
       );
     }
 

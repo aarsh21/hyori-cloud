@@ -8,7 +8,7 @@ export type RustStack = {
   readonly backendUrl: string;
   /** How a container on this stack's private network reaches the backend, and nothing more. */
   readonly webBackend: WebImageBackend;
-  readonly restartServer: () => Promise<void>;
+  readonly restartServer: (whileStopped?: () => Promise<void>) => Promise<void>;
   /** Stop and start the isolated worker. It has no network, so neither disturbs the host's. */
   readonly stopWorker: () => void;
   readonly startWorker: () => Promise<void>;
@@ -327,10 +327,15 @@ export async function startRustStack(
       backendUrl,
       // The server shares PostgreSQL's network identity, so this is that container's name.
       webBackend: { network, url: `http://${postgres}:3002` },
-      async restartServer() {
+      async restartServer(whileStopped) {
         docker(["stop", "--time", "10", server]);
-        docker(["start", server]);
-        await ready();
+
+        try {
+          await whileStopped?.();
+        } finally {
+          docker(["start", server]);
+          await ready();
+        }
       },
       stopWorker() {
         docker(["stop", "--time", "2", worker]);

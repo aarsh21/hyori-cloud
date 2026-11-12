@@ -1,5 +1,6 @@
 export {
   Children,
+  Component,
   Fragment,
   Suspense,
   cloneElement,

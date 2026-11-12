@@ -32,6 +32,23 @@ crate::wire_struct!(IncomingUploads {
     #[schemars(length(max = 128))]
     items: Vec<IncomingUpload>
 });
+crate::wire_struct!(PendingUploadsInput {
+    cursor: Nullable<Id>,
+    #[schemars(range(min = 1, max = 100))]
+    limit: u32
+});
+crate::wire_struct!(PendingUpload {
+    upload_id: Id,
+    #[schemars(length(max = 255))]
+    name: String,
+    size: Bytes,
+    expires_at: String
+});
+crate::wire_struct!(PendingUploads {
+    #[schemars(length(max = 100))]
+    items: Vec<PendingUpload>,
+    cursor: Nullable<Id>
+});
 crate::wire_enum!(PutMethod { Put => "PUT" });
 crate::wire_struct!(UploadPart { url: String, method: PutMethod, headers: BTreeMap<String, String> });
 pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResult<()> {
@@ -90,17 +107,26 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
                 .map(RpcResult::value)
         },
     )?;
+    registry.bind::<PendingUploadsInput, PendingUploads, _, _>(
+        "uploads.pending",
+        |state, context, input| async move {
+            UploadsService::new(state, context)
+                .pending(input)
+                .await
+                .map(RpcResult::value)
+        },
+    )?;
     Ok(())
 }
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
-    crate::schemas!(m; BeginUpload, UploadInput, UploadPartInput, UploadStatus, UploadPart, AcknowledgedPart, IncomingUploads);
+    crate::schemas!(m; BeginUpload, UploadInput, UploadPartInput, UploadStatus, UploadPart, AcknowledgedPart, IncomingUploads, PendingUploadsInput, PendingUploads);
     crate::operation!(
         m,
         "uploads.begin",
         BeginUpload,
         UploadStatus,
         "mutation",
-        [],
+        ["uploads"],
         false
     );
     crate::operation!(
@@ -127,7 +153,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         UploadInput,
         FileEntry,
         "mutation",
-        ["files", "auth", "photos", "admin", "media"],
+        ["files", "auth", "photos", "admin", "media", "uploads"],
         false
     );
     crate::operation!(
@@ -144,6 +170,15 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         "uploads.incoming",
         Empty,
         IncomingUploads,
+        "query",
+        [],
+        false
+    );
+    crate::operation!(
+        m,
+        "uploads.pending",
+        PendingUploadsInput,
+        PendingUploads,
         "query",
         [],
         false

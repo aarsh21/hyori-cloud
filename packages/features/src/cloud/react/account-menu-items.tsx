@@ -1,4 +1,4 @@
-import { Link2, LogOut, Users } from "@hyori-cloud/lib/icons";
+import { KeyRound, Link2, LogOut, UploadCloud, Users } from "@hyori-cloud/lib/icons";
 import { AppAccountSummary } from "@hyori-cloud/ui/components/app-account";
 import { AppearanceMenuItems } from "@hyori-cloud/ui/components/appearance-menu-items";
 import {
@@ -16,10 +16,14 @@ import { formatUsage } from "#features/shared/format.ts";
 export function AccountMenuItems({
   signingOut,
   onShowAccountId,
+  onChangePassword,
+  onShowPendingUploads,
   onSignOut,
 }: {
   signingOut: boolean;
   onShowAccountId: () => void;
+  onChangePassword: () => void;
+  onShowPendingUploads: () => void;
   onSignOut: () => void;
 }) {
   const user = useCurrentUser();
@@ -40,6 +44,14 @@ export function AccountMenuItems({
       <DropdownMenuItem onClick={onShowAccountId}>
         <Link2 />
         Your account ID
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onChangePassword}>
+        <KeyRound />
+        Change password…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onShowPendingUploads}>
+        <UploadCloud />
+        Unfinished uploads
       </DropdownMenuItem>
       {user.role === "admin" ? (
         <DropdownMenuItem onClick={() => navigateTo({ section: "admin" })} className="md:hidden">

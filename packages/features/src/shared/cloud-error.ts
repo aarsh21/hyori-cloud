@@ -4,7 +4,7 @@ export type CloudError = ClientError;
 
 export type CloudErrorCode = CloudError["code"];
 
-type ErrorCopy = { readonly title: string; readonly detail?: string };
+export type ErrorCopy = { readonly title: string; readonly detail?: string };
 
 // Keyed by the declared union, so a new API failure fails typechecking here until it has copy.
 const COPY: Record<CloudErrorCode, ErrorCopy> = {
@@ -24,6 +24,12 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
   "resource.conflict": {
     title: "That couldn’t be applied",
     detail: "It conflicts with something that already exists or just changed.",
+  },
+  "uploads.limitReached": {
+    title: "Too many unfinished uploads",
+    // Upload rows show only the detail, so it carries the reason as well as the way out.
+    detail:
+      "You’ve reached the limit on unfinished uploads. Cancel some in Unfinished uploads, in your account menu, then try again.",
   },
   "storage.quotaExceeded": {
     title: "Not enough storage",
