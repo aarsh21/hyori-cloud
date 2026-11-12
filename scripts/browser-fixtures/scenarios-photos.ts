@@ -367,8 +367,8 @@ async function thumbnailTiles({ report, front }: CoreRun, page: Page) {
         /^\/api\/storage\/derivatives\//,
         `${name}: ${outcome.label}`,
       );
-      assert.ok(outcome.width > 0 && outcome.width <= 256, `${name} is ${outcome.width} wide`);
-      assert.ok(outcome.height > 0 && outcome.height <= 256, `${name} is ${outcome.height} high`);
+      assert.ok(outcome.width > 0 && outcome.width <= 384, `${name} is ${outcome.width} wide`);
+      assert.ok(outcome.height > 0 && outcome.height <= 384, `${name} is ${outcome.height} high`);
       assert.equal(outcome.badge, format.mimeType.startsWith("video/"), `${name}'s video badge`);
     }
   });

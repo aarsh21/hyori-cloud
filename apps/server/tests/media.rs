@@ -5,7 +5,7 @@ mod media_worker;
 #[path = "support/storage.rs"]
 mod storage;
 mod support;
-use hyori_media_worker::{MAX_INPUT, MAX_OUTPUT, png_dimensions};
+use hyori_media_worker::{MAX_INPUT, MAX_OUTPUT, webp_dimensions};
 use hyori_server::{
     auth::random_token,
     db::sql,
@@ -285,7 +285,7 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
             .unwrap();
         let output = response.bytes().await.unwrap();
         assert!(output.len() <= MAX_OUTPUT);
-        assert!(png_dimensions(&output).is_some());
+        assert!(webp_dimensions(&output).is_some());
         worker.decode_output(&output);
     }
     let oriented = include_bytes!("fixtures/media/oriented.jpg");
@@ -299,7 +299,7 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
         .unwrap();
     assert_eq!(response.status(), 200);
     let bytes = response.bytes().await.unwrap();
-    assert_eq!(png_dimensions(&bytes), Some((16, 32)));
+    assert_eq!(webp_dimensions(&bytes), Some((16, 32)));
     assert!(!bytes.windows(4).any(|w| w == b"Exif"));
     worker.decode_output(&bytes);
     for (mime, bytes) in [
@@ -370,6 +370,58 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
         .await
         .unwrap();
     assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+#[ignore = "real isolated FFmpeg worker with colour-tagged still images"]
+async fn isolated_worker_derives_colour_tagged_stills_without_output_metadata() {
+    let worker = media_worker::Worker::start().await;
+    let client = worker.client();
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../media-worker/tests/fixtures/colour");
+    let mut failures = Vec::new();
+    for (name, mime) in [
+        ("srgb.png", "image/png"),
+        ("gamma.png", "image/png"),
+        ("chroma.png", "image/png"),
+        ("cicp.png", "image/png"),
+        ("combined.png", "image/png"),
+        ("plain.png", "image/png"),
+        ("icc.webp", "image/webp"),
+        ("icc.gif", "image/gif"),
+        ("srgb.avif", "image/avif"),
+        ("icc.jpg", "image/jpeg"),
+    ] {
+        let source = std::fs::read(directory.join(name)).unwrap();
+        let response = client
+            .post("http://localhost/v1/derive")
+            .header("x-hyori-media-type", mime)
+            .body(source)
+            .send()
+            .await
+            .unwrap();
+        let status = response.status();
+        let mime = response.headers()["content-type"].clone();
+        let width = response.headers().get("x-hyori-width").cloned();
+        let height = response.headers().get("x-hyori-height").cloned();
+        let bytes = response.bytes().await.unwrap();
+        println!("{name}: {status}, {mime:?}, {} bytes", bytes.len());
+        if status != 200 {
+            failures.push(format!(
+                "{name}: {status}: {}",
+                String::from_utf8_lossy(&bytes)
+            ));
+            continue;
+        }
+        if mime != "image/webp" || webp_dimensions(&bytes) != Some((244, 183)) {
+            failures.push(format!("{name}: unexpected thumbnail envelope or geometry"));
+            continue;
+        }
+        assert_eq!(width.unwrap(), "244", "{name}");
+        assert_eq!(height.unwrap(), "183", "{name}");
+        worker.decode_output(&bytes);
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[tokio::test]
@@ -457,7 +509,7 @@ async fn durable_derivatives_preserve_originals_scope_restore_quota_and_purge_la
         assert_eq!(media.value()["status"], "ready", "{}", media.body);
         let response = get(&server, &cookie, media.value()["url"].as_str().unwrap()).await;
         assert_eq!(response.status(), 200);
-        assert_eq!(response.headers()["content-type"], "image/png");
+        assert_eq!(response.headers()["content-type"], "image/webp");
         assert_eq!(response.headers()["cache-control"], "private, no-cache");
         assert!(response.headers().contains_key("etag"));
         assert_eq!(response.headers()["x-content-type-options"], "nosniff");

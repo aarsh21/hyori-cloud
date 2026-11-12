@@ -454,6 +454,61 @@ async fn migrations_refuse_foreign_data_without_touching_it() {
 }
 
 #[tokio::test]
+#[ignore = "real PostgreSQL migration transaction and DDL event observation"]
+async fn thumbnail_migration_restores_the_migrator_lock_timeout() {
+    let postgres = Postgres::start().await;
+    let db = hyori_server::db::connect(&postgres.config).await.unwrap();
+    // Observe the actual migrator, without splitting its SQL or adding a production test hook.
+    db.execute_unprepared(
+        "CREATE TABLE hyori_migrations (
+            version integer PRIMARY KEY, checksum text NOT NULL,
+            applied_at timestamptz NOT NULL DEFAULT now(),
+            thumbnail_alter_timeout text, following_statement_timeout text
+        );
+        CREATE FUNCTION observe_thumbnail_alter() RETURNS event_trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF position('ADD CONSTRAINT hyori_media_artifacts_geometry' IN current_query()) > 0 THEN
+                PERFORM set_config('hyori_test.thumbnail_alter_timeout', current_setting('lock_timeout'), true);
+            END IF;
+        END $$;
+        CREATE EVENT TRIGGER observe_thumbnail_alter ON ddl_command_start
+            WHEN TAG IN ('ALTER TABLE') EXECUTE FUNCTION observe_thumbnail_alter();
+        CREATE FUNCTION observe_migration_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF NEW.version = 20 THEN
+                NEW.thumbnail_alter_timeout := current_setting('hyori_test.thumbnail_alter_timeout', true);
+                NEW.following_statement_timeout := current_setting('lock_timeout');
+            END IF;
+            RETURN NEW;
+        END $$;
+        CREATE TRIGGER observe_migration_insert BEFORE INSERT ON hyori_migrations
+            FOR EACH ROW EXECUTE FUNCTION observe_migration_insert();",
+    )
+    .await
+    .unwrap();
+    hyori_server::db::migrate(&db).await.unwrap();
+    let row = db
+        .query_one_raw(sql(
+            "SELECT thumbnail_alter_timeout, following_statement_timeout FROM hyori_migrations WHERE version = 20",
+            vec![],
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        row.try_get::<String>("", "thumbnail_alter_timeout")
+            .unwrap(),
+        "2s"
+    );
+    assert_eq!(
+        row.try_get::<String>("", "following_statement_timeout")
+            .unwrap(),
+        "5s"
+    );
+    db.close().await.unwrap();
+}
+
+#[tokio::test]
 #[ignore = "real PostgreSQL bounded authentication cleanup across independent pools"]
 async fn authentication_cleanup_is_bounded_restart_safe_and_preserves_live_authority() {
     use hyori_server::{

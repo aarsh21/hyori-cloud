@@ -10,7 +10,7 @@ use axum::{
     routing::post,
 };
 use futures_util::StreamExt;
-use hyori_media_worker::{ErrorBody, Failure, Format, MAX_INPUT, png_dimensions};
+use hyori_media_worker::{ErrorBody, Failure, Format, MAX_INPUT, webp_dimensions};
 use std::{
     os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
     path::PathBuf,
@@ -95,10 +95,10 @@ async fn derive(request: Request<Body>) -> Result<Response, Error> {
     let output = decode::derive(directory.path(), format)
         .await
         .map_err(Error)?;
-    let (width, height) = png_dimensions(&output).ok_or(Error(Failure::InvalidMedia))?;
+    let (width, height) = webp_dimensions(&output).ok_or(Error(Failure::InvalidMedia))?;
     Response::builder()
         .status(200)
-        .header("content-type", "image/png")
+        .header("content-type", "image/webp")
         .header("content-length", output.len())
         .header("x-hyori-width", width)
         .header("x-hyori-height", height)

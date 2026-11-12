@@ -1,4 +1,4 @@
-use hyori_media_worker::{Failure, Format, MAX_DURATION, MAX_OUTPUT, MAX_PIXELS, png_dimensions};
+use hyori_media_worker::{Failure, Format, MAX_DURATION, MAX_OUTPUT, MAX_PIXELS, webp_dimensions};
 use serde::Deserialize;
 use std::{path::Path, process::Stdio, time::Duration};
 use tokio::{
@@ -149,18 +149,22 @@ pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, Failure
         "-filter_complex_threads",
         "1",
         "-vf",
-        "scale=w='min(256,iw)':h='min(256,ih)':force_original_aspect_ratio=decrease:flags=bilinear,sidedata=mode=delete,setsar=1",
+        "scale=w='min(244,iw)':h='min(244,ih)':force_original_aspect_ratio=decrease:flags=bilinear,sidedata=mode=delete,setsar=1",
         "-pix_fmt",
-        "rgb24",
+        "yuv420p",
         "-threads",
         "1",
         "-c:v",
-        "png",
+        "libwebp",
+        "-quality",
+        "75",
+        "-compression_level",
+        "4",
         "-f",
-        "image2pipe",
+        "webp",
         "pipe:1",
     ]);
     let bytes = command(encoder, MAX_OUTPUT, 20).await?;
-    png_dimensions(&bytes).ok_or(Failure::InvalidMedia)?;
+    webp_dimensions(&bytes).ok_or(Failure::InvalidMedia)?;
     Ok(bytes)
 }

@@ -168,6 +168,10 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             19_i32,
             include_str!("../migrations/0019_link_capabilities.sql"),
         ),
+        (
+            20_i32,
+            include_str!("../migrations/0020_thumbnail_geometry.sql"),
+        ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
         let old = tx

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
  * until the element first nears the screen. Registered as a host adapter so portable tiles can
  * request previews on demand without touching the effect.
  */
-export function useEnteredViewport<Target extends Element>() {
+export function useEnteredViewport<Target extends Element>(rootMargin = "200px") {
   const [entered, setEntered] = useState(false);
   const ref = useRef<Target>(null);
 
@@ -18,13 +18,13 @@ export function useEnteredViewport<Target extends Element>() {
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) setEntered(true);
       },
-      { rootMargin: "200px" },
+      { rootMargin },
     );
 
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [entered]);
+  }, [entered, rootMargin]);
 
   return [entered, ref] as const;
 }
