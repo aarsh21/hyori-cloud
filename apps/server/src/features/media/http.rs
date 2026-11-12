@@ -37,14 +37,21 @@ pub(crate) async fn get(
         let item=policy::authorize(tx,&actor,&id,Action::Read,false).await?;
         let row=tx.query_one_raw(sql("SELECT a.object_key,a.size FROM hyori_media_jobs j JOIN hyori_media_artifacts a ON a.id=j.artifact_id
             WHERE j.source_key=$1 AND j.owner_id=$2 AND j.recipe=$3 AND j.state='ready' AND a.state='ready' AND a.id=$4",vec![item.object_key.into(),item.owner_id.into(),hyori_media_worker::RECIPE.into(),artifact.into()])).await?.ok_or_else(ApiError::not_found)?;
-        Ok(ContentDescriptor{object_key:row.try_get("","object_key")?,name:"thumbnail.png".into(),size:row.try_get("","size")?,mime_type:"image/png".into(),revision:item.revision})
+        let object_key: String = row.try_get("","object_key")?;
+        let (name,mime) = if object_key.ends_with("_webp") { ("thumbnail.webp","image/webp") } else { ("thumbnail.png","image/png") };
+        Ok(ContentDescriptor{object_key,name:name.into(),size:row.try_get("","size")?,mime_type:mime.into(),revision:item.revision})
     })}).await?;
+    let mime = if descriptor.mime_type == "image/webp" {
+        "image/webp"
+    } else {
+        "image/png"
+    };
     stream_content(
         storage,
         descriptor,
         request.headers(),
         permit,
-        "image/png",
+        mime,
         "inline",
     )
     .await

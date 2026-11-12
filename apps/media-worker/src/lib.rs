@@ -7,7 +7,7 @@ pub const MAX_INPUT: u64 = 64 * 1024 * 1024;
 pub const MAX_OUTPUT: usize = 256 * 1024;
 pub const MAX_PIXELS: u64 = 40_000_000;
 pub const MAX_DURATION: f64 = 120.0;
-pub const EDGE: u32 = 256;
+pub const EDGE: u32 = 384;
 pub const RECIPE: i32 = 1;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -113,7 +113,45 @@ impl Format {
         }
     }
 }
-/// Validate the normalized PNG envelope and bounded geometry before accepting worker output.
+/// Accept only a complete, metadata-free, single lossy WebP key frame. No decoder runs here.
+/// The RIFF length, VP8 partition envelope, signature and unscaled geometry are all checked;
+/// animation, lossless, extended headers, metadata, additional chunks and trailing bytes are refused.
+pub fn webp_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() > MAX_OUTPUT
+        || bytes.len() < 30
+        || bytes.get(..4)? != b"RIFF"
+        || bytes.get(8..16)? != b"WEBPVP8 "
+    {
+        return None;
+    }
+    let riff = u32::from_le_bytes(bytes[4..8].try_into().ok()?) as usize;
+    let length = u32::from_le_bytes(bytes[16..20].try_into().ok()?) as usize;
+    if riff.checked_add(8)? != bytes.len()
+        || length < 10
+        || length.checked_add(20)?.checked_add(length % 2)? != bytes.len()
+        || (length % 2 == 1 && bytes.last() != Some(&0))
+    {
+        return None;
+    }
+    let frame = bytes.get(20..20 + length)?;
+    let tag = u32::from_le_bytes([frame[0], frame[1], frame[2], 0]);
+    let partition = (tag >> 5) as usize;
+    if tag & 1 != 0
+        || (tag >> 1) & 7 > 3
+        || tag & 16 == 0
+        || partition == 0
+        || partition > length - 10
+        || frame[3..6] != *b"\x9d\x01\x2a"
+    {
+        return None;
+    }
+    let width = u32::from(u16::from_le_bytes(frame[6..8].try_into().ok()?));
+    let height = u32::from(u16::from_le_bytes(frame[8..10].try_into().ok()?));
+    // Reject scaling bits as well as oversized/zero geometry.
+    (width > 0 && height > 0 && width <= EDGE && height <= EDGE).then_some((width, height))
+}
+
+/// Validate legacy normalized PNG output during a rolling worker upgrade.
 pub fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     if bytes.len() > MAX_OUTPUT
         || bytes.len() < 33
@@ -124,7 +162,7 @@ pub fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     }
     let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
     let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
-    if width == 0 || height == 0 || width > EDGE || height > EDGE {
+    if width == 0 || height == 0 || width > 256 || height > 256 {
         return None;
     }
     if bytes[24..29] != [8, 2, 0, 0, 0] {
@@ -159,6 +197,41 @@ pub fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 mod tests {
     use super::*;
     const PNG: &[u8] = include_bytes!("../../server/tests/fixtures/media/red.png");
+    const WEBP: &[u8] = include_bytes!("../../server/tests/fixtures/media/red.webp");
+    #[test]
+    fn normalized_webp_requires_a_complete_single_bounded_key_frame() {
+        assert_eq!(webp_dimensions(WEBP), Some((16, 16)));
+        for end in 0..WEBP.len() {
+            assert_eq!(webp_dimensions(&WEBP[..end]), None);
+        }
+        for (offset, replacement) in [
+            (0, b"RIFX".as_slice()),
+            (8, b"WAVE"),
+            (12, b"VP8L"),
+            (12, b"VP8X"),
+            (12, b"ANIM"),
+            (16, &u32::MAX.to_le_bytes()),
+            (20, &[0xd1]), // Inter-frame, not a still.
+            (20, &[0xc0]), // Hidden frame.
+            (23, b"bad"),
+            (26, &0_u16.to_le_bytes()),
+            (26, &385_u16.to_le_bytes()),
+            (28, &385_u16.to_le_bytes()),
+            (28, &0x4010_u16.to_le_bytes()), // Scaling flag.
+        ] {
+            let mut invalid = WEBP.to_vec();
+            invalid[offset..offset + replacement.len()].copy_from_slice(replacement);
+            assert_eq!(webp_dimensions(&invalid), None, "offset {offset}");
+        }
+        let mut appended = WEBP.to_vec();
+        appended.extend_from_slice(b"EXIF\0\0\0\0");
+        let riff = (appended.len() - 8) as u32;
+        appended[4..8].copy_from_slice(&riff.to_le_bytes());
+        assert_eq!(webp_dimensions(&appended), None);
+        let mut boundary = WEBP.to_vec();
+        boundary[26..28].copy_from_slice(&(EDGE as u16).to_le_bytes());
+        assert_eq!(webp_dimensions(&boundary), Some((EDGE, 16)));
+    }
     #[test]
     fn normalized_png_has_bounded_complete_geometry() {
         assert_eq!(png_dimensions(PNG), Some((16, 16)));

@@ -31,9 +31,9 @@ pub enum MediaDerivative {
         #[serde(flatten)]
         identity: MediaIdentity,
         url: String,
-        #[schemars(range(min = 1, max = 256))]
+        #[schemars(range(min = 1, max = 384))]
         width: u32,
-        #[schemars(range(min = 1, max = 256))]
+        #[schemars(range(min = 1, max = 384))]
         height: u32,
     },
     Unsupported {

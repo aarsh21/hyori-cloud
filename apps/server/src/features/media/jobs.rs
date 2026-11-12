@@ -8,7 +8,7 @@ use crate::{
         media::service,
     },
 };
-use hyori_media_worker::{Failure, RECIPE, png_dimensions};
+use hyori_media_worker::{Failure, RECIPE, png_dimensions, webp_dimensions};
 use hyori_storage::{Bytes, PartRef};
 use sea_orm::{ConnectionTrait, QueryResult};
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -193,10 +193,17 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
     if source.size != job.size as u64 {
         return Err(Failure::InvalidMedia);
     }
-    let bytes = worker.derive(&job.mime, source.size, source.body).await?;
-    let (width, height) = png_dimensions(&bytes).ok_or(Failure::InvalidMedia)?;
+    let (bytes, mime) = worker.derive(&job.mime, source.size, source.body).await?;
+    let (width, height) = if mime == "image/webp" {
+        webp_dimensions(&bytes)
+    } else {
+        png_dimensions(&bytes)
+    }
+    .ok_or(Failure::InvalidMedia)?;
     let artifact = random_token();
-    let key = format!("owners/{}/derivatives/{artifact}", job.owner);
+    // Persist the format in the server-owned immutable key, without rewriting legacy PNG rows.
+    let extension = if mime == "image/webp" { "_webp" } else { "" };
+    let key = format!("owners/{}/derivatives/{artifact}{extension}", job.owner);
     db::domain(&state.db,|tx|{let (job,artifact,key)=(job.clone(),artifact.clone(),key.clone());Box::pin(async move {
         current(tx,&job).await?;
         tx.execute_raw(sql("INSERT INTO hyori_media_artifacts(id,job_id,owner_id,object_key,state) VALUES ($1,$2,$3,$4,'starting')",vec![artifact.into(),job.id.into(),job.owner.into(),key.into()])).await?;
@@ -204,7 +211,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
     })}).await.map_err(|_|Failure::Unavailable)?;
     let publish=async {
         // The key intent above is committed before every S3 begin; no decoder or storage effect is in a DB retry.
-        let multipart=storage.begin(&key,"image/png").await.map_err(|_|Failure::Unavailable)?;
+        let multipart=storage.begin(&key,mime).await.map_err(|_|Failure::Unavailable)?;
         state.db.execute_raw(sql("UPDATE hyori_media_artifacts SET multipart_id=$2 WHERE id=$1",vec![artifact.clone().into(),multipart.clone().into()])).await.map_err(|_|Failure::Unavailable)?;
         let size=bytes.len() as u64;
         let etag=storage.part(&key,&multipart,1,size,Box::pin(futures_util::stream::once(async move{Ok(Bytes::from(bytes))}))).await.map_err(|_|Failure::Unavailable)?;

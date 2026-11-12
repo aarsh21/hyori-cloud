@@ -74,7 +74,7 @@ function MediaTileFrame({
         ref={ref}
         data-slot="media-tile"
         data-item-key={itemKey}
-        className="relative [contain-intrinsic-size:auto_9.5rem] [content-visibility:auto]"
+        className="relative aspect-square [content-visibility:auto]"
         {...position}
       >
         {children}

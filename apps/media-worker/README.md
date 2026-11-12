@@ -1,30 +1,30 @@
 # Hyori isolated media worker
 
-This executable is the only Hyori process that launches media decoders. The application backend streams an immutable original over a private Unix socket; the worker returns a small normalized PNG. The injected Unix HTTP adapter lives at the app composition boundary in `apps/server/src/media_worker.rs`, not inside a domain feature or browser graph. It receives **no PostgreSQL, RustFS/S3, session or authentication credentials**, has no network interface except loopback, and never accepts a URL, filename, command or argument list from a caller.
+This executable is the only Hyori process that launches media decoders. The application backend streams an immutable original over a private Unix socket; the worker returns a small normalized WebP. The injected Unix HTTP adapter lives at the app composition boundary in `apps/server/src/media_worker.rs`, not inside a domain feature or browser graph. It receives **no PostgreSQL, RustFS/S3, session or authentication credentials**, has no network interface except loopback, and never accepts a URL, filename, command or argument list from a caller.
 
 ## Protective budgets, not performance claims
 
 These limits were chosen before implementation. They are not measured throughput, NAS sizing, browser fidelity or supported-library-capacity promises.
 
-| Boundary                      | Limit                                                          |
-| ----------------------------- | -------------------------------------------------------------- |
-| Concurrent worker requests    | 1; excess requests fail `busy`                                 |
-| Source bytes                  | 1–64 MiB, exact Content-Length, streamed to private scratch    |
-| Input idle / entire request   | 10 seconds / 60 seconds                                        |
-| Probe / encode subprocess     | 10 seconds / 20 seconds, killed on cancellation/drop           |
-| Source pixels                 | 40,000,000; probe dimensions checked before encoding           |
-| Video duration                | finite, positive and at most 120 seconds                       |
-| Normalized output             | 8-bit RGB PNG, each dimension 1–256, at most 256 KiB           |
-| Probe stdout / decoder stderr | 64 KiB / 8 KiB; overflow kills work                            |
-| Decoder individual allocation | 64 MiB (`-max_alloc`), not a total-memory substitute           |
-| Decoder/filter threads        | 1 each; worker Tokio runtime is current-thread                 |
-| Required container envelope   | ≤1 CPU, ≤512 MiB memory, ≤64 PIDs, ≤96 MiB noexec/nosuid tmpfs |
+| Boundary                      | Limit                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| Concurrent worker requests    | 1; excess requests fail `busy`                                             |
+| Source bytes                  | 1–64 MiB, exact Content-Length, streamed to private scratch                |
+| Input idle / entire request   | 10 seconds / 60 seconds                                                    |
+| Probe / encode subprocess     | 10 seconds / 20 seconds, killed on cancellation/drop                       |
+| Source pixels                 | 40,000,000; probe dimensions checked before encoding                       |
+| Video duration                | finite, positive and at most 120 seconds                                   |
+| Normalized output             | Single-frame lossy WebP, quality 75, each dimension 1–384, at most 256 KiB |
+| Probe stdout / decoder stderr | 64 KiB / 8 KiB; overflow kills work                                        |
+| Decoder individual allocation | 64 MiB (`-max_alloc`), not a total-memory substitute                       |
+| Decoder/filter threads        | 1 each; worker Tokio runtime is current-thread                             |
+| Required container envelope   | ≤1 CPU, ≤512 MiB memory, ≤64 PIDs, ≤96 MiB noexec/nosuid tmpfs             |
 
 The enforced cgroup limit is the total-memory boundary, including cases where probing itself needs decoder work. An OOM or process loss produces a failed/unavailable job and consumes the backend's bounded attempt budget; it is not a successful thumbnail. The original remains downloadable. Cancellation while receiving input is tested to clean scratch. After the full input arrives, a disconnected caller may leave the bounded decode finishing; subprocess/request deadlines still apply, and account purge waits for active processing leases rather than claiming immediate recall of bytes.
 
 JPEG, PNG, WebP, GIF, AVIF, MP4, WebM and QuickTime are accepted only with matching bounded headers and an explicit selected demuxer. FFprobe/FFmpeg receive an explicit format whitelist and `file,pipe` protocol whitelist. MOV external data references and absolute reference paths are disabled. The only input argument is the fixed `source` file in a newly created random scratch directory. Commands use absolute installed executable paths, `env_clear`, no shell, null stdin, capped pipes and `kill_on_drop`.
 
-Images use the first frame; video posters use the first video frame, not a scene-selection algorithm. Scaling never enlarges a smaller original. FFmpeg autorotation is enabled, metadata/chapter maps are removed and frame side data is deleted. A real EXIF orientation-6 rectangular fixture produces portrait output. Only IHDR/pHYs/IDAT/IEND PNG chunks are accepted at both ends; EXIF/text/ICC chunks are not returned. This normalizes/strips metadata but does **not** establish color-profile, HDR, alpha, animation, document or browser codec fidelity. Output is RGB (no alpha); formats/variants that cannot be safely probed within the bounds fail honestly.
+Images use the first frame; video posters use the first video frame, not a scene-selection algorithm. The encoder uses a 244px long edge, preserving aspect ratio and never enlarging a smaller original; the validation/schema safety ceiling is 384px. The measured square phone tile is 122 CSS pixels at DPR 2. Desktop tiles measure 167.344 CSS pixels: a 336px candidate supplies their DPR 2 long edge, but missed the five-second cold phone target on real photographs, so the single stored size favors phone bytes over desktop Retina sharpness. Separate responsive derivatives are not implemented. FFmpeg autorotation is enabled, metadata/chapter maps are removed and frame side data is deleted. A real EXIF orientation-6 rectangular fixture produces portrait output. Both ends check the complete RIFF envelope and exactly one lossy VP8 key frame, partition bounds, signature and unscaled dimensions. Extended/lossless/animated WebP, additional chunks, metadata and trailing data are rejected without decoding in the server. Output is YUV420 (no alpha). This does **not** establish color-profile, HDR, alpha, animation, document or browser codec fidelity; formats/variants that cannot be safely probed within the bounds fail honestly.
 
 ## Required deployment boundary
 
@@ -76,7 +76,7 @@ Omitting `HYORI_MEDIA_WORKER_SOCKET` disables new processing. Original uploads/d
 
 ## Private protocol and public contract
 
-The executable/library owns protocol constants in `src/lib.rs`. `POST /v1/derive` over the private Unix socket carries raw original bytes, exact Content-Length and `x-hyori-media-type` from server-owned file metadata. It returns bounded `image/png` bytes and dimension headers, or a typed JSON `{error}` code: unsupported, invalidMedia, resourceLimit, timeout, busy or unavailable. There is no network listener, user-chosen path, storage endpoint or credential field.
+The executable/library owns protocol constants in `src/lib.rs`. `POST /v1/derive` over the private Unix socket carries raw original bytes, exact Content-Length and `x-hyori-media-type` from server-owned file metadata. It returns bounded `image/webp` bytes and dimension headers, or a typed JSON `{error}` code: unsupported, invalidMedia, resourceLimit, timeout, busy or unavailable. The backend also validates normalized 1–256px PNG from an old worker during a rolling upgrade. There is no network listener, user-chosen path, storage endpoint or credential field.
 
 The **product** schemas live in `apps/server/src/features/media/api.rs`, not in a handwritten SDK mirror:
 
@@ -84,7 +84,29 @@ The **product** schemas live in `apps/server/src/features/media/api.rs`, not in 
 - `media.retry({id})` is an explicit mutation available to current readers, not file-edit permission.
 - `TimelineItem.derivative` is **optional** for compatibility with older backends. When present it is the same discriminated union: unavailable, queued, processing, ready, unsupported or failed. Every variant has `kind: thumbnail | poster` and `sourceRevision`; ready alone has a nonnullable `url`, `width`, `height`; unsupported/failed carry a typed `failure`, and failed has `canRetry`.
 - Photos `previewUrl` continues to mean the safe **original**, including video playback. A poster is never substituted for that URL.
-- `/api/storage/derivatives/{fileId}/{artifactId}?revision=...` reauthorizes the current original and verifies its current immutable-source association on every GET. Responses are known normalized PNG with no-store/nosniff/sandbox headers and shared range/admission policy. An old derivative URL cannot read a replaced original's old cache. Original history remains owner-only through the existing APIs.
+- `/api/storage/derivatives/{fileId}/{artifactId}?revision=...` reauthorizes the current original and verifies its current immutable-source association on every GET, before checking its ETag. Responses are normalized WebP or legacy PNG with `private, no-cache`, nosniff/sandbox headers and shared range/admission policy. Authorized matching validators answer 304 without storage access. An old derivative URL cannot read a replaced original's old cache. Original history remains owner-only through the existing APIs.
+
+### Upgrading existing thumbnails
+
+Upgrade the backend (migration 20) before replacing the worker. The geometry constraint is relaxed with `NOT VALID`: no table rewrite or existing-row scan; a two-second DDL lock timeout fails startup rather than waiting indefinitely behind another transaction. Existing rows satisfy the old, stricter constraint. New and updated rows are checked immediately.
+
+Recipe 1 is retained deliberately. Existing PNG thumbnails are **not automatically regenerated or deleted**. Legacy server-owned artifact keys have no suffix; newly validated WebP keys end in `_webp` (the storage adapter deliberately forbids dots). That immutable format marker selects the response MIME/filename without reading or decoding the object. Current authorization and ETag policy are unchanged for both.
+
+An operator wanting smaller derivatives can explicitly requeue selected legacy jobs in small batches, after taking a backup and upgrading both processes. This is maintenance SQL, not a browser action or a required upgrade step:
+
+```sql
+WITH chosen AS (
+    SELECT j.id FROM hyori_media_jobs j
+    JOIN hyori_media_artifacts a ON a.id = j.artifact_id
+    WHERE j.state = 'ready' AND a.state = 'ready' AND right(a.object_key, 5) <> '_webp'
+    ORDER BY j.id LIMIT 100 FOR UPDATE OF j SKIP LOCKED
+)
+UPDATE hyori_media_jobs SET state = 'queued', attempts = 0, failure = NULL,
+    due_at = now(), deferred = false, lease_token = NULL, lease_until = NULL
+WHERE id IN (SELECT id FROM chosen);
+```
+
+Wait for that batch to settle before repeating. Tiles temporarily show preparing while requeued; originals remain readable. New output publishes under a new immutable key. Old cache objects/intents remain retained until the existing source/account cleanup lifecycle removes them; this operation does not reclaim their storage immediately. No original, upload, quota or version row is changed. Do not reset processing jobs or erase artifact inventory manually.
 
 ## Durable processing and storage
 

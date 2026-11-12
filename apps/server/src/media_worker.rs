@@ -1,5 +1,7 @@
 use futures_util::StreamExt;
-use hyori_media_worker::{ErrorBody, Failure, MAX_INPUT, MAX_OUTPUT, png_dimensions};
+use hyori_media_worker::{
+    ErrorBody, Failure, MAX_INPUT, MAX_OUTPUT, png_dimensions, webp_dimensions,
+};
 use hyori_storage::StorageStream;
 use std::{path::Path, time::Duration};
 
@@ -21,7 +23,7 @@ impl WorkerClient {
         mime: &str,
         size: u64,
         body: StorageStream,
-    ) -> Result<Vec<u8>, Failure> {
+    ) -> Result<(Vec<u8>, &'static str), Failure> {
         if size == 0 || size > MAX_INPUT {
             return Err(Failure::ResourceLimit);
         }
@@ -40,14 +42,16 @@ impl WorkerClient {
             .content_length()
             .filter(|v| *v <= MAX_OUTPUT as u64)
             .ok_or(Failure::ResourceLimit)?;
-        if success
-            && response
-                .headers()
-                .get("content-type")
-                .is_none_or(|v| v != "image/png")
+        let mime = match response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
         {
-            return Err(Failure::InvalidMedia);
-        }
+            Some("image/webp") => "image/webp",
+            Some("image/png") => "image/png", // Allow an old worker during a rolling upgrade.
+            _ if !success => "application/json",
+            _ => return Err(Failure::InvalidMedia),
+        };
         let mut stream = response.bytes_stream();
         let mut bytes = Vec::with_capacity(length as usize);
         while let Some(chunk) = tokio::time::timeout(Duration::from_secs(10), stream.next())
@@ -68,7 +72,11 @@ impl WorkerClient {
                 .map(|v| v.error)
                 .unwrap_or(Failure::Unavailable));
         }
-        png_dimensions(&bytes).ok_or(Failure::InvalidMedia)?;
-        Ok(bytes)
+        match mime {
+            "image/webp" => webp_dimensions(&bytes),
+            _ => png_dimensions(&bytes),
+        }
+        .ok_or(Failure::InvalidMedia)?;
+        Ok((bytes, mime))
     }
 }

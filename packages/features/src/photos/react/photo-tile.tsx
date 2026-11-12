@@ -19,7 +19,7 @@ import { useRetryThumbnail } from "#features/photos/react/use-photos.ts";
  * read and make no requests of their own, except a retry someone asks for.
  */
 export function PhotoTile({ item, onOpen }: { item: PhotoItem; onOpen: (id: string) => void }) {
-  const [entered, ref] = useEnteredViewport<HTMLLIElement>();
+  const [entered, ref] = useEnteredViewport<HTMLLIElement>("0px");
   const retry = useRetryThumbnail();
   const { derivative } = item;
   const canRetry = derivative?.status === "failed" && derivative.canRetry;
