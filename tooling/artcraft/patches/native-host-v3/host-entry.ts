@@ -246,9 +246,10 @@ export function hostThemeFailed(requestId: string, message: string) {
 const MAX_PRINT_BYTES = 64 * 1024 * 1024;
 
 /**
- * Hosted print for Word and Grid. A sandboxed frame can't show a PDF in a child frame, so it opens
- * in its own tab. The tab keeps this frame's opaque origin, never the host's, and the type is
- * always PDF: anything without the PDF signature is refused rather than shown.
+ * Hosted print for Word and Grid: the PDF is downloaded, and the person prints it from their PDF
+ * viewer. Every `/artcraft` page is sandboxed by its own response, and a PDF tab opened from here
+ * would inherit that sandbox, which browsers refuse to show a PDF in. Anything without the PDF
+ * signature is refused rather than handed over.
  */
 export function hostShowPdf(bytes: Uint8Array) {
   const signature = [0x25, 0x50, 0x44, 0x46, 0x2d]; // %PDF-
@@ -260,19 +261,11 @@ export function hostShowPdf(bytes: Uint8Array) {
     throw new Error("Print output is not a PDF");
 
   const url = URL.createObjectURL(new Blob([bytes.slice()], { type: "application/pdf" }));
-
-  // Without `noopener`, so a blocked popup shows as null; the tab then can't reach back here.
-  const tab = window.open(url, "_blank");
-
-  if (tab === null) {
-    // Blocked, such as when making the PDF outlasted the click: hand it over as a download.
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "Print.pdf";
-    link.click();
-  } else tab.opener = null;
-
-  // Long enough for the tab to load it; the tab keeps its own copy after that.
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "Print.pdf";
+  link.click();
+  // Long enough for the download to start; it keeps its own copy after that.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 

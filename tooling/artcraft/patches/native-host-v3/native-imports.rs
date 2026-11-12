@@ -59,8 +59,8 @@ extern "C" {
     fn js_show_pdf(bytes: &[u8]) -> Result<(), JsValue>;
 }
 
-/// Hosted print. The sandboxed frame can't show a PDF in a child frame, so the PDF opens in its
-/// own tab, still in this frame's opaque origin, where the person prints it. False when not hosted.
+/// Hosted print. A sandboxed page can't show a PDF, in a child frame or a tab of its own, so the
+/// PDF is downloaded and the person prints it from their viewer. False when not hosted.
 #[allow(dead_code)] // PDF prints its own window and Deck downloads; only Word and Grid call this.
 pub fn show_pdf(bytes: &[u8]) -> Result<bool, String> {
     if !js_requested() { return Ok(false) }

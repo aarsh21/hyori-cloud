@@ -116,7 +116,7 @@ export function patchWordNativeHookup(source: ReadonlyMap<string, Buffer>, frame
     `${continuation}        let go = match choice {`,
   );
 
-  // A sandboxed frame can't print a PDF in a child frame; hosted print opens it in its own tab.
+  // A sandboxed frame can't show a PDF at all; hosted print downloads it instead.
   replace(
     `${web}/web.rs`,
     "fn print_pdf(bytes: &[u8]) -> Result<(), String> {\n",

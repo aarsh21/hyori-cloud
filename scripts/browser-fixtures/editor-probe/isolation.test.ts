@@ -171,9 +171,14 @@ afterAll(async () => {
 test("compromised code in the editor frame reaches only what the bridge hands it", async () => {
   const context = await browser.newContext();
   const page = await context.newPage();
-  const popups: string[] = [];
+  const downloads: { name: string; bytes: string }[] = [];
 
-  context.on("page", (popup) => popups.push(popup.url()));
+  page.on("download", (download) =>
+    download
+      .path()
+      .then((path) => Bun.file(path).text())
+      .then((bytes) => downloads.push({ name: download.suggestedFilename(), bytes })),
+  );
   const origin = `http://127.0.0.1:${gateway.port}`;
 
   await page.goto(`${origin}/`);
@@ -253,12 +258,13 @@ test("compromised code in the editor frame reaches only what the bridge hands it
     { name: "Report.docx", intent: "replace", bytes: [...SOURCE, 33] },
   ]);
 
-  // A real PDF prints in its own tab, which keeps the frame's opaque origin, never Hyori's.
-  expect(first.printPdf).toEqual({ reached: true, value: "opened" });
+  // A real PDF prints as a download; the HTML and SVG above were refused, so this is the only one.
+  expect(first.printPdf).toEqual({ reached: true, value: "accepted" });
 
-  for (let waited = 0; popups.length === 0 && waited < 5000; waited += 100) await Bun.sleep(100);
-  expect(popups).toHaveLength(1);
-  expect(popups[0]).toStartWith("blob:null/");
+  for (let waited = 0; downloads.length === 0 && waited < 5000; waited += 100) await Bun.sleep(100);
+  expect(downloads).toHaveLength(1);
+  expect(downloads[0]!.name).toBe("Print.pdf");
+  expect(downloads[0]!.bytes).toStartWith("%PDF-");
 
   // A frame that navigates itself away gets no second copy of the document.
   const reloaded = await waitForReport("reloaded");

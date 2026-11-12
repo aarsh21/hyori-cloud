@@ -133,17 +133,17 @@ async function attack() {
   report.printHtml = await attempt(() => {
     bridge.hostShowPdf(bytes(`<!doctype html>${script}`));
 
-    return "opened";
+    return "accepted";
   });
   report.printSvg = await attempt(() => {
     bridge.hostShowPdf(bytes(`<svg xmlns="http://www.w3.org/2000/svg">${script}</svg>`));
 
-    return "opened";
+    return "accepted";
   });
   report.printPdf = await attempt(() => {
     bridge.hostShowPdf(bytes(MINIMAL_PDF));
 
-    return "opened";
+    return "accepted";
   });
   report.topNavigation = await attempt(() => {
     window.top!.location.href = "/top-navigated";

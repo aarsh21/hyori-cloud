@@ -82,7 +82,7 @@ for (const app of nativeApps)
 
       if (app === "deckcraft") expect(ui("ribbon/title_bar.rs")).not.toContain("Icon::Sparkle");
 
-      // A sandboxed frame can't print a PDF in a child frame: hosted Word and Grid open it instead.
+      // A sandboxed frame can't show a PDF at all: hosted Word and Grid download it instead.
       if (app === "wordcraft" || app === "gridcraft")
         expect(result.files.get(`apps/${app}-web/src/web.rs`)!.toString()).toContain(
           "fn print_pdf(bytes: &[u8]) -> Result<(), String> {\n    if crate::native_host::show_pdf(bytes)? { return Ok(()); }\n",
