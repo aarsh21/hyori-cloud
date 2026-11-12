@@ -10,3 +10,5 @@ ALTER TABLE hyori_media_artifacts
             width BETWEEN 1 AND 384 AND height BETWEEN 1 AND 384
         )
     ) NOT VALID;
+-- db::begin sets 5s for the shared migration transaction; later migrations must retain it.
+SET LOCAL lock_timeout = '5s';
