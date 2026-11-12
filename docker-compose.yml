@@ -1,9 +1,17 @@
 # This is a separate fresh Rust stack, not an upgrade/migration of hyori-cloud volumes.
 name: hyori-cloud-rust
 
+# Docker's default json-file driver never rotates; bound each container's logs on disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
 services:
   deployment-preflight:
-    image: alpine:3.22
+    logging: *logging
+    image: alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -23,7 +31,8 @@ services:
     restart: "no"
 
   storage-permissions:
-    image: alpine:3.22
+    logging: *logging
+    image: alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
@@ -39,7 +48,8 @@ services:
     restart: "no"
 
   postgres:
-    image: postgres:17
+    logging: *logging
+    image: postgres:17@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
     environment:
       POSTGRES_USER: hyori
       POSTGRES_DB: hyori
@@ -57,13 +67,20 @@ services:
     restart: unless-stopped
 
   rustfs:
-    image: rustfs/rustfs:1.0.0-alpha.85
+    logging: *logging
+    image: rustfs/rustfs:1.0.0-alpha.85@sha256:23ff2af1ec2d64e0fb9608a1c39b5eb96fcff3a8efecf332986c948b0e3e4f8a
     environment:
       RUSTFS_ACCESS_KEY: ${HYORI_STORAGE_ACCESS_KEY:?Set HYORI_STORAGE_ACCESS_KEY in .env.deployment}
       RUSTFS_SECRET_KEY: ${HYORI_STORAGE_SECRET_KEY:?Set HYORI_STORAGE_SECRET_KEY in .env.deployment}
       RUSTFS_CONSOLE_ENABLE: "false"
       RUSTFS_ADDRESS: ":9000"
     command: ["/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
     volumes:
       - type: volume
         source: rust-storage-data
@@ -81,7 +98,8 @@ services:
     restart: unless-stopped
 
   media-socket-permissions:
-    image: alpine:3.22
+    logging: *logging
+    image: alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
     user: "0:0"
     read_only: true
     network_mode: none
@@ -97,6 +115,7 @@ services:
     restart: "no"
 
   media-worker:
+    logging: *logging
     image: hyori-cloud-media-worker:local
     build:
       context: .
@@ -129,6 +148,9 @@ services:
     restart: unless-stopped
 
   backend:
+    logging: *logging
+    # A fixed tag lets a second project (restore target, upgrade rehearsal) reuse the built image.
+    image: hyori-cloud-backend:local
     build:
       context: .
       dockerfile: apps/server/Dockerfile
@@ -161,10 +183,12 @@ services:
       postgres:
         condition: service_healthy
       rustfs:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   web:
+    logging: *logging
+    image: hyori-cloud-web:local
     build:
       context: .
       dockerfile: apps/web/Dockerfile

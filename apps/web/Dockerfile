@@ -1,5 +1,5 @@
-FROM node:24 AS builder
-COPY --from=oven/bun:1.4.4 /usr/local/bin/bun /usr/local/bin/bun
+FROM node:24@sha256:9d266751ca3d7fdbe651c878ffd5ad0a42fed49a18c283509267c97f025b7496 AS builder
+COPY --from=oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 # .dockerignore excludes all actual environment files and existing deployment data.
 COPY . .
@@ -10,7 +10,7 @@ RUN bun run --filter web build
 # Its CLI is bundled JavaScript with no required package dependencies.
 RUN mkdir -p /runtime/node_modules/.bin && cp -RL node_modules/varlock /runtime/node_modules/varlock && cp -RL apps/web/node_modules/react /runtime/node_modules/react && ln -s ../varlock/bin/cli.js /runtime/node_modules/.bin/varlock
 
-FROM node:24-slim AS runner
+FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
