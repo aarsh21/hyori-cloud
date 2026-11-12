@@ -363,6 +363,7 @@ try {
   await browser.close();
 } catch (error) {
   console.error(error);
+  report.record("browser run aborted", "fail", String(error));
   report.finish({ image, protocol, aborted: String(error) });
 } finally {
   cleanup();

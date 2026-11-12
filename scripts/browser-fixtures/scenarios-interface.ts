@@ -391,7 +391,7 @@ async function warmNavigation(run: CoreRun) {
     { name: "Files", path: "/", heading: "Files" },
     { name: "Photos", path: "/photos", heading: "Photos" },
     { name: "Albums", path: "/photos/albums", heading: "Photos" },
-    { name: "Shared", path: "/shared", heading: "Shared" },
+    { name: "Shared", path: "/shared", heading: "Shared with me" },
     { name: "Trash", path: "/trash", heading: "Trash" },
     { name: "Users", path: "/admin", heading: "Users" },
   ];
