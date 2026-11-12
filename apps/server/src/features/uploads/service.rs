@@ -22,7 +22,9 @@ use std::{future::Future, sync::Arc, time::Duration};
 use tokio::sync::OwnedSemaphorePermit;
 use tracing::Instrument;
 
-pub(crate) fn storage_error(_: StorageError) -> ApiError {
+pub(crate) fn storage_error(error: StorageError) -> ApiError {
+    // StorageError contains only owned operation/status/code diagnostics, never keys or requests.
+    tracing::error!(category = "storage", %error, "storage operation failed");
     ApiError::unavailable()
 }
 pub(crate) struct UploadsService {
