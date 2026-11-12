@@ -24,6 +24,40 @@ function rpc(headers: HeadersInit = { Origin: origin }) {
 }
 
 describe("private Rust backend proxy", () => {
+  test("only authorized preview and derivative responses allow mandatory revalidation", async () => {
+    for (const path of [
+      "previews/file1",
+      "derivatives/file1/artifact1",
+      "files/file1",
+      "editors/session1",
+    ]) {
+      for (const status of [200, 304, 403]) {
+        const handle = createBackendProxy({
+          origin,
+          backendUrl: "http://127.0.0.1:3002",
+          request: async () =>
+            new Response(null, {
+              status,
+              headers: { "cache-control": "private, no-cache", etag: '"immutable"' },
+            }),
+        });
+
+        const response = await handle(
+          new Request(`${origin}/api/storage/${path}`, {
+            headers: { "If-None-Match": '"immutable"' },
+          }),
+        );
+
+        const media = path.startsWith("previews/") || path.startsWith("derivatives/");
+
+        expect(response.status).toBe(status);
+        expect(response.headers.get("cache-control")).toBe(
+          media && status !== 403 ? "private, no-cache" : "private, no-store",
+        );
+      }
+    }
+  });
+
   test("preserves the real RPC body, status and independent cookies", async () => {
     const backendUrl = startBackend(async (request) => {
       expect(await request.json()).toEqual({ operation: "auth.status", input: {} });

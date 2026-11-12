@@ -38,6 +38,8 @@ const IDLE: Duration = Duration::from_secs(30);
 const DOWNLOAD_DEADLINE: Duration = Duration::from_secs(900);
 /// Chunks buffered between storage and a reader; a stalled reader therefore pins only this much.
 const DOWNLOAD_BUFFER: usize = 2;
+/// Browsers may store immutable media only when every reuse reauthorizes at the server.
+pub(crate) const REVALIDATE_CACHE_CONTROL: &str = "private, no-cache";
 
 pub(crate) async fn put(
     State(state): State<Arc<AppState>>,
@@ -246,6 +248,48 @@ pub(crate) async fn admit_principal(
         .await
 }
 
+/// Call only after resolving a descriptor through the current request's authorization path.
+/// The object key names immutable bytes; hash it rather than exposing storage identities.
+pub(crate) fn content_etag(descriptor: &files::ContentDescriptor) -> String {
+    format!(
+        "\"{}\"",
+        digest(&format!(
+            "{}:{}:{}",
+            descriptor.object_key, descriptor.size, descriptor.mime_type
+        ))
+    )
+}
+
+pub(crate) fn not_modified(
+    descriptor: &files::ContentDescriptor,
+    headers: &HeaderMap,
+) -> Option<Response> {
+    let etag = content_etag(descriptor);
+    let matches = headers.get_all("if-none-match").iter().any(|value| {
+        value.to_str().is_ok_and(|value| {
+            value.split(',').any(|tag| {
+                let tag = tag.trim();
+                tag == "*" || tag.strip_prefix("W/").unwrap_or(tag) == etag
+            })
+        })
+    });
+    matches.then(|| {
+        (
+            StatusCode::NOT_MODIFIED,
+            [
+                ("etag", etag),
+                ("cache-control", REVALIDATE_CACHE_CONTROL.into()),
+                ("x-content-type-options", "nosniff".into()),
+                (
+                    "content-security-policy",
+                    "sandbox; default-src 'none'".into(),
+                ),
+            ],
+        )
+            .into_response()
+    })
+}
+
 /// Every binary route shares range, length, admission lifetime and deadline policy.
 pub(crate) async fn stream_content(
     storage: &hyori_storage::ObjectStorage,
@@ -255,8 +299,22 @@ pub(crate) async fn stream_content(
     content_type: &str,
     disposition: &str,
 ) -> Result<Response, ApiError> {
+    // Only thumbnails and format-gated previews are inline. Original/editor downloads remain
+    // no-store. Authorization has already completed, including when no storage read is needed.
+    let revalidate = disposition == "inline";
+    if revalidate && let Some(response) = not_modified(&descriptor, headers) {
+        return Ok(response);
+    }
     let size = descriptor.size as u64;
-    let range = if let Some(value) = headers.get("range") {
+    // A cached partial response must never be combined with bytes from a different object.
+    // We emit no Last-Modified validator, so only the exact strong ETag can satisfy If-Range.
+    let range_allowed = !revalidate
+        || headers.get("if-range").is_none_or(|value| {
+            value
+                .to_str()
+                .is_ok_and(|value| value == content_etag(&descriptor))
+        });
+    let range = if let Some(value) = headers.get("range").filter(|_| range_allowed) {
         if headers.get_all("range").iter().count() != 1 {
             return Ok(unsatisfiable(size));
         }
@@ -313,8 +371,18 @@ pub(crate) async fn stream_content(
             format!("{disposition}; filename=\"download\"; filename*=UTF-8''{encoded}"),
         )
         .header("content-security-policy", "sandbox; default-src 'none'")
-        .header("cache-control", "no-store")
+        .header(
+            "cache-control",
+            if revalidate {
+                REVALIDATE_CACHE_CONTROL
+            } else {
+                "no-store"
+            },
+        )
         .header("x-content-type-options", "nosniff");
+    if revalidate {
+        response = response.header("etag", content_etag(&descriptor));
+    }
     if let Some((start, end)) = range {
         response = response.header("content-range", format!("bytes {start}-{end}/{size}"));
     }

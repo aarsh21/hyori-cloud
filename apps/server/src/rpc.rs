@@ -351,10 +351,21 @@ fn session_cookie(headers: &HeaderMap) -> Option<String> {
     session
 }
 pub async fn no_store(request: Request<Body>, next: Next) -> Response {
+    use crate::features::uploads::http::REVALIDATE_CACHE_CONTROL;
     let mut response = next.run(request).await;
-    response
-        .headers_mut()
-        .insert("cache-control", HeaderValue::from_static("no-store"));
+    // Only the authorized immutable-media policy is exempt, never a future public/max-age
+    // handler policy or an error carrying a copied success header.
+    let revalidate = matches!(response.status().as_u16(), 200 | 206 | 304)
+        && response.headers().get_all("cache-control").iter().count() == 1
+        && response
+            .headers()
+            .get("cache-control")
+            .is_some_and(|value| value == REVALIDATE_CACHE_CONTROL);
+    if !revalidate {
+        response
+            .headers_mut()
+            .insert("cache-control", HeaderValue::from_static("no-store"));
+    }
     response.headers_mut().insert(
         "x-content-type-options",
         HeaderValue::from_static("nosniff"),
@@ -374,4 +385,64 @@ pub async fn ready(State(state): State<Arc<AppState>>) -> Result<StatusCode, Api
         .query_one_raw(crate::db::sql("SELECT 1", vec![]))
         .await?;
     Ok(StatusCode::OK)
+}
+
+#[cfg(test)]
+mod cache_policy_tests {
+    use super::*;
+    use crate::features::uploads::http::REVALIDATE_CACHE_CONTROL;
+    use axum::{Router, middleware, routing::any};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn response_cache_policy_is_fail_closed_except_mandatory_revalidation() {
+        let preview = "/api/storage/previews/file";
+        let derivative = "/api/storage/derivatives/file/artifact";
+        let revalidate = REVALIDATE_CACHE_CONTROL;
+        for (path, status, policy, expected) in [
+            ("/api/rpc", 200, None, "no-store"),
+            ("/api/rpc", 400, None, "no-store"),
+            ("/api/rpc", 200, Some("public, max-age=60"), "no-store"),
+            (preview, 401, None, "no-store"),
+            (preview, 403, Some(revalidate), "no-store"),
+            (derivative, 404, None, "no-store"),
+            (preview, 200, Some(revalidate), revalidate),
+            (preview, 206, Some(revalidate), revalidate),
+            (derivative, 304, Some(revalidate), revalidate),
+            (preview, 200, Some("private, max-age=60"), "no-store"),
+            (
+                preview,
+                200,
+                Some("private, no-cache, max-age=60"),
+                "no-store",
+            ),
+        ] {
+            let router = Router::new()
+                .route(
+                    path,
+                    any(move || async move {
+                        let mut response = Response::new(Body::empty());
+                        *response.status_mut() = StatusCode::from_u16(status).unwrap();
+                        if let Some(policy) = policy {
+                            response
+                                .headers_mut()
+                                .insert("cache-control", HeaderValue::from_static(policy));
+                        }
+                        response
+                    }),
+                )
+                .layer(middleware::from_fn(no_store));
+            let response = router
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status().as_u16(), status);
+            assert_eq!(
+                response.headers()["cache-control"],
+                expected,
+                "{path}: {status} {policy:?}"
+            );
+            assert_eq!(response.headers()["x-content-type-options"], "nosniff");
+        }
+    }
 }

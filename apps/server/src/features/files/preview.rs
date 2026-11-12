@@ -5,7 +5,7 @@ use crate::{
         auth::api::Id,
         files::{api::DownloadInput, read_content},
         uploads::{
-            http::{DownloadQuery, stream_content},
+            http::{DownloadQuery, not_modified, stream_content},
             service::storage_error,
         },
     },
@@ -69,6 +69,11 @@ pub(crate) async fn get(
     .await?;
     if !supported(&descriptor.mime_type) || descriptor.size <= 0 {
         return Err(ApiError::invalid());
+    }
+    // Every request reauthorizes above. Reusing previously format-gated immutable bytes needs
+    // neither another header read nor another full storage stream.
+    if let Some(response) = not_modified(&descriptor, request.headers()) {
+        return Ok(response);
     }
     // Inspect the same immutable object that will be streamed, including for nonzero byte ranges.
     // This is a format gate, not a decoder, antivirus scan or fidelity guarantee.

@@ -150,7 +150,17 @@ export function createBackendProxy(config: BackendProxyConfig) {
     try {
       const response = await requestBackend(new Request(target, init));
       const outgoing = endToEndHeaders(response.headers);
-      outgoing.set("cache-control", "private, no-store");
+
+      // Only authorized thumbnail/preview responses opt into storage with mandatory revalidation.
+      // Never relax RPC, originals, errors, or an unrecognized backend cache policy.
+      const revalidatedMedia =
+        isRead &&
+        /^\/api\/storage\/(derivatives|previews)\//.test(url.pathname) &&
+        [200, 206, 304].includes(response.status) &&
+        outgoing.get("cache-control") === "private, no-cache" &&
+        outgoing.has("etag");
+
+      outgoing.set("cache-control", revalidatedMedia ? "private, no-cache" : "private, no-store");
       outgoing.set("x-content-type-options", "nosniff");
 
       // Fetch decodes these encodings; their wire lengths no longer describe the returned stream.

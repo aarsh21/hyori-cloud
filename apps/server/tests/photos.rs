@@ -125,7 +125,8 @@ async fn inline_originals_validate_family_ranges_current_object_and_revocation()
             response.headers()["content-length"],
             bytes.len().to_string()
         );
-        assert_eq!(response.headers()["cache-control"], "no-store");
+        assert_eq!(response.headers()["cache-control"], "private, no-cache");
+        assert!(response.headers().contains_key("etag"));
         assert_eq!(response.headers()["x-content-type-options"], "nosniff");
         assert!(
             response.headers()["content-security-policy"]

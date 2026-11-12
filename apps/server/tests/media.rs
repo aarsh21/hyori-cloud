@@ -458,7 +458,8 @@ async fn durable_derivatives_preserve_originals_scope_restore_quota_and_purge_la
         let response = get(&server, &cookie, media.value()["url"].as_str().unwrap()).await;
         assert_eq!(response.status(), 200);
         assert_eq!(response.headers()["content-type"], "image/png");
-        assert_eq!(response.headers()["cache-control"], "no-store");
+        assert_eq!(response.headers()["cache-control"], "private, no-cache");
+        assert!(response.headers().contains_key("etag"));
         assert_eq!(response.headers()["x-content-type-options"], "nosniff");
         let bytes = response.bytes().await.unwrap();
         worker.decode_output(&bytes);

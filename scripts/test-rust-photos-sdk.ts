@@ -255,7 +255,8 @@ try {
   assert.equal(original.status, 200);
   assert.equal(original.headers.get("content-type"), "image/png");
   assert.equal(original.headers.get("content-length"), String(png.byteLength));
-  assert.match(original.headers.get("cache-control")!, /(?:^|,\s*)no-store(?:,|$)/);
+  assert.equal(original.headers.get("cache-control"), "private, no-cache");
+  assert.ok(original.headers.has("etag"));
   assert.equal(original.headers.get("x-content-type-options"), "nosniff");
   assert.match(original.headers.get("content-security-policy")!, /sandbox/);
   assert.match(original.headers.get("content-disposition")!, /^inline;/);

@@ -344,7 +344,8 @@ try {
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("content-type"), "image/png");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
-    assert.match(response.headers.get("cache-control")!, /no-store/);
+    assert.equal(response.headers.get("cache-control"), "private, no-cache");
+    assert.ok(response.headers.has("etag"));
     const normalized = await response.arrayBuffer();
     assert.ok(normalized.byteLength <= 256 * 1024);
     await Bun.write(join(directory, "verified.png"), normalized);
