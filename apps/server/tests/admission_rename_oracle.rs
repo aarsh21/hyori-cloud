@@ -6,8 +6,8 @@ use serde_json::json;
 use support::{Postgres, TestServer};
 
 #[tokio::test]
-#[ignore = "real HTTP and unique loopback PostgreSQL: reproduce directly shared file rename oracle; metadata only"]
-async fn directly_shared_file_editor_can_probe_private_sibling_names() {
+#[ignore = "real HTTP and unique loopback PostgreSQL: a directly shared file's Editor cannot probe the folder's names by renaming; metadata only"]
+async fn directly_shared_file_editor_cannot_probe_private_sibling_names() {
     let pg = Postgres::start().await;
     let server = TestServer::start(pg.config.clone()).await;
     let owner = server.rpc("auth.setup", json!({"email":"owner@example.test","name":"Owner","password":random_token(),"setupToken":pg.config.setup_token}), None).await;
@@ -80,10 +80,51 @@ async fn directly_shared_file_editor_can_probe_private_sibling_names() {
         )
         .await;
     eprintln!(
-        "private parent listing=403; occupied sibling rename={} {}; free rename={}",
-        occupied.status, occupied.body, free.status
+        "private parent listing=403; occupied sibling rename={} {}; free rename={} {}",
+        occupied.status, occupied.body, free.status, free.body
     );
-    occupied.error(409, "resource.conflict");
-    assert_eq!(free.value()["name"], "Available.txt");
+    // A taken name and a free one get the same refusal, so the answer says nothing about the folder.
+    occupied.error(403, "access.denied");
+    free.error(403, "access.denied");
+    assert_eq!(occupied.body, free.body);
+    // The owner still renames, and an Editor of the shared folder still renames inside it.
+    assert_eq!(
+        server
+            .rpc(
+                "files.rename",
+                json!({"id":file,"name":"Owner renamed.txt"}),
+                Some(&owner_cookie),
+            )
+            .await
+            .value()["name"],
+        "Owner renamed.txt"
+    );
+    server
+        .rpc(
+            "shares.create",
+            json!({"itemId":parent,"recipientId":editor_id,"public":false,"role":"editor"}),
+            Some(&owner_cookie),
+        )
+        .await
+        .value();
+    server
+        .rpc(
+            "files.rename",
+            json!({"id":file,"name":"Confidential.txt"}),
+            Some(&cookie),
+        )
+        .await
+        .error(409, "resource.conflict");
+    assert_eq!(
+        server
+            .rpc(
+                "files.rename",
+                json!({"id":file,"name":"Available.txt"}),
+                Some(&cookie),
+            )
+            .await
+            .value()["name"],
+        "Available.txt"
+    );
     pg.stop();
 }

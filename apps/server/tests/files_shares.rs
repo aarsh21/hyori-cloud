@@ -250,11 +250,20 @@ async fn files_shares_postgres_http_parity() {
         )
         .await
         .error(403, "access.denied");
-    // A direct file Editor does not need parent listing access to rename.
+    // A direct file Editor who cannot list the parent cannot rename either: the answer would
+    // reveal which names the folder holds.
     server
         .rpc(
             "files.list",
             json!({"parentId":child}),
+            Some(&editor.cookie),
+        )
+        .await
+        .error(403, "access.denied");
+    server
+        .rpc(
+            "files.rename",
+            json!({"id":file,"name":" Edited.png "}),
             Some(&editor.cookie),
         )
         .await
@@ -264,7 +273,7 @@ async fn files_shares_postgres_http_parity() {
             .rpc(
                 "files.rename",
                 json!({"id":file,"name":" Edited.png "}),
-                Some(&editor.cookie)
+                Some(&owner.cookie)
             )
             .await
             .value()["name"],
@@ -307,11 +316,7 @@ async fn files_shares_postgres_http_parity() {
         .value();
     assert_eq!(
         server
-            .rpc(
-                "files.rename",
-                json!({"id":file,"name":"Still editor.png"}),
-                Some(&viewer.cookie)
-            )
+            .rpc("files.get", json!({"id":file}), Some(&viewer.cookie))
             .await
             .value()["access"]["role"],
         "editor"

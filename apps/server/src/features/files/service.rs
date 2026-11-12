@@ -376,6 +376,15 @@ impl FilesService {
             Box::pin(async move {
                 let mut item =
                     policy::authorize(tx, &actor, &input.id.0, Action::Edit, false).await?;
+                // A rename reveals whether a name is taken in the folder, so it needs read
+                // access to that folder, not only edit access to the item.
+                match item.parent_id.as_deref() {
+                    Some(parent) => {
+                        policy::authorize(tx, &actor, parent, Action::Read, false).await?;
+                    }
+                    None if actor.user_id() == Some(item.owner_id.as_str()) => {}
+                    None => return Err(ApiError::denied().into()),
+                }
                 policy::available_name(
                     tx,
                     &item.owner_id,
