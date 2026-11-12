@@ -111,6 +111,20 @@ Watch the disk that holds the `rust-storage-data` volume yourself; there is no f
 2. Restart RustFS with `docker compose --env-file .env.deployment restart rustfs`. RustFS 1.0.0-alpha.85 keeps deleted objects in `.rustfs.sys/tmp/.trash` until it restarts.
 3. Check that uploads work again.
 
+## Upload admission
+
+Each backend admits sixteen concurrent upload operations. Within those slots, one authenticated
+account (across all its sessions) or anonymous visitor grant set may hold two. Each applicable
+public contributor/editor link may hold four across all visitors. The SDK queues two files and
+sends their parts serially; the link budget allows two such queues. Begin, part and complete
+share these limits. Excess work gets `service.unavailable` without waiting in a server queue;
+SDK part retries remain bounded. These are per-process limits, so replicas multiply capacity.
+
+A part body that supplies no chunk for thirty seconds is abandoned. The storage operation has
+a 120-second deadline and the leased worker a 125-second deadline, so sending occasional tiny
+chunks cannot hold admission forever. Admission remains owned by the worker across a caller
+disconnect until that worker exits; inactive principal-map entries are removed.
+
 ## Missing for production
 
 - **Metrics and alerts.** There is no metrics endpoint for request rates, errors, latency, queue depth, transfer admission, database pool, storage usage or media job state.

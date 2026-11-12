@@ -33,6 +33,7 @@ pub struct AppState {
     pub(crate) transfers: Arc<tokio::sync::Semaphore>,
     /// Upload begin/part/complete operations, admitted independently of downloads.
     pub(crate) uploads: Arc<tokio::sync::Semaphore>,
+    pub(crate) upload_principals: features::uploads::http::PrincipalLimiter,
     pub(crate) download_principals: features::uploads::http::PrincipalLimiter,
     pub(crate) requests: tokio::sync::Semaphore,
     pub(crate) upload_cleanup: tokio::sync::Notify,
@@ -101,6 +102,7 @@ impl AppState {
             editor_assets,
             transfers: Arc::new(tokio::sync::Semaphore::new(config::DOWNLOAD_CONCURRENCY)),
             uploads: Arc::new(tokio::sync::Semaphore::new(config::UPLOAD_CONCURRENCY)),
+            upload_principals: features::uploads::http::PrincipalLimiter::default(),
             download_principals: features::uploads::http::PrincipalLimiter::default(),
             requests: tokio::sync::Semaphore::new(config::RPC_CONCURRENCY),
             upload_cleanup: tokio::sync::Notify::new(),

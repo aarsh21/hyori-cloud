@@ -10,7 +10,12 @@ use crate::{
             db::{Item, Version},
             policy as files,
         },
-        uploads::{api::*, db::Upload, policy},
+        uploads::{
+            admission::{self, Admission},
+            api::*,
+            db::Upload,
+            policy,
+        },
     },
     rpc::RequestContext,
 };
@@ -19,7 +24,6 @@ use futures_util::StreamExt;
 use hyori_storage::{CHUNK_SIZE, MAX_PARTS, ObjectStorage, StorageError, StorageStream};
 use sea_orm::ConnectionTrait;
 use std::{future::Future, sync::Arc, time::Duration};
-use tokio::sync::OwnedSemaphorePermit;
 use tracing::Instrument;
 
 pub(crate) fn storage_error(error: StorageError) -> ApiError {
@@ -62,11 +66,7 @@ impl UploadsService {
     }
     pub async fn begin(&self, input: BeginUpload) -> Result<UploadStatus, ApiError> {
         let storage = self.storage()?;
-        let _permit = self
-            .state
-            .uploads
-            .try_acquire()
-            .map_err(|_| ApiError::unavailable())?;
+        let _permit = admission::begin(&self.state, &self.context, &input).await?;
         if input.size.0 > CHUNK_SIZE * u64::from(MAX_PARTS) {
             return Err(ApiError::invalid());
         }
@@ -122,11 +122,7 @@ impl UploadsService {
     /// A stable editor save ID owns this committed key intent before any multipart begin.
     pub(crate) async fn start_reserved(&self, id: &str) -> Result<UploadStatus, ApiError> {
         let storage = self.storage()?;
-        let _permit = self
-            .state
-            .uploads
-            .try_acquire()
-            .map_err(|_| ApiError::unavailable())?;
+        let _permit = admission::existing(&self.state, &self.context, id).await?;
         let token = random_token();
         let upload = db::domain(&self.state.db, |tx| {
             let assets = self.state.editor_assets.clone();
@@ -215,8 +211,8 @@ impl UploadsService {
         number: u32,
         length: u64,
         body: StorageStream,
-        permit: OwnedSemaphorePermit,
     ) -> Result<AcknowledgedPart, ApiError> {
+        let permit = admission::existing(&self.state, &self.context, &id).await?;
         self.run_leased(id.clone(), permit, move |service, token| async move {
             service
                 .write_part_leased(id, number, length, body, token)
@@ -332,7 +328,7 @@ impl UploadsService {
     async fn run_leased<T, F, W>(
         &self,
         id: String,
-        permit: OwnedSemaphorePermit,
+        permit: Admission,
         operation: F,
     ) -> Result<T, ApiError>
     where
@@ -379,12 +375,7 @@ impl UploadsService {
     #[tracing::instrument(skip_all, name = "upload_completion")]
     pub async fn complete(&self, input: UploadInput) -> Result<FileEntry, ApiError> {
         self.storage()?;
-        let permit = self
-            .state
-            .uploads
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| ApiError::unavailable())?;
+        let permit = admission::existing(&self.state, &self.context, &input.upload_id.0).await?;
         self.run_leased(
             input.upload_id.0.clone(),
             permit,
