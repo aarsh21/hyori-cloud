@@ -545,7 +545,7 @@ r1 ran natively without network isolation. r2 runs each editor in `scripts/artcr
 Each step is skipped when its result exists, and a failed step's partial output is removed before it reruns. Before changing patches or pins, measure how far upstream has moved (see [Upstream drift](#upstream-drift-and-the-upgrade-path--2026-11-12)). For the next revision, after patches change:
 
 1. Append a revision to `revisions` in `native-v3-runtime.ts`, with a new authority, receipt root, bundle and handoff name.
-2. Append the authority file to `NATIVE_AUTHORITIES` in `apps/server/src/editor_assets.rs`.
+2. Commit the new `tooling/artcraft/runtime-native-v3-rN.json` authority alongside its receipts, leaving earlier revisions unchanged. The server build discovers these files automatically; no Rust constant edit is needed.
 3. Bump `nativeArtifactVersions` for every app whose payload changes.
 4. Run the command above with a fresh `WORK_DIR`, or delete the native `stage/*` and `evidence/*` directories in the old one. The downloads, tools, Cargo cache and bb6 base are reused.
 
@@ -593,16 +593,15 @@ Results on 2026-11-12 (pins: Word 0.14.0, Grid 0.15.0, PDF 0.17.0, Deck 0.14.1, 
 
 Since the pins, all four upstream web builds use `craft-web-host` (storytold/craft-libs `crates/web-host`, rev `fd5e2fef…` in the newest tags), described as one contract "for pages that embed DeckCraft and keep its files (a Nextcloud app, a personal file server)". Its version 1 has `ready`, `open`, `save` with an optional `id`, a host `saved {id}` acknowledgement that clears dirty, `dirty`, `failed` and `handoff`. Upstream `craft-web-api` adds `window.<app>.execute`, including `ui.theme`. Protocol 2 still needs pieces upstream lacks: host-initiated `request-save` for autosave, a parsed `opened` acknowledgement, opaque document revisions on `dirty`, correlated error codes and `cancel-intent`. Rebasing onto `craft-web-host` and proposing those additions upstream would turn most of the host-protocol stage into upstream code.
 
-### What still needs Rust edits for each bundle, and the options
+### Server rebuilds and authority trust
 
-Today a new bundle needs a server image rebuilt with a new `NATIVE_AUTHORITIES` entry in `apps/server/src/editor_assets.rs`, and a build elsewhere cannot reuse an authority because `build-manifest.json` hashes command timings and logs.
+Every new authority still needs a server image rebuild. `apps/server/build.rs` discovers `tooling/artcraft/runtime-native-v3*.json` in the build source, orders the unsuffixed r1 then numeric revisions, and fails if none exist. The server Dockerfile copies the same wildcard files into the builder. No Git checkout is required inside the image build, and no runtime operator-supplied authority is trusted. A build elsewhere still cannot reuse an authority because `build-manifest.json` hashes command timings and logs.
 
 Protocol-2 acceptance uses the source archive pinned by the exact committed authority carried in the bundle, not the composer's current `sourceSha256` in `manifest.json`. Raising the current upstream pin therefore preserves earlier authorities' bundles, while a source hash absent from that authority is refused. The upgrade regression tests both outcomes for every committed authority. The official/legacy protocol acceptance rules are unchanged.
 
-Options for removing the per-bundle Rust edit, for aarsh to decide:
+The generated list preserves the committed-source trust rule. Alternatives that would remove the image rebuild remain unapproved proposals for aarsh:
 
-1. **Generated list (same trust).** Read `tooling/artcraft/runtime-native-v3*.json` in a build script instead of a hand-edited array. This removes the source edit but still needs an image rebuild. Security is unchanged.
-2. **Signed authorities (same provenance, no rebuild).** Compile in one Ed25519 public key; a bundle carries an authority signed with the offline key. Any machine can build, and the server accepts it if the signature verifies. Trade-off: the private key becomes the root of trust and needs rotation and revocation, and the server gains a signature dependency.
-3. **Operator pin only (no rebuild, weaker provenance).** Accept any bundle whose manifest matches `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`, still running the full inventory checks. Trade-off: anyone who can change deployment configuration and the mounted directory can run arbitrary same-origin code with users' full account privileges. The compiled-in list exists to prevent that.
+1. **Signed authorities (same provenance, no rebuild).** Compile in one Ed25519 public key; a bundle carries an authority signed with the offline key. Any machine can build, and the server accepts it if the signature verifies. Trade-off: the private key becomes the root of trust and needs rotation and revocation, and the server gains a signature dependency.
+2. **Operator pin only (no rebuild, weaker provenance).** Accept any bundle whose manifest matches `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`, still running the full inventory checks. Trade-off: anyone who can change deployment configuration and the mounted directory can run arbitrary same-origin code with users' full account privileges. The compiled-in list exists to prevent that.
 
 Independently, excluding `elapsedMs`, stdout and stderr from the hashed build manifest, with the logs kept beside it, would let a rebuild elsewhere reproduce an authority whenever the payload is reproducible. Grid r2 reproduced r1's payload bit for bit.

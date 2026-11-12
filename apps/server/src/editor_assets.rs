@@ -556,12 +556,9 @@ fn payload_sha256(files: &[InventoryFile]) -> Result<Option<String>, ApiError> {
     let json = serde_json::to_vec(&files).map_err(|_| ApiError::unavailable())?;
     Ok(Some(hex::encode(Sha256::digest(json))))
 }
-/// Every committed native host v3 authority revision, oldest first. A revision is never rewritten,
-/// so bundles it identifies keep verifying; each bundle carries exactly one of them.
-const NATIVE_AUTHORITIES: [&str; 2] = [
-    include_str!("../../../tooling/artcraft/runtime-native-v3.json"),
-    include_str!("../../../tooling/artcraft/runtime-native-v3-r2.json"),
-];
+// Every committed native host v3 authority revision, oldest first. A revision is never rewritten,
+// so bundles it identifies keep verifying; each bundle carries exactly one of them.
+include!(concat!(env!("OUT_DIR"), "/native_authorities.rs"));
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct NativeAuthority {
