@@ -404,6 +404,86 @@ describe("public vanilla upload queue with explicit task fakes", () => {
     sdk.dispose();
   });
 
+  test("pending discovery removes an interrupted upload cancelled by another client", async () => {
+    const api = fakeAPI();
+
+    const fetch: typeof api.fetch = async (url, init) => {
+      const request = JSON.parse(String(init?.body));
+
+      if (request.operation === "uploads.pending")
+        return Response.json({ ok: true, value: { items: [], cursor: null } });
+
+      return api.fetch(url, init);
+    };
+
+    const sdk = createClient({ fetch });
+    const other = createClient({ fetch });
+
+    const checkpoint: UploadCheckpoint = {
+      version: 1,
+      uploadId: "upload_1",
+      file: { name: "hello.txt", size: 7, type: "text/plain", lastModified: 42 },
+    };
+
+    let stored: readonly UploadCheckpoint[] = [checkpoint];
+
+    const queue = createUploadQueue(sdk, {
+      read: () => stored,
+      write: (value) => {
+        stored = value;
+      },
+    });
+
+    // Absence from a page alone cannot discard a live upload.
+    await queue.listPending({ cursor: null, limit: 100 });
+    expect(queue.getEntries()).toHaveLength(1);
+    expect(stored).toEqual([checkpoint]);
+    await other.rpc.uploads.abort({ uploadId: checkpoint.uploadId });
+    await queue.listPending({ cursor: null, limit: 100 });
+    expect(queue.getEntries()).toEqual([]);
+    expect(stored).toEqual([]);
+    queue.dispose();
+    sdk.dispose();
+    other.dispose();
+  });
+
+  for (const code of [
+    "SDK_TRANSPORT",
+    "service.unavailable",
+    "uploads.busy",
+    "resource.notFound",
+  ] as const)
+    test(`pending discovery only forgets explicitly gone uploads, not ${code}`, async () => {
+      const sdk = createClient();
+      sdk.rpc.uploads.pending = async () => ({ items: [], cursor: "another-page" });
+      sdk.rpc.uploads.status = async () => {
+        throw code === "SDK_TRANSPORT"
+          ? new SDKError(code, "Probe failure")
+          : { code, message: "Probe failure" };
+      };
+
+      const checkpoint: UploadCheckpoint = {
+        version: 1,
+        uploadId: "upload_saved",
+        file: { name: "hello.txt", size: 7, type: "text/plain", lastModified: 42 },
+      };
+
+      let stored: readonly UploadCheckpoint[] = [checkpoint];
+
+      const queue = createUploadQueue(sdk, {
+        read: () => stored,
+        write: (value) => {
+          stored = value;
+        },
+      });
+
+      await queue.listPending({ cursor: null, limit: 1 });
+      expect(queue.getEntries()).toHaveLength(code === "resource.notFound" ? 0 : 1);
+      expect(stored).toEqual(code === "resource.notFound" ? [] : [checkpoint]);
+      queue.dispose();
+      sdk.dispose();
+    });
+
   test("keeps queued resume checkpoints, validates metadata once, and pauses owned tasks on disposal", () => {
     const sdk = createClient();
     const original = file();

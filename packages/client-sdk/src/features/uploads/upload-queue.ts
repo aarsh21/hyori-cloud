@@ -410,6 +410,33 @@ export function createUploadQueue(
     ) {
       assertActive();
       const page = await sdkClient.rpc.uploads.pending(input, options);
+
+      // A paginated inventory's omission is not proof of removal. Ask for explicit state
+      // only for interrupted rows absent from this page, while the caller is viewing uploads.
+      for (const entry of entries) {
+        if (
+          entry.state !== "interrupted" ||
+          entry.cancelling ||
+          page.items.some((upload) => upload.uploadId === entry.id)
+        )
+          continue;
+        let gone = false;
+
+        try {
+          const status = await sdkClient.rpc.uploads.status({ uploadId: entry.id }, options);
+          gone = status.uploadId === entry.id && status.state === "aborted";
+        } catch (error) {
+          gone = normalizeUploadError(error).code === "resource.notFound";
+        }
+
+        // Do not remove a row which resumed or began cancellation during this lookup.
+        if (!disposed && gone && find(entry.id) === entry) {
+          remove(entry.id);
+          persist();
+          publish();
+        }
+      }
+
       const checkpoints = readCheckpoints(store);
 
       return {
