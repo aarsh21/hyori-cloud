@@ -62,8 +62,9 @@ export function createBrowserEditorVisibility(document: {
 }
 
 /**
- * The host's own fetch of the engine its descriptor names: same-origin and immutable, so it comes
- * from the HTTP cache after the first open. Bytes that differ from the descriptor are refused.
+ * The host window's own fetch of the engine its descriptor names: same-origin and immutable, so it
+ * comes from the HTTP cache after the first open. Bytes that differ from the descriptor are refused.
+ * The transport stays here, in the SDK's browser adapter; features pass only the host window.
  */
 export function createBrowserEditorEngine(host: {
   fetch: (url: string, init: RequestInit) => Promise<Response>;
