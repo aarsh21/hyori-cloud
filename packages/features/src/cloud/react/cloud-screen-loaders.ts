@@ -105,6 +105,11 @@ function ignoreLoadFailure() {
   // into its offline recovery boundary, or the host's Reload screen for an online chunk failure.
 }
 
+/** For a document someone may open next: the editor renders without a fallback once this is done. */
+export function preloadEditorScreen() {
+  void loadEditorScreen().catch(ignoreLoadFailure);
+}
+
 export function preloadCloudLocation(location: CloudLocation) {
   switch (location.section) {
     case "invite":

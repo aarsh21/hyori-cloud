@@ -23,6 +23,7 @@ const profile = createArchitectureConfig({
       "packages/ui/src/hooks/use-dispose-on-unmount.ts",
       "packages/ui/src/hooks/use-entered-viewport.ts",
       "packages/ui/src/hooks/use-preload-images.ts",
+      "packages/ui/src/hooks/use-preload-when-idle.ts",
       "packages/ui/src/hooks/use-refocus-after-removal.ts",
       "packages/ui/src/hooks/use-retry-on-reconnect.ts",
       "packages/ui/src/hooks/use-virtual-windows.ts",
