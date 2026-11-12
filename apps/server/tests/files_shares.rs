@@ -1,5 +1,7 @@
 #[path = "support/authorization_lifecycle.rs"]
 mod authorization_lifecycle;
+#[path = "support/link_capability.rs"]
+mod link_capability;
 #[path = "support/metadata_listing.rs"]
 mod metadata_listing;
 mod support;
@@ -523,9 +525,17 @@ async fn files_shares_postgres_http_parity() {
         row.try_get::<String>("", "password_hash").unwrap(),
         "link password"
     );
-    let grant_token = grant1.split_once('=').unwrap().1;
-    let row = server.state.db.query_one_raw(sql("SELECT token_digest,extract(epoch FROM expires_at-created_at)::bigint AS lifetime FROM hyori_grants WHERE token_digest=$1",vec![digest(grant_token).into()])).await.unwrap().unwrap();
-    assert!(row.try_get::<i64>("", "lifetime").unwrap() <= 43200);
+    // The visitor's credential is a capability living at most 12 hours; nothing was stored.
+    let (issued, expires) = link_capability::times(grant1.split_once('=').unwrap().1);
+    assert!((1..=43200).contains(&(expires - issued)));
+    let stored = server
+        .state
+        .db
+        .query_one_raw(sql("SELECT count(*) AS n FROM hyori_grants", vec![]))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.try_get::<i64>("", "n").unwrap(), 0);
     server
         .rpc(
             "shares.revoke",
@@ -546,15 +556,19 @@ async fn files_shares_postgres_http_parity() {
         .rpc("files.list", json!({"parentId":private}), Some(&grants))
         .await
         .value();
-    server
-        .state
-        .db
-        .execute_raw(sql(
-            "UPDATE hyori_grants SET expires_at=now()-interval '1 second' WHERE share_id=$1",
-            vec![other_link.value()["id"].as_str().unwrap().into()],
-        ))
-        .await
-        .unwrap();
+    // The same browser after its capability for the other link has expired.
+    let other_id = other_link.value()["id"].as_str().unwrap();
+    let expired = link_capability::expired(&server, other_id).await;
+    let grants = grants
+        .split("; ")
+        .map(|cookie| match cookie.split_once('=') {
+            Some((name, _)) if name == format!("hyori_grant_{other_id}") => {
+                format!("{name}={expired}")
+            }
+            _ => cookie.to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
     server
         .rpc("files.list", json!({"parentId":private}), Some(&grants))
         .await

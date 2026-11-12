@@ -123,7 +123,7 @@ async fn revoked_or_expired_link_sessions_release_admission_and_end() {
         .state
         .db
         .execute_raw(sql(
-            "UPDATE hyori_grants SET expires_at=now() WHERE share_id=$1",
+            "UPDATE hyori_editor_sessions SET link_expires_at=now() WHERE link_shares ? $1",
             vec![expired["id"].as_str().unwrap().into()],
         ))
         .await

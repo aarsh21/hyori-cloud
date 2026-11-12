@@ -44,6 +44,12 @@ pub struct AppState {
     pub(crate) owner_locks: db::OwnerLocks,
 }
 impl AppState {
+    /// The credentials a request carries, with the key that verifies its link capabilities.
+    pub(crate) fn request_context(&self, headers: &axum::http::HeaderMap) -> rpc::RequestContext {
+        let mut context = rpc::RequestContext::from_headers(headers);
+        context.capability_key = Some(features::shares::capability::key(&self.config.auth_secret));
+        context
+    }
     /// Call after HTTP admission ends, before closing storage/database resources.
     pub async fn drain_transfers(&self) -> Result<(), ApiError> {
         let (downloads, uploads) = tokio::join!(

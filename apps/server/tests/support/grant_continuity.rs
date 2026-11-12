@@ -51,18 +51,7 @@ async fn anonymous_uploads_survive_same_link_resolution_without_broadening_initi
         .await
         .credential();
     assert_ne!(grant, stranger);
-    let original_expiry = server
-        .state
-        .db
-        .query_one_raw(sql(
-            "SELECT expires_at::text AS expiry FROM hyori_grants WHERE token_digest=$1",
-            vec![hyori_server::auth::digest(grant.split_once('=').unwrap().1).into()],
-        ))
-        .await
-        .unwrap()
-        .unwrap()
-        .try_get::<String>("", "expiry")
-        .unwrap();
+    let original_expiry = link_capability::times(grant.split_once('=').unwrap().1).1;
     let id = begin(&server, &grant, "resumed", 5, Some(&folder), None).await;
     second
         .rpc("uploads.status", json!({"uploadId":id}), Some(&stranger))
@@ -136,24 +125,32 @@ async fn anonymous_uploads_survive_same_link_resolution_without_broadening_initi
         .await
         .value();
     assert_eq!(accounting(&server, &owner).await, (5, 0));
-    let row = server.state.db.query_one_raw(sql("SELECT count(*) AS count,min(expires_at)::text AS expiry FROM hyori_grants WHERE share_id=$1",vec![link.value()["id"].as_str().unwrap().into()])).await.unwrap().unwrap();
-    assert_eq!(row.try_get::<i64>("", "count").unwrap(), 2);
+    // Two browsers opened the link, and nothing was stored; this one kept its first expiry.
+    assert_ne!(grant, stranger);
+    let row = server
+        .state
+        .db
+        .query_one_raw(sql(
+            "SELECT count(*) AS count FROM hyori_grants WHERE share_id=$1",
+            vec![link.value()["id"].as_str().unwrap().into()],
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.try_get::<i64>("", "count").unwrap(), 0);
     assert_eq!(
-        row.try_get::<String>("", "expiry").unwrap(),
+        link_capability::times(refreshed.split_once('=').unwrap().1).1,
         original_expiry
     );
 
     // An expired credential is NOT renewed or silently given ownership of its old pending upload.
     let expiring = begin(&server, &refreshed, "expired", 1, Some(&folder), None).await;
-    server
-        .state
-        .db
-        .execute_raw(sql(
-            "UPDATE hyori_grants SET expires_at=now()-interval '1 second' WHERE token_digest=$1",
-            vec![hyori_server::auth::digest(refreshed.split_once('=').unwrap().1).into()],
-        ))
-        .await
-        .unwrap();
+    // The browser after its capability's 12 hours.
+    let (name, _) = refreshed.split_once('=').unwrap();
+    let refreshed = format!(
+        "{name}={}",
+        link_capability::expired(&server, link.value()["id"].as_str().unwrap()).await
+    );
     let locked = server
         .rpc("shares.resolve", json!({"token":token}), Some(&refreshed))
         .await;

@@ -2,6 +2,8 @@
 mod download_revision;
 #[path = "support/grant_continuity.rs"]
 mod grant_continuity;
+#[path = "support/link_capability.rs"]
+mod link_capability;
 #[path = "support/storage.rs"]
 mod storage;
 mod support;

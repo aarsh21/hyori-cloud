@@ -6,7 +6,7 @@ use crate::{
         editors::{api::EditorDownloadInput, formats, service::EditorsService},
         uploads::http::stream_content,
     },
-    rpc::{RequestContext, validate_origin},
+    rpc::validate_origin,
 };
 use axum::{
     body::Body,
@@ -33,7 +33,7 @@ pub(crate) async fn get(
         .try_acquire_owned()
         .map_err(|_| ApiError::unavailable())?;
     validate_origin(request.headers(), &state.config.origin)?;
-    let context = RequestContext::from_headers(request.headers());
+    let context = state.request_context(request.headers());
     let service = EditorsService::new(state.clone(), context);
     let input = EditorDownloadInput {
         session_id: Id(id),

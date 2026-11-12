@@ -67,6 +67,24 @@ pub fn random_token() -> String {
     hex::encode(bytes)
 }
 
+/// HMAC-SHA-256 (RFC 2104).
+pub(crate) fn hmac_sha256(secret: &[u8], message: &[u8]) -> [u8; 32] {
+    let mut key = [0_u8; 64];
+    if secret.len() > key.len() {
+        key[..32].copy_from_slice(&Sha256::digest(secret));
+    } else {
+        key[..secret.len()].copy_from_slice(secret);
+    }
+    let inner = Sha256::new()
+        .chain_update(key.map(|b| b ^ 0x36))
+        .chain_update(message)
+        .finalize();
+    Sha256::new()
+        .chain_update(key.map(|b| b ^ 0x5c))
+        .chain_update(inner)
+        .finalize()
+        .into()
+}
 #[derive(Clone)]
 pub struct AuthAdapter {
     config: Arc<Config>,

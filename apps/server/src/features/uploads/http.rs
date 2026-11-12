@@ -61,7 +61,7 @@ pub(crate) async fn put(
     if length > hyori_storage::CHUNK_SIZE {
         return Err(ApiError::invalid());
     }
-    let context = RequestContext::from_headers(request.headers());
+    let context = state.request_context(request.headers());
     // A silently dead connection must fail the part (and release its lease) promptly, not after
     // the storage adapter's two-minute request bound. Admission waiting must not restart the
     // first-chunk clock: an empty queued body has already spent that idle time.
@@ -115,7 +115,7 @@ pub(crate) async fn get(
     }
     let descriptor = files::read_content(
         &state,
-        RequestContext::from_headers(request.headers()),
+        state.request_context(request.headers()),
         DownloadInput {
             id: Id(id),
             version_id: query.version.map(Id),

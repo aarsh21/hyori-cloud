@@ -91,6 +91,9 @@ pub struct RequestContext {
     /// failure. The wait runs after the operation has ended, so it holds no admission slot,
     /// database connection or transaction.
     pub answer_not_before: Arc<OnceLock<Instant>>,
+    /// Key that verifies link capabilities among `grants`; without it only stored grants count.
+    /// Set by [`crate::AppState::request_context`].
+    pub(crate) capability_key: Option<[u8; 32]>,
 }
 impl RequestContext {
     /// Parse bounded credential material only. This is not authority: every product transaction
@@ -105,6 +108,7 @@ impl RequestContext {
             client: None,
             arrived: None,
             answer_not_before: Arc::default(),
+            capability_key: None,
         }
     }
 }
@@ -282,7 +286,7 @@ async fn handle_inner(
     {
         return Err(ApiError::invalid());
     }
-    let mut context = RequestContext::from_headers(request.headers());
+    let mut context = state.request_context(request.headers());
     context.client = client_address(
         request.headers(),
         request
@@ -351,6 +355,8 @@ pub fn validate_origin(headers: &HeaderMap, origin: &str) -> Result<(), ApiError
     }
     Ok(())
 }
+/// Each per-share cookie holds a link capability (see `features::shares::capability`) or, until
+/// its 12 hours end, a stored grant token from before capabilities.
 /// Parse at most 64 candidates from at most 16 KiB of Cookie headers. The ordinary jar contains
 /// <=16 independent per-share cookies; simultaneous additions can temporarily exceed that count.
 /// Policy selects at most 16 current grants by DB creation time, and the next successful resolve
@@ -394,7 +400,9 @@ fn grant_cookies(headers: &HeaderMap) -> (Vec<String>, Vec<String>) {
                     }
                     grants.push(token.to_owned());
                 }
-            } else if valid_token(value) {
+            } else if valid_token(value)
+                || crate::features::shares::capability::Capability::parse(value).is_some()
+            {
                 grants.push(value.to_owned());
             }
             if grants.len() > MAX_GRANT_CANDIDATES || names.len() > MAX_GRANT_CANDIDATES {
@@ -406,7 +414,7 @@ fn grant_cookies(headers: &HeaderMap) -> (Vec<String>, Vec<String>) {
     grants.dedup();
     (grants, names)
 }
-fn valid_token(value: &str) -> bool {
+pub(crate) fn valid_token(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 /// The single value of a named cookie; absent when missing or repeated.

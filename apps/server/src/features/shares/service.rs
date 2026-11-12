@@ -9,23 +9,28 @@ use crate::{
             policy::{self, Action},
             service::FilesService,
         },
-        shares::{api::*, db::ShareRecord},
+        shares::{
+            api::*,
+            capability::{self, Capability},
+            db::ShareRecord,
+        },
     },
     rpc::{GRANT_COOKIE_PREFIX, RequestContext, RpcResult},
     wire::Nullable,
 };
 use chrono::Utc;
-use sea_orm::ConnectionTrait;
+use sea_orm::{ConnectionTrait, DatabaseTransaction};
 use std::sync::Arc;
 
 /// Each share has an independent host-only cookie, so concurrent responses from different
-/// processes/tabs merge by name even from an empty jar. Resolving an active grant preserves its
+/// processes/tabs merge by name even from an empty jar. Resolving with a live credential preserves it
 /// credential and original expiry so anonymous upload initiators survive reloads and other tabs.
 /// Only when the observed jar plus the new name exceeds 16 cookies do resolves evict names outside
 /// the newest 16 DB-validated shares. Below capacity, even expired names are left alone: a parallel
 /// response may be refreshing them. Concurrent additions at capacity can temporarily leave more
 /// than 16 cookies; policy still admits only 16, and the next resolve reconciles the jar.
-/// Expiring a browser cookie does not revoke the underlying 12-hour grant on other clients.
+/// Each cookie holds a signed capability (see `capability`), so opening a link stores nothing;
+/// expiring a browser cookie does not revoke a copy of the capability held elsewhere.
 fn grant_cookie(name: &str, token: &str, secure: bool, remaining_seconds: i64) -> String {
     format!(
         "{name}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={}{}",
@@ -172,15 +177,15 @@ impl SharesService {
         if password.is_some() && candidate.password_hash.is_some() && !password_valid {
             return Err(ApiError::denied());
         }
-        let grant_token = random_token();
         let cookie_name = format!("{GRANT_COOKIE_PREFIX}{}", candidate.id);
         let credentials = self.context.grants.clone();
+        let key = capability::key(&self.state.config.auth_secret);
+        // Reads only: opening a link stores nothing, so concurrent opens never conflict.
         let result = self
             .files()
             .run(move |tx, actor| {
                 let token_digest = token_digest.clone();
                 let hash = candidate.password_hash.clone();
-                let grant_token = grant_token.clone();
                 let credentials = credentials.clone();
                 Box::pin(async move {
                     let share = ShareRecord::by_token(tx, &token_digest).await?;
@@ -188,17 +193,8 @@ impl SharesService {
                     if share.password_hash != hash {
                         return Err(ApiError::denied().into());
                     }
-                    let digests: Vec<_> = credentials.iter().map(|token| digest(token)).collect();
-                    let existing = tx.query_one_raw(sql(
-                        "SELECT token_digest FROM hyori_grants WHERE share_id=$1
-                         AND token_digest IN (SELECT jsonb_array_elements_text($2::jsonb))
-                         AND expires_at>now() ORDER BY created_at DESC,token_digest LIMIT 1 FOR UPDATE",
-                        vec![share.id.clone().into(), serde_json::json!(digests).into()],
-                    )).await?;
-                    if share.password_hash.is_some()
-                        && !password_valid
-                        && existing.is_none()
-                    {
+                    let existing = held_credential(tx, &key, &share, &credentials).await?;
+                    if share.password_hash.is_some() && !password_valid && existing.is_none() {
                         return Ok((
                             ResolvedShare {
                                 share: share.project(None),
@@ -212,27 +208,16 @@ impl SharesService {
                     let actor = actor.with_share(share.id.clone());
                     let item =
                         policy::authorize(tx, &actor, &share.item_id, Action::Read, false).await?;
-                    let (grant_token, expiry) = if let Some(existing) = existing {
-                        let hash = existing.try_get::<String>("", "token_digest")?;
-                        let token = credentials.into_iter().find(|token| digest(token) == hash)
-                            .ok_or_else(ApiError::unavailable)?;
-                        // Recency changes for bounded retention, never the credential's fixed expiry.
-                        let row = tx.query_one_raw(sql(
-                            "UPDATE hyori_grants SET created_at=now() WHERE token_digest=$1
-                             RETURNING GREATEST(1,ceil(extract(epoch FROM (expires_at-now()))))::bigint AS remaining",
-                            vec![hash.into()],
-                        )).await?.ok_or_else(ApiError::unavailable)?;
-                        (token, row.try_get::<i64>("", "remaining")?)
-                    } else {
-                        let row = tx.query_one_raw(sql(
-                            "INSERT INTO hyori_grants(token_digest,share_id,expires_at)
-                             VALUES ($1,$2,LEAST(now()+interval '12 hours',
-                                    COALESCE($3::timestamptz,now()+interval '12 hours')))
-                             RETURNING GREATEST(1,ceil(extract(epoch FROM (expires_at-now()))))::bigint AS remaining",
-                            vec![digest(&grant_token).into(), share.id.clone().into(), share.expires_at.into()],
-                        )).await?.ok_or_else(ApiError::unavailable)?;
-                        (grant_token, row.try_get::<i64>("", "remaining")?)
-                    };
+                    // A visitor who already holds a live credential keeps it, and with it their
+                    // uploads and editor handles; anyone else gets a new capability.
+                    let grant = existing.unwrap_or_else(|| {
+                        capability::issue(
+                            &key,
+                            &share.id,
+                            share.password_hash.as_deref(),
+                            share.expires_at,
+                        )
+                    });
                     Ok((
                         ResolvedShare {
                             share: share.project(None),
@@ -240,7 +225,7 @@ impl SharesService {
                             requires_password: false,
                         },
                         actor.public_shares().to_vec(),
-                        Some((grant_token, expiry)),
+                        Some(grant),
                     ))
                 })
             })
@@ -274,4 +259,55 @@ impl SharesService {
         }
         Ok(RpcResult { value, cookies })
     }
+}
+/// A live credential for `share` among the visitor's, with its remaining seconds: a capability
+/// issued for the link as it is now, or a grant stored before capabilities.
+async fn held_credential(
+    tx: &DatabaseTransaction,
+    key: &[u8; 32],
+    share: &ShareRecord,
+    credentials: &[String],
+) -> db::DomainResult<Option<(String, i64)>> {
+    let now = Utc::now();
+    let capability = credentials
+        .iter()
+        .filter_map(|token| Capability::parse(token).map(|parsed| (token, parsed)))
+        .filter(|(_, parsed)| {
+            parsed.share_id == share.id
+                && parsed.live(now)
+                && parsed.verifies(key, share.password_hash.as_deref())
+        })
+        .max_by_key(|(_, parsed)| parsed.expires);
+    if let Some((token, parsed)) = capability {
+        return Ok(Some((
+            token.clone(),
+            (parsed.expires - now.timestamp()).max(1),
+        )));
+    }
+    let digests: Vec<_> = credentials
+        .iter()
+        .filter(|token| crate::rpc::valid_token(token))
+        .map(|token| digest(token))
+        .collect();
+    if digests.is_empty() {
+        return Ok(None);
+    }
+    let Some(row) = tx
+        .query_one_raw(sql(
+            "SELECT token_digest, GREATEST(1,ceil(extract(epoch FROM (expires_at-now()))))::bigint AS remaining
+             FROM hyori_grants WHERE share_id=$1
+             AND token_digest IN (SELECT jsonb_array_elements_text($2::jsonb))
+             AND expires_at>now() ORDER BY created_at DESC,token_digest LIMIT 1",
+            vec![share.id.clone().into(), serde_json::json!(digests).into()],
+        ))
+        .await?
+    else {
+        return Ok(None);
+    };
+    let stored = row.try_get::<String>("", "token_digest")?;
+    let token = credentials
+        .iter()
+        .find(|token| digest(token) == stored)
+        .ok_or_else(ApiError::unavailable)?;
+    Ok(Some((token.clone(), row.try_get("", "remaining")?)))
 }

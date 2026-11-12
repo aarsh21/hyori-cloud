@@ -36,6 +36,7 @@ pub mod uploads {
 }
 pub mod shares {
     pub mod api;
+    pub mod capability;
     pub(crate) mod db;
     pub(crate) mod service;
 }

@@ -1,3 +1,4 @@
+use crate::features::shares::capability::Capability;
 use crate::{
     auth::digest,
     db::{DomainResult, sql},
@@ -12,15 +13,18 @@ use crate::{
     rpc::RequestContext,
     wire::Nullable,
 };
+use chrono::{DateTime, Utc};
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
 use unicode_normalization::UnicodeNormalization;
 
-/// Transaction-local identity and at most 16 current public grants, newest first.
+/// Transaction-local identity and at most 16 current public links, newest first.
 /// Direct recipient shares are resolved only against resources, never enumerated here.
 #[derive(Clone)]
 pub(crate) struct ProductActor {
     user_id: Option<String>,
     public_shares: Vec<String>,
+    /// When the last of the link credentials behind `public_shares` expires.
+    link_expiry: Option<DateTime<Utc>>,
 }
 impl ProductActor {
     pub fn user_id(&self) -> Option<&str> {
@@ -31,6 +35,9 @@ impl ProductActor {
     }
     pub fn public_shares(&self) -> &[String] {
         &self.public_shares
+    }
+    pub fn link_expiry(&self) -> Option<DateTime<Utc>> {
+        self.link_expiry
     }
     pub fn with_share(mut self, id: String) -> Self {
         self.public_shares.retain(|share| share != &id);
@@ -46,9 +53,14 @@ impl ProductActor {
     }
 }
 
+/// Live link credentials the shares are current for: the share id, when the credential was
+/// issued (newest wins) and when it expires.
+type LinkCredential = (String, DateTime<Utc>, DateTime<Utc>);
+
 /// Resolve identity and at most 16 active public shares in the supplied serializable transaction.
-/// The parser bounds candidate credentials; database creation time determines retention, not cookie
-/// names/order. No admin flag is read. Expired/deleted issuers invalidate grants immediately.
+/// The parser bounds candidate credentials; issue time determines retention, not cookie
+/// names/order. No admin flag is read. Revoked or expired links and deleted issuers invalidate
+/// credentials immediately, whether they are capabilities or stored grants.
 /// Account KEY SHARE still blocks deletion's explicit FOR UPDATE barrier while allowing non-key
 /// quota updates; SHARE would force parallel uploads into lock-upgrade deadlocks.
 pub(crate) async fn resolve_actor(
@@ -60,35 +72,108 @@ pub(crate) async fn resolve_actor(
     } else {
         None
     };
-    let digests: Vec<_> = context
-        .grants
-        .iter()
-        .take(crate::rpc::MAX_GRANT_CANDIDATES)
-        .filter(|token| token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()))
-        .map(|token| digest(token))
-        .collect();
-    let public_shares = if digests.is_empty() {
-        vec![]
-    } else {
-        tx.query_all_raw(sql(
-            "SELECT s.id FROM hyori_grants g
-             JOIN hyori_shares s ON s.id=g.share_id
-             JOIN hyori_users u ON u.id=s.issuer_id
-             WHERE g.token_digest IN (SELECT jsonb_array_elements_text($1::jsonb))
-               AND g.expires_at>now() AND s.public AND s.revoked_at IS NULL
-               AND (s.expires_at IS NULL OR s.expires_at>now()) AND u.status='active'
-             GROUP BY s.id ORDER BY max(g.created_at) DESC,s.id LIMIT 16",
-            vec![serde_json::json!(digests).into()],
-        ))
-        .await?
-        .into_iter()
-        .map(|row| row.try_get("", "id"))
-        .collect::<Result<Vec<_>, sea_orm::DbErr>>()?
-    };
+    let candidates = &context.grants[..context.grants.len().min(crate::rpc::MAX_GRANT_CANDIDATES)];
+    let mut live = stored_grants(tx, candidates).await?;
+    if let Some(key) = &context.capability_key {
+        live.extend(capabilities(tx, key, candidates).await?);
+    }
+    live.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let mut public_shares: Vec<String> = Vec::new();
+    let mut link_expiry = None;
+    for (share, _, expires) in live {
+        if public_shares.contains(&share) {
+            continue;
+        }
+        if public_shares.len() == 16 {
+            break;
+        }
+        public_shares.push(share);
+        link_expiry = link_expiry.max(Some(expires));
+    }
     Ok(ProductActor {
         user_id,
         public_shares,
+        link_expiry,
     })
+}
+/// Grants stored before link capabilities existed, valid until their 12 hours end.
+async fn stored_grants(
+    tx: &DatabaseTransaction,
+    candidates: &[String],
+) -> DomainResult<Vec<LinkCredential>> {
+    let digests: Vec<_> = candidates
+        .iter()
+        .filter(|token| crate::rpc::valid_token(token))
+        .map(|token| digest(token))
+        .collect();
+    if digests.is_empty() {
+        return Ok(vec![]);
+    }
+    tx.query_all_raw(sql(
+        "SELECT s.id, max(g.created_at) AS issued, max(g.expires_at) AS expires FROM hyori_grants g
+         JOIN hyori_shares s ON s.id=g.share_id
+         JOIN hyori_users u ON u.id=s.issuer_id
+         WHERE g.token_digest IN (SELECT jsonb_array_elements_text($1::jsonb))
+           AND g.expires_at>now() AND s.public AND s.revoked_at IS NULL
+           AND (s.expires_at IS NULL OR s.expires_at>now()) AND u.status='active'
+         GROUP BY s.id",
+        vec![serde_json::json!(digests).into()],
+    ))
+    .await?
+    .into_iter()
+    .map(|row| {
+        Ok((
+            row.try_get("", "id")?,
+            row.try_get("", "issued")?,
+            row.try_get("", "expires")?,
+        ))
+    })
+    .collect()
+}
+/// Capabilities whose MAC verifies against their link as it is now, password included.
+async fn capabilities(
+    tx: &DatabaseTransaction,
+    key: &[u8; 32],
+    candidates: &[String],
+) -> DomainResult<Vec<LinkCredential>> {
+    let now = Utc::now();
+    let parsed: Vec<_> = candidates
+        .iter()
+        .filter_map(|token| Capability::parse(token))
+        .filter(|capability| capability.live(now))
+        .collect();
+    if parsed.is_empty() {
+        return Ok(vec![]);
+    }
+    let ids: Vec<_> = parsed
+        .iter()
+        .map(|capability| capability.share_id)
+        .collect();
+    let shares = tx
+        .query_all_raw(sql(
+            "SELECT s.id,s.password_hash FROM hyori_shares s JOIN hyori_users u ON u.id=s.issuer_id
+             WHERE s.id IN (SELECT jsonb_array_elements_text($1::jsonb)) AND s.public
+               AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())
+               AND u.status='active'",
+            vec![serde_json::json!(ids).into()],
+        ))
+        .await?
+        .into_iter()
+        .map(|row| Ok((row.try_get("", "id")?, row.try_get("", "password_hash")?)))
+        .collect::<DomainResult<Vec<(String, Option<String>)>>>()?;
+    Ok(parsed
+        .into_iter()
+        .filter_map(|capability| {
+            let (_, hash) = shares.iter().find(|(id, _)| id == capability.share_id)?;
+            capability.verifies(key, hash.as_deref()).then(|| {
+                (
+                    capability.share_id.to_owned(),
+                    capability.issued_at(),
+                    capability.expires_at(),
+                )
+            })
+        })
+        .collect())
 }
 pub(crate) fn parse_role(value: &str) -> DomainResult<ShareRole> {
     match value {

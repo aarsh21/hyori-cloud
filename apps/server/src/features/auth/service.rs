@@ -1,6 +1,6 @@
 use crate::{
     AppState,
-    auth::{IssuedSession, digest, random_token},
+    auth::{IssuedSession, digest, hmac_sha256, random_token},
     db::{begin, sql},
     error::{ApiError, ErrorCode},
     features::{
@@ -11,7 +11,6 @@ use crate::{
     wire::Nullable,
 };
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
-use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
@@ -293,24 +292,6 @@ fn device_mac(secret: &str, email: &str, nonce: &str) -> String {
     // Domain-separated from every other use of the auth secret.
     let message = format!("hyori-login-device-v1\0{email}\0{nonce}");
     hex::encode(hmac_sha256(secret.as_bytes(), message.as_bytes()))
-}
-/// HMAC-SHA-256 (RFC 2104).
-fn hmac_sha256(secret: &[u8], message: &[u8]) -> [u8; 32] {
-    let mut key = [0_u8; 64];
-    if secret.len() > key.len() {
-        key[..32].copy_from_slice(&Sha256::digest(secret));
-    } else {
-        key[..secret.len()].copy_from_slice(secret);
-    }
-    let inner = Sha256::new()
-        .chain_update(key.map(|b| b ^ 0x36))
-        .chain_update(message)
-        .finalize();
-    Sha256::new()
-        .chain_update(key.map(|b| b ^ 0x5c))
-        .chain_update(inner)
-        .finalize()
-        .into()
 }
 async fn commit(tx: Arc<DatabaseTransaction>) -> Result<(), ApiError> {
     Arc::try_unwrap(tx)

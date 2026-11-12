@@ -2,7 +2,7 @@
 use crate::{
     db::{self, DomainResult, sql},
     error::ApiError,
-    features::uploads::db::Upload,
+    features::{shares::capability::Capability, uploads::db::Upload},
 };
 use sea_orm::{ConnectionTrait, DatabaseConnection, DatabaseTransaction};
 
@@ -14,9 +14,11 @@ const PER_PRINCIPAL: i64 = 32;
 const SHARED: i64 = 256;
 /// Public-link holders can mint fresh grants, so they share a smaller part of `SHARED`.
 const ANONYMOUS: i64 = 128;
-/// A link session has ended for good once none of its recorded grants is live: revocation is final
-/// and a grant's expiry is fixed when it is issued, so no later request can authorize it again.
-const LINK_ENDED: &str = "s.initiator_id IS NULL AND NOT EXISTS (SELECT 1 FROM hyori_grants g JOIN hyori_shares sh ON sh.id=g.share_id WHERE g.token_digest IN (SELECT jsonb_array_elements_text(s.grant_digests)) AND g.expires_at>now() AND sh.public AND sh.revoked_at IS NULL AND (sh.expires_at IS NULL OR sh.expires_at>now()))";
+/// A link session has ended for good once its credentials have expired or none of its links is
+/// live: revocation is final and a credential's expiry is fixed when it is issued, so no later
+/// request can authorize it again. Sessions opened through link capabilities record their links
+/// and that expiry; older ones are judged by their stored grants.
+const LINK_ENDED: &str = "s.initiator_id IS NULL AND CASE WHEN s.link_expires_at IS NULL THEN NOT EXISTS (SELECT 1 FROM hyori_grants g JOIN hyori_shares sh ON sh.id=g.share_id WHERE g.token_digest IN (SELECT jsonb_array_elements_text(s.grant_digests)) AND g.expires_at>now() AND sh.public AND sh.revoked_at IS NULL AND (sh.expires_at IS NULL OR sh.expires_at>now())) ELSE s.link_expires_at<=now() OR NOT EXISTS (SELECT 1 FROM hyori_shares sh WHERE sh.id IN (SELECT jsonb_array_elements_text(s.link_shares)) AND sh.public AND sh.revoked_at IS NULL AND (sh.expires_at IS NULL OR sh.expires_at>now())) END";
 /// A save without a durable outcome may still publish; nothing but close, expiry or a dead link ends it.
 const IDLE: &str =
     "NOT EXISTS (SELECT 1 FROM hyori_editor_saves v WHERE v.session_id=s.id AND v.result IS NULL)";
@@ -126,20 +128,52 @@ pub(crate) async fn close(
     } else {
         let original: Vec<String> = serde_json::from_value(row.try_get("", "grant_digests")?)
             .map_err(|_| ApiError::unavailable())?;
-        let matching: Vec<_> = context
+        let held: Vec<_> = context
             .grants
             .iter()
-            .map(|token| crate::auth::digest(token))
-            .filter(|digest| original.contains(digest))
+            .filter(|token| original.contains(&crate::auth::digest(token)))
             .collect();
         // Revocation/expiry does not grant file access, but a retained issued credential can release
-        // its own handle. Requiring issuance excludes arbitrary noise cookies captured by old opens.
-        !matching.is_empty() && tx.query_one_raw(sql("SELECT token_digest FROM hyori_grants WHERE token_digest IN (SELECT jsonb_array_elements_text($1::jsonb)) LIMIT 1",vec![serde_json::json!(matching).into()])).await?.is_some()
+        // its own handle. Requiring issuance excludes arbitrary noise cookies captured by old opens:
+        // a capability's MAC must verify (its expiry ignored), or a stored grant must exist.
+        let digests: Vec<_> = held
+            .iter()
+            .map(|token| crate::auth::digest(token))
+            .collect();
+        issued_capability(tx, context, &held).await?
+            || (!digests.is_empty() && tx.query_one_raw(sql("SELECT token_digest FROM hyori_grants WHERE token_digest IN (SELECT jsonb_array_elements_text($1::jsonb)) LIMIT 1",vec![serde_json::json!(digests).into()])).await?.is_some())
     };
     if !own {
         return Ok(());
     }
     remove(tx, &[id.to_owned()]).await
+}
+/// Whether one of `tokens` is a capability this server issued for its link with the link's
+/// current password, whatever its expiry or the link's revocation.
+async fn issued_capability(
+    tx: &DatabaseTransaction,
+    context: &crate::rpc::RequestContext,
+    tokens: &[&String],
+) -> DomainResult<bool> {
+    let Some(key) = &context.capability_key else {
+        return Ok(false);
+    };
+    for capability in tokens.iter().filter_map(|token| Capability::parse(token)) {
+        let Some(row) = tx
+            .query_one_raw(sql(
+                "SELECT password_hash FROM hyori_shares WHERE id=$1",
+                vec![capability.share_id.into()],
+            ))
+            .await?
+        else {
+            continue;
+        };
+        let hash: Option<String> = row.try_get("", "password_hash")?;
+        if capability.verifies(key, hash.as_deref()) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 async fn remove(tx: &DatabaseTransaction, ids: &[String]) -> DomainResult<()> {
     if ids.is_empty() {

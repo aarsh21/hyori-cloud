@@ -365,16 +365,22 @@ async fn parallel_public_grants_merge_from_empty_and_existing_jars_and_retain_si
         .value();
 
     // An unrelated response must not delete an expired cookie that another tab just refreshed.
-    first
+    let expired_share: String = first
         .state
         .db
-        .execute_raw(sql(
-            "UPDATE hyori_grants SET expires_at=now()-interval '1 second'
-         WHERE share_id IN (SELECT id FROM hyori_shares WHERE item_id=$1)",
+        .query_one_raw(sql(
+            "SELECT id FROM hyori_shares WHERE item_id=$1",
             vec![folders[0].clone().into()],
         ))
         .await
+        .unwrap()
+        .unwrap()
+        .try_get("", "id")
         .unwrap();
+    jar.0.insert(
+        format!("hyori_grant_{expired_share}"),
+        super::link_capability::expired(&first, &expired_share).await,
+    );
     let incoming = jar.header();
     let (a, b) = tokio::join!(
         first.rpc("shares.resolve", json!({"token":links[0]}), Some(&incoming)),

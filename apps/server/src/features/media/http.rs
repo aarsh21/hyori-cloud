@@ -10,7 +10,7 @@ use crate::{
         },
         uploads::http::stream_content,
     },
-    rpc::{RequestContext, validate_origin},
+    rpc::validate_origin,
 };
 use axum::{
     body::Body,
@@ -33,7 +33,7 @@ pub(crate) async fn get(
         .map_err(|_| ApiError::unavailable())?;
     validate_origin(request.headers(), &state.config.origin)?;
     let storage = state.storage.as_ref().ok_or_else(ApiError::unavailable)?;
-    let descriptor=FilesService::new(&state,RequestContext::from_headers(request.headers())).run(move|tx,actor|{let(id,artifact)=(id.clone(),artifact.clone());Box::pin(async move{
+    let descriptor=FilesService::new(&state,state.request_context(request.headers())).run(move|tx,actor|{let(id,artifact)=(id.clone(),artifact.clone());Box::pin(async move{
         let item=policy::authorize(tx,&actor,&id,Action::Read,false).await?;
         let row=tx.query_one_raw(sql("SELECT a.object_key,a.size FROM hyori_media_jobs j JOIN hyori_media_artifacts a ON a.id=j.artifact_id
             WHERE j.source_key=$1 AND j.owner_id=$2 AND j.recipe=$3 AND j.state='ready' AND a.state='ready' AND a.id=$4",vec![item.object_key.into(),item.owner_id.into(),hyori_media_worker::RECIPE.into(),artifact.into()])).await?.ok_or_else(ApiError::not_found)?;

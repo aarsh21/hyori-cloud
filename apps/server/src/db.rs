@@ -164,6 +164,10 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             18_i32,
             include_str!("../migrations/0018_upload_idle_expiry.sql"),
         ),
+        (
+            19_i32,
+            include_str!("../migrations/0019_link_capabilities.sql"),
+        ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
         let old = tx

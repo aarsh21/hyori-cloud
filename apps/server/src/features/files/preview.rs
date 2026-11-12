@@ -9,7 +9,7 @@ use crate::{
             service::storage_error,
         },
     },
-    rpc::{RequestContext, validate_origin},
+    rpc::validate_origin,
 };
 use axum::{
     body::Body,
@@ -59,7 +59,7 @@ pub(crate) async fn get(
     let storage = state.storage.as_ref().ok_or_else(ApiError::unavailable)?;
     let descriptor = read_content(
         &state,
-        RequestContext::from_headers(request.headers()),
+        state.request_context(request.headers()),
         DownloadInput {
             id: Id(id),
             version_id: query.version.map(Id),
