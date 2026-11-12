@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { availablePort } from "./available-port.ts";
 import { z } from "zod";
 import { spawn } from "node:child_process";
@@ -41,6 +41,50 @@ try {
   clearTimeout(buildTimeout);
   stop(build);
 }
+
+const assetRoot = new URL("../apps/web/.output/public/", import.meta.url);
+
+const manifest = z
+  .record(
+    z.string(),
+    z.object({
+      file: z.string(),
+      imports: z.array(z.string()).optional(),
+      isEntry: z.boolean().optional(),
+    }),
+  )
+  .parse(JSON.parse(await readFile(new URL(".vite/manifest.json", assetRoot), "utf8")));
+
+const initialFiles = new Set<string>();
+
+function include(key: string) {
+  const asset = manifest[key];
+
+  if (!asset) throw new Error(`Missing initial asset ${key}`);
+
+  if (initialFiles.has(asset.file)) return;
+  initialFiles.add(asset.file);
+
+  for (const dependency of asset.imports ?? []) include(dependency);
+}
+
+for (const [key, asset] of Object.entries(manifest)) if (asset.isEntry) include(key);
+
+let initialRaw = 0;
+let initialBrotli = 0;
+
+for (const file of initialFiles) {
+  if (!file.endsWith(".js")) continue;
+  const raw = (await stat(new URL(file, assetRoot))).size;
+  const brotli = await stat(new URL(`${file}.br`, assetRoot)).catch(() => null);
+  initialRaw += raw;
+  initialBrotli += brotli?.size ?? raw;
+}
+
+console.log(`Initial JavaScript: ${initialRaw} raw bytes; ${initialBrotli} Brotli wire bytes.`);
+
+if (initialFiles.size === 0 || initialRaw > 720_000 || initialBrotli > 202_000)
+  throw new Error("Initial JavaScript exceeds the first-load budget (720 KB raw / 202 KB Brotli).");
 
 const port = await availablePort();
 

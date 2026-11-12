@@ -1,7 +1,7 @@
 import { createMiddleware, createStart } from "@tanstack/react-start";
 import { ENV } from "@/env";
 
-const browserSecurity = createMiddleware().server(async ({ next, handlerType }) => {
+const browserSecurity = createMiddleware().server(async ({ next, handlerType, request }) => {
   if (handlerType !== "router") return next();
 
   const nonce = crypto.randomUUID();
@@ -41,6 +41,32 @@ const browserSecurity = createMiddleware().server(async ({ next, handlerType }) 
 
     if (new URL(ENV.APP_ORIGIN).protocol === "https:")
       headers.set("Strict-Transport-Security", "max-age=31536000");
+
+    // HTML now contains the first page of data. Stream it rather than buffering a large document.
+    // Only negotiate the explicit unweighted gzip token; other clients retain the identity stream.
+    headers.append("Vary", "Accept-Encoding");
+
+    if (
+      !development &&
+      result.response.body !== null &&
+      !headers.has("Content-Encoding") &&
+      request.headers
+        .get("Accept-Encoding")
+        ?.split(",")
+        .some((coding) => coding.trim().toLowerCase() === "gzip")
+    ) {
+      headers.delete("Content-Length");
+      headers.set("Content-Encoding", "gzip");
+
+      return {
+        ...result,
+        response: new Response(result.response.body.pipeThrough(new CompressionStream("gzip")), {
+          status: result.response.status,
+          statusText: result.response.statusText,
+          headers,
+        }),
+      };
+    }
   }
 
   return result;

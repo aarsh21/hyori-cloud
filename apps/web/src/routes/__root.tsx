@@ -1,14 +1,23 @@
 import { ClientSDKProvider } from "@hyori-cloud/client-sdk/react";
-import { QueryClientProvider } from "@hyori-cloud/lib/query";
-import { Toaster } from "@hyori-cloud/ui/components/sonner";
+import { QueryClientProvider, useQuery } from "@hyori-cloud/lib/query";
+import { lazy, Suspense } from "@hyori-cloud/lib/react";
 import { AppearanceProvider } from "@hyori-cloud/ui/theme";
-import { Outlet, createRootRouteWithContext, useRouter } from "@tanstack/react-router";
+import {
+  Outlet,
+  createRootRouteWithContext,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
 
 import type { createAppRuntime } from "@/app/runtime";
 import { DocumentHead, DocumentScripts } from "@/components/document-assets";
 import appCss from "@/index.css?url";
 
 export type RouterAppContext = ReturnType<typeof createAppRuntime>;
+
+const Toaster = lazy(async () => ({
+  default: (await import("@hyori-cloud/ui/components/sonner")).Toaster,
+}));
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
@@ -41,6 +50,15 @@ function RootDocument() {
   const { queryClient, sdkClient } = Route.useRouteContext();
   const nonce = useRouter().options.ssr?.nonce;
 
+  const publicShare = useRouterState({
+    select: ({ location }) => location.pathname.startsWith("/share/"),
+  });
+
+  const status = useQuery(
+    { ...sdkClient.query.auth.status.getOptions({}), enabled: false },
+    queryClient,
+  );
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -51,7 +69,11 @@ function RootDocument() {
           <QueryClientProvider client={queryClient}>
             <ClientSDKProvider sdkClient={sdkClient}>
               <Outlet />
-              <Toaster />
+              {status.data?.user || publicShare ? (
+                <Suspense fallback={null}>
+                  <Toaster />
+                </Suspense>
+              ) : null}
             </ClientSDKProvider>
           </QueryClientProvider>
         </AppearanceProvider>

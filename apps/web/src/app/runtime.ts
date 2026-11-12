@@ -1,6 +1,7 @@
 import { createClient } from "@hyori-cloud/client-sdk";
 import { setMutationDefaults } from "@hyori-cloud/client-sdk/react";
 import { QueryClient } from "@hyori-cloud/lib/query";
+import { requestFetch } from "@/app/request-fetch";
 
 export function createAppRuntime() {
   const queryClient = new QueryClient({
@@ -15,7 +16,11 @@ export function createAppRuntime() {
   });
 
   setMutationDefaults(queryClient);
-  const sdkClient = createClient({ baseUrl: "/api/rpc" });
+
+  const sdkClient = createClient({
+    baseUrl: "/api/rpc",
+    fetch: typeof window === "undefined" ? requestFetch : undefined,
+  });
 
   return { queryClient, sdkClient };
 }

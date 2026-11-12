@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@hyori-cloud/lib/query";
+import { infiniteQueryOptions, useInfiniteQuery } from "@hyori-cloud/lib/query";
 import type { InfiniteData, QueryKey } from "@hyori-cloud/lib/query";
 import type { CloudError } from "#features/shared/cloud-error.ts";
 
@@ -21,7 +21,30 @@ export function useCursorPages<Input, Page extends CursorPage>(
   retainScope?: string,
   refreshDelay?: (pages: readonly Page[]) => number | false,
 ) {
-  return useInfiniteQuery<
+  return useInfiniteQuery({
+    ...cursorPagesOptions(operation, read, input),
+    refetchInterval: ({ state: { data, error } }) =>
+      refreshDelay === undefined || data === undefined || error !== null
+        ? false
+        : refreshDelay(data.pages),
+    meta: { retainScope },
+    placeholderData: (previous, previousQuery) =>
+      retainScope !== undefined && previousQuery?.meta?.retainScope === retainScope
+        ? previous
+        : undefined,
+  });
+}
+
+/** Shared by the screen and its first-document read, including cursor shape and cache identity. */
+export function cursorPagesOptions<Input, Page extends CursorPage>(
+  operation: { readonly getKey: (input: Input) => QueryKey },
+  read: (
+    input: Input & { readonly cursor: string | null },
+    options: { readonly signal: AbortSignal },
+  ) => Promise<Page>,
+  input: Input,
+) {
+  return infiniteQueryOptions<
     Page,
     CloudError,
     InfiniteData<Page, string | null>,
@@ -33,14 +56,5 @@ export function useCursorPages<Input, Page extends CursorPage>(
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     retry: false,
-    refetchInterval: ({ state: { data, error } }) =>
-      refreshDelay === undefined || data === undefined || error !== null
-        ? false
-        : refreshDelay(data.pages),
-    meta: { retainScope },
-    placeholderData: (previous, previousQuery) =>
-      retainScope !== undefined && previousQuery?.meta?.retainScope === retainScope
-        ? previous
-        : undefined,
   });
 }

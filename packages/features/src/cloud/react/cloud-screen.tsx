@@ -1,8 +1,8 @@
 import { Suspense } from "@hyori-cloud/lib/react";
 import { AppShellFallback } from "@hyori-cloud/ui/components/app-shell-fallback";
-import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
 import { AuthBoundary } from "#features/auth/react/auth-boundary.tsx";
 import { parseCloudPath } from "#features/cloud/cloud-path.ts";
+import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import {
   CloudNavigationProvider,
   useCloudNavigation,
@@ -15,6 +15,7 @@ import {
   loadInviteScreen,
   loadPasswordResetScreen,
   loadPublicShareScreen,
+  preloadCloudLocation,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
 
 const SignedInCloud = lazyScreen(loadCloudShell, (module) => module.SignedInCloud);
@@ -49,9 +50,7 @@ export function CloudScreen({
       onNavigate={onNavigate}
       navigationGuard={navigationGuard}
     >
-      <TooltipProvider>
-        <CloudLocationScreen />
-      </TooltipProvider>
+      <CloudLocationScreen />
     </CloudNavigationProvider>
   );
 }
@@ -91,10 +90,25 @@ function CloudLocationScreen() {
 
   return (
     <AuthBoundary>
-      {/* The editor and the file manager share one signed-in owner, which keeps uploads running. */}
-      <Suspense fallback={location.section === "editor" ? <FocusFallback /> : <AppShellFallback />}>
-        <SignedInCloud location={location} />
-      </Suspense>
+      <AuthenticatedLocation location={location} />
     </AuthBoundary>
+  );
+}
+
+function AuthenticatedLocation({
+  location,
+}: {
+  location: Exclude<
+    CloudLocation,
+    { section: "invite" | "passwordReset" | "publicShare" | "publicEditor" }
+  >;
+}) {
+  // Start both chunks together, but never download the file manager just to show sign-in.
+  preloadCloudLocation(location);
+
+  return (
+    <Suspense fallback={location.section === "editor" ? <FocusFallback /> : <AppShellFallback />}>
+      <SignedInCloud location={location} />
+    </Suspense>
   );
 }

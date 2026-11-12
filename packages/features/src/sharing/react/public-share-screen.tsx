@@ -6,6 +6,7 @@ import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus
 import { Label } from "@hyori-cloud/ui/components/label";
 import { PasswordInput } from "@hyori-cloud/ui/components/password-input";
 import { Heading, Text } from "@hyori-cloud/ui/components/text";
+import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
 import { formText } from "#features/shared/form-values.ts";
@@ -35,7 +36,9 @@ export function PublicShareScreen({
 }) {
   return (
     <UploadsProvider scope={null}>
-      <PublicShareAccess token={token} folderId={folderId} editingFileId={editingFileId} />
+      <TooltipProvider>
+        <PublicShareAccess token={token} folderId={folderId} editingFileId={editingFileId} />
+      </TooltipProvider>
     </UploadsProvider>
   );
 }

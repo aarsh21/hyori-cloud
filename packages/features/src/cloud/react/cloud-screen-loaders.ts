@@ -113,48 +113,44 @@ export function preloadEditorScreen() {
 }
 
 export function preloadCloudLocation(location: CloudLocation) {
+  const requests: Promise<unknown>[] = [];
+
   switch (location.section) {
     case "invite":
-      void loadInviteScreen().catch(ignoreLoadFailure);
-
-      return;
+      return loadInviteScreen().then(() => {}, ignoreLoadFailure);
     case "passwordReset":
-      void loadPasswordResetScreen().catch(ignoreLoadFailure);
-
-      return;
+      return loadPasswordResetScreen().then(() => {}, ignoreLoadFailure);
     case "publicShare":
-      void loadPublicShareScreen().catch(ignoreLoadFailure);
-
-      return;
+      return loadPublicShareScreen().then(() => {}, ignoreLoadFailure);
     case "publicEditor":
-      void loadPublicShareScreen().catch(ignoreLoadFailure);
-      void loadEditorScreen().catch(ignoreLoadFailure);
-
-      return;
+      return Promise.all([loadPublicShareScreen(), loadEditorScreen()]).then(
+        () => {},
+        ignoreLoadFailure,
+      );
     case "editor":
       // The account's editor opens inside the signed-in chunk, which owns its upload queue.
-      void loadEditorScreen().catch(ignoreLoadFailure);
+      requests.push(loadEditorScreen());
       break;
     case "files":
-      void loadFilesScreen().catch(ignoreLoadFailure);
+      requests.push(loadFilesScreen());
       break;
     case "shared":
-      void loadSharedScreen().catch(ignoreLoadFailure);
+      requests.push(loadSharedScreen());
       break;
     case "trash":
-      void loadTrashScreen().catch(ignoreLoadFailure);
+      requests.push(loadTrashScreen());
       break;
     case "photos":
-      void loadPhotosScreen().catch(ignoreLoadFailure);
+      requests.push(loadPhotosScreen());
       break;
     case "albums":
-      void loadAlbumsScreen().catch(ignoreLoadFailure);
+      requests.push(loadAlbumsScreen());
       break;
     case "album":
-      void loadAlbumScreen().catch(ignoreLoadFailure);
+      requests.push(loadAlbumScreen());
       break;
     case "admin":
-      void loadAdminScreen().catch(ignoreLoadFailure);
+      requests.push(loadAdminScreen());
       break;
     case "notFound":
       break;
@@ -162,10 +158,12 @@ export function preloadCloudLocation(location: CloudLocation) {
       location satisfies never;
   }
 
-  void loadCloudShell().catch(ignoreLoadFailure);
+  requests.push(loadCloudShell());
+
+  return Promise.all(requests).then(() => {}, ignoreLoadFailure);
 }
 
 /** For a host to start fetching a location's code alongside, not after, its first data request. */
 export function preloadCloudPath(path: string) {
-  preloadCloudLocation(parseCloudPath(path));
+  return preloadCloudLocation(parseCloudPath(path));
 }

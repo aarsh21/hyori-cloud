@@ -1,10 +1,12 @@
 import { CloudPage } from "@/app/cloud-page";
-import { preloadCloudPath } from "@hyori-cloud/features/react";
+import { loadPage } from "@/app/load-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   codeSplitGroupings: [],
-  // Not awaited: this only starts the code download alongside the screen's first data request.
-  loader: ({ location }) => preloadCloudPath(location.pathname),
+  loader: ({ context, location }) => loadPage(context, location.pathname),
+  head: ({ loaderData }) => ({
+    links: loaderData?.preloads.map((href) => ({ rel: "modulepreload", href })),
+  }),
   component: CloudPage,
 });
