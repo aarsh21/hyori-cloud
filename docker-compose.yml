@@ -49,6 +49,10 @@ services:
 
   postgres:
     logging: *logging
+    cpus: ${HYORI_POSTGRES_CPUS:-1}
+    mem_limit: ${HYORI_POSTGRES_MEMORY:-512m}
+    memswap_limit: ${HYORI_POSTGRES_MEMORY:-512m}
+    pids_limit: ${HYORI_POSTGRES_PIDS:-128}
     image: postgres:17@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
     environment:
       POSTGRES_USER: hyori
@@ -68,6 +72,10 @@ services:
 
   rustfs:
     logging: *logging
+    cpus: ${HYORI_RUSTFS_CPUS:-1}
+    mem_limit: ${HYORI_RUSTFS_MEMORY:-2048m}
+    memswap_limit: ${HYORI_RUSTFS_MEMORY:-2048m}
+    pids_limit: ${HYORI_RUSTFS_PIDS:-128}
     image: rustfs/rustfs:1.0.0-alpha.85@sha256:23ff2af1ec2d64e0fb9608a1c39b5eb96fcff3a8efecf332986c948b0e3e4f8a
     environment:
       RUSTFS_ACCESS_KEY: ${HYORI_STORAGE_ACCESS_KEY:?Set HYORI_STORAGE_ACCESS_KEY in .env.deployment}
@@ -149,6 +157,10 @@ services:
 
   backend:
     logging: *logging
+    cpus: ${HYORI_BACKEND_CPUS:-1.5}
+    mem_limit: ${HYORI_BACKEND_MEMORY:-512m}
+    memswap_limit: ${HYORI_BACKEND_MEMORY:-512m}
+    pids_limit: ${HYORI_BACKEND_PIDS:-128}
     # A fixed tag lets a second project (restore target, upgrade rehearsal) reuse the built image.
     image: hyori-cloud-backend:local
     build:
@@ -188,6 +200,10 @@ services:
 
   web:
     logging: *logging
+    cpus: ${HYORI_WEB_CPUS:-1}
+    mem_limit: ${HYORI_WEB_MEMORY:-512m}
+    memswap_limit: ${HYORI_WEB_MEMORY:-512m}
+    pids_limit: ${HYORI_WEB_PIDS:-128}
     image: hyori-cloud-web:local
     build:
       context: .
@@ -212,7 +228,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3001/health/ready',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
@@ -220,8 +236,53 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  backup:
+    logging: *logging
+    image: hyori-cloud-backup:local
+    build:
+      context: .
+      dockerfile: scripts/ops-backup.Dockerfile
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: ${HYORI_BACKUP_CPUS:-0.5}
+    mem_limit: ${HYORI_BACKUP_MEMORY:-256m}
+    memswap_limit: ${HYORI_BACKUP_MEMORY:-256m}
+    pids_limit: ${HYORI_BACKUP_PIDS:-64}
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m,mode=0700"]
+    volumes:
+      - rust-backups:/backups
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN}
+      HYORI_WEB_PORT: ${HYORI_WEB_PORT:-3001}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      HYORI_DATABASE_URL: ${HYORI_DATABASE_URL:?Set HYORI_DATABASE_URL}
+      HYORI_SETUP_TOKEN: ${HYORI_SETUP_TOKEN:?Set HYORI_SETUP_TOKEN}
+      HYORI_AUTH_SECRET: ${HYORI_AUTH_SECRET:?Set HYORI_AUTH_SECRET}
+      HYORI_STORAGE_ACCESS_KEY: ${HYORI_STORAGE_ACCESS_KEY:?Set HYORI_STORAGE_ACCESS_KEY}
+      HYORI_STORAGE_SECRET_KEY: ${HYORI_STORAGE_SECRET_KEY:?Set HYORI_STORAGE_SECRET_KEY}
+      HYORI_STORAGE_BUCKET: ${HYORI_STORAGE_BUCKET:?Set HYORI_STORAGE_BUCKET}
+      HYORI_BACKUP_INTERVAL_SECONDS: ${HYORI_BACKUP_INTERVAL_SECONDS:-86400}
+      HYORI_BACKUP_MAX_AGE_SECONDS: ${HYORI_BACKUP_MAX_AGE_SECONDS:-90000}
+      HYORI_BACKUP_KEEP: ${HYORI_BACKUP_KEEP:-7}
+      HYORI_BACKUP_TIMEOUT_SECONDS: ${HYORI_BACKUP_TIMEOUT_SECONDS:-3600}
+      HYORI_BACKUP_RESERVE_PERCENT: ${HYORI_BACKUP_RESERVE_PERCENT:-25}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "/app/ops-backup-scheduler.js", "--health"]
+      interval: 10s
+      timeout: 3s
+      retries: 1
+      start_period: 30s
+    restart: unless-stopped
+
 volumes:
   rust-postgres-data:
   rust-storage-data:
   rust-storage-logs:
   rust-media-socket:
+  rust-backups:

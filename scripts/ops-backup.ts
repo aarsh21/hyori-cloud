@@ -4,14 +4,15 @@
 //   bun scripts/ops-backup.ts restore <dir> --project <fresh-project> --env-file <env for the new stack>
 //
 // Backup, while the stack serves traffic:
-//   1. copy every object from the bucket (additive; nothing is deleted from the backup);
+//   1. copy every object from the bucket (reuse immutable files in scheduled snapshots);
 //   2. pg_dump one consistent PostgreSQL snapshot;
 //   3. copy objects again, picking up objects committed before the snapshot but after pass 1;
 //   4. read every object key the snapshot references (current files, retained versions and ready
 //      thumbnails) and fail unless each one is present in the backup.
 // Object keys are unique, immutable and never rewritten, so a key copied in either pass holds exactly
 // the bytes the snapshot refers to. Objects released after the snapshot can only be deleted from the
-// bucket, never from the backup; extra objects in the backup are harmless orphans.
+// bucket, never from the backup. After validation, scheduled snapshots unlink only unreferenced keys;
+// manual copies can keep harmless orphans. Older snapshots' linked files are never overwritten.
 //
 // Restore needs a project with no existing volumes: it starts only PostgreSQL and RustFS, restores the
 // dump in one transaction, uploads the objects, then starts the backend and web host.
@@ -19,16 +20,22 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
+  closeSync,
   copyFileSync,
   existsSync,
+  linkSync,
   mkdirSync,
+  openSync,
   readFileSync,
   readdirSync,
   statSync,
+  unlinkSync,
+  writeSync,
 } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { z } from "zod";
 import { options } from "./ops-client.ts";
+import { checkBackupSpace, InsufficientBackupSpace } from "./ops-backup-space.ts";
 
 // rclone 1.71, pinned by digest: the only image this tool adds to the deployment.
 const RCLONE =
@@ -44,7 +51,21 @@ const dir = resolve(target);
 const project = args.get("project", command === "backup" ? "hyori-cloud-rust" : undefined);
 const envFile = resolve(args.get("env-file", ".env.deployment"));
 const env = parseEnv(envFile);
+
+// The scheduled container talks to the private services directly, without a Docker socket.
+const direct = args.get("direct", "false") === "true";
 const started = performance.now();
+
+const storageEnv = {
+  RCLONE_CONFIG: "/tmp/none.conf",
+  RCLONE_CONFIG_HYORI_TYPE: "s3",
+  RCLONE_CONFIG_HYORI_PROVIDER: "Other",
+  RCLONE_CONFIG_HYORI_ENDPOINT: "http://rustfs:9000",
+  RCLONE_CONFIG_HYORI_FORCE_PATH_STYLE: "true",
+  RCLONE_CONFIG_HYORI_REGION: "us-east-1",
+  RCLONE_CONFIG_HYORI_ACCESS_KEY_ID: env.HYORI_STORAGE_ACCESS_KEY!,
+  RCLONE_CONFIG_HYORI_SECRET_ACCESS_KEY: env.HYORI_STORAGE_SECRET_KEY!,
+};
 
 function parseEnv(path: string) {
   const values: Record<string, string> = {};
@@ -80,6 +101,7 @@ function compose(argv: string[]) {
 }
 
 function container(service: string) {
+  if (direct) return service;
   const id = compose(["ps", "--quiet", service]);
 
   if (!id) throw new Error(`Service ${service} of project ${project} is not running.`);
@@ -89,6 +111,8 @@ function container(service: string) {
 
 /** rclone against the deployment's private RustFS endpoint; credentials pass by environment name only. */
 function rclone(argv: string[]) {
+  if (direct) return run("rclone", argv, storageEnv);
+
   return run(
     "docker",
     [
@@ -131,6 +155,10 @@ function rclone(argv: string[]) {
   );
 }
 
+function postgresCommand(postgres: string, argv: string[], stdin = false) {
+  return direct ? argv : ["docker", "exec", ...(stdin ? ["-i"] : []), postgres, ...argv];
+}
+
 function bucket() {
   const name = env.HYORI_STORAGE_BUCKET;
 
@@ -139,13 +167,56 @@ function bucket() {
   return name;
 }
 
+/** This is the only scheduled data writer, including concurrent readers and database dumps. */
+async function writeGuarded(stream: ReadableStream<Uint8Array>, path: string) {
+  checkBackupSpace(dir);
+  // Never truncate or rewrite a reused inode.
+  const fd = openSync(path, "wx", 0o600);
+
+  try {
+    for await (const chunk of stream) {
+      for (let offset = 0; offset < chunk.byteLength;) {
+        const part = chunk.subarray(offset, offset + 65536);
+        // No await between admission and write: readers cannot race each other's allocation.
+        checkBackupSpace(dir, part.byteLength);
+        offset += writeSync(fd, part);
+      }
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /** Stream a command's stdout to a file or a file to its stdin without buffering either in memory. */
 async function pipe(argv: string[], io: { stdout?: string; stdin?: string }) {
+  const childEnv = { ...process.env };
+
+  if (direct) {
+    childEnv.PGHOST = "postgres";
+    childEnv.PGPASSWORD = env.POSTGRES_PASSWORD;
+  }
+
+  const guarded = direct && io.stdout;
+
+  if (guarded) checkBackupSpace(dir);
+
   const child = Bun.spawn(argv, {
+    env: childEnv,
     stdin: io.stdin ? Bun.file(io.stdin) : "ignore",
-    stdout: io.stdout ? Bun.file(io.stdout) : "inherit",
+    stdout: guarded ? "pipe" : io.stdout ? Bun.file(io.stdout) : "inherit",
     stderr: "inherit",
   });
+
+  if (guarded) {
+    try {
+      // SAFETY: guarded selected stdout: "pipe" above; Bun's union type also includes non-pipe fds.
+      await writeGuarded(child.stdout as ReadableStream<Uint8Array>, guarded);
+    } catch (error) {
+      child.kill();
+      await child.exited;
+      throw error;
+    }
+  }
 
   if ((await child.exited) !== 0) throw new Error(`${argv.slice(0, 4).join(" ")} … failed`);
 }
@@ -161,18 +232,18 @@ function walk(root: string): string[] {
 /** Object keys referenced by the dump, read from its COPY data rather than from the live database. */
 async function referencedKeys(postgres: string, dump: string) {
   const child = Bun.spawn(
-    [
-      "docker",
-      "exec",
-      "-i",
+    postgresCommand(
       postgres,
-      "pg_restore",
-      "--data-only",
-      "--table=hyori_items",
-      "--table=hyori_versions",
-      "--table=hyori_media_artifacts",
-      "--file=-",
-    ],
+      [
+        "pg_restore",
+        "--data-only",
+        "--table=hyori_items",
+        "--table=hyori_versions",
+        "--table=hyori_media_artifacts",
+        "--file=-",
+      ],
+      true,
+    ),
     { stdin: Bun.file(dump), stdout: "pipe", stderr: "inherit" },
   );
 
@@ -219,34 +290,117 @@ async function sha256(path: string) {
   return hash.digest("hex");
 }
 
+/** Concurrent S3 streams avoid process startup for every small object. */
+async function copyObjects() {
+  if (!direct) {
+    rclone(["copy", `hyori:${bucket()}`, "/backup"]);
+
+    return;
+  }
+
+  const copyStarted = performance.now();
+
+  const listed = z
+    .array(z.object({ Path: z.string(), Size: z.number().int().nonnegative() }))
+    .parse(
+      JSON.parse(
+        rclone([
+          "lsjson",
+          "--recursive",
+          "--files-only",
+          "--no-modtime",
+          "--no-mimetype",
+          `hyori:${bucket()}`,
+        ]),
+      ),
+    );
+
+  const missing = listed.filter((object) => {
+    const path = join(dir, "objects", object.Path);
+
+    if (!existsSync(path)) return true;
+
+    if (statSync(path).size !== object.Size) throw new Error("Immutable object size changed.");
+
+    return false;
+  });
+
+  if (missing.length) {
+    const storage = new Bun.S3Client({
+      endpoint: storageEnv.RCLONE_CONFIG_HYORI_ENDPOINT,
+      region: storageEnv.RCLONE_CONFIG_HYORI_REGION,
+      accessKeyId: env.HYORI_STORAGE_ACCESS_KEY!,
+      secretAccessKey: env.HYORI_STORAGE_SECRET_KEY!,
+      bucket: bucket(),
+    });
+
+    const abort = new AbortController();
+    let cursor = 0;
+
+    const workers = Array.from({ length: Math.min(4, missing.length) }, async () => {
+      for (let object = missing[cursor++]; object; object = missing[cursor++]) {
+        checkBackupSpace(dir, object.Size);
+        const path = join(dir, "objects", object.Path);
+        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+        // Sign locally, then stream the private GET with cancellation; never log the signed URL.
+        const response = await fetch(storage.file(object.Path).presign(), { signal: abort.signal });
+
+        if (response.status !== 200 || !response.body) throw new Error("Object read failed.");
+        await writeGuarded(response.body, path);
+
+        if (statSync(path).size !== object.Size) throw new Error("Object copy is incomplete.");
+      }
+    });
+
+    try {
+      await Promise.all(workers);
+    } catch (error) {
+      abort.abort();
+      await Promise.allSettled(workers);
+      throw error;
+    }
+  }
+
+  log(
+    `object pass downloaded ${missing.length} new objects in ${Math.round(performance.now() - copyStarted)} ms`,
+  );
+}
+
 async function backup() {
   if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${dir} is not empty.`);
+
+  if (direct) checkBackupSpace(dirname(dir));
   mkdirSync(join(dir, "objects"), { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
+  const previous = args.get("previous", "");
+
+  if (direct && previous) {
+    const source = join(previous, "objects");
+
+    for (const key of walk(source)) {
+      checkBackupSpace(dir);
+      const path = join(dir, "objects", key);
+      mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+      linkSync(join(source, key), path);
+    }
+  }
+
   const postgres = container("postgres");
   container("rustfs");
   log(`object pass 1: s3://${bucket()} → objects/`);
-  rclone(["copy", `hyori:${bucket()}`, "/backup"]);
+  await copyObjects();
   const pass1 = walk(join(dir, "objects")).length;
   log(`object pass 1 copied ${pass1} objects; dumping PostgreSQL`);
   // Work acknowledged before this instant is in the snapshot; later work may or may not be.
   const snapshotStartedAt = new Date().toISOString();
   const dump = join(dir, "postgres.dump");
   await pipe(
-    [
-      "docker",
-      "exec",
-      postgres,
-      "pg_dump",
-      "--username=hyori",
-      "--dbname=hyori",
-      "--format=custom",
-    ],
+    postgresCommand(postgres, ["pg_dump", "--username=hyori", "--dbname=hyori", "--format=custom"]),
     { stdout: dump },
   );
   log(`pg_dump wrote ${statSync(dump).size} bytes; object pass 2`);
-  rclone(["copy", `hyori:${bucket()}`, "/backup"]);
-  const objects = walk(join(dir, "objects"));
+  await copyObjects();
+  let objects = walk(join(dir, "objects"));
   const present = new Set(objects);
   const keys = await referencedKeys(postgres, dump);
   const missing = [...keys].filter((key) => !present.has(key));
@@ -256,9 +410,16 @@ async function backup() {
       `Backup is NOT consistent: ${missing.length} referenced objects are missing, e.g. ${missing.slice(0, 3).join(", ")}`,
     );
 
-  const migrations = run("docker", [
-    "exec",
-    postgres,
+  if (direct) {
+    // A new snapshot owns exactly its referenced keys. Unlinking never touches older snapshots.
+    for (const key of objects) {
+      if (!keys.has(key)) unlinkSync(join(dir, "objects", key));
+    }
+
+    objects = objects.filter((key) => keys.has(key));
+  }
+
+  const migrationCommand = postgresCommand(postgres, [
     "psql",
     "--username=hyori",
     "--dbname=hyori",
@@ -267,15 +428,29 @@ async function backup() {
     "--command=SELECT max(version) FROM hyori_migrations",
   ]);
 
-  const images = Object.fromEntries(
-    ["postgres", "rustfs", "media-worker", "backend", "web"].map((service) => {
-      const id = compose(["ps", "--quiet", service]);
-
-      return [service, id ? run("docker", ["inspect", "--format", "{{.Image}}", id]) : null];
-    }),
+  const migrations = run(
+    migrationCommand[0]!,
+    migrationCommand.slice(1),
+    direct
+      ? {
+          PGHOST: "postgres",
+          PGPASSWORD: env.POSTGRES_PASSWORD!,
+        }
+      : {},
   );
 
+  const images = direct
+    ? {}
+    : Object.fromEntries(
+        ["postgres", "rustfs", "media-worker", "backend", "web"].map((service) => {
+          const id = compose(["ps", "--quiet", service]);
+
+          return [service, id ? run("docker", ["inspect", "--format", "{{.Image}}", id]) : null];
+        }),
+      );
+
   // The restored stack needs the same HYORI_AUTH_SECRET; the env file is as secret as the dump.
+  if (direct) checkBackupSpace(dir, statSync(envFile).size);
   copyFileSync(envFile, join(dir, "env.deployment"));
   chmodSync(join(dir, "env.deployment"), 0o600);
   const bytes = objects.reduce((sum, key) => sum + statSync(join(dir, "objects", key)).size, 0);
@@ -297,7 +472,10 @@ async function backup() {
     },
   };
 
-  await Bun.write(join(dir, "backup.json"), `${JSON.stringify(metadata, null, 2)}\n`);
+  const metadataText = `${JSON.stringify(metadata, null, 2)}\n`;
+
+  if (direct) checkBackupSpace(dir, Buffer.byteLength(metadataText));
+  await Bun.write(join(dir, "backup.json"), metadataText);
   log(
     `BACKUP OK ${dir}: schema ${metadata.schemaVersion}, dump ${metadata.dump.bytes} B, ` +
       `${objects.length} objects (${bytes} B), all ${keys.size} referenced keys present`,
@@ -386,9 +564,19 @@ async function restore() {
   if (listed !== metadata.objects.count)
     throw new Error(`Bucket holds ${listed} objects, backup has ${metadata.objects.count}.`);
   log("starting the backend and web host");
-  compose(["up", "--detach", "--wait", "--no-build"]);
+  compose(["up", "--detach", "--wait", "--no-build", "backend", "web"]);
+  // A large first backup can outlast its health startup grace; it must not block app recovery.
+  compose(["up", "--detach", "--no-build", "backup"]);
   log(`RESTORE OK into ${project}: schema ${metadata.schemaVersion}, ${listed} objects`);
 }
 
-if (command === "backup") await backup();
-else await restore();
+if (direct && command !== "backup") throw new Error("Direct mode only supports backup.");
+
+try {
+  if (command === "backup") await backup();
+  else await restore();
+} catch (error) {
+  if (!(error instanceof InsufficientBackupSpace)) throw error;
+  console.error('{"event":"backup","status":"insufficient_space"}');
+  process.exit(75);
+}

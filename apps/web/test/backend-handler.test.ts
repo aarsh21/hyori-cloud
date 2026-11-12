@@ -1,8 +1,130 @@
 import { afterEach, expect, test } from "bun:test";
 import { createWebBackendHandler } from "../src/server/backend-handler";
+import { withOperations } from "../src/server/operations";
 
 const origin = "https://cloud.example.test";
 const servers: ReturnType<typeof Bun.serve>[] = [];
+
+test("web readiness follows only the private backend and liveness stays independent", async () => {
+  let backendStatus = 200;
+
+  const backend = serve((request) => {
+    expect(new URL(request.url).pathname).toBe("/health/ready");
+    expect(request.headers.get("authorization")).toBeNull();
+    expect(request.headers.get("cookie")).toBeNull();
+
+    return new Response("private diagnostic", { status: backendStatus });
+  });
+
+  const host = withOperations(
+    () => {
+      throw new Error("Health probes must bypass application rendering.");
+    },
+    backend,
+    () => {},
+  );
+
+  for (const expected of [200, 503]) {
+    backendStatus = expected;
+
+    if (expected === 503) await Bun.sleep(1050);
+
+    const response = await host(
+      new Request("http://host/health/ready", {
+        headers: { Authorization: "Bearer never-forward", Cookie: "session=never-forward" },
+      }),
+    );
+
+    expect(response.status).toBe(expected);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.text()).toBe(expected === 200 ? "ok\n" : "unavailable\n");
+    expect((await host(new Request("http://host/health/live"))).status).toBe(200);
+  }
+
+  const offline = withOperations(
+    () => new Response("page"),
+    "http://127.0.0.1:9",
+    () => {},
+  );
+
+  expect((await offline(new Request("http://host/health/ready"))).status).toBe(503);
+  expect((await offline(new Request("http://host/health/live"))).status).toBe(200);
+});
+
+test("internal SSR fetches do not create additional incoming access records", async () => {
+  const lines: string[] = [];
+
+  const host = withOperations(
+    () => new Response("denied", { status: 403 }),
+    undefined,
+    (line) => lines.push(line),
+  );
+
+  const paths = [
+    "/share/known-share-secret",
+    "/api/storage/files/private-name.txt",
+    "/api/rpc",
+    "/assets/private-asset.js",
+  ];
+
+  for (const path of paths) {
+    await host(
+      new Request(`http://host${path}?token=known-query-secret`, {
+        method: "POST",
+        headers: {
+          Cookie: "session=known-cookie-secret",
+          Authorization: "Bearer known-auth-secret",
+        },
+        body: "known-body-secret",
+      }),
+    );
+  }
+
+  expect(lines).toEqual([]);
+});
+
+test("readiness coalesces concurrent probes and reuses both outcomes for one second", async () => {
+  let calls = 0;
+  let hanging = false;
+
+  const backend = serve(async () => {
+    calls++;
+    await Bun.sleep(hanging ? 4000 : 40);
+
+    return new Response("ready");
+  });
+
+  const host = withOperations(
+    () => new Response("page"),
+    backend,
+    () => {},
+  );
+
+  const burst = () =>
+    Promise.all(Array.from({ length: 80 }, () => host(new Request("http://host/health/ready"))));
+
+  expect((await burst()).every((response) => response.status === 200)).toBe(true);
+  expect(calls).toBe(1);
+  hanging = true;
+  const down = performance.now();
+  expect((await burst()).every((response) => response.status === 200)).toBe(true);
+  expect(calls).toBe(1);
+  await Bun.sleep(1050);
+  const pending = burst();
+  expect((await host(new Request("http://host/health/live"))).status).toBe(200);
+  await Bun.sleep(1100);
+  const late = burst();
+  expect((await pending).every((response) => response.status === 503)).toBe(true);
+  expect((await late).every((response) => response.status === 503)).toBe(true);
+  expect(performance.now() - down).toBeLessThan(3300);
+  expect(calls).toBe(2);
+  expect((await burst()).every((response) => response.status === 503)).toBe(true);
+  expect(calls).toBe(2);
+  await Bun.sleep(1050);
+  hanging = false;
+  expect((await burst()).every((response) => response.status === 200)).toBe(true);
+  expect(calls).toBe(3);
+}, 10000);
 
 afterEach(() => {
   for (const server of servers.splice(0)) server.stop(true);

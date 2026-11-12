@@ -13,6 +13,7 @@
 // "Crash" means SIGKILL to the container's init from the host: the restart policy then applies,
 // exactly as for a crashed process, which `docker kill` (a manual stop) would not show.
 import { execFileSync } from "node:child_process";
+import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -118,6 +119,109 @@ async function restartEach() {
     );
   }
 
+  verifyDataset();
+}
+
+/** Readiness must track a later backend outage; liveness must never render or call the app. */
+async function webHealth() {
+  const web = compose("ps", "--quiet", "web");
+  const status = () => sh("docker", ["inspect", "--format", "{{.State.Health.Status}}", web]);
+
+  const wait = async (expected: string) => {
+    const deadline = Date.now() + 90_000;
+
+    while (status() !== expected) {
+      assert.ok(Date.now() < deadline, `Web did not become ${expected}`);
+      await Bun.sleep(1000);
+    }
+
+    log(`web health ${expected}`);
+  };
+
+  const probe = (path: string) =>
+    sh("docker", [
+      "exec",
+      web,
+      "node",
+      "-e",
+      `fetch('http://127.0.0.1:3001${path}').then(async r=>console.log(r.status,r.headers.get('cache-control'),JSON.stringify(await r.text())))`,
+    ]);
+
+  await wait("healthy");
+  compose("stop", "backend");
+
+  try {
+    await wait("unhealthy");
+    assert.match(probe("/health/ready"), /^503 no-store "unavailable\\n"$/);
+    assert.match(probe("/health/live"), /^200 no-store "ok\\n"$/);
+    log("backend stopped: readiness503/liveness200; both no-store and generic");
+  } finally {
+    compose("start", "backend");
+  }
+
+  await wait("healthy");
+  assert.match(probe("/health/ready"), /^200 no-store "ok\\n"$/);
+  verifyDataset();
+}
+
+/** Allocate in the actual web process via its loopback-only inspector, not an exec helper. */
+async function oomWeb() {
+  const web = compose("ps", "--quiet", "web");
+  const before = Number(restartCount("web"));
+  const since = new Date().toISOString();
+  const processes = sh("docker", ["top", web, "-eo", "pid,args"]).split("\n");
+  const process = processes.find((line) => /node \.output\/server\/index\.mjs/.test(line));
+  assert.ok(process, "Web Node process not found");
+  sh("sudo", ["kill", "-USR1", process.trim().split(/\s+/)[0]!]);
+  await Bun.sleep(500);
+
+  const trigger = Bun.spawn(
+    [
+      "docker",
+      "exec",
+      web,
+      "node",
+      "--input-type=module",
+      "-e",
+      `
+    const [target] = await (await fetch('http://127.0.0.1:9229/json')).json();
+    const socket = new WebSocket(target.webSocketDebuggerUrl);
+    socket.onopen = () => socket.send(JSON.stringify({id:1,method:'Runtime.evaluate',params:{expression:'globalThis.oomDrill = Buffer.alloc(2 * 1024 * 1024 * 1024, 1)'}}));
+    socket.onclose = () => process.exit(0);
+    setTimeout(() => process.exit(2), 30000);
+  `,
+    ],
+    { stdout: "ignore", stderr: "ignore" },
+  );
+
+  await trigger.exited;
+  const deadline = Date.now() + 90_000;
+
+  while (Number(restartCount("web")) <= before) {
+    assert.ok(Date.now() < deadline, "Web did not restart after exceeding memory limit");
+    await Bun.sleep(500);
+  }
+
+  log(
+    `web restarted ${before} → ${restartCount("web")}; serving after ${(await untilServing()).toFixed(1)}s`,
+  );
+
+  const events = sh("docker", [
+    "events",
+    "--since",
+    since,
+    "--until",
+    new Date().toISOString(),
+    "--filter",
+    `container=${web}`,
+    "--filter",
+    "event=oom",
+    "--format",
+    "{{.Action}}",
+  ]);
+
+  assert.match(events, /oom/);
+  log("Docker recorded a real cgroup OOM event (not SIGKILL simulation)");
   verifyDataset();
 }
 
@@ -268,10 +372,12 @@ async function outage(service: string) {
 }
 
 if (drill === "restart-each") await restartEach();
+else if (drill === "web-health") await webHealth();
+else if (drill === "oom-web") await oomWeb();
 else if (drill === "crash-upload") await crashUpload();
 else if (drill === "crash-download") await crashDownload();
 else if (drill === "outage") await outage(args.positional[1] ?? "");
 else
   throw new Error(
-    "Usage: ops-drills.ts restart-each|crash-upload|crash-download|outage <service> …",
+    "Usage: ops-drills.ts restart-each|web-health|oom-web|crash-upload|crash-download|outage <service> …",
   );
