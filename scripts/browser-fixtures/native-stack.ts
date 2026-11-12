@@ -238,10 +238,15 @@ export async function startNativeRustStack(
     setupToken: secrets.HYORI_SETUP_TOKEN,
     backendUrl,
     webBackend: { network: "host", url: backendUrl },
-    async restartServer() {
+    async restartServer(whileStopped) {
       if (server !== null) await stopped(server, 10_000);
-      startServer();
-      await ready();
+
+      try {
+        await whileStopped?.();
+      } finally {
+        startServer();
+        await ready();
+      }
     },
     stopWorker: noWorker,
     startWorker: async () => noWorker(),

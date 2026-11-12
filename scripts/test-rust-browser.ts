@@ -25,7 +25,13 @@ import {
 import { runSharingScenarios } from "./browser-fixtures/scenarios-sharing.ts";
 import { runThumbnailLatencyObservation } from "./browser-fixtures/scenarios-thumbnail-latency.ts";
 import { runThumbnailStateScenario } from "./browser-fixtures/scenarios-thumbnails.ts";
-import { runTouchScenarios } from "./browser-fixtures/scenarios-touch.ts";
+import { PHONE, runTouchScenarios } from "./browser-fixtures/scenarios-touch.ts";
+import {
+  runReadinessScenarios,
+  runResumeScenarios,
+} from "./browser-fixtures/scenarios-readiness.ts";
+import { runScreenScenarios } from "./browser-fixtures/scenarios-screens.ts";
+import { runPhoneCompletionScenarios } from "./browser-fixtures/scenarios-phone-completion.ts";
 import {
   chromiumTrustFor,
   createDisposableTls,
@@ -221,6 +227,7 @@ try {
   const browser = await chromium.launch({
     headless: true,
     timeout: 30_000,
+    executablePath: process.env.HYORI_CHROMIUM_PATH,
     args: [chromiumTrustFor(tls.cert), ...(editorBundle === null ? [] : EDITOR_RENDERING_ARGS)],
   });
 
@@ -229,7 +236,19 @@ try {
 
   const media = createMediaKit(join(work, "media"));
 
-  const run = { report, browser, origin, stack, editorBundle, worker, front, media, web };
+  const run = {
+    report,
+    browser,
+    origin,
+    stack,
+    editorBundle,
+    worker,
+    front,
+    media,
+    web,
+    // Own fresh server so first-run setup, logout and login also execute on a coarse pointer.
+    contextOptions: only?.includes("phone-auth") ? PHONE : undefined,
+  };
 
   // Setup comes first because everything else signs in to the account it creates.
   await runAuthScenario(run);
@@ -252,6 +271,15 @@ try {
   if (selected("concurrency")) await runConcurrentUploadScenario(run);
 
   if (selected("touch")) await runTouchScenarios(run);
+
+  if (selected("readiness")) await runReadinessScenarios(run);
+
+  if (only?.includes("screens")) await runScreenScenarios(run);
+
+  // Own fresh account library: run separately with --scenarios=phone-completion.
+  if (only?.includes("phone-completion")) await runPhoneCompletionScenarios(run);
+
+  if (only?.includes("resume")) await runResumeScenarios(run);
 
   if (only?.includes("download-soak")) await runDownloadSoak(run, 150);
 
