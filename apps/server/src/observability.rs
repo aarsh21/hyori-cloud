@@ -3,7 +3,7 @@ use crate::{AppState, error::ErrorCode};
 use axum::{
     body::Body,
     extract::{ConnectInfo, MatchedPath, State},
-    http::{HeaderValue, Request, StatusCode},
+    http::{HeaderValue, Request},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -158,37 +158,42 @@ pub(crate) async fn request(
     response
 }
 
-/// Scrapes do not share RPC admission. SQL has a short deadline; a failed scrape is a 503,
-/// never a misleading healthy gauge. No storage calls or scans run on a product request.
+/// Scrapes do not share RPC admission. Optional SQL failures cannot hide process metrics.
+/// No storage calls or scans run on a product request.
 pub(crate) async fn scrape(State(state): State<Arc<AppState>>) -> Response {
-    match tokio::time::timeout(Duration::from_secs(2), snapshot(&state)).await {
-        Ok(Ok(text)) => (
-            [("content-type", "text/plain; version=0.0.4; charset=utf-8")],
-            text,
-        )
-            .into_response(),
-        _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
-    }
+    (
+        [("content-type", "text/plain; version=0.0.4; charset=utf-8")],
+        snapshot(&state).await,
+    )
+        .into_response()
 }
-async fn snapshot(state: &AppState) -> Result<String, crate::error::ApiError> {
-    // The states are a fixed server-owned set; no job, owner, source key or failure text escapes.
-    let tx = state.db.begin().await?;
-    // Bound work in PostgreSQL too: dropping an HTTP future alone is not a SQL work budget.
-    tx.execute_unprepared("SET TRANSACTION READ ONLY; SET LOCAL statement_timeout = '1500ms'; SET LOCAL lock_timeout = '500ms'").await?;
-    let jobs = tx
-        .query_all_raw(crate::db::sql(
-            "SELECT state, count(*)::bigint AS count FROM hyori_media_jobs GROUP BY state",
-            vec![],
-        ))
-        .await?;
-    tx.commit().await?;
+async fn snapshot(state: &AppState) -> String {
+    // Count cost and table locks must not determine readiness. Include pool acquisition in
+    // each deadline, and avoid another pool wait when the cheap check already failed.
+    let ready = matches!(
+        tokio::time::timeout(
+            Duration::from_millis(500),
+            state.db.query_one_raw(crate::db::sql("SELECT 1", vec![])),
+        )
+        .await,
+        Ok(Ok(Some(_)))
+    );
+    let jobs = if ready {
+        tokio::time::timeout(Duration::from_secs(2), media_counts(state))
+            .await
+            .ok()
+            .and_then(Result::ok)
+    } else {
+        None
+    };
     let pool = state.db.get_postgres_connection_pool();
     let size = pool.size();
     let idle = pool.num_idle();
     let mut out = String::new();
     let _ = writeln!(
         out,
-        "# HELP hyori_ready Whether the backend can query its database.\n# TYPE hyori_ready gauge\nhyori_ready 1"
+        "# HELP hyori_ready Whether the backend can query its database.\n# TYPE hyori_ready gauge\nhyori_ready {}",
+        u8::from(ready)
     );
     let _ = writeln!(
         out,
@@ -202,20 +207,18 @@ async fn snapshot(state: &AppState) -> Result<String, crate::error::ApiError> {
         crate::config::DOWNLOAD_CONCURRENCY.saturating_sub(state.transfers.available_permits()),
         crate::config::UPLOAD_CONCURRENCY.saturating_sub(state.uploads.available_permits())
     );
-    out.push_str(
-        "# HELP hyori_media_jobs Durable jobs by bounded state.\n# TYPE hyori_media_jobs gauge\n",
+    let _ = writeln!(
+        out,
+        "# HELP hyori_media_jobs_available Whether this scrape read media job counts.\n# TYPE hyori_media_jobs_available gauge\nhyori_media_jobs_available {}",
+        u8::from(jobs.is_some())
     );
-    for status in ["queued", "processing", "failed", "ready", "unsupported"] {
-        let count = jobs
-            .iter()
-            .find(|row| {
-                row.try_get::<String>("", "state")
-                    .is_ok_and(|s| s == status)
-            })
-            .map(|row| row.try_get::<i64>("", "count"))
-            .transpose()?
-            .unwrap_or(0);
-        let _ = writeln!(out, "hyori_media_jobs{{state=\"{status}\"}} {count}");
+    if let Some(jobs) = jobs {
+        out.push_str(
+            "# HELP hyori_media_jobs Durable jobs by bounded state.\n# TYPE hyori_media_jobs gauge\n",
+        );
+        for (status, count) in jobs {
+            let _ = writeln!(out, "hyori_media_jobs{{state=\"{status}\"}} {count}");
+        }
     }
     let metrics = metrics();
     out.push_str(
@@ -262,5 +265,36 @@ async fn snapshot(state: &AppState) -> Result<String, crate::error::ApiError> {
             metrics.maintenance.get(task).copied().unwrap_or(0)
         );
     }
-    Ok(out)
+    out
+}
+
+async fn media_counts(
+    state: &AppState,
+) -> Result<Vec<(&'static str, i64)>, crate::error::ApiError> {
+    // Bound work in PostgreSQL too: dropping an HTTP future alone is not a SQL work budget.
+    let tx = state.db.begin().await?;
+    tx.execute_unprepared("SET TRANSACTION READ ONLY; SET LOCAL statement_timeout = '1500ms'; SET LOCAL lock_timeout = '500ms'").await?;
+    let jobs = tx
+        .query_all_raw(crate::db::sql(
+            "SELECT state, count(*)::bigint AS count FROM hyori_media_jobs GROUP BY state",
+            vec![],
+        ))
+        .await?;
+    tx.commit().await?;
+    // The states are a fixed server-owned set; no job, owner, source key or failure text escapes.
+    ["queued", "processing", "failed", "ready", "unsupported"]
+        .into_iter()
+        .map(|status| {
+            let count = jobs
+                .iter()
+                .find(|row| {
+                    row.try_get::<String>("", "state")
+                        .is_ok_and(|s| s == status)
+                })
+                .map(|row| row.try_get::<i64>("", "count"))
+                .transpose()?
+                .unwrap_or(0);
+            Ok((status, count))
+        })
+        .collect()
 }

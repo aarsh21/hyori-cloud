@@ -71,6 +71,13 @@ groups:
         annotations:
           summary: More than one hundred media jobs remain queued
           runbook: See docs/monitoring.md#hyorimediabacklog
+      - alert: HyoriMediaTelemetryMissing
+        expr: hyori_media_jobs_available == 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Media job counts are unavailable; backlog and failure alerts cannot evaluate
+          runbook: See docs/monitoring.md#hyorimediatelemetrymissing
       - alert: HyoriMediaFailures
         expr: hyori_media_jobs{state="failed"} > 0
         for: 5m

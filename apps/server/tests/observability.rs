@@ -1,8 +1,10 @@
 mod support;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::json;
 use std::{
     io::Write,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 use support::{Postgres, TestServer};
 
@@ -198,15 +200,71 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
         assert!(!logs.contains(value), "issued cookie value in logs");
         assert!(!metrics.contains(value), "issued cookie value in metrics");
     }
-    pg.stop();
-    assert_eq!(
-        server
+    assert!(metrics.contains("hyori_ready 1\n"));
+    let counter = "hyori_requests_total{operation=\"files.list\",status_class=\"2xx\"} 1";
+    let scrape = || async {
+        let response = server
             .client
             .get(format!("{}/metrics", server.url))
+            .timeout(Duration::from_secs(5))
             .send()
             .await
-            .unwrap()
-            .status(),
-        503
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let text = response.text().await.unwrap();
+        assert!(text.contains(counter));
+        for metric in [
+            "hyori_admission_wait_seconds_count",
+            "hyori_busy_refusals_total",
+            "hyori_database_pool_connections",
+            "hyori_transfers_in_flight",
+            "hyori_storage_errors_total",
+        ] {
+            assert!(text.contains(metric), "missing process metric {metric}");
+        }
+        text
+    };
+    // SELECT 1 can still run, but the media count must hit its own database deadline.
+    let lock = server.state.db.begin().await.unwrap();
+    lock.execute_unprepared("LOCK TABLE hyori_media_jobs IN ACCESS EXCLUSIVE MODE")
+        .await
+        .unwrap();
+    let blocked = scrape().await;
+    assert!(blocked.contains("hyori_ready 1\n"));
+    assert!(blocked.contains("hyori_media_jobs_available 0\n"));
+    assert!(
+        !blocked
+            .lines()
+            .any(|line| line.starts_with("hyori_media_jobs{"))
+    );
+    lock.rollback().await.unwrap();
+    let recovered = scrape().await;
+    assert!(recovered.contains("hyori_ready 1\n"));
+    assert!(recovered.contains("hyori_media_jobs_available 1\n"));
+    assert!(recovered.contains("hyori_media_jobs{state=\"queued\"} 0\n"));
+
+    // Exhaust the existing pool without creating a second one for telemetry.
+    let pool = server.state.db.get_postgres_connection_pool();
+    let mut held = Vec::new();
+    for _ in 0..pg.config.database_max_connections {
+        held.push(pool.acquire().await.unwrap());
+    }
+    let exhausted = scrape().await;
+    assert!(exhausted.contains("hyori_ready 0\n"));
+    assert!(exhausted.contains("hyori_media_jobs_available 0\n"));
+    assert!(
+        !exhausted
+            .lines()
+            .any(|line| line.starts_with("hyori_media_jobs{"))
+    );
+    drop(held);
+    pg.stop();
+    let offline = scrape().await;
+    assert!(offline.contains("hyori_ready 0\n"));
+    assert!(offline.contains("hyori_media_jobs_available 0\n"));
+    assert!(
+        !offline
+            .lines()
+            .any(|line| line.starts_with("hyori_media_jobs{"))
     );
 }
