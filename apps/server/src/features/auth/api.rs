@@ -87,8 +87,8 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
                 .await?,
         ))
     })?;
-    registry.bind::<Setup, User, _, _>("auth.setup", |state, context, input| async move {
-        let issued = AuthService::new(&state).setup(input, &context).await?;
+    registry.bind::<Setup, User, _, _>("auth.setup", |state, _, input| async move {
+        let issued = AuthService::new(&state).setup(input).await?;
         Ok(RpcResult {
             value: issued.user,
             cookies: vec![state.auth.cookie(Some(&issued.token))],

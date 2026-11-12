@@ -41,13 +41,10 @@ impl<'a> AuthService<'a> {
         tx.commit().await?;
         Ok(status)
     }
-    pub async fn setup(
-        &self,
-        mut input: Setup,
-        context: &RequestContext,
-    ) -> Result<IssuedSession, ApiError> {
-        let limits = crate::auth::secret_limits("setup", context.client);
-        self.state.auth.rate_limits(&self.state.db, &limits).await?;
+    pub async fn setup(&self, mut input: Setup) -> Result<IssuedSession, ApiError> {
+        // No attempt counter: the token is checked first and costs nothing to refuse, and while no
+        // administrator exists startup requires one too long to guess (`config::require_strong_setup_token`).
+        // A counter would let strangers' wrong guesses lock the operator out.
         if !bool::from(
             digest(&input.setup_token)
                 .as_bytes()

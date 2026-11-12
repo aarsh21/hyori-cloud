@@ -135,18 +135,14 @@ async fn a_listed_proxy_gives_each_client_its_own_budgets() {
     let mut config = pg.config.clone();
     config.trusted_proxies = vec!["127.0.0.1".parse().unwrap()];
     let server = TestServer::start(config).await;
-    // Setup: a stranger's wrong tokens no longer lock the operator out.
+    // Setup: a stranger's wrong tokens are refused without counting and never lock anyone out.
     let mut setup = json!({"email":"admin@example.test","name":"Admin","password":random_token(),"setupToken":"x".repeat(24)});
-    for _ in 0..10 {
+    for _ in 0..11 {
         server
             .rpc_from(Some("203.0.113.66"), "auth.setup", setup.clone(), None)
             .await
             .error(403, "auth.setupDenied");
     }
-    server
-        .rpc_from(Some("203.0.113.66"), "auth.setup", setup.clone(), None)
-        .await
-        .error(429, "auth.rateLimited");
     setup["setupToken"] = json!(server.state.config.setup_token);
     let admin = server
         .rpc_from(Some("198.51.100.1"), "auth.setup", setup, None)

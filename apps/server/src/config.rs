@@ -99,6 +99,24 @@ impl std::str::FromStr for ProxyRange {
 #[derive(Debug, thiserror::Error)]
 #[error("Invalid server configuration: {0}")]
 pub struct ConfigError(&'static str);
+/// Characters `HYORI_SETUP_TOKEN` needs while no administrator exists.
+pub const SETUP_TOKEN_STRONG_CHARS: usize = 32;
+/// Setup answers wrong tokens without counting them, so until the first administrator exists the
+/// token alone keeps strangers out: refuse one that is short or some shorter text repeated, such
+/// as `aaaa…` or `abcabc…`. A random hex token repeats its first half by chance with probability
+/// about 16^-16, so this never refuses one in practice. An initialized instance never uses the
+/// token again and keeps starting with whatever token it has.
+pub fn require_strong_setup_token(token: &str) -> Result<(), ConfigError> {
+    let chars: Vec<char> = token.chars().collect();
+    let repeated =
+        (1..=chars.len() / 2).any(|period| chars[period..] == chars[..chars.len() - period]);
+    if chars.len() < SETUP_TOKEN_STRONG_CHARS || repeated {
+        return Err(ConfigError(
+            "HYORI_SETUP_TOKEN must be at least 32 random characters until the first administrator exists; generate one with `openssl rand -hex 32`",
+        ));
+    }
+    Ok(())
+}
 pub const DEFAULT_TRASH_RETENTION_DAYS: u32 = 30;
 /// Concurrent RPC handlers admitted per process; excess requests receive `service.unavailable`.
 pub const RPC_CONCURRENCY: usize = 128;
@@ -320,6 +338,28 @@ mod tests {
         let host: ProxyRange = "fd00::7".parse().unwrap();
         assert!(host.contains("fd00::7".parse().unwrap()));
         assert!(!host.contains("fd00::8".parse().unwrap()));
+    }
+    #[test]
+    fn setup_tokens_that_repeat_or_are_short_are_refused_and_random_ones_are_not() {
+        for weak in [
+            "a".repeat(64),
+            "ab".repeat(16),
+            "abc".repeat(11),
+            "0123456789abcdef".repeat(2),
+            format!("{}x", "password".repeat(4))
+                .chars()
+                .take(32)
+                .collect(),
+            "a-real-looking-31-character-tok".into(),
+        ] {
+            let error = require_strong_setup_token(&weak).unwrap_err().to_string();
+            assert!(error.contains("openssl rand -hex 32"), "{weak}");
+        }
+        for _ in 0..10_000 {
+            let token = &crate::auth::random_token()[..32];
+            assert!(require_strong_setup_token(token).is_ok(), "{token}");
+        }
+        require_strong_setup_token(&crate::auth::random_token()).unwrap();
     }
     #[test]
     fn ambiguous_proxy_ranges_are_refused() {

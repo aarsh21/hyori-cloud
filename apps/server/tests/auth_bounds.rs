@@ -84,7 +84,9 @@ fn password_above_the_code_point_limit_is_rejected_by_the_authoritative_schema()
 #[ignore = "real PostgreSQL/Better Auth Unicode boundaries; unique loopback test container"]
 async fn accepted_setup_and_unicode_password_bounds_work_through_real_auth_http() {
     let mut postgres = support::Postgres::start().await;
-    postgres.config.setup_token = "s".repeat(SETUP_TOKEN_MAX_CHARS);
+    // Random, since a repeated character is refused before the first administrator exists.
+    postgres.config.setup_token = (0..4).map(|_| random_token()).collect();
+    assert_eq!(postgres.config.setup_token.len(), SETUP_TOKEN_MAX_CHARS);
     let server = support::TestServer::start(postgres.config.clone()).await;
     let setup = server
         .rpc(

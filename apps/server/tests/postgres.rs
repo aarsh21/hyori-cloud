@@ -371,7 +371,8 @@ async fn auth_postgres_http_lifecycle() {
             .value()["user"],
         Value::Null
     );
-    for _ in 0..7 {
+    // Wrong setup tokens are refused without an attempt counter, in every process.
+    for _ in 0..12 {
         let mut denied = account("nobody@example.test");
         denied["setupToken"] = json!("wrong");
         server
@@ -379,12 +380,12 @@ async fn auth_postgres_http_lifecycle() {
             .await
             .error(403, "auth.setupDenied");
     }
-    let mut limited = account("nobody@example.test");
-    limited["setupToken"] = json!("wrong");
+    let mut denied = account("nobody@example.test");
+    denied["setupToken"] = json!("wrong");
     fresh
-        .rpc("auth.setup", limited, None)
+        .rpc("auth.setup", denied, None)
         .await
-        .error(429, "auth.rateLimited");
+        .error(403, "auth.setupDenied");
     drop(fresh);
     postgres.stop();
     assert_eq!(

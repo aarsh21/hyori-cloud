@@ -86,6 +86,20 @@ impl AppState {
             .map_err(|error| startup_failure("storage client", error))?;
         let db = db::connect(&config).await?;
         db::migrate(&db).await?;
+        let initialized = sea_orm::ConnectionTrait::query_one_raw(
+            &db,
+            db::sql(
+                "SELECT initialized FROM hyori_bootstrap WHERE singleton=true",
+                vec![],
+            ),
+        )
+        .await?
+        .ok_or_else(ApiError::unavailable)?
+        .try_get::<bool>("", "initialized")?;
+        if !initialized {
+            config::require_strong_setup_token(&config.setup_token)
+                .map_err(|error| startup_failure("setup token", error))?;
+        }
         editor_assets.activate(&db).await?;
         if let Some(storage) = &storage {
             storage

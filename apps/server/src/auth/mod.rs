@@ -26,7 +26,7 @@ use store::{HyoriSchema, PgStore, Provision};
 use tokio::time::Instant;
 
 pub const RATE_LIMIT_WINDOW_SECONDS: i64 = 15 * 60;
-/// Attempts per window for one secret (a share link, invite or the setup token) from one client,
+/// Attempts per window for one secret (a share link, invite or password-reset link) from one client,
 /// or from everyone together when no client address is known.
 pub const SECRET_ATTEMPTS: i32 = 10;
 /// Attempts per window for one secret from all identified clients together.
