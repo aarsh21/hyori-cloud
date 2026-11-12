@@ -44,7 +44,8 @@ async function check() {
   const unsettled = new Set<string>();
 
   for (const entry of readChurnLog(logPath)) {
-    if (entry.ok && entry.id && entry.at > before && entry.op !== "download") unsettled.add(entry.id);
+    if (entry.ok && entry.id && entry.at > before && entry.op !== "download")
+      unsettled.add(entry.id);
 
     if (!entry.ok || !entry.id || entry.at > before) continue;
 

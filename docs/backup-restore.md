@@ -4,12 +4,12 @@ Hyori keeps metadata in PostgreSQL and file bytes in RustFS. A backup needs both
 
 ## What a backup contains
 
-| File | Contents |
-| --- | --- |
-| `postgres.dump` | One consistent `pg_dump --format=custom` snapshot of the `hyori` database |
-| `objects/` | Every object in the bucket, at its object key |
+| File             | Contents                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| `postgres.dump`  | One consistent `pg_dump --format=custom` snapshot of the `hyori` database                   |
+| `objects/`       | Every object in the bucket, at its object key                                               |
 | `env.deployment` | A copy of the deployment env file (mode 0600). A restore needs the same `HYORI_AUTH_SECRET` |
-| `backup.json` | Schema version, image IDs, dump SHA-256, object counts and `snapshotStartedAt` |
+| `backup.json`    | Schema version, image IDs, dump SHA-256, object counts and `snapshotStartedAt`              |
 
 The backup holds every credential and every user's files. Keep it encrypted, off the host, and readable only by the operator. The tool creates the directory with mode 0700.
 
@@ -51,6 +51,7 @@ Restore only into a **fresh** Compose project, with no volumes. The tool refuses
    ```
 
    The tool checks the dump's SHA-256. It starts only PostgreSQL and RustFS, restores the dump in one transaction (`pg_restore --single-transaction --exit-on-error`), uploads the objects and checks the bucket's object count. Then it starts the backend and web host and waits for their health checks.
+
 4. Point your gateway at the new web port and check the data, as below.
 
 ## Verify a restore
