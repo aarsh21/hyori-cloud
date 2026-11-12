@@ -415,6 +415,14 @@ async fn held_upload_lease_is_distinct_from_outage_for_part_and_completion() {
     let (_, cookie) = setup(&server).await;
     let id = begin(&server, &cookie, "held", 3, None, None).await;
     server.state.db.execute_raw(sql("UPDATE hyori_uploads SET lease_token='another-writer',lease_until=now()+interval '3 minutes' WHERE id=$1",vec![id.clone().into()])).await.unwrap();
+    server
+        .rpc(
+            "uploads.part",
+            json!({"uploadId":id,"partNumber":1}),
+            Some(&cookie),
+        )
+        .await
+        .error(409, "uploads.busy");
     let refused = put(&server, &cookie, &id, b"abc").await;
     assert_eq!(refused.status(), 409);
     assert_eq!(
@@ -430,6 +438,14 @@ async fn held_upload_lease_is_distinct_from_outage_for_part_and_completion() {
         ))
         .await
         .unwrap();
+    server
+        .rpc(
+            "uploads.part",
+            json!({"uploadId":id,"partNumber":1}),
+            Some(&cookie),
+        )
+        .await
+        .value();
     assert_eq!(put(&server, &cookie, &id, b"abc").await.status(), 200);
     server.state.db.execute_raw(sql("UPDATE hyori_uploads SET lease_token='another-writer',lease_until=now()+interval '3 minutes' WHERE id=$1",vec![id.clone().into()])).await.unwrap();
     server

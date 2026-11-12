@@ -186,6 +186,7 @@ impl UploadsService {
     }
     pub async fn part(&self, input: UploadPartInput) -> Result<UploadPart, ApiError> {
         self.storage()?;
+        let _permit = admission::existing(&self.state, &self.context, &input.upload_id.0).await?;
         db::domain(&self.state.db, |tx| {
             let assets = self.state.editor_assets.clone();
             let (context, input) = (self.context.clone(), input.clone());
@@ -195,6 +196,12 @@ impl UploadsService {
                 upload.part_size(input.part_number)?;
                 if upload.state != "uploading" || upload.expires_at <= Utc::now() {
                     return Err(ApiError::conflict().into());
+                }
+                // Refuse on the small RPC before the client streams bytes. An early PUT
+                // rejection can lose its envelope when a proxy cancels that request body.
+                // This is only a preflight: the PUT still authorizes and claims atomically.
+                if upload.lease_until.is_some_and(|until| until > Utc::now()) {
+                    return Err(ApiError::upload_busy().into());
                 }
                 Ok(UploadPart {
                     url: format!("/api/storage/uploads/{}/{}", upload.id, input.part_number),
