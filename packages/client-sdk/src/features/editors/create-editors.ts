@@ -34,6 +34,13 @@ function saveFailure(
   const error = normalizeClientError(cause);
 
   switch (error.code) {
+    case "input.invalid":
+      return {
+        status: "failed",
+        retryable: false,
+        message:
+          "The server rejected this save. Retrying it cannot succeed. Download your changes and reopen the file.",
+      };
     case "resource.conflict":
       return intent === "replace"
         ? {

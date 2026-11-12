@@ -525,7 +525,12 @@ try {
     { signal: automaticSignal },
   );
 
-  assert.notEqual(reused.status, "saved");
+  assert.deepEqual(reused, {
+    status: "failed",
+    retryable: false,
+    message:
+      "The server rejected this save. Retrying it cannot succeed. Download your changes and reopen the file.",
+  });
   const fencedCurrent = { ...fencedDocument, revision: fencedSaved.revision };
   assert.deepEqual(
     await fencedBackend.download(fencedCurrent, { signal: automaticSignal }),
