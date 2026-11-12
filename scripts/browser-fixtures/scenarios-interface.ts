@@ -380,4 +380,126 @@ export async function runInterfaceScenarios(run: CoreRun) {
       await long.context.close();
     }
   }
+
+  await runFailedPreloadChecks(run);
+}
+
+export async function runFailedPreloadChecks(run: CoreRun) {
+  await run.report.scenario("Interface failed preloads", async () => {
+    const seed = await ownerPage(run);
+    await uploadFiles(seed.page, run.media.bytes("preload-letter.docx", 4096));
+    await uploadsTray(seed.page).getByLabel("Uploaded").waitFor({ timeout: 30_000 });
+    await seed.context.close();
+
+    await run.report.check("editor preload that failed unseen costs the next open nothing", () =>
+      failPreloadThenOpen(
+        run,
+        "editor",
+        /\/assets\/editor-screen-[^/]+\.js$/,
+        async (page) => {
+          // The listed document starts the editor preload when the page goes idle.
+          await page.reload();
+        },
+        async (page) => {
+          const opened = page.waitForRequest(
+            (request) => (request.postData() ?? "").includes('"editors.open"'),
+            { timeout: 10_000 },
+          );
+
+          await page
+            .getByRole("button", { name: /preload-letter\.docx/ })
+            .first()
+            .click();
+          await opened;
+        },
+      ),
+    );
+    await run.report.check("section preload that failed unseen costs the next open nothing", () =>
+      failPreloadThenOpen(
+        run,
+        "section",
+        /\/assets\/trash-screen-[^/]+\.js$/,
+        async (page) => {
+          await page.getByRole("link", { name: "Trash", exact: true }).first().hover();
+        },
+        async (page) => {
+          await page.getByRole("link", { name: "Trash", exact: true }).first().click();
+          await page.getByRole("heading", { name: "Trash", exact: true }).waitFor();
+        },
+      ),
+    );
+  });
+}
+
+/**
+ * A preload is a head start nobody sees. When it fails, for a dead spot on a phone or a 502 during a
+ * deploy, and the network is healthy again by the click, the click must get the screen.
+ */
+async function failPreloadThenOpen(
+  run: CoreRun,
+  name: string,
+  chunk: RegExp,
+  preload: (page: Page) => Promise<void>,
+  open: (page: Page) => Promise<void>,
+) {
+  const { context, page } = await ownerPage(run);
+  let refused = 0;
+  let requested = 0;
+
+  try {
+    // No editor bundle runs in this suite, so the server offers no editor. Only that list is
+    // substituted, so documents are openable; the screen's code and the open itself are real.
+    await context.addInitScript(() => {
+      const fetchFromNetwork = window.fetch;
+
+      window.fetch = Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const response = await fetchFromNetwork(input, init);
+
+        if (!String(init?.body ?? "").includes('"editors.available"')) return response;
+
+        return new Response(
+          (await response.text()).replace(
+            '"apps":[]',
+            '"apps":[{"app":"wordcraft","inputExtensions":[".docx"],"version":"test"}]',
+          ),
+          response,
+        );
+      }, fetchFromNetwork);
+    });
+
+    page.on("request", (request) => {
+      if (chunk.test(new URL(request.url()).pathname)) requested += 1;
+    });
+
+    const preloadFailed = Promise.withResolvers<void>();
+
+    const noPreload = setTimeout(
+      () => preloadFailed.reject(new Error("No preload requested the screen's code.")),
+      10_000,
+    );
+
+    await context.route(chunk, async (route) => {
+      refused += 1;
+      await route.abort("internetdisconnected");
+      preloadFailed.resolve();
+    });
+    await preload(page);
+
+    try {
+      await preloadFailed.promise;
+    } finally {
+      clearTimeout(noPreload);
+    }
+
+    // Healthy again before the click, and the failed preload has settled in the app.
+    await context.unroute(chunk);
+    await page.waitForLoadState("networkidle");
+    await open(page);
+    assert.equal(refused, 1);
+    assert.equal(requested, 2, "the open asks for the screen's code again");
+    assert.equal(await page.getByText("Hyori couldn’t finish loading").count(), 0);
+  } finally {
+    await run.report.shot(page, `interface-failed-preload-${name}`);
+    await context.close();
+  }
 }

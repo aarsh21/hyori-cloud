@@ -8,7 +8,7 @@ import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { useNavigateTo } from "#features/cloud/react/cloud-navigation.tsx";
 import { CloudScreenFallback } from "#features/cloud/react/cloud-screen-fallback.tsx";
 import {
-  forgetFailedChunks,
+  forgetFailedScreens,
   loadAdminScreen,
   loadAlbumScreen,
   loadAlbumsScreen,
@@ -69,7 +69,7 @@ export class CloudContent extends Component<{ location: ShellLocation }, CloudCo
   }
 
   override componentDidCatch() {
-    forgetFailedChunks();
+    forgetFailedScreens();
   }
 
   retry = () => {

@@ -5,10 +5,13 @@ import { parseCloudPath } from "#features/cloud/cloud-path.ts";
 
 type Chunk<Module> = (() => Promise<Module>) & { readonly arrived: () => Module | undefined };
 
-const failedChunks = new Set<() => void>();
 const lazyRebuilds = new Set<() => void>();
 
-/** One request per chunk, which remembers the module once it has arrived. */
+/**
+ * One request per chunk, which remembers the module once it has arrived. A failed request is
+ * forgotten at once, so a preload that failed unseen costs the next open nothing: that open asks
+ * again. A failure a screen did render stays with that screen's `React.lazy` wrapper instead.
+ */
 function chunk<Module>(load: () => Promise<Module>): Chunk<Module> {
   let current: Promise<Module> | null = null;
   let arrived: Module | undefined;
@@ -24,9 +27,7 @@ function chunk<Module>(load: () => Promise<Module>): Chunk<Module> {
         arrived = module;
       },
       () => {
-        failedChunks.add(() => {
-          current = null;
-        });
+        current = null;
       },
     );
 
@@ -37,14 +38,11 @@ function chunk<Module>(load: () => Promise<Module>): Chunk<Module> {
 }
 
 /**
- * Once a failure is on screen: the next render, Retry or preload requests those chunks again. Until
- * then a failed request stays, so React's own retry render sees the failure instead of a new request.
+ * Once a failure is on screen, Retry and the next render get fresh wrappers, which request the code
+ * again. Until then each wrapper keeps its rejection, so React's own retry render sees the failure
+ * instead of starting a new request.
  */
-export function forgetFailedChunks() {
-  for (const forget of failedChunks) forget();
-
-  failedChunks.clear();
-
+export function forgetFailedScreens() {
   for (const rebuild of lazyRebuilds) rebuild();
 }
 
