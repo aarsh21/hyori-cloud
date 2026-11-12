@@ -342,13 +342,17 @@ try {
     assert.match(item.previewUrl, /^\/api\/storage\/previews\//);
     const response = await owner.get(item.derivative.url);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get("content-type"), "image/png");
+    assert.equal(response.headers.get("content-type"), "image/webp");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("cache-control"), "private, no-cache");
     assert.ok(response.headers.has("etag"));
     const normalized = await response.arrayBuffer();
     assert.ok(normalized.byteLength <= 256 * 1024);
-    await Bun.write(join(directory, "verified.png"), normalized);
+    // The label alone proves nothing: the bytes must be a RIFF container holding WebP.
+    const container = new Uint8Array(normalized);
+    assert.equal(String.fromCharCode(...container.subarray(0, 4)), "RIFF");
+    assert.equal(String.fromCharCode(...container.subarray(8, 12)), "WEBP");
+    await Bun.write(join(directory, "verified.webp"), normalized);
     docker([
       "exec",
       workerName,
@@ -358,12 +362,12 @@ try {
       "-threads",
       "1",
       "-i",
-      "/run/hyori-media/verified.png",
+      "/run/hyori-media/verified.webp",
       "-f",
       "null",
       "-",
     ]);
-    await rm(join(directory, "verified.png"));
+    await rm(join(directory, "verified.webp"));
     assert.deepEqual(await (await owner.get(item.previewUrl)).arrayBuffer(), bytes);
   }
 
