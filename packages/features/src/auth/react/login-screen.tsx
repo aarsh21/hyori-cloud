@@ -9,10 +9,12 @@ import { Heading, Text } from "@hyori-cloud/ui/components/text";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { useLogin } from "#features/auth/react/use-login.ts";
 import { formText } from "#features/shared/form-values.ts";
+import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 
 export function LoginScreen() {
   const login = useLogin();
+  const ready = useHydrated();
 
   return (
     <FocusLayout footer={<AppearanceMenu />}>
@@ -47,7 +49,13 @@ export function LoginScreen() {
           />
         </Field>
         <MutationFailure error={login.error} />
-        <Button type="submit" size="lg" pending={login.isPending} pendingLabel="Signing in…">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!ready}
+          pending={login.isPending}
+          pendingLabel="Signing in…"
+        >
           Sign in
         </Button>
       </Form>

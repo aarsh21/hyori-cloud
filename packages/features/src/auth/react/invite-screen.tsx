@@ -8,10 +8,12 @@ import { AccountFields } from "#features/auth/react/account-fields.tsx";
 import { useAcceptInvite } from "#features/auth/react/use-accept-invite.ts";
 import { useNavigateTo } from "#features/cloud/react/cloud-navigation.tsx";
 import { formText } from "#features/shared/form-values.ts";
+import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 
 export function InviteScreen({ token }: { token: string }) {
   const accept = useAcceptInvite();
+  const ready = useHydrated();
   const navigateTo = useNavigateTo();
 
   return (
@@ -36,7 +38,13 @@ export function InviteScreen({ token }: { token: string }) {
       >
         <AccountFields idPrefix="invite" />
         <MutationFailure error={accept.error} />
-        <Button type="submit" size="lg" pending={accept.isPending} pendingLabel="Creating account…">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!ready}
+          pending={accept.isPending}
+          pendingLabel="Creating account…"
+        >
           Create account
         </Button>
       </Form>
