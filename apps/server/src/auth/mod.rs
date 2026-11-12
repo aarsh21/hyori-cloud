@@ -1,3 +1,4 @@
+mod credentials;
 mod disabled;
 mod password;
 mod store;
@@ -23,6 +24,29 @@ use std::{collections::HashMap, sync::Arc};
 use store::{HyoriSchema, PgStore, Provision};
 
 pub const RATE_LIMIT_WINDOW_SECONDS: i64 = 15 * 60;
+/// Attempts per window for one secret (a share link, invite or the setup token) from one client,
+/// or from everyone together when no client address is known.
+pub const SECRET_ATTEMPTS: i32 = 10;
+/// Attempts per window for one secret from all identified clients together.
+pub const SECRET_ATTEMPTS_ALL_CLIENTS: i32 = 100;
+
+/// Which counters one guess at the secret `scope` spends. With a client address, each client has
+/// its own budget, so strangers cannot lock everyone else out, and the secret keeps a ceiling
+/// across clients, so distributed guessing stays bounded. The client's own budget is spent first:
+/// one client adds at most [`SECRET_ATTEMPTS`] to the ceiling. Without an address the secret has
+/// one shared budget, as before client addresses existed.
+pub fn secret_limits(scope: &str, client: Option<std::net::IpAddr>) -> Vec<(String, i32)> {
+    match client {
+        Some(client) => vec![
+            (
+                format!("{scope}:client:{}", crate::rpc::client_key(client)),
+                SECRET_ATTEMPTS,
+            ),
+            (format!("{scope}:all-clients"), SECRET_ATTEMPTS_ALL_CLIENTS),
+        ],
+        None => vec![(scope.to_owned(), SECRET_ATTEMPTS)],
+    }
+}
 
 fn validate_password_length(password: &str, minimum: usize) -> Result<(), ApiError> {
     let count = password.chars().take(PASSWORD_MAX_CHARS + 1).count();
@@ -280,13 +304,31 @@ impl AuthAdapter {
         }
         Ok(())
     }
-    pub async fn rate_limit(&self, db: &DatabaseConnection, key: &str) -> Result<(), ApiError> {
-        let row = db.query_one_raw(sql("INSERT INTO hyori_rate_limits(key_digest,window_start,attempts) VALUES ($1,now(),1) ON CONFLICT(key_digest) DO UPDATE SET window_start=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN now() ELSE hyori_rate_limits.window_start END, attempts=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN 1 ELSE LEAST(hyori_rate_limits.attempts+1,11) END RETURNING attempts", vec![digest(key).into(), RATE_LIMIT_WINDOW_SECONDS.into()])).await?.ok_or_else(ApiError::unavailable)?;
-        if row.try_get::<i32>("", "attempts")? > 10 {
+    /// Fixed-window attempt counter: refuses once `key` has more than `attempts` this window.
+    pub async fn rate_limit(
+        &self,
+        db: &DatabaseConnection,
+        key: &str,
+        attempts: i32,
+    ) -> Result<(), ApiError> {
+        let row = db.query_one_raw(sql("INSERT INTO hyori_rate_limits(key_digest,window_start,attempts) VALUES ($1,now(),1) ON CONFLICT(key_digest) DO UPDATE SET window_start=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN now() ELSE hyori_rate_limits.window_start END, attempts=CASE WHEN hyori_rate_limits.window_start <= now()-$2::bigint * interval '1 second' THEN 1 ELSE LEAST(hyori_rate_limits.attempts+1,$3+1) END RETURNING attempts", vec![digest(key).into(), RATE_LIMIT_WINDOW_SECONDS.into(), attempts.into()])).await?.ok_or_else(ApiError::unavailable)?;
+        if row.try_get::<i32>("", "attempts")? > attempts {
             Err(ApiError::limited())
         } else {
             Ok(())
         }
+    }
+    /// Spends each budget in order and stops at the first one exhausted, so a refused attempt
+    /// never reaches the budgets after it.
+    pub async fn rate_limits(
+        &self,
+        db: &DatabaseConnection,
+        limits: &[(String, i32)],
+    ) -> Result<(), ApiError> {
+        for (key, attempts) in limits {
+            self.rate_limit(db, key, *attempts).await?;
+        }
+        Ok(())
     }
     /// Public-link passwords share the exact bounded KDF admission pool with account passwords.
     pub async fn hash_link_password(&self, password: &str) -> Result<String, ApiError> {
