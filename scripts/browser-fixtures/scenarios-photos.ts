@@ -962,6 +962,7 @@ async function sharedSources(run: CoreRun) {
   await createFolder(owner, "Holiday");
   await uploadFiles(owner, media.png("beach.png", 7, "640x480"));
   await owner.getByRole("button", { name: /^beach\.png/ }).waitFor({ timeout: 30_000 });
+  await waitForTrayIdle(run, owner, 1);
   await owner.getByRole("link", { name: "Files" }).first().click();
   await rowMenu(owner, "Holiday", "Share…");
 
