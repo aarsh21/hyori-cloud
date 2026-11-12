@@ -12,6 +12,7 @@ import { useLogout } from "#features/auth/react/use-logout.ts";
 import { AccountIdDialog } from "#features/cloud/react/account-id-dialog.tsx";
 import { AccountMenuItems } from "#features/cloud/react/account-menu-items.tsx";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
+import { PendingUploadsDialog } from "#features/uploads/react/pending-uploads-dialog.tsx";
 
 type MenuContentProps = ComponentProps<typeof DropdownMenuContent>;
 
@@ -32,6 +33,7 @@ export function AccountMenuRoot({
   const logout = useLogout();
   const [accountIdOpen, setAccountIdOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [pendingUploadsOpen, setPendingUploadsOpen] = useState(false);
 
   function signOut() {
     logout.mutate(
@@ -60,12 +62,14 @@ export function AccountMenuRoot({
             signingOut={logout.isPending}
             onShowAccountId={() => setAccountIdOpen(true)}
             onChangePassword={() => setChangePasswordOpen(true)}
+            onShowPendingUploads={() => setPendingUploadsOpen(true)}
             onSignOut={signOut}
           />
         </DropdownMenuContent>
       </DropdownMenu>
       <AccountIdDialog accountId={user.id} open={accountIdOpen} onOpenChange={setAccountIdOpen} />
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+      <PendingUploadsDialog open={pendingUploadsOpen} onOpenChange={setPendingUploadsOpen} />
     </>
   );
 }
