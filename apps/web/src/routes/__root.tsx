@@ -2,6 +2,7 @@ import { ClientSDKProvider } from "@hyori-cloud/client-sdk/react";
 import { QueryClientProvider, useQuery } from "@hyori-cloud/lib/query";
 import { lazy, Suspense } from "@hyori-cloud/lib/react";
 import { AppearanceProvider } from "@hyori-cloud/ui/theme";
+import { BrowserPreferencesScript } from "@hyori-cloud/ui/components/browser-preferences-script";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -63,6 +64,7 @@ function RootDocument() {
     <html lang="en" suppressHydrationWarning>
       <head>
         <DocumentHead />
+        <BrowserPreferencesScript nonce={nonce} />
       </head>
       <body>
         <AppearanceProvider nonce={nonce}>

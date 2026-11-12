@@ -12,6 +12,29 @@
 
 @custom-variant fine (@media (hover: hover) and (pointer: fine));
 
+/* A nonce-authorized head script marks browsers whose saved preferences differ from SSR defaults.
+   Keep geometry but paint nothing incorrect until client snapshots commit, and hide no more than
+   the surface each choice changes, so the rest of the server render stays on screen. */
+
+/* Grid changes only the listing and its layout control; the frame around them is already right. */
+html[data-local-preferences]
+  :is([data-slot="page-bar"], [data-slot="page-body"])[data-browser-ready="false"] {
+  visibility: hidden;
+}
+
+/* Phones display neither the sidebar nor shortcut badges; those choices need no client wait. */
+@media (width >= 48rem) {
+  /* A collapsed sidebar moves the whole frame. */
+  html[data-local-desktop-preferences] [data-browser-ready="false"] {
+    visibility: hidden;
+  }
+
+  /* Shortcuts off removes only the search field's key hint. */
+  html[data-local-shortcuts-off] [data-browser-ready="false"] [data-slot="search-field"] kbd {
+    visibility: hidden;
+  }
+}
+
 :root {
   /* Porcelain: warm, opaque surfaces separated by hairlines. See DESIGN.md. */
   --background: oklch(0.95 0.009 85);
