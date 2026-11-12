@@ -55,10 +55,14 @@ impl SignInPlace {
         let Self { admitted, running } = self;
         let work = tokio::spawn(async move {
             let _admitted = admitted;
-            let _running = tokio::time::timeout_at(deadline, running.acquire_owned())
-                .await
-                .ok()?
-                .ok()?;
+            let started = std::time::Instant::now();
+            let running = tokio::time::timeout_at(deadline, running.acquire_owned()).await;
+            crate::observability::admission(
+                crate::observability::Lane::SignIn,
+                started,
+                matches!(&running, Ok(Ok(_))),
+            );
+            let _running = running.ok()?.ok()?;
             // A malformed stored hash is a failed sign-in, like a wrong password.
             Some(
                 ScryptPasswordHasher

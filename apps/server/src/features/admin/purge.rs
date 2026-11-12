@@ -60,7 +60,7 @@ async fn pass(state: &Arc<AppState>, user: &str, token: &str) -> Result<(), ApiE
         storage
             .purge_owner_objects(user)
             .await
-            .map_err(|_| ApiError::unavailable())
+            .map_err(crate::features::uploads::service::storage_error)
     })
     .await
     .map_err(|_| ApiError::unavailable())??;

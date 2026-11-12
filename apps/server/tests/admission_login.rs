@@ -217,6 +217,27 @@ async fn a_full_sign_in_lane_signs_everyone_in_and_answers_busy_without_counting
     let places = SIGN_IN_RUNNING + SIGN_IN_WAITING;
     let extra = 4;
     members(&server, places + extra, &password).await;
+    let telemetry = || async {
+        server
+            .client
+            .get(format!("{}/metrics", server.url))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .text()
+            .await
+            .unwrap()
+    };
+    let refused = |text: &str| {
+        text.lines()
+            .find_map(|line| line.strip_prefix("hyori_busy_refusals_total{lane=\"sign_in\"} "))
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+    };
+    let before = telemetry().await;
     // Blocking writes to the attempt counters (reads still pass) stops each admitted sign-in
     // where it spends its counter, inside the lane, so the lane fills deterministically rather
     // than by timing.
@@ -293,6 +314,18 @@ async fn a_full_sign_in_lane_signs_everyone_in_and_answers_busy_without_counting
     for index in 0..places {
         assert_eq!(counted(index).await, 1);
     }
+    let after = telemetry().await;
+    assert_eq!(refused(&after) - refused(&before), extra as u64);
+    assert!(after.lines().any(|line| {
+        line.starts_with("hyori_admission_wait_seconds_sum{lane=\"sign_in\",outcome=\"admitted\"} ")
+            && line
+                .split_whitespace()
+                .last()
+                .unwrap()
+                .parse::<f64>()
+                .unwrap()
+                > 0.0
+    }));
     pg.stop();
 }
 

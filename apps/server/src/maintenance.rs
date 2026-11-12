@@ -71,6 +71,7 @@ async fn run_editors(db: DatabaseConnection, mut shutdown: watch::Receiver<bool>
         tokio::select! { biased; _=shutdown.changed()=>return, _=interval.tick()=>{} }
         tokio::select! { biased; _=shutdown.changed()=>return,
             result=crate::features::editors::cleanup::run_once(&db)=> {
+                if result.is_ok() { crate::observability::maintained("editors"); }
                 if let Err(error)=result { tracing::warn!(%error,"editor retention failed; next pass will retry"); }
             }
         }
@@ -99,7 +100,10 @@ async fn run_media(state: std::sync::Arc<crate::AppState>, mut shutdown: watch::
                 worked = crate::features::media::jobs::process_next(&state).await?;
             }
             Ok::<_, ApiError>(())
-        } => {if let Err(error)=result { tracing::warn!(%error,"media maintenance failed; durable leases will recover"); }} }
+        } => {
+            if result.is_ok() { crate::observability::maintained("media"); }
+            if let Err(error)=result { tracing::warn!(%error,"media maintenance failed; durable leases will recover"); }
+        } }
     }
 }
 async fn run_accounts(state: std::sync::Arc<crate::AppState>, mut shutdown: watch::Receiver<bool>) {
@@ -115,6 +119,7 @@ async fn run_accounts(state: std::sync::Arc<crate::AppState>, mut shutdown: watc
             biased;
             _ = shutdown.changed() => return,
             result = crate::features::admin::purge::reclaim(&state) => {
+                if result.is_ok() { crate::observability::maintained("accounts"); }
                 if let Err(error) = result { tracing::warn!(%error, "account purge failed; durable lease expiry permits recovery"); }
             }
         }
@@ -122,6 +127,7 @@ async fn run_accounts(state: std::sync::Arc<crate::AppState>, mut shutdown: watc
             biased;
             _ = shutdown.changed() => return,
             result = crate::features::files::purge_expired_trash(&state) => {
+                if result.is_ok() { crate::observability::maintained("trash"); }
                 if let Err(error) = result { tracing::warn!(%error, "trash retention purge failed; the next pass retries"); }
             }
         }
@@ -172,6 +178,7 @@ async fn run_uploads(state: std::sync::Arc<crate::AppState>, mut shutdown: watch
                 }
                 Ok::<_, ApiError>(())
             } => {
+                if result.is_ok() { crate::observability::maintained("uploads"); }
                 if let Err(error) = result { tracing::warn!(%error, "upload cleanup failed; durable lease expiry permits recovery"); }
             }
         }
@@ -205,6 +212,7 @@ pub async fn run_auth(db: DatabaseConnection, mut shutdown: watch::Receiver<bool
             };
             match result {
                 Ok(counts) => {
+                    crate::observability::maintained("auth");
                     tracing::debug!(?counts, "expired authentication records reclaimed");
                     let full = [
                         counts.sessions,

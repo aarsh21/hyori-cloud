@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 5s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: hyori-backend
+    static_configs:
+      - targets: [backend:3002]
+  - job_name: hyori-volumes
+    static_configs:
+      - targets: [volume-exporter:9100]
+    metric_relabel_configs:
+      - source_labels: [mountpoint]
+        regex: /volumes/storage
+        target_label: volume
+        replacement: rust-storage-data
+      - source_labels: [mountpoint]
+        regex: /volumes/postgres
+        target_label: volume
+        replacement: rust-postgres-data
+
+# To deliver notifications, configure your own private Alertmanager here. Without it,
+# firing alerts are visible in Prometheus but no email, pager or webhook is sent.

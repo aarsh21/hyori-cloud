@@ -9,6 +9,7 @@ pub mod error;
 pub mod features;
 pub mod maintenance;
 mod media_worker;
+mod observability;
 pub mod rpc;
 pub mod wire;
 
@@ -176,8 +177,13 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(downloads)
         .route("/health/live", get(rpc::live))
         .route("/health/ready", get(rpc::ready))
+        .route("/metrics", get(observability::scrape))
         .fallback(rpc::fallback)
         .method_not_allowed_fallback(rpc::fallback)
         .layer(middleware::from_fn(rpc::no_store))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            observability::request,
+        ))
         .with_state(state)
 }
