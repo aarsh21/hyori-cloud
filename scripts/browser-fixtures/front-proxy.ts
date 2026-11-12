@@ -105,6 +105,8 @@ function staticResponse(root: string, contentSecurityPolicy: string, pathname: s
       "content-length": String(file.size),
       "x-content-type-options": "nosniff",
       "x-frame-options": "SAMEORIGIN",
+      // The sandboxed, opaque-origin editor frame loads its own scripts and WASM with CORS.
+      "access-control-allow-origin": "*",
       "content-security-policy": contentSecurityPolicy,
       "cache-control": "no-cache",
     },

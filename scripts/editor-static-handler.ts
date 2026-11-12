@@ -7,6 +7,8 @@ export const editorStaticHandler = (contentSecurityPolicy: string) => `handle_pa
         root * /srv/artcraft
         header X-Content-Type-Options nosniff
         header X-Frame-Options SAMEORIGIN
+        # The editor frame is sandboxed into an opaque origin, so its scripts and WASM load with CORS.
+        header Access-Control-Allow-Origin *
         header Content-Security-Policy "${contentSecurityPolicy}"
         header Cache-Control no-cache
         @immutable {

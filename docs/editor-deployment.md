@@ -60,6 +60,8 @@ handle_path /artcraft/* {
         root * /srv/artcraft
         header X-Content-Type-Options nosniff
         header X-Frame-Options SAMEORIGIN
+        # The editor frame is sandboxed into an opaque origin, so its scripts and WASM load with CORS.
+        header Access-Control-Allow-Origin *
         # Replace with the line `bun scripts/editor-csp.ts` prints for this bundle.
         header Content-Security-Policy "<printed by scripts/editor-csp.ts>"
         header Cache-Control no-cache
