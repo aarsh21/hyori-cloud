@@ -114,8 +114,7 @@ fn listing_statement(
             )
         } else if !shared_roots {
             // Library root and searches: the actor's own items through owner indexes, plus items
-            // reached from the actor's current shares, so the cost never grows with other
-            // accounts' libraries. Each branch is already filtered and keyset-limited; the merge
+            // reached from the actor's current shares. Each branch is filtered and keyset-limited; the merge
             // keeps the single id order and cursor of one listing. Branches are disjoint by owner.
             // Shared candidates are collected before ordering: under a generic plan, ORDER BY id
             // LIMIT otherwise tempts PostgreSQL into walking the whole primary key.
@@ -129,16 +128,23 @@ fn listing_statement(
                     WHERE i.owner_id={actor} AND {predicates} ORDER BY i.id LIMIT {lookahead}) UNION ALL"
                 )
             };
-            // A root (parentless) item has no ancestors, so only searches reach shared descendants.
+            // Separate direct matches from inherited matches so PostgreSQL can use both indexes.
+            // Only folders can be ancestors; thousands of direct file grants must not become
+            // thousands of ancestry probes per candidate. UNION deduplicates overlapping grants
+            // before the page limit. Parentless listing still needs only the direct branch.
             let descendants = if searching {
-                " OR i.ancestor_ids ?| ARRAY(SELECT item_id FROM eligible)"
+                format!("UNION SELECT i.id FROM hyori_items i {active_owner}
+                    WHERE i.ancestor_ids ?| ARRAY(SELECT root.id FROM hyori_items root
+                        WHERE root.id=ANY(ARRAY(SELECT item_id FROM eligible)) AND root.kind='folder')
+                      AND i.owner_id IS DISTINCT FROM {actor} AND {predicates}")
             } else {
-                ""
+                String::new()
             };
             format!("WITH eligible AS MATERIALIZED ({eligible}), reachable AS MATERIALIZED (
                 SELECT i.id FROM hyori_items i {active_owner}
-                WHERE (i.id=ANY(ARRAY(SELECT item_id FROM eligible)){descendants})
+                WHERE i.id=ANY(ARRAY(SELECT item_id FROM eligible))
                   AND i.owner_id IS DISTINCT FROM {actor} AND {predicates}
+                {descendants}
               ), page AS MATERIALIZED ({owned}
                 (SELECT id FROM reachable ORDER BY id LIMIT {lookahead})
               ) SELECT i.* FROM page p JOIN hyori_items i ON i.id=p.id ORDER BY i.id LIMIT {lookahead}")

@@ -192,12 +192,35 @@ pub async fn run_auth(db: DatabaseConnection, mut shutdown: watch::Receiver<bool
             _ = shutdown.changed() => return,
             _ = interval.tick() => {}
         }
-        tokio::select! {
-            biased;
-            _ = shutdown.changed() => return,
-            result = reclaim_auth(&db) => match result {
-                Ok(counts) => tracing::debug!(?counts, "expired authentication records reclaimed"),
-                Err(error) => tracing::warn!(%error, "authentication cleanup failed; next pass will retry"),
+        // Anonymous requests (sign-ins for made-up emails, link passwords, invite tokens) can
+        // create rate-limit rows far faster than one batch per tick reclaims. Keep running
+        // bounded passes while one fills a batch, within the tick. Opening a link stores no grant
+        // any more; grant rows stored before that only wait out their 12 hours here.
+        let started = tokio::time::Instant::now();
+        loop {
+            let result = tokio::select! {
+                biased;
+                _ = shutdown.changed() => return,
+                result = reclaim_auth(&db) => result,
+            };
+            match result {
+                Ok(counts) => {
+                    tracing::debug!(?counts, "expired authentication records reclaimed");
+                    let full = [
+                        counts.sessions,
+                        counts.grants,
+                        counts.invites,
+                        counts.rate_limits,
+                    ]
+                    .contains(&AUTH_BATCH_SIZE.unsigned_abs());
+                    if !full || started.elapsed() >= AUTH_INTERVAL {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "authentication cleanup failed; next pass will retry");
+                    break;
+                }
             }
         }
     }

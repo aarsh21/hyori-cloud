@@ -586,6 +586,32 @@ async fn authentication_cleanup_is_bounded_restart_safe_and_preserves_live_autho
             .await
             .is_err()
     );
+    // Unauthenticated callers can create rate-limit rows (random invite/link tokens) much faster
+    // than one bounded batch per 30-second tick reclaims them, and grants stored before link
+    // capabilities can leave a backlog too. A tick keeps reclaiming bounded batches meanwhile.
+    let backlog = AUTH_BATCH_SIZE * 8 + 1;
+    db.execute_raw(sql("INSERT INTO hyori_rate_limits(key_digest,window_start,attempts) SELECT repeat(md5('backlog'||n),2),now()-interval '16 minutes',1 FROM generate_series(1,$1::bigint) n", vec![backlog.into()])).await.unwrap();
+    db.execute_raw(sql("INSERT INTO hyori_grants(token_digest,share_id,created_at,expires_at) SELECT repeat(md5('backlog'||n),2),s.id,now()-interval '1 day',now()-interval '13 hours' FROM generate_series(1,$1::bigint) n, hyori_shares s", vec![backlog.into()])).await.unwrap();
+    let expired = "SELECT (SELECT count(*) FROM hyori_rate_limits WHERE window_start <= now()-interval '15 minutes') + (SELECT count(*) FROM hyori_grants WHERE expires_at <= now()) AS count";
+    let (stop, stopped) = tokio::sync::watch::channel(false);
+    let worker = tokio::spawn(hyori_server::maintenance::run_auth(db.clone(), stopped));
+    let mut remaining = i64::MAX;
+    for _ in 0..50 {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        remaining = db
+            .query_one_raw(sql(expired, vec![]))
+            .await
+            .unwrap()
+            .unwrap()
+            .try_get("", "count")
+            .unwrap();
+        if remaining == 0 {
+            break;
+        }
+    }
+    stop.send(true).unwrap();
+    worker.await.unwrap();
+    assert_eq!(remaining, 0, "one maintenance tick left an expired backlog");
     restarted.db.clone().close().await.unwrap();
     server.state.db.clone().close().await.unwrap();
     drop(server);

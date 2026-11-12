@@ -235,6 +235,23 @@ async fn shared_root_listing_deduplicates_before_paging_and_revalidates_authorit
         )
         .await;
     assert_eq!(search.value()["items"][0]["id"], descendant);
+    // A direct grant overlapping inherited access must not duplicate a search row or its cursor.
+    let overlap = share(&server, &owner, &descendant, &recipient, "editor").await;
+    let overlapping = server
+        .rpc(
+            "files.list",
+            json!({"view":"shared","search":"Inherited-only","limit":1}),
+            Some(&recipient.cookie),
+        )
+        .await;
+    assert_eq!(overlapping.value()["items"].as_array().unwrap().len(), 1);
+    assert_eq!(overlapping.value()["items"][0]["id"], descendant);
+    assert_eq!(overlapping.value()["items"][0]["access"]["role"], "editor");
+    assert_eq!(overlapping.value()["nextCursor"], Value::Null);
+    server
+        .rpc("shares.revoke", json!({"id":overlap}), Some(&owner.cookie))
+        .await
+        .value();
     // Expiry, revocation, trash, inactive issuer, and inactive owner each exclude direct roots.
     server.state.db.execute_raw(sql("UPDATE hyori_shares SET expires_at=now()-interval '1 second' WHERE id='listing-share-1198'", vec![])).await.unwrap();
     server
