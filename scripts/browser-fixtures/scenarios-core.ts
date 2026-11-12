@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Browser, BrowserContext } from "playwright-core";
+import type { Browser, BrowserContext, Page } from "playwright-core";
 import type { FrontHandler } from "./front-proxy.ts";
 import type { MediaKit } from "./media.ts";
 import { fetchInPage, setupAdmin, signIn } from "./page-actions.ts";
@@ -52,8 +52,25 @@ export async function openPage(run: CoreRun, context: BrowserContext, path = "/"
 
   run.report.watch(page);
   await page.goto(`${run.origin}${path}`, { waitUntil: "domcontentloaded" });
+  await waitForHydration(page);
 
   return page;
+}
+
+/** SSR makes controls visible before React attaches their behavior. Fixtures need the latter. */
+export function waitForHydration(page: Page) {
+  return page.waitForFunction(() => {
+    const controls = [...document.querySelectorAll("button:not(:disabled),a[href]")].filter(
+      (element) => element.getClientRects().length > 0,
+    );
+
+    return (
+      controls.length > 0 &&
+      controls.every((element) =>
+        Object.keys(element).some((key) => key.startsWith("__reactFiber$")),
+      )
+    );
+  });
 }
 
 /** The loopback address this fixture uses, and the one the web host was given: they can differ. */

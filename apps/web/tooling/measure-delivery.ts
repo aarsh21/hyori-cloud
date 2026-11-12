@@ -9,6 +9,10 @@ import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { homedir, cpus, totalmem } from "node:os";
 import { join, dirname } from "node:path";
 import { z } from "zod";
+import {
+  observeDeliveryHydration,
+  waitForDeliveryHydration as hydrated,
+} from "./delivery-hydration.ts";
 
 declare global {
   interface Window {
@@ -172,6 +176,8 @@ if (process.argv[2] === "seed") {
   try {
     const page = await authContext.newPage();
     await page.goto(origin);
+    await page.getByRole("button", { name: "Sign in", exact: true, disabled: false }).waitFor();
+    await page.waitForLoadState("networkidle");
     await page.getByLabel("Email").fill(state.email);
     await page.getByLabel("Password", { exact: true }).fill(state.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -186,6 +192,12 @@ if (process.argv[2] === "seed") {
 
     for (const screen of ["login", "files", "photos", "share", "admin"] as const) {
       if (process.argv[5] && process.argv[5] !== screen) continue;
+
+      if (
+        process.env.HYORI_DELIVERY_SCREENS &&
+        !process.env.HYORI_DELIVERY_SCREENS.split(",").includes(screen)
+      )
+        continue;
 
       for (let run = 0; run < 3; run++) {
         const profile = join(
@@ -224,9 +236,14 @@ if (process.argv[2] === "seed") {
             await session.send("Emulation.setCPUThrottlingRate", { rate: 4 });
           }
 
+          await page.addInitScript(observeDeliveryHydration, "button");
           await page.addInitScript(() => {
             const tasks: number[] = [];
-            Object.assign(window, { deliveryLongTasks: tasks, deliveryCsp: [] });
+
+            Object.assign(window, {
+              deliveryLongTasks: tasks,
+              deliveryCsp: [],
+            });
             new PerformanceObserver((list) =>
               tasks.push(...list.getEntries().map((entry) => entry.duration)),
             ).observe({ type: "longtask", buffered: true });
@@ -299,13 +316,12 @@ if (process.argv[2] === "seed") {
             await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
 
             if (screen === "login")
-              await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+              await hydrated(
+                page.getByRole("button", { name: "Sign in", exact: true, disabled: false }),
+              );
 
             if (screen === "files")
-              await page
-                .getByRole("button", { name: /^document-\d+\.txt/ })
-                .first()
-                .waitFor();
+              await hydrated(page.getByRole("button", { name: /^document-\d+\.txt/ }).first());
 
             if (screen === "photos")
               await page
@@ -374,18 +390,17 @@ if (process.argv[2] === "seed") {
 
               if (!opened) {
                 // The public consent button exists in SSR. Wait for the real hydrated control.
-                await page.getByRole("button", { name: "Appearance", expanded: false }).waitFor();
+                await hydrated(gate);
                 await gate.click();
               }
 
-              await firstFile.waitFor();
+              await hydrated(firstFile);
             }
 
             if (screen === "admin")
-              await page
-                .getByRole("list", { name: "Users", exact: true })
-                .getByText("Delivery Review", { exact: true })
-                .waitFor();
+              await hydrated(
+                page.getByRole("button", { name: "Actions for Delivery Review", exact: true }),
+              );
             const usableMs = await page.evaluate(() => performance.now());
             const metrics = await session.send("Performance.getMetrics");
             await page.waitForLoadState("networkidle");
@@ -511,6 +526,12 @@ if (process.argv[2] === "seed") {
 
             if (process.env.HYORI_DELIVERY_CAPTURES && run === 0 && cache === "warm") {
               await mkdir(process.env.HYORI_DELIVERY_CAPTURES, { recursive: true });
+
+              if (screen === "files")
+                await page.waitForFunction(
+                  () => document.querySelector('[data-slot="item-table-row"] div[title]') !== null,
+                );
+
               await page.screenshot({
                 path: join(
                   process.env.HYORI_DELIVERY_CAPTURES,

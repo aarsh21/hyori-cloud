@@ -14,7 +14,7 @@ import {
 } from "#features-test/mounted.tsx";
 
 async function selectDark() {
-  fireEvent.click(await screen.findByRole("button", { name: "Appearance" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Appearance", expanded: false }));
   fireEvent.click(await screen.findByRole("menuitemradio", { name: "Dark" }));
   await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
   expect(localStorage.getItem("hyori-appearance")).toBe("dark");

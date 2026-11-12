@@ -8,6 +8,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
+declare global {
+  interface Window {
+    firstLoadPrivateFlash: boolean;
+  }
+}
+
 const origin = new URL(process.env.HYORI_DELIVERY_ORIGIN!).origin;
 
 const state = z
@@ -35,6 +41,13 @@ try {
   });
 
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    window.firstLoadPrivateFlash = false;
+    new MutationObserver(() => {
+      if (document.querySelector('[data-slot="app-shell"]')) window.firstLoadPrivateFlash = true;
+    }).observe(document, { subtree: true, childList: true });
+  });
+
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const response = await page.goto(origin);
@@ -50,10 +63,36 @@ try {
   assert.equal(headers["referrer-policy"], "no-referrer");
   assert.ok(headers["permissions-policy"]?.includes("microphone=()"));
   assert.equal(headers["cache-control"], "private, no-store");
+  assert.equal(headers["content-encoding"], "gzip");
   assert.equal(headers["strict-transport-security"], "max-age=31536000");
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+
+  let currentHeaders = headers;
+
+  for (const path of [`/folders/${state.folderId}`, "/admin", "/"]) {
+    const signedOut = await page.goto(`${origin}${path}`);
+    const body = await signedOut!.text();
+    currentHeaders = await signedOut!.allHeaders();
+    assert.equal(signedOut!.headers()["cache-control"], "private, no-store");
+    assert.ok(!body.includes(state.email));
+    assert.doesNotMatch(body, /document-\d+\.txt/);
+    assert.ok(!body.includes('data-slot="app-shell"'));
+    assert.doesNotMatch(
+      body,
+      /\/assets\/(?:signed-in-cloud|files-screen|photos-screen|admin-screen|editor-screen)-/,
+    );
+    assert.ok(body.includes("login-email"), "sign-in is present in the signed-out document");
+    await page.getByRole("button", { name: "Appearance", expanded: false }).waitFor();
+    assert.equal(await page.evaluate(() => window.firstLoadPrivateFlash), false);
+    assert.equal(await page.locator('[data-slot="app-shell"]').count(), 0);
+  }
+
+  console.log(
+    "PASS signed-out documents and hydrated private routes contain no private data/chrome",
+  );
+  // The following nonce checks refer to the current document, not the first navigation.
   const nonce = await page.locator('meta[property="csp-nonce"]').getAttribute("content");
-  assert.ok(nonce && headers["content-security-policy"]!.includes(`'nonce-${nonce}'`));
+  assert.ok(nonce && currentHeaders["content-security-policy"]!.includes(`'nonce-${nonce}'`));
 
   const inlineNonces = await page
     .locator("script:not([src])")
@@ -82,11 +121,31 @@ try {
   const output = process.argv[2]!;
   await mkdir(output, { recursive: true });
   await page.screenshot({ path: join(output, "login-after.png") });
+  await page.getByRole("button", { name: "Sign in", exact: true, disabled: false }).waitFor();
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Email").fill(state.email);
   await page.getByLabel("Password", { exact: true }).fill(state.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByText("Delivery files", { exact: true }).waitFor();
+  await page
+    .getByText("Delivery files", { exact: true })
+    .waitFor()
+    .catch(async (error) => {
+      console.log("Sign-in transition:", await page.locator("body").innerText());
+      throw error;
+    });
   const second = await page.goto(`${origin}/folders/${state.folderId}`);
+  assert.equal(second!.headers()["cache-control"], "private, no-store");
+  const privateBody = await second!.text();
+  assert.match(privateBody, /document-\d+\.txt/, "first listing is in the private document");
+  assert.ok(privateBody.includes(state.email), "only the authenticated document carries identity");
+
+  const privatePreloads = await page
+    .locator('link[rel="modulepreload"]')
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+
+  assert.ok(privatePreloads.some((href) => href?.includes("/files-screen-")));
+  assert.ok(privatePreloads.some((href) => href?.includes("/signed-in-cloud-")));
+  assert.ok(!privatePreloads.some((href) => /\/(photos|admin|editor)-screen-/.test(href ?? "")));
   await page
     .getByRole("button", { name: /^document-\d+\.txt/ })
     .first()

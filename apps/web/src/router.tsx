@@ -1,5 +1,6 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { createIsomorphicFn, getGlobalStartContext } from "@tanstack/react-start";
+import { dehydrate, hydrate } from "@hyori-cloud/lib/query";
 
 import { getAppRuntime } from "@/app/runtime";
 import AppError from "@/components/app-error";
@@ -22,11 +23,19 @@ const requestNonce = createIsomorphicFn()
   );
 
 export const getRouter = () => {
+  const runtime = getAppRuntime();
+
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    context: getAppRuntime(),
+    context: runtime,
+    // SDK values are decoded JSON. A string keeps Query's unknown key/data types out of the
+    // router serializer contract without asserting that arbitrary cache entries are serializable.
+    dehydrate: () => ({ queryState: JSON.stringify(dehydrate(runtime.queryClient)) }),
+    hydrate: (state) => {
+      hydrate(runtime.queryClient, JSON.parse(state.queryState));
+    },
     // Hydration captures this at router creation, before route loaders or rendering run.
     ssr: { nonce: requestNonce() },
     defaultPendingComponent: () => <Loader />,

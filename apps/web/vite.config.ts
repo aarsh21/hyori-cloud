@@ -6,21 +6,28 @@ import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite-plus";
 import { requestDisconnectBoundary } from "./tooling/request-disconnect.ts";
+import { screenAssets } from "./tooling/screen-assets.ts";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   server: {
     port: 3001,
   },
   resolve: {
     tsconfigPaths: true,
   },
+  build: { manifest: true },
+  // Keep the renderer, CommonJS hook shims and each workspace's icon version together.
+  // A partially externalized intermediate build resolves them again from Nitro's directory,
+  // producing duplicate React dispatchers or server/client icon mismatches on hydrated screens.
+  environments: command === "build" ? { ssr: { resolve: { noExternal: true } } } : undefined,
   plugins: [
     varlockVitePlugin({ ssrInjectMode: "auto-load" }),
     tailwindcss(),
     tanstackStart(),
     nitro({ preset: "node-server", compressPublicAssets: true }),
     requestDisconnectBoundary(),
+    screenAssets(),
     viteReact(),
     babel({ presets: [reactCompilerPreset()] }),
   ],
-});
+}));

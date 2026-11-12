@@ -1,4 +1,3 @@
-import { AppearanceMenu } from "@hyori-cloud/ui/components/appearance-menu";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Field, FieldDescription, Form } from "@hyori-cloud/ui/components/field";
 import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus-layout";
@@ -8,8 +7,9 @@ import { Heading, Text } from "@hyori-cloud/ui/components/text";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { AccountFields } from "#features/auth/react/account-fields.tsx";
 import { useSetup } from "#features/auth/react/use-setup.ts";
-import { formText } from "#features/shared/form-values.ts";
 import { useHydrated } from "#features/shared/react/use-hydrated.ts";
+import { formText } from "#features/shared/form-values.ts";
+import { DeferredAppearanceMenu } from "#features/shared/react/deferred-appearance-menu.tsx";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 
 export function SetupScreen() {
@@ -17,7 +17,7 @@ export function SetupScreen() {
   const ready = useHydrated();
 
   return (
-    <FocusLayout footer={<AppearanceMenu />}>
+    <FocusLayout footer={<DeferredAppearanceMenu />}>
       <Wordmark />
       <FocusLayoutHeader>
         <Heading>Set up this server</Heading>
@@ -26,6 +26,7 @@ export function SetupScreen() {
         </Text>
       </FocusLayoutHeader>
       <Form
+        method="post"
         onValues={(values) =>
           setup.mutate({
             setupToken: formText(values, "setupToken"),

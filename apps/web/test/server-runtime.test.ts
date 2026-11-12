@@ -1,6 +1,42 @@
 import { expect, test } from "bun:test";
 import { getAppRuntime } from "@/app/runtime";
 import { getRouter } from "@/router";
+import { renderRequest } from "@/app/render-request";
+import { createWebBackendHandler } from "@/server/backend-handler";
+import { loadPage } from "@/app/load-page";
+import { createClient } from "@hyori-cloud/client-sdk";
+import { QueryClient, dehydrate } from "@hyori-cloud/lib/query";
+
+test("a refused render read still returns a document and can be fetched again by the browser", async () => {
+  let busy = true;
+
+  const sdkClient = createClient({
+    fetch: async () =>
+      busy
+        ? Response.json(
+            { ok: false, error: { code: "service.unavailable", message: "Busy" } },
+            { status: 503 },
+          )
+        : Response.json({ ok: true, value: { initialized: true, user: null } }),
+  });
+
+  const queryClient = new QueryClient();
+
+  try {
+    expect(await loadPage({ sdkClient, queryClient }, "/folders/private-folder")).toEqual({
+      preloads: [],
+    });
+    expect(dehydrate(queryClient).queries).toEqual([]);
+    busy = false;
+    expect(await queryClient.fetchQuery(sdkClient.query.auth.status.getOptions({}))).toEqual({
+      initialized: true,
+      user: null,
+    });
+  } finally {
+    sdkClient.dispose();
+    queryClient.clear();
+  }
+});
 
 test("actual server router requests own separate SDKs and Query caches", () => {
   expect(globalThis.window).toBeUndefined();
@@ -29,5 +65,82 @@ test("actual server router requests own separate SDKs and Query caches", () => {
     b.sdkClient.dispose();
     a.queryClient.clear();
     b.queryClient.clear();
+  }
+});
+
+test("render RPC keeps the visitor cookie, gateway address evidence, authority and cancellation", async () => {
+  const origin = "https://cloud.example.test";
+
+  const backend = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: (request) =>
+      Response.json({
+        address: request.headers.get("x-hyori-client-address"),
+        cookie: request.headers.get("cookie"),
+      }),
+  });
+
+  const proxy = createWebBackendHandler({
+    origin,
+    backendUrl: backend.url.origin,
+    production: true,
+    gatewayClientAddressHeader: "x-forwarded-for",
+  });
+
+  try {
+    for (const [rawHeaders, address] of [
+      [["X-Forwarded-For", "192.0.2.6, 203.0.113.9"], "203.0.113.9"],
+      [["X-Forwarded-For", "192.0.2.6", "X-Forwarded-For", "203.0.113.9"], null],
+    ] as const) {
+      const cancelled = new AbortController();
+
+      const incoming = Object.assign(
+        new Request(`${origin}/folders/folder-1`, {
+          headers: {
+            host: new URL(origin).host,
+            cookie: "hyori_session=visitor",
+            "x-forwarded-for": "192.0.2.6, 203.0.113.9",
+            "x-hyori-client-address": "198.51.100.99",
+          },
+          signal: cancelled.signal,
+        }),
+        { runtime: { node: { req: { rawHeaders: [...rawHeaders] } } } },
+      );
+
+      const request = renderRequest(
+        incoming,
+        {
+          method: "POST",
+          body: JSON.stringify({ operation: "auth.status", input: {} }),
+        },
+        origin,
+      );
+
+      const response = await proxy(request);
+      expect(await response.json()).toEqual({ address, cookie: "hyori_session=visitor" });
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+
+      incoming.headers.set("host", "attacker.example.test");
+      expect(
+        (
+          await proxy(
+            renderRequest(
+              incoming,
+              {
+                method: "POST",
+                body: "{}",
+              },
+              origin,
+            ),
+          )
+        ).status,
+      ).toBe(403);
+
+      cancelled.abort();
+      expect(request.signal.aborted).toBe(true);
+    }
+  } finally {
+    backend.stop(true);
   }
 });

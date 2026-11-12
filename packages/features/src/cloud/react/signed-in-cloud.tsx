@@ -1,4 +1,5 @@
 import { Suspense } from "@hyori-cloud/lib/react";
+import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
@@ -34,7 +35,9 @@ export function SignedInCloud({ location }: { location: SignedInLocation }) {
   return (
     // Interrupted uploads belong to one account. Changing accounts must not carry them across.
     <UploadsProvider key={user.id} scope={user.id}>
-      <SignedInLocationScreen location={location} />
+      <TooltipProvider>
+        <SignedInLocationScreen location={location} />
+      </TooltipProvider>
     </UploadsProvider>
   );
 }

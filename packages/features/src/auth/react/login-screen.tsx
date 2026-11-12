@@ -1,4 +1,3 @@
-import { AppearanceMenu } from "@hyori-cloud/ui/components/appearance-menu";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Field, Form } from "@hyori-cloud/ui/components/field";
 import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus-layout";
@@ -8,8 +7,9 @@ import { PasswordInput } from "@hyori-cloud/ui/components/password-input";
 import { Heading, Text } from "@hyori-cloud/ui/components/text";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { useLogin } from "#features/auth/react/use-login.ts";
-import { formText } from "#features/shared/form-values.ts";
 import { useHydrated } from "#features/shared/react/use-hydrated.ts";
+import { formText } from "#features/shared/form-values.ts";
+import { DeferredAppearanceMenu } from "#features/shared/react/deferred-appearance-menu.tsx";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 
 export function LoginScreen() {
@@ -17,13 +17,14 @@ export function LoginScreen() {
   const ready = useHydrated();
 
   return (
-    <FocusLayout footer={<AppearanceMenu />}>
+    <FocusLayout footer={<DeferredAppearanceMenu />}>
       <Wordmark />
       <FocusLayoutHeader>
         <Heading>Sign in</Heading>
         <Text tone="muted">Accounts on this server are created by its admin.</Text>
       </FocusLayoutHeader>
       <Form
+        method="post"
         onValues={(values) =>
           login.mutate({ email: formText(values, "email"), password: formText(values, "password") })
         }

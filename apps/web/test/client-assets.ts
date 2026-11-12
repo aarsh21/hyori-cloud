@@ -1,7 +1,8 @@
 import { plugin } from "bun";
+import { mock } from "bun:test";
 
-// Bun executes source, not Vite's asset pipeline. Only the CSS URL is adapted; application,
-// provider, router, feature, SDK and server modules are never replaced.
+// Bun executes source, not Vite's asset pipeline. Only CSS URLs and the generated chunk map are
+// adapted; application, provider, router, feature, SDK and server modules are never replaced.
 plugin({
   name: "test-stylesheet-url",
   setup(builder) {
@@ -11,3 +12,5 @@ plugin({
     }));
   },
 });
+
+mock.module("virtual:hyori-screen-assets", () => ({ default: {} }));

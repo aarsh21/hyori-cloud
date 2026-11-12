@@ -23,13 +23,14 @@ import { FileEntryTarget } from "#features/files/react/file-entry-target.tsx";
 import { FileTypeIcon } from "#features/files/react/file-type-icon.tsx";
 import { NoSize } from "#features/files/react/no-size.tsx";
 import { formatBytes, formatDateTime, formatRecentDate } from "#features/shared/format.ts";
+import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 
 export type FileLayout = "list" | "grid";
 
-function entryMeta(entry: FileEntry) {
-  return entry.kind === "folder"
-    ? formatRecentDate(entry.updatedAt)
-    : `${formatBytes(entry.size)} · ${formatRecentDate(entry.updatedAt)}`;
+function entryMeta(entry: FileEntry, hydrated: boolean) {
+  const date = hydrated ? formatRecentDate(entry.updatedAt) : "—";
+
+  return entry.kind === "folder" ? date : `${formatBytes(entry.size)} · ${date}`;
 }
 
 function entryKey(entry: FileEntry) {
@@ -111,17 +112,20 @@ function FileEntryIcon({ entry }: { entry: FileEntry }) {
 }
 
 function FileRow({ entry }: { entry: FileEntry }) {
+  // Local dates cannot be rendered in the server's locale/time zone without a mismatch.
+  const hydrated = useHydrated();
+
   return (
     <ItemTableRow itemKey={entry.id} aria-busy={useFileActionPending(entry.id)}>
       <ItemTableCell className="flex">
         <FileEntryTarget entry={entry}>
-          <ItemName icon={<FileEntryIcon entry={entry} />} meta={entryMeta(entry)}>
+          <ItemName icon={<FileEntryIcon entry={entry} />} meta={entryMeta(entry, hydrated)}>
             {entry.name}
           </ItemName>
         </FileEntryTarget>
       </ItemTableCell>
-      <ItemTableDetailCell title={formatDateTime(entry.updatedAt)}>
-        {formatRecentDate(entry.updatedAt)}
+      <ItemTableDetailCell title={hydrated ? formatDateTime(entry.updatedAt) : undefined}>
+        {hydrated ? formatRecentDate(entry.updatedAt) : "—"}
       </ItemTableDetailCell>
       <ItemTableDetailCell className="text-right">
         {entry.kind === "folder" ? <NoSize /> : formatBytes(entry.size)}
@@ -136,6 +140,8 @@ function FileRow({ entry }: { entry: FileEntry }) {
 }
 
 function FileTile({ entry }: { entry: FileEntry }) {
+  const hydrated = useHydrated();
+
   return (
     <ItemTile
       itemKey={entry.id}
@@ -144,7 +150,7 @@ function FileTile({ entry }: { entry: FileEntry }) {
       action={<FileEntryMenu entry={entry} />}
     >
       <FileEntryTarget entry={entry}>
-        <ItemTileLabel meta={entryMeta(entry)}>{entry.name}</ItemTileLabel>
+        <ItemTileLabel meta={entryMeta(entry, hydrated)}>{entry.name}</ItemTileLabel>
       </FileEntryTarget>
     </ItemTile>
   );
