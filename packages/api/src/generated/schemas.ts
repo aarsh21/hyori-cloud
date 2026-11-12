@@ -96,7 +96,7 @@ export const Albums = Schema.Struct({ "items": Schema.Array(Album) });
 
 export type Albums = typeof Albums.Type;
 
-export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("uploads.busy"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable")), Schema.String);
+export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("uploads.busy"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable"), Schema.Literal("auth.signInBusy")), Schema.String);
 
 export type ErrorCode = typeof ErrorCode.Type;
 
