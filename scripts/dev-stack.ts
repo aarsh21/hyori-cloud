@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import {
   cpSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   readFileSync,
@@ -73,7 +74,19 @@ function secrets(): Secrets {
       s3Secret: randomBytes(32).toString("hex"),
     };
 
-    writeFileSync(path, JSON.stringify(generated), { mode: 0o600 });
+    // The services start together on a fresh host. link() publishes one complete file and fails
+    // for every later service, so they all read the same credentials.
+    const draft = `${path}.${process.pid}`;
+
+    writeFileSync(draft, JSON.stringify(generated), { mode: 0o600 });
+
+    try {
+      linkSync(draft, path);
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error;
+    } finally {
+      rmSync(draft);
+    }
   }
 
   return Secrets.parse(JSON.parse(readFileSync(path, "utf8")));
