@@ -27,6 +27,8 @@ test("web readiness follows only the private backend and liveness stays independ
   for (const expected of [200, 503]) {
     backendStatus = expected;
 
+    if (expected === 503) await Bun.sleep(1050);
+
     const response = await host(
       new Request("http://host/health/ready", {
         headers: { Authorization: "Bearer never-forward", Cookie: "session=never-forward" },
@@ -80,6 +82,49 @@ test("internal SSR fetches do not create additional incoming access records", as
 
   expect(lines).toEqual([]);
 });
+
+test("readiness coalesces concurrent probes and reuses both outcomes for one second", async () => {
+  let calls = 0;
+  let hanging = false;
+
+  const backend = serve(async () => {
+    calls++;
+    await Bun.sleep(hanging ? 4000 : 40);
+
+    return new Response("ready");
+  });
+
+  const host = withOperations(
+    () => new Response("page"),
+    backend,
+    () => {},
+  );
+
+  const burst = () =>
+    Promise.all(Array.from({ length: 80 }, () => host(new Request("http://host/health/ready"))));
+
+  expect((await burst()).every((response) => response.status === 200)).toBe(true);
+  expect(calls).toBe(1);
+  hanging = true;
+  const down = performance.now();
+  expect((await burst()).every((response) => response.status === 200)).toBe(true);
+  expect(calls).toBe(1);
+  await Bun.sleep(1050);
+  const pending = burst();
+  expect((await host(new Request("http://host/health/live"))).status).toBe(200);
+  await Bun.sleep(1100);
+  const late = burst();
+  expect((await pending).every((response) => response.status === 503)).toBe(true);
+  expect((await late).every((response) => response.status === 503)).toBe(true);
+  expect(performance.now() - down).toBeLessThan(3300);
+  expect(calls).toBe(2);
+  expect((await burst()).every((response) => response.status === 503)).toBe(true);
+  expect(calls).toBe(2);
+  await Bun.sleep(1050);
+  hanging = false;
+  expect((await burst()).every((response) => response.status === 200)).toBe(true);
+  expect(calls).toBe(3);
+}, 10000);
 
 afterEach(() => {
   for (const server of servers.splice(0)) server.stop(true);

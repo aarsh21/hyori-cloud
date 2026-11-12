@@ -26,6 +26,38 @@ export function withOperations(
   backendUrl: string | undefined,
   write: (line: string) => void = (line) => process.stdout.write(`${line}\n`),
 ) {
+  let probe: Promise<boolean> | undefined;
+  let expires = 0;
+
+  const ready = () => {
+    if (!probe || performance.now() >= expires) {
+      // Infinity coalesces callers throughout the probe, not just its first second.
+      expires = Infinity;
+      probe = (async () => {
+        try {
+          if (!backendUrl) return false;
+
+          const upstream = await fetch(new URL("/health/ready", backendUrl), {
+            signal: AbortSignal.timeout(2000),
+            redirect: "error",
+            cache: "no-store",
+          });
+
+          await upstream.body?.cancel();
+
+          return upstream.status === 200;
+        } catch {
+          return false;
+        } finally {
+          // Reuse failures too, measured from completion and on a monotonic clock.
+          expires = performance.now() + 1000;
+        }
+      })();
+    }
+
+    return probe;
+  };
+
   return async (request: Request): Promise<Response> => {
     const started = performance.now();
     const path = new URL(request.url).pathname;
@@ -61,31 +93,19 @@ export function withOperations(
     let response: Response;
 
     if (path === "/health/live" || path === "/health/ready") {
-      let ready = path === "/health/live";
+      const healthy = path === "/health/live" || (await ready());
 
-      if (!ready && backendUrl) {
-        try {
-          const upstream = await fetch(new URL("/health/ready", backendUrl), {
-            signal: AbortSignal.timeout(2000),
-            redirect: "error",
-            cache: "no-store",
-          });
-
-          ready = upstream.status === 200;
-          await upstream.body?.cancel();
-        } catch {
-          ready = false;
-        }
-      }
-
-      response = new Response(request.method === "HEAD" ? null : ready ? "ok\n" : "unavailable\n", {
-        status: ready ? 200 : 503,
-        headers: {
-          "Cache-Control": "no-store",
-          "Content-Type": "text/plain",
-          "X-Content-Type-Options": "nosniff",
+      response = new Response(
+        request.method === "HEAD" ? null : healthy ? "ok\n" : "unavailable\n",
+        {
+          status: healthy ? 200 : 503,
+          headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "text/plain",
+            "X-Content-Type-Options": "nosniff",
+          },
         },
-      });
+      );
     } else response = await next(request);
     status = response.status;
 
