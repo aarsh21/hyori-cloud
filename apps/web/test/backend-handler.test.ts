@@ -1,8 +1,85 @@
 import { afterEach, expect, test } from "bun:test";
 import { createWebBackendHandler } from "../src/server/backend-handler";
+import { withOperations } from "../src/server/operations";
 
 const origin = "https://cloud.example.test";
 const servers: ReturnType<typeof Bun.serve>[] = [];
+
+test("web readiness follows only the private backend and liveness stays independent", async () => {
+  let backendStatus = 200;
+
+  const backend = serve((request) => {
+    expect(new URL(request.url).pathname).toBe("/health/ready");
+    expect(request.headers.get("authorization")).toBeNull();
+    expect(request.headers.get("cookie")).toBeNull();
+
+    return new Response("private diagnostic", { status: backendStatus });
+  });
+
+  const host = withOperations(
+    () => {
+      throw new Error("Health probes must bypass application rendering.");
+    },
+    backend,
+    () => {},
+  );
+
+  for (const expected of [200, 503]) {
+    backendStatus = expected;
+
+    const response = await host(
+      new Request("http://host/health/ready", {
+        headers: { Authorization: "Bearer never-forward", Cookie: "session=never-forward" },
+      }),
+    );
+
+    expect(response.status).toBe(expected);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.text()).toBe(expected === 200 ? "ok\n" : "unavailable\n");
+    expect((await host(new Request("http://host/health/live"))).status).toBe(200);
+  }
+
+  const offline = withOperations(
+    () => new Response("page"),
+    "http://127.0.0.1:9",
+    () => {},
+  );
+
+  expect((await offline(new Request("http://host/health/ready"))).status).toBe(503);
+  expect((await offline(new Request("http://host/health/live"))).status).toBe(200);
+});
+
+test("internal SSR fetches do not create additional incoming access records", async () => {
+  const lines: string[] = [];
+
+  const host = withOperations(
+    () => new Response("denied", { status: 403 }),
+    undefined,
+    (line) => lines.push(line),
+  );
+
+  const paths = [
+    "/share/known-share-secret",
+    "/api/storage/files/private-name.txt",
+    "/api/rpc",
+    "/assets/private-asset.js",
+  ];
+
+  for (const path of paths) {
+    await host(
+      new Request(`http://host${path}?token=known-query-secret`, {
+        method: "POST",
+        headers: {
+          Cookie: "session=known-cookie-secret",
+          Authorization: "Bearer known-auth-secret",
+        },
+        body: "known-body-secret",
+      }),
+    );
+  }
+
+  expect(lines).toEqual([]);
+});
 
 afterEach(() => {
   for (const server of servers.splice(0)) server.stop(true);

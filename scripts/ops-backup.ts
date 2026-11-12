@@ -44,6 +44,9 @@ const dir = resolve(target);
 const project = args.get("project", command === "backup" ? "hyori-cloud-rust" : undefined);
 const envFile = resolve(args.get("env-file", ".env.deployment"));
 const env = parseEnv(envFile);
+
+// The scheduled container talks to the private services directly, without a Docker socket.
+const direct = args.get("direct", "false") === "true";
 const started = performance.now();
 
 function parseEnv(path: string) {
@@ -80,6 +83,7 @@ function compose(argv: string[]) {
 }
 
 function container(service: string) {
+  if (direct) return service;
   const id = compose(["ps", "--quiet", service]);
 
   if (!id) throw new Error(`Service ${service} of project ${project} is not running.`);
@@ -89,6 +93,18 @@ function container(service: string) {
 
 /** rclone against the deployment's private RustFS endpoint; credentials pass by environment name only. */
 function rclone(argv: string[]) {
+  if (direct)
+    return run("rclone", argv, {
+      RCLONE_CONFIG: "/tmp/none.conf",
+      RCLONE_CONFIG_HYORI_TYPE: "s3",
+      RCLONE_CONFIG_HYORI_PROVIDER: "Other",
+      RCLONE_CONFIG_HYORI_ENDPOINT: "http://rustfs:9000",
+      RCLONE_CONFIG_HYORI_FORCE_PATH_STYLE: "true",
+      RCLONE_CONFIG_HYORI_REGION: "us-east-1",
+      RCLONE_CONFIG_HYORI_ACCESS_KEY_ID: env.HYORI_STORAGE_ACCESS_KEY!,
+      RCLONE_CONFIG_HYORI_SECRET_ACCESS_KEY: env.HYORI_STORAGE_SECRET_KEY!,
+    });
+
   return run(
     "docker",
     [
@@ -131,6 +147,10 @@ function rclone(argv: string[]) {
   );
 }
 
+function postgresCommand(postgres: string, argv: string[], stdin = false) {
+  return direct ? argv : ["docker", "exec", ...(stdin ? ["-i"] : []), postgres, ...argv];
+}
+
 function bucket() {
   const name = env.HYORI_STORAGE_BUCKET;
 
@@ -141,7 +161,15 @@ function bucket() {
 
 /** Stream a command's stdout to a file or a file to its stdin without buffering either in memory. */
 async function pipe(argv: string[], io: { stdout?: string; stdin?: string }) {
+  const childEnv = { ...process.env };
+
+  if (direct) {
+    childEnv.PGHOST = "postgres";
+    childEnv.PGPASSWORD = env.POSTGRES_PASSWORD;
+  }
+
   const child = Bun.spawn(argv, {
+    env: childEnv,
     stdin: io.stdin ? Bun.file(io.stdin) : "ignore",
     stdout: io.stdout ? Bun.file(io.stdout) : "inherit",
     stderr: "inherit",
@@ -161,18 +189,18 @@ function walk(root: string): string[] {
 /** Object keys referenced by the dump, read from its COPY data rather than from the live database. */
 async function referencedKeys(postgres: string, dump: string) {
   const child = Bun.spawn(
-    [
-      "docker",
-      "exec",
-      "-i",
+    postgresCommand(
       postgres,
-      "pg_restore",
-      "--data-only",
-      "--table=hyori_items",
-      "--table=hyori_versions",
-      "--table=hyori_media_artifacts",
-      "--file=-",
-    ],
+      [
+        "pg_restore",
+        "--data-only",
+        "--table=hyori_items",
+        "--table=hyori_versions",
+        "--table=hyori_media_artifacts",
+        "--file=-",
+      ],
+      true,
+    ),
     { stdin: Bun.file(dump), stdout: "pipe", stderr: "inherit" },
   );
 
@@ -226,26 +254,19 @@ async function backup() {
   const postgres = container("postgres");
   container("rustfs");
   log(`object pass 1: s3://${bucket()} → objects/`);
-  rclone(["copy", `hyori:${bucket()}`, "/backup"]);
+  const objectDir = direct ? join(dir, "objects") : "/backup";
+  rclone(["copy", `hyori:${bucket()}`, objectDir]);
   const pass1 = walk(join(dir, "objects")).length;
   log(`object pass 1 copied ${pass1} objects; dumping PostgreSQL`);
   // Work acknowledged before this instant is in the snapshot; later work may or may not be.
   const snapshotStartedAt = new Date().toISOString();
   const dump = join(dir, "postgres.dump");
   await pipe(
-    [
-      "docker",
-      "exec",
-      postgres,
-      "pg_dump",
-      "--username=hyori",
-      "--dbname=hyori",
-      "--format=custom",
-    ],
+    postgresCommand(postgres, ["pg_dump", "--username=hyori", "--dbname=hyori", "--format=custom"]),
     { stdout: dump },
   );
   log(`pg_dump wrote ${statSync(dump).size} bytes; object pass 2`);
-  rclone(["copy", `hyori:${bucket()}`, "/backup"]);
+  rclone(["copy", `hyori:${bucket()}`, objectDir]);
   const objects = walk(join(dir, "objects"));
   const present = new Set(objects);
   const keys = await referencedKeys(postgres, dump);
@@ -256,9 +277,7 @@ async function backup() {
       `Backup is NOT consistent: ${missing.length} referenced objects are missing, e.g. ${missing.slice(0, 3).join(", ")}`,
     );
 
-  const migrations = run("docker", [
-    "exec",
-    postgres,
+  const migrationCommand = postgresCommand(postgres, [
     "psql",
     "--username=hyori",
     "--dbname=hyori",
@@ -267,13 +286,26 @@ async function backup() {
     "--command=SELECT max(version) FROM hyori_migrations",
   ]);
 
-  const images = Object.fromEntries(
-    ["postgres", "rustfs", "media-worker", "backend", "web"].map((service) => {
-      const id = compose(["ps", "--quiet", service]);
-
-      return [service, id ? run("docker", ["inspect", "--format", "{{.Image}}", id]) : null];
-    }),
+  const migrations = run(
+    migrationCommand[0]!,
+    migrationCommand.slice(1),
+    direct
+      ? {
+          PGHOST: "postgres",
+          PGPASSWORD: env.POSTGRES_PASSWORD!,
+        }
+      : {},
   );
+
+  const images = direct
+    ? {}
+    : Object.fromEntries(
+        ["postgres", "rustfs", "media-worker", "backend", "web"].map((service) => {
+          const id = compose(["ps", "--quiet", service]);
+
+          return [service, id ? run("docker", ["inspect", "--format", "{{.Image}}", id]) : null];
+        }),
+      );
 
   // The restored stack needs the same HYORI_AUTH_SECRET; the env file is as secret as the dump.
   copyFileSync(envFile, join(dir, "env.deployment"));
@@ -386,9 +418,13 @@ async function restore() {
   if (listed !== metadata.objects.count)
     throw new Error(`Bucket holds ${listed} objects, backup has ${metadata.objects.count}.`);
   log("starting the backend and web host");
-  compose(["up", "--detach", "--wait", "--no-build"]);
+  compose(["up", "--detach", "--wait", "--no-build", "backend", "web"]);
+  // A large first backup can outlast its health startup grace; it must not block app recovery.
+  compose(["up", "--detach", "--no-build", "backup"]);
   log(`RESTORE OK into ${project}: schema ${metadata.schemaVersion}, ${listed} objects`);
 }
+
+if (direct && command !== "backup") throw new Error("Direct mode only supports backup.");
 
 if (command === "backup") await backup();
 else await restore();
