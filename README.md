@@ -1,5 +1,7 @@
 # Hyori Cloud
 
+Hyori Cloud is licensed under [AGPL-3.0-or-later](LICENSE). Third-party components retain their own licenses and notices.
+
 A self-hosted home for files, photos, and documents, using React, TanStack Start, a Rust/PostgreSQL backend with Better Auth Rust, RustFS, shadcn/ui, and Tailwind CSS. The active web host now proxies to Rust; the legacy TypeScript/SurrealDB server is retired. **No existing deployment data has been deleted or automatically migrated.** See [rewrite acceptance](docs/rust-rewrite.md) and [retirement/coverage](docs/legacy-backend-retirement.md).
 
 **Implementation is in progress, not a completed production-ready v1.** Rust covers protected setup/login, files/folders, resumable transfers, sharing, trash/version history, personal photo sources/albums, safe original previews and quota/account administration. The actual built Nitro host has public-SDK HTTP/TLS-termination acceptance over real PostgreSQL/RustFS. Isolated thumbnail/poster processing and its UI presentations are implemented, with paired real-worker browser acceptance still open. Editor persistence has real-service SDK coverage but remains disabled pending actual WASM/cloud integration, redistribution gates and UI completion. Whole-product acceptance and operational work are unfinished. See [rewrite acceptance](docs/rust-rewrite.md).
