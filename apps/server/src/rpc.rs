@@ -210,10 +210,6 @@ async fn handle_inner(
     state: Arc<AppState>,
     request: Request<Body>,
 ) -> Result<RpcResult<Value>, ApiError> {
-    let _admission = state
-        .requests
-        .try_acquire()
-        .map_err(|_| ApiError::unavailable())?;
     validate_origin(request.headers(), &state.config.origin)?;
     if request
         .headers()
@@ -233,6 +229,12 @@ async fn handle_inner(
         .await
         .map_err(|_| ApiError::invalid())?;
     let envelope: Envelope = serde_json::from_slice(&bytes).map_err(|_| ApiError::invalid())?;
+    // Admission bounds handler work, not clients: taken only once the whole bounded body has
+    // arrived, so connections that never finish sending one cannot hold every slot.
+    let _admission = state
+        .requests
+        .try_acquire()
+        .map_err(|_| ApiError::unavailable())?;
     state.rpc.dispatch(state.clone(), context, envelope).await
 }
 pub fn validate_origin(headers: &HeaderMap, origin: &str) -> Result<(), ApiError> {

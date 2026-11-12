@@ -407,6 +407,29 @@ async fn auth_postgres_http_lifecycle() {
 
 #[tokio::test]
 #[ignore = "starts a unique loopback Docker PostgreSQL container; run with --ignored"]
+async fn unfinished_request_bodies_do_not_hold_rpc_admission() {
+    use tokio::io::AsyncWriteExt;
+    let postgres = Postgres::start().await;
+    let server = TestServer::start(postgres.config.clone()).await;
+    let address = server.url.trim_start_matches("http://").to_owned();
+    // Anonymous clients that announce a body and never finish sending it.
+    let mut stalled = vec![];
+    for _ in 0..hyori_server::config::RPC_CONCURRENCY {
+        let mut stream = tokio::net::TcpStream::connect(&address).await.unwrap();
+        let head = format!(
+            "POST /api/rpc HTTP/1.1\r\nhost: localhost:3001\r\norigin: {}\r\ncontent-type: application/json\r\ncontent-length: 1024\r\n\r\n{{",
+            postgres.config.origin
+        );
+        stream.write_all(head.as_bytes()).await.unwrap();
+        stalled.push(stream);
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    server.rpc("auth.status", json!({}), None).await.value();
+    drop(stalled);
+}
+
+#[tokio::test]
+#[ignore = "starts a unique loopback Docker PostgreSQL container; run with --ignored"]
 async fn migrations_refuse_foreign_data_without_touching_it() {
     let postgres = Postgres::start().await;
     let db = hyori_server::db::connect(&postgres.config).await.unwrap();

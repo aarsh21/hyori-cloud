@@ -162,6 +162,7 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             .await?;
         if let Some(old) = old {
             if old.try_get::<String>("", "checksum")? != checksum {
+                tracing::error!(version, "applied migration differs from this build");
                 return Err(ApiError::unavailable());
             }
         } else {
