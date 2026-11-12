@@ -1,13 +1,20 @@
 import { cn } from "@hyori-cloud/ui/lib/utils";
 import * as React from "react";
 
-/** Transfers stay in a corner so browsing continues underneath; they are never a blocking dialog. */
-function TransferTray({ className, ...props }: React.ComponentProps<"section">) {
+/** Browsing reserves the tray's actual height; document workspaces can opt into an overlay. */
+function TransferTray({
+  className,
+  floating = false,
+  ...props
+}: React.ComponentProps<"section"> & { floating?: boolean }) {
   return (
     <section
       data-slot="transfer-tray"
       className={cn(
-        "fixed right-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 flex max-h-[min(24rem,60svh)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl bg-popover shadow-(--shadow-popover) ring-1 ring-foreground/8 transition-[translate,opacity] duration-200 ease-(--ease-out) starting:translate-y-2 starting:opacity-0 sm:w-[22rem] md:bottom-4 md:right-4",
+        "z-40 flex max-h-[min(24rem,60svh)] shrink-0 flex-col overflow-hidden rounded-xl bg-popover shadow-(--shadow-popover) ring-1 ring-foreground/8 transition-[translate,opacity] duration-200 ease-(--ease-out) starting:translate-y-2 starting:opacity-0 sm:w-[22rem]",
+        floating
+          ? "fixed right-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] w-[calc(100vw-1.5rem)] md:bottom-4 md:right-4"
+          : "relative mx-3 mt-2 mb-3 w-[calc(100%-1.5rem)] self-end md:mx-4 md:mb-4",
         className,
       )}
       {...props}

@@ -11,9 +11,11 @@ export function CloudShell({ children }: { children: ReactNode }) {
       <AppSkipLink href="#main">Skip to content</AppSkipLink>
       <SidebarTrigger />
       <CloudSidebar />
-      <SidebarInset id="main">{children}</SidebarInset>
+      <SidebarInset id="main">
+        {children}
+        <UploadTray />
+      </SidebarInset>
       <CloudBottomNav />
-      <UploadTray />
     </SidebarProvider>
   );
 }

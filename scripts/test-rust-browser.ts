@@ -34,6 +34,7 @@ import { runScreenScenarios } from "./browser-fixtures/scenarios-screens.ts";
 import { runInterfaceScenarios } from "./browser-fixtures/scenarios-interface.ts";
 import { runAccountScenarios } from "./browser-fixtures/scenarios-account.ts";
 import { runPhoneCompletionScenarios } from "./browser-fixtures/scenarios-phone-completion.ts";
+import { runTrayReachScenarios } from "./browser-fixtures/scenarios-tray-reach.ts";
 import {
   chromiumTrustFor,
   createDisposableTls,
@@ -275,6 +276,9 @@ try {
   if (selected("touch")) await runTouchScenarios(run);
 
   if (selected("readiness")) await runReadinessScenarios(run);
+
+  if (selected("tray-reach"))
+    await report.scenario("Tray reach fixtures and matrix", () => runTrayReachScenarios(run));
 
   if (only?.includes("screens")) await runScreenScenarios(run);
 
