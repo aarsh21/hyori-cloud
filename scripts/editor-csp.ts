@@ -100,6 +100,11 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
   }
 
   return [
+    "default-src 'self'",
+    "connect-src 'self'",
+    "img-src 'self' blob: data:",
+    "frame-src 'self' blob:",
+    "form-action 'none'",
     "frame-ancestors 'self'",
     "object-src 'none'",
     "base-uri 'self'",
