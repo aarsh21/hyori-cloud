@@ -440,11 +440,14 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
   // the cancelled copy as a failed save to retry.
   await report.check("cancelling saves nothing and keeps the work to retry", async () => {
     const prepares = operationCount(front, "editors.prepareSave");
+    // The previous copy prompt may still be exiting. Include hidden content so this waits for
+    // the destination to actually unmount, rather than just disappearing from accessibility.
+    const destination = page.getByRole("dialog", { name: /^Save “.*” to…$/, includeHidden: true });
 
-    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    await destination.getByRole("button", { name: "Cancel" }).click();
 
     if (native) {
-      await page.getByRole("dialog").waitFor({ state: "detached" });
+      await destination.waitFor({ state: "detached" });
       await barStatus(page, "Save a copy to keep changes").waitFor();
       assert.ok(await barButton(page, "Save a copy").isEnabled(), "Save a copy is offered again");
     } else await barStatus(page, /^Not saved$/).waitFor();
