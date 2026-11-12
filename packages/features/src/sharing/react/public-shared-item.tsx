@@ -65,8 +65,8 @@ export function PublicSharedItem({
           }
           empty={() => <RegionState icon={<FolderOpen />} title="This folder is empty" />}
         />
+        <UploadTray />
       </AppMain>
-      <UploadTray />
     </AppShell>
   );
 }
@@ -88,7 +88,7 @@ function PublicSharedFile({ item }: { item: FileEntry }) {
       ) : (
         <SharedFileContent file={file.data} error={file.error} onRefresh={refresh} />
       )}
-      <UploadTray />
+      <UploadTray floating />
     </FocusLayout>
   );
 }

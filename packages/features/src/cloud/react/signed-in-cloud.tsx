@@ -52,7 +52,7 @@ function SignedInLocationScreen({ location }: { location: SignedInLocation }) {
           />
         </Suspense>
         {/* Starts as one line over the document, still there to expand, retry, or clear. */}
-        <UploadTray defaultCollapsed />
+        <UploadTray defaultCollapsed floating />
       </>
     );
   }

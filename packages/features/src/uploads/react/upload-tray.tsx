@@ -27,9 +27,12 @@ function summaryTitle({ total, active, failed, complete }: UploadSummary) {
 /** Only rows subscribe to their task's progress, so one transfer never rerenders the tray. */
 export function UploadTray({
   defaultCollapsed = false,
+  floating = false,
 }: {
   /** Over a screen that needs the room, such as an open document, the tray starts as its header. */
   defaultCollapsed?: boolean;
+  /** Document workspaces overlay transfers; browsing shells reserve room in their main column. */
+  floating?: boolean;
 }) {
   const queue = useUploadQueue();
   const entries = useUploadEntries(queue);
@@ -39,7 +42,7 @@ export function UploadTray({
   if (entries.length === 0) return null;
 
   return (
-    <TransferTray aria-label="Uploads">
+    <TransferTray aria-label="Uploads" floating={floating}>
       <TransferTrayHeader>
         <TransferTrayTitle>{summaryTitle(summary)}</TransferTrayTitle>
         {summary.active === 0 && summary.complete > 0 ? (
