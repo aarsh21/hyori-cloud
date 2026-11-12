@@ -1,6 +1,6 @@
 import type { EditorBackendPort, EditorDocument } from "@hyori-cloud/client-sdk";
 import { createNavigationGuard } from "../../../packages/features/src/cloud/navigation-guard.ts";
-import { createEditorAttachment } from "../../../packages/features/src/editors/editor-attachment.ts";
+import * as attachments from "../../../packages/features/src/editors/editor-attachment.ts";
 
 type Saved = { readonly name: string; readonly intent: string; readonly bytes: number[] };
 
@@ -19,6 +19,10 @@ function start(document_: EditorDocument, source: number[]): EditorProbe {
   const frame = document.createElement("iframe");
 
   frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0";
+
+  // The product's own sandbox, when this checkout has one, exactly as the editor screen applies it.
+  if ("EDITOR_FRAME_SANDBOX" in attachments)
+    frame.setAttribute("sandbox", String(attachments.EDITOR_FRAME_SANDBOX));
   document.body.append(frame);
 
   const captured = frame.contentWindow;
@@ -37,7 +41,12 @@ function start(document_: EditorDocument, source: number[]): EditorProbe {
     },
   };
 
-  const { session, dispose } = createEditorAttachment({ frame, backend, guard });
+  const { session, dispose } = attachments.createEditorAttachment({
+    frame,
+    backend,
+    guard,
+    onReturn: () => {},
+  });
 
   return {
     status: () => session.getSnapshot().status,

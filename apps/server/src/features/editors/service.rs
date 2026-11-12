@@ -122,10 +122,11 @@ impl EditorsService {
                         ("upstream-host-parent", None) => EditorBridge::Upstream,
                         ("hyori-correlated-host-v1", Some(1)) => EditorBridge::CorrelatedV1,
                         ("hyori-correlated-host-v2", Some(2)) => EditorBridge::CorrelatedV2,
+                        ("hyori-correlated-host-v3", Some(3)) => EditorBridge::CorrelatedV3,
                         _ => return Err(ApiError::unavailable().into()),
                     },
                     protocol: Nullable(capability.protocol.map(EditorProtocol)),
-                    writable: files::access(&item,&actor).can_edit, max_bytes: Bytes(formats::max_bytes(&app)), replacement_name: Nullable(formats::replacement(&item.name).map(Name)), output_formats: formats::outputs(&app), app,
+                    writable: files::access(&item,&actor).can_edit, max_bytes: Bytes(formats::max_bytes(&app)), replacement_name: Nullable(formats::replacement(&item.name).map(Name)), output_formats: formats::outputs(&app), engine: capability.engine.clone(), app,
                 })
             })
         }).await

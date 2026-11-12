@@ -76,7 +76,7 @@ function fixture() {
     bridge.receive({
       origin,
       source: parent,
-      data: { ...input, type: `deckcraft:${operation}`, protocol: 2, version: appVersion },
+      data: { ...input, type: `deckcraft:${operation}`, protocol: 3, version: appVersion },
     });
   }
 
@@ -133,12 +133,12 @@ function fixture() {
   };
 }
 
-test("native protocol advertises exact protocol2 capabilities only after attachment and parsed-open acknowledgement", () => {
+test("native protocol advertises exact protocol3 capabilities only after attachment and parsed-open acknowledgement", () => {
   const f = fixture();
 
   const ready = z
     .object({
-      protocol: z.literal(2),
+      protocol: z.literal(3),
       version: z.literal(appVersion),
       capabilities: z.object({
         serialize: z.literal(true),
@@ -290,7 +290,7 @@ test("malformed copy names, unauthorized extensions and wrong iframe/origin/vers
 
   const data = {
     type: "deckcraft:request-save",
-    protocol: 2,
+    protocol: 3,
     version: appVersion,
     requestId: "wrong",
     openId: "open-1",

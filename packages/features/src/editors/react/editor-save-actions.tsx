@@ -13,7 +13,7 @@ export function EditorSaveActions({
 }) {
   const document = snapshot.document;
 
-  if (document?.bridge !== "hyori-correlated-host-v2" || document.protocol !== 2) return null;
+  if (document?.bridge !== "hyori-correlated-host-v3" || document.protocol !== 3) return null;
 
   if (
     snapshot.status !== "editing" &&

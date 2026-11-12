@@ -142,7 +142,8 @@ export function patchPdfNativeHookup(source: ReadonlyMap<string, Buffer>) {
   replace(
     web,
     '                    if let Some(url) = query_param("file") {',
-    '                    if !hosted && let Some(url) = query_param("file") {',
+    // No URL intake in Hyori's build: a page under `/artcraft` must never fetch a URL it is handed.
+    "                    if let Some(url) = None::<String> { // Hyori: no `?file=` URL intake",
   );
   replace(
     web,

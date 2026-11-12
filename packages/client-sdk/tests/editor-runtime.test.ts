@@ -5,7 +5,7 @@ import {
   decodeNativeHostEvent,
 } from "@hyori-cloud/client-sdk/editor-runtime";
 
-const envelope = { type: "wordcraft:opened", protocol: 2, version: "test-host.3" } as const;
+const envelope = { type: "wordcraft:opened", protocol: 3, version: "test-host.3" } as const;
 const identity = { openId: "open-1", documentId: "18446744073709551615", revision: "12" };
 const snapshot = { ...identity, requestId: "request-1", saveId: "save-1" };
 

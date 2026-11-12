@@ -1,7 +1,11 @@
 import { Either, Schema } from "@hyori-cloud/lib/effect";
 
 import { EditorDocument, EditorName } from "#client-sdk/features/editors/editor-contract";
-import { decodeNativeHostCommand } from "#client-sdk/features/editors/native-runtime";
+import {
+  decodeNativeHostCommand,
+  NATIVE_HOST_BRIDGE,
+  NATIVE_HOST_PROTOCOL,
+} from "#client-sdk/features/editors/native-runtime";
 import type {
   BridgedArtCraftApp,
   EditorMessageEvent,
@@ -36,12 +40,17 @@ const decodeType = Schema.decodeUnknownEither(
   }),
 );
 
+/** Native packets of any protocol generation belong to the native session, never a legacy one. */
+function isNativePacket(envelope: { protocol?: number }) {
+  return (envelope.protocol ?? 0) >= 2;
+}
+
 export function isNativeEditorDocument(document: EditorDocument): boolean {
   return (
     "bridge" in document &&
-    document.bridge === "hyori-correlated-host-v2" &&
+    document.bridge === NATIVE_HOST_BRIDGE &&
     "protocol" in document &&
-    document.protocol === 2
+    document.protocol === NATIVE_HOST_PROTOCOL
   );
 }
 
@@ -124,7 +133,8 @@ export function decodeEditorReady(
   const envelope = decodeType(event.data);
   const ready = decodeReady(event.data);
 
-  if (Either.isLeft(envelope) || Either.isLeft(ready) || envelope.right.protocol === 2) return null;
+  if (Either.isLeft(envelope) || Either.isLeft(ready) || isNativePacket(envelope.right))
+    return null;
 
   switch (envelope.right.type) {
     case "wordcraft:ready":
@@ -151,7 +161,7 @@ export function decodeEditorMessage(
 ): EditorMessage {
   const envelope = decodeType(event.data);
 
-  if (Either.isLeft(envelope) || envelope.right.protocol === 2) return { kind: "ignore" };
+  if (Either.isLeft(envelope) || isNativePacket(envelope.right)) return { kind: "ignore" };
 
   if (app === "deckcraft") {
     if (!envelope.right.type.startsWith("deckcraft:")) return { kind: "ignore" };
@@ -264,7 +274,7 @@ export function validateEditorDocument(document: EditorDocument, maxBytes: numbe
     Schema.decodeUnknownSync(EditorName)(document.replacementName);
 
   if (
-    (document.protocol === 2) !== (document.bridge === "hyori-correlated-host-v2") ||
+    (document.protocol === NATIVE_HOST_PROTOCOL) !== (document.bridge === NATIVE_HOST_BRIDGE) ||
     document.maxBytes <= 0 ||
     document.maxBytes > maxBytes ||
     !document.version ||
@@ -290,7 +300,7 @@ export function validateEditorDocument(document: EditorDocument, maxBytes: numbe
     isNativeEditorDocument(document) &&
     decodeNativeHostCommand({
       type: `${document.app}:open`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       openId: "validation",
       name: document.name,

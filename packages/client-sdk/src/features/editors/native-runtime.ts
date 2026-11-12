@@ -1,7 +1,9 @@
 import { Either, Schema } from "@hyori-cloud/lib/effect";
 
-// This is the local frame IPC contract, not the Rust-owned product API.
-export const NATIVE_HOST_PROTOCOL = 2;
+// This is the local frame IPC contract, not the Rust-owned product API. Protocol 3 is the first
+// that runs in a sandboxed, opaque-origin frame; earlier runtimes need a same-origin one.
+export const NATIVE_HOST_PROTOCOL = 3;
+export const NATIVE_HOST_BRIDGE = "hyori-correlated-host-v3";
 export const NATIVE_MAX_BYTES = 64 * 1024 * 1024;
 
 // Keep this leaf contract independent of product RPC schemas: the frame never calls the API.
@@ -39,6 +41,9 @@ const bytes = Schema.Union(Schema.instanceOf(ArrayBuffer), Schema.Uint8ArrayFrom
 );
 
 const envelope = { protocol: Schema.Literal(NATIVE_HOST_PROTOCOL), version };
+
+/** The largest engine the host hands a frame; the server's inventory limit for one file. */
+export const NATIVE_MAX_ENGINE_BYTES = 128 * 1024 * 1024;
 
 function type<const Operation extends string>(operation: Operation) {
   return Schema.Literal(
@@ -126,6 +131,18 @@ export const NativeHostCommand = Schema.Union(
     status: Schema.Literal("failed", "conflict", "read-only", "access-ended"),
     message,
   }),
+  // The engine the descriptor names, verified by the host, or null to load it the ordinary way.
+  Schema.Struct({
+    ...envelope,
+    type: type("engine"),
+    bytes: Schema.NullOr(
+      Schema.instanceOf(ArrayBuffer).pipe(
+        Schema.filter(
+          (value) => value.byteLength > 0 && value.byteLength <= NATIVE_MAX_ENGINE_BYTES,
+        ),
+      ),
+    ),
+  }),
   // The host moved these bytes to its own recovery and will never persist them: release the
   // snapshot and its native job without marking anything clean. Frames older than this addition
   // reject it as unknown, so hosts follow it with the earlier copy-only release (see SDK).
@@ -135,6 +152,9 @@ export const NativeHostCommand = Schema.Union(
 export type NativeHostCommand = typeof NativeHostCommand.Type;
 
 export const NativeHostEvent = Schema.Union(
+  // Sent once, before ready, by a frame whose loader wants its engine. It names nothing: the host
+  // answers only with the engine of the descriptor it already holds.
+  Schema.Struct({ ...envelope, type: type("engine-request") }),
   Schema.Struct({
     ...envelope,
     type: type("ready"),

@@ -38,11 +38,12 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   const { backend, messages, maxBytes, readyTimeoutMs = 30_000 } = options;
   const expectedOrigin = messages.origin;
   const expectedSource = messages.source;
-  const origin = new URL(expectedOrigin);
+  // A sandboxed frame's messages carry the opaque origin "null"; its captured window identifies it.
+  const origin = expectedOrigin === "null" ? null : new URL(expectedOrigin);
 
   if (
-    origin.origin !== expectedOrigin ||
-    !["https:", "http:"].includes(origin.protocol) ||
+    (origin !== null &&
+      (origin.origin !== expectedOrigin || !["https:", "http:"].includes(origin.protocol))) ||
     !Number.isSafeInteger(maxBytes) ||
     maxBytes <= 0 ||
     !Number.isSafeInteger(readyTimeoutMs) ||
@@ -552,6 +553,14 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
 
       if (!active()) return;
 
+      // Protocol 2 runtimes refuse the sandboxed frame every host now gives them, and this SDK
+      // speaks only protocol 3 natively: say so at once rather than wait for a ready that never comes.
+      if (document.bridge === "hyori-correlated-host-v2") {
+        stop("failed", "This editor needs an update from your administrator", "runtime-outdated");
+
+        return;
+      }
+
       if (isNativeEditorDocument(document)) {
         unsubscribe();
         nativeSession = createNativeEditorSession(
@@ -562,7 +571,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
               origin: expectedOrigin,
               source: expectedSource,
               subscribe: (listener) => messages.subscribe(listener),
-              post: (command, target) => messages.post(command, target),
+              post: (command, target, transfer) => messages.post(command, target, transfer),
             },
           },
           document,

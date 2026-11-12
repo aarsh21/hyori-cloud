@@ -204,7 +204,7 @@ export async function inNativeEditor(run: CoreRun, page: Page) {
 
   return (
     run.editorBundle?.editors.some(
-      ({ assetUrl, protocol }) => protocol === 2 && assetUrl === src,
+      ({ assetUrl, protocol }) => protocol === 3 && assetUrl === src,
     ) === true
   );
 }

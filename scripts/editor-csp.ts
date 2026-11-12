@@ -14,8 +14,18 @@ const MANIFEST = "runtime-bundle-manifest.json";
 const RECEIPTS = resolve(import.meta.dir, "../tooling/artcraft");
 
 const Manifest = z.looseObject({
-  editors: z.array(z.looseObject({ app: z.string(), version: z.string(), assetUrl: z.string() })),
+  editors: z.array(
+    z.looseObject({
+      app: z.string(),
+      version: z.string(),
+      assetUrl: z.string(),
+      bridge: z.string().optional(),
+    }),
+  ),
 });
+
+/** The only runtime bridge this release opens: the first that runs in a sandboxed editor frame. */
+const SANDBOXED_BRIDGE = "hyori-correlated-host-v3";
 
 const Receipt = z.looseObject({
   manifestSha256: z.string(),
@@ -56,6 +66,14 @@ function findReceipt(manifestSha256: string) {
 }
 
 /**
+ * Every `/artcraft` response is sandboxed into an opaque origin, however it is reached: in the
+ * host's frame, opened by it as a popup, followed from a link or typed in. The tokens are exactly the
+ * host frame's (`EDITOR_FRAME_SANDBOX`), so its hyperlinks still open ordinary pages.
+ */
+export const EDITOR_DOCUMENT_SANDBOX =
+  "sandbox allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads";
+
+/**
  * Reads the bundle's index pages and, when a receipt records them, requires its loader hashes to be
  * exactly the ones in those pages, so a stale receipt or a modified bundle fails at startup.
  */
@@ -71,6 +89,17 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
   if (receipt !== null && receipt.manifestSha256 !== manifestSha256) {
     throw new Error(
       `${receiptFile} names manifest ${receipt.manifestSha256}, not ${manifestSha256}.`,
+    );
+  }
+
+  // Tell the operator now, not a person opening a document: an older runtime never starts.
+  const outdated = editors.filter(
+    ({ bridge }) => bridge !== undefined && bridge !== SANDBOXED_BRIDGE,
+  );
+
+  if (outdated.length > 0) {
+    throw new Error(
+      `${outdated.map(({ app, version }) => `${app} ${version}`).join(", ")} predate sandboxed editor frames, so this release can't open them. Rebuild the editor bundle with this release's tooling (see docs/editor-deployment.md), then print this line again.`,
     );
   }
 
@@ -100,6 +129,7 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
   }
 
   return [
+    EDITOR_DOCUMENT_SANDBOX,
     "default-src 'self'",
     "connect-src 'self'",
     "img-src 'self' blob: data:",

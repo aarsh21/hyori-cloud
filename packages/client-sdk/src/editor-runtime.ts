@@ -1,4 +1,5 @@
 export {
+  NATIVE_HOST_BRIDGE,
   NATIVE_HOST_PROTOCOL,
   NATIVE_MAX_BYTES,
   NativeTheme,

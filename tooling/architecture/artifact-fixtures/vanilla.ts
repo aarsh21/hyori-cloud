@@ -8,7 +8,7 @@ import type { NativeHostCommand } from "@hyori-cloud/client-sdk/editor-runtime";
 
 const nativeCommand: NativeHostCommand = {
   type: "wordcraft:request-save",
-  protocol: 2,
+  protocol: 3,
   version: "fixture.3",
   openId: "open",
   documentId: "1",

@@ -20,6 +20,7 @@ import {
 import {
   decodeNativeHostCommand,
   decodeNativeHostEvent,
+  NATIVE_HOST_PROTOCOL,
   NativeTheme,
 } from "#client-sdk/features/editors/native-runtime";
 import type {
@@ -279,7 +280,7 @@ export function createNativeEditorSession(
     try {
       send({
         type: `${document.app}:set-theme`,
-        protocol: 2,
+        protocol: NATIVE_HOST_PROTOCOL,
         version: document.version,
         requestId,
         theme,
@@ -327,7 +328,7 @@ export function createNativeEditorSession(
       send(
         {
           type: `${document.app}:open`,
-          protocol: 2,
+          protocol: NATIVE_HOST_PROTOCOL,
           version: document.version,
           openId,
           name: document.name,
@@ -461,7 +462,7 @@ export function createNativeEditorSession(
 
     const request = {
       type: `${document.app}:request-save`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       requestId: crypto.randomUUID(),
       openId,
@@ -505,7 +506,7 @@ export function createNativeEditorSession(
 
     const command = decodeNativeHostCommand({
       type: `${document.app}:request-save`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       requestId: crypto.randomUUID(),
       openId,
@@ -538,7 +539,7 @@ export function createNativeEditorSession(
     const { openId: open, documentId: id, revision: native, requestId, saveId } = identity;
 
     const envelope = {
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       openId: open,
       documentId: id,
@@ -614,7 +615,7 @@ export function createNativeEditorSession(
     });
     send({
       type: `${document.app}:save-result`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       ...saved.identity,
       status: "saved",
@@ -630,7 +631,7 @@ export function createNativeEditorSession(
 
     const envelope = {
       type: `${document.app}:save-result`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       ...saved.identity,
     } as const;
@@ -983,6 +984,26 @@ export function createNativeEditorSession(
       return;
 
     switch (event.type) {
+      case "wordcraft:engine-request":
+      case "gridcraft:engine-request":
+      case "pdfcraft:engine-request":
+      case "deckcraft:engine-request":
+        // Asked once, before the engine starts. Asking again means the frame started over, like a
+        // second ready: it gets nothing more, and the person recovers their work.
+        if (engineRequested || ready !== null) {
+          stop(
+            "failed",
+            "The native editor restarted. Recover your work before reopening.",
+            "crashed",
+          );
+
+          return;
+        }
+
+        engineRequested = true;
+        void handEngine();
+
+        return;
       case "wordcraft:ready":
       case "gridcraft:ready":
       case "pdfcraft:ready":
@@ -1071,7 +1092,7 @@ export function createNativeEditorSession(
             : {
                 command: {
                   type: `${document.app}:cancel-intent`,
-                  protocol: 2,
+                  protocol: NATIVE_HOST_PROTOCOL,
                   version: document.version,
                   openId: event.openId,
                   documentId: event.documentId,
@@ -1180,6 +1201,46 @@ export function createNativeEditorSession(
     }
 
     event satisfies never;
+  }
+
+  // Started with the session, so the engine is usually in hand before the frame asks for it.
+  const named = document.engine ?? null;
+
+  const engine =
+    named !== null && options.engine !== undefined
+      ? options.engine.load(named, { signal: abort.signal }).then(
+          (loaded) => loaded,
+          () => null,
+        )
+      : undefined;
+
+  let engineRequested = false;
+
+  /** Once, before ready: the descriptor's verified engine, or null to load it the ordinary way. */
+  async function handEngine() {
+    const envelope = {
+      type: `${document.app}:engine`,
+      protocol: NATIVE_HOST_PROTOCOL,
+      version: document.version,
+    } as const;
+
+    if (engine === undefined) {
+      send({ ...envelope, bytes: null });
+
+      return;
+    }
+
+    const loaded = await engine;
+
+    if (!active()) return;
+
+    if (loaded === null) {
+      stop("failed", "The editor couldn't be loaded", "unavailable");
+
+      return;
+    }
+
+    send({ ...envelope, bytes: loaded }, [loaded]);
   }
 
   const unsubscribe = messages.subscribe((event) => {

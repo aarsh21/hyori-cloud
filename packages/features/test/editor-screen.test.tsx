@@ -8,7 +8,10 @@ import type {
 import { DropdownMenu, DropdownMenuContent } from "@hyori-cloud/ui/components/dropdown-menu";
 import { createNavigationGuard } from "#features/cloud/navigation-guard.ts";
 import { CloudNavigationProvider } from "#features/cloud/react/cloud-navigation.tsx";
-import { createEditorAttachment } from "#features/editors/editor-attachment.ts";
+import {
+  createEditorAttachment,
+  EDITOR_FRAME_SANDBOX,
+} from "#features/editors/editor-attachment.ts";
 import { createDestinationRequests } from "#features/editors/destination-requests.ts";
 import { editorForFile } from "#features/editors/editor-files.ts";
 import type { AvailableEditor } from "#features/editors/editor-files.ts";
@@ -76,6 +79,7 @@ test("a cancelled destination keeps its filename through exit and uses the next 
 
 function mountedFrame() {
   const frame = document.createElement("iframe");
+  frame.setAttribute("sandbox", EDITOR_FRAME_SANDBOX);
 
   document.body.append(frame);
 
@@ -124,7 +128,7 @@ function fromEditor(editorWindow: Window | null, data: EditorMessage) {
   window.dispatchEvent(
     new MessageEvent("message", {
       data,
-      origin: window.location.origin,
+      origin: "null",
       source: editorWindow,
     }),
   );
@@ -274,6 +278,7 @@ describe("attaching an editor to a frame", () => {
 
   test("a frame that isn't in the document is refused", () => {
     const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", EDITOR_FRAME_SANDBOX);
 
     expect(() => attach(frame, backendFor().backend)).toThrow();
   });

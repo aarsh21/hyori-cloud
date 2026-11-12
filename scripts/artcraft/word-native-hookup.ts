@@ -116,6 +116,12 @@ export function patchWordNativeHookup(source: ReadonlyMap<string, Buffer>, frame
     `${continuation}        let go = match choice {`,
   );
 
+  // A sandboxed frame can't show a PDF at all; hosted print downloads it instead.
+  replace(
+    `${web}/web.rs`,
+    "fn print_pdf(bytes: &[u8]) -> Result<(), String> {\n",
+    "fn print_pdf(bytes: &[u8]) -> Result<(), String> {\n    if crate::native_host::show_pdf(bytes)? { return Ok(()); }\n",
+  );
   replace(
     `${web}/main.rs`,
     "mod host;",

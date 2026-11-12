@@ -16,7 +16,7 @@ const TARGET = {
 
 const IDENTITY = { openId: "open_1", documentId: "7", revision: "1" };
 const FRAME_URL = `${TARGET.origin}/artcraft/${TARGET.app}/${TARGET.version}/index.html?host=parent`;
-const ENVELOPE = { protocol: 2, version: TARGET.version };
+const ENVELOPE = { protocol: 3, version: TARGET.version };
 
 /** Executes only the passive bootstrap against a deterministic DOM port, not a native runtime. */
 async function fixture(child = false, overrides: Partial<NativePerformanceTarget> = {}) {

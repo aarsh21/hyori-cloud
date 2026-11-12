@@ -132,7 +132,7 @@ async function openAndSave(api: FakeApi) {
       window.dispatchEvent(
         new MessageEvent("message", {
           data,
-          origin: window.location.origin,
+          origin: "null",
           source: editorWindow,
         }),
       ),

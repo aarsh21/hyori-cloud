@@ -323,7 +323,17 @@ function editorAsset(
   pathname: string,
   accepts: string,
 ) {
-  if (bundle === null) return new Response("Not found", { status: 404 });
+  // Sandboxed like every other response under `/artcraft`, as Caddy's `header` does.
+  const missing = () =>
+    new Response("Not found", {
+      status: 404,
+      headers: {
+        "cache-control": "no-cache",
+        "content-security-policy": bundle?.contentSecurityPolicy ?? "sandbox",
+      },
+    });
+
+  if (bundle === null) return missing();
 
   const root = bundle.directory;
 
@@ -331,13 +341,15 @@ function editorAsset(
   const file = path.startsWith(`${root}${sep}`) ? lstatSync(path, { throwIfNoEntry: false }) : null;
 
   if (file === undefined || file === null || !file.isFile()) {
-    return new Response("Not found", { status: 404, headers: { "cache-control": "no-cache" } });
+    return missing();
   }
 
   const headers = new Headers({
     "content-type": TYPES.get(extname(path)) ?? "application/octet-stream",
     "x-content-type-options": "nosniff",
     "x-frame-options": "SAMEORIGIN",
+    // The sandboxed, opaque-origin editor frame loads its own scripts and WASM with CORS.
+    "access-control-allow-origin": "*",
     "content-security-policy": bundle.contentSecurityPolicy,
     "cache-control": /\/[^/]+-[0-9a-f]{15,20}(_bg)?\.(wasm|js|css)$/.test(path)
       ? "public, max-age=31536000, immutable"

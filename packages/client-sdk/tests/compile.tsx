@@ -174,11 +174,7 @@ export function bindBrowserEditor(host: Window, editorWindow: Window, id: string
     chooseDestination: async () => ({ parentId: null }),
   });
 
-  const messages = createBrowserEditorMessages({
-    host,
-    editorWindow,
-    origin: host.location.origin,
-  });
+  const messages = createBrowserEditorMessages({ host, editorWindow });
 
   return createEditorSession({
     backend,
