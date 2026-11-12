@@ -124,9 +124,10 @@ async fn contributions_expire_without_parts_are_capped_per_initiator_and_owner_c
         .await
         .credential();
 
-    // The owner's own upload stays resumable for a week; a contribution lapses within the hour.
+    // The owner's own upload lapses after 24 hours without a part; a contribution within the hour.
     let own = id(&begin(&server, &owner, None, 3).await);
-    assert!(remaining(&server, &own).await > 6 * 24 * 3600);
+    let left = remaining(&server, &own).await;
+    assert!((86_300..=86_400).contains(&left), "{left}");
     let contribution = id(&begin(&server, &visitor, Some(&folder), 3).await);
     let left = remaining(&server, &contribution).await;
     assert!((3500..=3600).contains(&left), "{left}");
@@ -244,7 +245,11 @@ async fn contributions_expire_without_parts_are_capped_per_initiator_and_owner_c
     )
     .await;
     let retry = put(&server, &owner, &busy, b"abc").await;
-    assert_eq!(retry.status(), 503);
+    assert_eq!(retry.status(), 409);
+    assert_eq!(
+        retry.json::<Value>().await.unwrap()["error"]["code"],
+        "uploads.busy"
+    );
     execute(
         &server,
         "UPDATE hyori_uploads SET lease_token=NULL,lease_until=NULL WHERE id=$1",
