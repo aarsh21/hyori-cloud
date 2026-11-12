@@ -56,7 +56,7 @@ export const ShareRole = intersection(Schema.Union(Schema.Literal("viewer"), Sch
 
 export type ShareRole = typeof ShareRole.Type;
 
-export const Access = Schema.Struct({ "canDelete": Schema.Boolean, "canDownload": Schema.Boolean, "canEdit": Schema.Boolean, "canShare": Schema.Boolean, "canUpload": Schema.Boolean, "isOwner": Schema.Boolean, "role": Schema.Union(ShareRole, Schema.Null) });
+export const Access = Schema.Struct({ "canDelete": Schema.Boolean, "canDownload": Schema.Boolean, "canEdit": Schema.Boolean, "canRename": Schema.Boolean, "canShare": Schema.Boolean, "canUpload": Schema.Boolean, "isOwner": Schema.Boolean, "role": Schema.Union(ShareRole, Schema.Null) });
 
 export type Access = typeof Access.Type;
 

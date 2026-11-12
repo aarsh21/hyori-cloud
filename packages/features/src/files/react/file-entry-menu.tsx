@@ -15,7 +15,9 @@ export function FileEntryMenu({ entry }: { entry: FileEntry }) {
   const actions = useFileActions();
   const { access, kind } = entry;
   const canDownload = kind === "file" && access.canDownload;
-  const hasSecondaryActions = canDownload || access.canEdit || access.canShare || access.isOwner;
+
+  const hasSecondaryActions =
+    canDownload || access.canEdit || access.canRename || access.canShare || access.isOwner;
 
   if (!hasSecondaryActions) return null;
 
@@ -45,7 +47,7 @@ export function FileEntryMenu({ entry }: { entry: FileEntry }) {
           Upload new version…
         </DropdownMenuItem>
       ) : null}
-      {access.canEdit ? (
+      {access.canRename ? (
         <DropdownMenuItem onClick={() => actions.openDialog({ kind: "rename", id: entry.id })}>
           <Pencil />
           Rename…

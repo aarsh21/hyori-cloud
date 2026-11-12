@@ -212,7 +212,8 @@ pub(crate) async fn load_roles(
         return Ok(());
     }
     let roles = tx.query_all_raw(sql(
-        "SELECT scope.id, max(CASE s.role WHEN 'editor' THEN 3 WHEN 'contributor' THEN 2 ELSE 1 END) AS rank
+        "SELECT scope.id, max(CASE s.role WHEN 'editor' THEN 3 WHEN 'contributor' THEN 2 ELSE 1 END) AS rank,
+                bool_or(s.item_id<>scope.id) AS parent_readable
          FROM jsonb_to_recordset($3::jsonb) AS scope(id text, roots jsonb)
          CROSS JOIN LATERAL jsonb_array_elements_text(scope.roots) AS root(id)
          JOIN hyori_shares s ON s.item_id=root.id AND s.revoked_at IS NULL
@@ -227,10 +228,11 @@ pub(crate) async fn load_roles(
             2 => ShareRole::Contributor,
             _ => ShareRole::Viewer,
         };
-        Ok((row.try_get::<String>("", "id")?, role))
+        Ok((row.try_get::<String>("", "id")?, (role, row.try_get::<bool>("", "parent_readable")?)))
     }).collect::<Result<std::collections::HashMap<_, _>, sea_orm::DbErr>>()?;
     for item in items {
-        item.share_role = roles.get(&item.id).cloned();
+        item.share_role = roles.get(&item.id).map(|(role, _)| role.clone());
+        item.parent_readable = roles.get(&item.id).is_some_and(|(_, readable)| *readable);
     }
     Ok(())
 }
@@ -259,6 +261,8 @@ pub(crate) fn access(item: &Item, actor: &ProductActor) -> Access {
             && item.kind == FileKind::Folder
             && (is_owner || matches!(role, Some(ShareRole::Contributor | ShareRole::Editor))),
         can_edit: item.trashed_at.is_none() && (is_owner || role == Some(ShareRole::Editor)),
+        can_rename: item.trashed_at.is_none()
+            && (is_owner || (role == Some(ShareRole::Editor) && item.parent_readable)),
         can_delete: is_owner,
         can_share: is_owner && item.trashed_at.is_none(),
         is_owner,
@@ -284,6 +288,7 @@ pub(crate) fn project(item: &Item, actor: &ProductActor) -> FileEntry {
 pub(crate) enum Action {
     Read,
     Edit,
+    Rename,
     Upload,
     Owner,
 }
@@ -318,6 +323,7 @@ pub(crate) async fn authorize(
     if !match action {
         Action::Read => access.can_download,
         Action::Edit => access.can_edit,
+        Action::Rename => access.can_rename,
         Action::Upload => access.can_upload,
         Action::Owner => access.is_owner,
     } {

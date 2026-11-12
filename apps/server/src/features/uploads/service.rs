@@ -511,6 +511,7 @@ impl UploadsService {
                 }
                 let mut item = Item {
                     share_role: None,
+                    parent_readable: false,
                     id: previous.as_ref().map(|p| p.id.clone()).unwrap_or_else(random_token),
                     owner_id: current.owner_id.clone(),
                     parent_id: current.parent_id.clone(),

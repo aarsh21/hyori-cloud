@@ -42,6 +42,18 @@ async fn directly_shared_file_editor_cannot_probe_private_sibling_names() {
         .as_str()
         .unwrap()
         .to_owned();
+    let owner_root = server
+        .rpc("files.get", json!({"id":parent}), Some(&owner_cookie))
+        .await;
+    assert_eq!(owner_root.value()["access"]["canRename"], true);
+    server
+        .rpc(
+            "files.rename",
+            json!({"id":parent,"name":"Private renamed"}),
+            Some(&owner_cookie),
+        )
+        .await
+        .value();
     let file = random_token();
     // As in files_shares.rs, immutable file metadata only; no object storage is exercised.
     server.state.db.execute_raw(sql("INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,size,mime_type,object_key,ancestor_ids) SELECT $1,$2,$3,'Shared.txt','file',10,'text/plain',$4,ancestor_ids||jsonb_build_array(id) FROM hyori_items WHERE id=$3", vec![file.clone().into(),owner_id.into(),parent.clone().into(),format!("{owner_id}/objects/{file}").into()])).await.unwrap();
@@ -65,6 +77,11 @@ async fn directly_shared_file_editor_cannot_probe_private_sibling_names() {
         .rpc("files.list", json!({"parentId":parent}), Some(&cookie))
         .await
         .error(403, "access.denied");
+    let single_file = server
+        .rpc("files.get", json!({"id":file}), Some(&cookie))
+        .await;
+    assert_eq!(single_file.value()["access"]["canEdit"], true);
+    assert_eq!(single_file.value()["access"]["canRename"], false);
     let occupied = server
         .rpc(
             "files.rename",
@@ -88,6 +105,10 @@ async fn directly_shared_file_editor_cannot_probe_private_sibling_names() {
     free.error(403, "access.denied");
     assert_eq!(occupied.body, free.body);
     // The owner still renames, and an Editor of the shared folder still renames inside it.
+    let owner_file = server
+        .rpc("files.get", json!({"id":file}), Some(&owner_cookie))
+        .await;
+    assert_eq!(owner_file.value()["access"]["canRename"], true);
     assert_eq!(
         server
             .rpc(
@@ -107,6 +128,29 @@ async fn directly_shared_file_editor_cannot_probe_private_sibling_names() {
         )
         .await
         .value();
+    let folder_root = server
+        .rpc("files.get", json!({"id":parent}), Some(&cookie))
+        .await;
+    assert_eq!(folder_root.value()["access"]["canEdit"], true);
+    assert_eq!(folder_root.value()["access"]["canRename"], false);
+    server
+        .rpc(
+            "files.rename",
+            json!({"id":parent,"name":"Forbidden"}),
+            Some(&cookie),
+        )
+        .await
+        .error(403, "access.denied");
+    let contents = server
+        .rpc("files.list", json!({"parentId":parent}), Some(&cookie))
+        .await;
+    let listed_file = contents.value()["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["id"] == file)
+        .unwrap();
+    assert_eq!(listed_file["access"]["canRename"], true);
     server
         .rpc(
             "files.rename",

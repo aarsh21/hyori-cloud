@@ -61,7 +61,7 @@ export function FileListingContent({
     // Holding a key must not act again on an item that one press already acted on.
     if (entry === undefined || event.repeat) return;
 
-    if (event.key === "F2" && entry.access.canEdit) {
+    if (event.key === "F2" && entry.access.canRename) {
       event.preventDefault();
       actions.openDialog({ kind: "rename", id });
     }

@@ -5,7 +5,7 @@ use crate::{
 crate::wire_enum!(ShareRole { Viewer => "viewer", Contributor => "contributor", Editor => "editor" });
 crate::wire_enum!(FileKind { File => "file", Folder => "folder" });
 crate::wire_enum!(FilesView { Files => "files", Shared => "shared", Trash => "trash" });
-crate::wire_struct!(Access { role: Nullable<ShareRole>, is_owner: bool, can_download: bool, can_upload: bool, can_edit: bool, can_delete: bool, can_share: bool });
+crate::wire_struct!(Access { role: Nullable<ShareRole>, is_owner: bool, can_download: bool, can_upload: bool, can_edit: bool, can_rename: bool, can_delete: bool, can_share: bool });
 crate::wire_struct!(FileEntry { id: Id, name: Name, kind: FileKind, parent_id: Nullable<Id>, owner_id: Id, size: Bytes, mime_type: String, created_at: String, updated_at: String, trashed_at: Nullable<String>, access: Access });
 crate::wire_struct!(ItemInput { id: Id });
 crate::wire_struct!(ListFiles {

@@ -23,6 +23,7 @@ export const entry: FileEntry = {
     canDownload: true,
     canUpload: true,
     canEdit: true,
+    canRename: true,
     canDelete: true,
     canShare: true,
   },

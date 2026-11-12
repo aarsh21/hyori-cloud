@@ -47,6 +47,40 @@ function renderAt(path: string, api: ReturnType<typeof signedInApi>) {
   return mount(<CloudScreen path={path} onNavigate={() => {}} />, api);
 }
 
+describe("server-computed rename access", () => {
+  for (const canRename of [false, true]) {
+    test(`an Editor ${canRename ? "can" : "cannot"} rename through the menu and F2`, async () => {
+      const entry = fileEntry({
+        id: "shared_file",
+        name: "shared.txt",
+        access: {
+          ...NOTES.access,
+          isOwner: false,
+          canEdit: true,
+          canRename,
+          canDelete: false,
+          canShare: false,
+        },
+      });
+
+      const api = signedInApi();
+      api.handlers["files.list"] = () => fileList([entry], FOLDER_A, []);
+      renderAt("/folders/folder_a", api);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Actions for shared.txt" }));
+      await screen.findByRole("menu");
+      expect(screen.queryByRole("menuitem", { name: /Rename/ }) !== null).toBe(canRename);
+      expect(screen.getByRole("menuitem", { name: /Upload new version/ })).toBeTruthy();
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+      fireEvent.keyDown(screen.getByRole("button", { name: /^shared\.txt/ }), { key: "F2" });
+
+      if (canRename) await screen.findByRole("dialog");
+      else expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  }
+});
+
 describe("search field and the filter it describes", () => {
   test("returning to a folder shows the search that is still applied there", async () => {
     const api = signedInApi();

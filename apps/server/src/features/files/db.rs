@@ -11,6 +11,7 @@ use sea_orm::{ConnectionTrait, DatabaseTransaction, QueryResult};
 pub(crate) struct Item {
     /// Transaction-local policy projection, not persisted; populated by `policy::load_roles`.
     pub share_role: Option<ShareRole>,
+    pub parent_readable: bool,
     pub id: String,
     pub owner_id: String,
     pub parent_id: Option<String>,
@@ -31,6 +32,7 @@ impl Item {
     pub fn from_row(row: QueryResult) -> DomainResult<Self> {
         Ok(Self {
             share_role: None,
+            parent_readable: false,
             id: row.try_get("", "id")?,
             owner_id: row.try_get("", "owner_id")?,
             parent_id: row.try_get("", "parent_id")?,

@@ -73,6 +73,7 @@ function fakeHttp() {
             canDownload: true,
             canUpload: true,
             canEdit: true,
+            canRename: true,
             canDelete: true,
             canShare: true,
           },

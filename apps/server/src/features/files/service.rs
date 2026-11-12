@@ -352,6 +352,7 @@ impl FilesService {
                         .parent
                         .as_ref()
                         .and_then(|parent| parent.share_role.clone()),
+                    parent_readable: destination.parent.is_some(),
                     id: random_token(),
                     owner_id: destination.owner_id,
                     parent_id,
@@ -381,16 +382,7 @@ impl FilesService {
             let name = name.clone();
             Box::pin(async move {
                 let mut item =
-                    policy::authorize(tx, &actor, &input.id.0, Action::Edit, false).await?;
-                // A rename reveals whether a name is taken in the folder, so it needs read
-                // access to that folder, not only edit access to the item.
-                match item.parent_id.as_deref() {
-                    Some(parent) => {
-                        policy::authorize(tx, &actor, parent, Action::Read, false).await?;
-                    }
-                    None if actor.user_id() == Some(item.owner_id.as_str()) => {}
-                    None => return Err(ApiError::denied().into()),
-                }
+                    policy::authorize(tx, &actor, &input.id.0, Action::Rename, false).await?;
                 policy::available_name(
                     tx,
                     &item.owner_id,

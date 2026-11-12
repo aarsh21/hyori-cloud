@@ -186,6 +186,7 @@ export const OWNER_ACCESS: FileEntry["access"] = {
   canDownload: true,
   canUpload: true,
   canEdit: true,
+  canRename: true,
   canDelete: true,
   canShare: true,
 };
@@ -196,6 +197,7 @@ export const VIEWER_ACCESS: FileEntry["access"] = {
   canDownload: true,
   canUpload: false,
   canEdit: false,
+  canRename: false,
   canDelete: false,
   canShare: false,
 };
