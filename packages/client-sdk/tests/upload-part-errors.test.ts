@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { createClient } from "@hyori-cloud/client-sdk";
 import { fakeAPI } from "#client-sdk-test/fake-api";
 
@@ -177,3 +177,184 @@ test("an ongoing unavailable RPC exhausts the bounded retry budget without anoth
     client.dispose();
   }
 });
+
+test("explicit busy refusals wait across begin, part and complete without replaying accepted work", async () => {
+  const api = fakeAPI();
+  const refused = new Set<string>();
+  const waits: number[] = [];
+  const timer = globalThis.setTimeout;
+
+  const timers = spyOn(globalThis, "setTimeout").mockImplementation((callback, ms, ...args) => {
+    waits.push(Number(ms));
+
+    return timer(callback, 0, ...args);
+  });
+
+  const client = createClient({
+    fetch: async (url, init) => {
+      const phase = String(url).includes("/binary/")
+        ? String(url)
+        : (await new Response(init?.body).json()).operation;
+
+      if (
+        (phase === "uploads.begin" ||
+          phase === "uploads.complete" ||
+          phase.includes("/binary/1")) &&
+        !refused.has(phase)
+      ) {
+        refused.add(phase);
+
+        return Response.json(
+          { ok: false, error: { code: "uploads.busy", message: "Busy" } },
+          { status: 409 },
+        );
+      }
+
+      return api.fetch(url, init);
+    },
+  });
+
+  const task = client.uploads.start({ parentId: null, file: new File(["1234567"], "report.txt") });
+
+  try {
+    await task.result;
+    expect(waits).toEqual([5000, 5000, 5000]);
+    expect(api.beginCount).toBe(1);
+    expect(api.completeCount).toBe(1);
+    expect(
+      new TextDecoder().decode(
+        Uint8Array.from([...api.stored.values()].flatMap((part) => [...part])),
+      ),
+    ).toBe("1234567");
+    expect(task.getSnapshot()).toMatchObject({ status: "complete", uploadedBytes: 7 });
+  } finally {
+    task.dispose();
+    client.dispose();
+    timers.mockRestore();
+  }
+});
+
+test("busy waiting is bounded to the three-minute lease plus fifteen seconds", async () => {
+  const api = fakeAPI();
+  const waits: number[] = [];
+  let clock = 0;
+  let puts = 0;
+  const timer = globalThis.setTimeout;
+  const now = spyOn(performance, "now").mockImplementation(() => clock);
+
+  const timers = spyOn(globalThis, "setTimeout").mockImplementation((callback, ms, ...args) => {
+    waits.push(Number(ms));
+    clock += Number(ms);
+
+    return timer(callback, 0, ...args);
+  });
+
+  const client = createClient({
+    fetch: async (url, init) => {
+      if (String(url).includes("/binary/")) {
+        puts++;
+
+        return Response.json(
+          { ok: false, error: { code: "uploads.busy", message: "Busy" } },
+          { status: 409 },
+        );
+      }
+
+      return api.fetch(url, init);
+    },
+  });
+
+  const task = client.uploads.start({ parentId: null, file: new File(["1234567"], "report.txt") });
+
+  try {
+    await expect(task.result).rejects.toMatchObject({ code: "uploads.busy" });
+    expect(waits).toEqual(Array.from({ length: 39 }, () => 5000));
+    expect(puts).toBe(40);
+    expect(api.beginCount).toBe(1);
+    expect(api.completeCount).toBe(0);
+    expect(task.getSnapshot()).toMatchObject({
+      status: "failed",
+      checkpoint: { uploadId: "upload_1" },
+    });
+  } finally {
+    task.dispose();
+    client.dispose();
+    timers.mockRestore();
+    now.mockRestore();
+  }
+});
+
+test("pausing interrupts busy waiting without another part request", async () => {
+  const api = fakeAPI();
+  const refused = Promise.withResolvers<void>();
+  let puts = 0;
+
+  const client = createClient({
+    fetch: async (url, init) => {
+      if (String(url).includes("/binary/")) {
+        puts++;
+        refused.resolve();
+
+        return Response.json(
+          { ok: false, error: { code: "uploads.busy", message: "Busy" } },
+          { status: 409 },
+        );
+      }
+
+      return api.fetch(url, init);
+    },
+  });
+
+  const task = client.uploads.start({ parentId: null, file: new File(["1234567"], "report.txt") });
+
+  try {
+    await refused.promise;
+    task.pause();
+    await expect(task.result).rejects.toMatchObject({ code: "SDK_CANCELLED" });
+    expect(puts).toBe(1);
+    expect(task.getSnapshot()).toMatchObject({
+      status: "paused",
+      checkpoint: { uploadId: "upload_1" },
+    });
+  } finally {
+    task.dispose();
+    client.dispose();
+  }
+});
+
+for (const phase of ["uploads.begin", "uploads.complete"]) {
+  test(`an ambiguous ${phase} acknowledgement is not automatically replayed`, async () => {
+    const api = fakeAPI();
+
+    const client = createClient({
+      fetch: async (url, init) => {
+        const response = await api.fetch(url, init);
+
+        if (!String(url).includes("/binary/")) {
+          const rpc = await new Response(init?.body).json();
+
+          if (rpc.operation === phase) throw new TypeError("Backend crashed after acceptance");
+        }
+
+        return response;
+      },
+    });
+
+    const task = client.uploads.start(
+      { parentId: null, file: new File(["1234567"], "report.txt") },
+      { retryDelayMs: 0 },
+    );
+
+    try {
+      await expect(task.result).rejects.toMatchObject({ code: "SDK_TRANSPORT" });
+      expect(api.beginCount).toBe(1);
+      expect(api.completeCount).toBe(phase === "uploads.complete" ? 1 : 0);
+      expect(task.getSnapshot().checkpoint?.uploadId ?? null).toBe(
+        phase === "uploads.complete" ? "upload_1" : null,
+      );
+    } finally {
+      task.dispose();
+      client.dispose();
+    }
+  });
+}

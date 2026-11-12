@@ -395,4 +395,10 @@ Validate capabilities against the selected versions and official documentation b
 
 - **Decision:** Bound upload operations per authenticated account (across sessions) or anonymous visitor, and additionally per applicable public link, inside the sixteen per-process upload slots. The implementation uses two per principal and four per link, matching two concurrent SDK files with serial parts and permitting two visitor queues per link.
 - **Rationale:** The production-readiness lead chose separate principal/link budgets so one slow contributor cannot prevent unrelated accounts from uploading. Public grants can be reissued, so grant identity alone is insufficient.
-- **Scope consequence:** Begin, part and complete share admission; rejected requests hold no global slot and no server queue. These are per-process budgets, not cluster-wide quotas. Thirty-second body idle and 125-second whole-worker bounds limit slow part lifetimes.
+- **Scope consequence:** Begin, part and complete share admission. The global slot bounds database authorization before applying account/link budgets; a refusal releases it immediately and enters no server queue. Clients wait automatically on explicit `uploads.busy` refusals for at most 195 seconds, using five-second intervals. These are per-process budgets, not cluster-wide quotas. Thirty-second body idle and 125-second whole-worker bounds limit slow part lifetimes.
+
+### 2026-11-12: upload lease recovery
+
+- **Decision:** Keep the three-minute upload lease unchanged, without renewal or startup clearing. Distinguish a held lease from an outage; let the SDK wait up to the lease lifetime plus fifteen seconds. Outage retries remain at one, two and four seconds. Begin/completion may retry only an explicit pre-write busy refusal, never an ambiguous failure.
+- **Rationale:** The production-readiness lead withdrew short renewed leases after a two-replica drill showed that a delayed storage write can overwrite a later writer's acknowledged part. Database tokens fence acknowledgement and stored ETags fence completion, not the mutable multipart part itself.
+- **Scope consequence:** Retain existing pending/uploading/finalizing states while waiting, without new interface copy. Record the stale-part recovery defect rather than repairing it in this round.

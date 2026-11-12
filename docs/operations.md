@@ -117,8 +117,15 @@ Each backend admits sixteen concurrent upload operations. Within those slots, on
 account (across all its sessions) or anonymous visitor grant set may hold two. Each applicable
 public contributor/editor link may hold four across all visitors. The SDK queues two files and
 sends their parts serially; the link budget allows two such queues. Begin, part and complete
-share these limits. Excess work gets `service.unavailable` without waiting in a server queue;
-SDK part retries remain bounded. These are per-process limits, so replicas multiply capacity.
+share these limits. Excess work gets HTTP 409 `uploads.busy` without waiting in a server queue.
+The SDK waits five seconds between attempts, for at most 195 seconds or 39 additional attempts,
+then retains its checkpoint for explicit Retry. This also applies to begin and completion only
+when the server explicitly refused with `uploads.busy`; ambiguous begin/completion failures
+are never replayed automatically. These are per-process limits, so replicas multiply capacity.
+
+The global slot is acquired before database authorization, bounding even unknown/anonymous
+part lookups to sixteen concurrent upload operations. A principal or link refusal immediately
+releases that slot; a waiting client holds no global slot and no database transaction.
 
 A part body that supplies no chunk for thirty seconds is abandoned. The storage operation has
 a 120-second deadline and the leased worker a 125-second deadline, so sending occasional tiny

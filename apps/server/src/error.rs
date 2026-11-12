@@ -11,7 +11,7 @@ crate::wire_enum!(ErrorCode {
     SetupDenied => "auth.setupDenied", RateLimited => "auth.rateLimited",
     AccessDenied => "access.denied", InvalidInput => "input.invalid",
     NotFound => "resource.notFound", Conflict => "resource.conflict",
-    UploadLimit => "uploads.limitReached",
+    UploadLimit => "uploads.limitReached", UploadBusy => "uploads.busy",
     QuotaExceeded => "storage.quotaExceeded", Unavailable => "service.unavailable"
 });
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, thiserror::Error)]
@@ -32,6 +32,9 @@ impl ApiError {
     }
     pub fn unavailable() -> Self {
         Self::new(ErrorCode::Unavailable, "Service temporarily unavailable")
+    }
+    pub fn upload_busy() -> Self {
+        Self::new(ErrorCode::UploadBusy, "Upload operation temporarily busy")
     }
     pub fn denied() -> Self {
         Self::new(ErrorCode::AccessDenied, "Access denied")
@@ -63,9 +66,10 @@ impl ApiError {
             ErrorCode::AccessDenied | ErrorCode::SetupDenied => StatusCode::FORBIDDEN,
             ErrorCode::InvalidInput => StatusCode::BAD_REQUEST,
             ErrorCode::NotFound => StatusCode::NOT_FOUND,
-            ErrorCode::Conflict | ErrorCode::QuotaExceeded | ErrorCode::UploadLimit => {
-                StatusCode::CONFLICT
-            }
+            ErrorCode::Conflict
+            | ErrorCode::QuotaExceeded
+            | ErrorCode::UploadLimit
+            | ErrorCode::UploadBusy => StatusCode::CONFLICT,
             ErrorCode::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             ErrorCode::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }

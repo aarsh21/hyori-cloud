@@ -58,7 +58,7 @@ export type { UploadSnapshot } from "#client-sdk/features/uploads/upload-state";
 
 export type UploadOptions = {
   readonly signal?: AbortSignal;
-  /** Additional attempts per idempotent part/status request; begin/complete are never replayed automatically. */
+  /** Additional outage attempts per idempotent part/status request. Explicit busy refusals wait separately. */
   readonly maxRetries?: number;
   readonly retryDelayMs?: number;
   readonly onProgress?: (snapshot: UploadSnapshot) => void;
@@ -224,8 +224,16 @@ export function createUploads(
       }
     };
 
-    const attempt = async <T>(run: () => Promise<T>, signal: AbortSignal): Promise<T> => {
-      for (let index = 0; ; index++) {
+    const attempt = async <T>(
+      run: () => Promise<T>,
+      signal: AbortSignal,
+      retryOutage = true,
+    ): Promise<T> => {
+      let outages = 0;
+      let busySince: number | null = null;
+      let busyWaits = 0;
+
+      for (;;) {
         signal.throwIfAborted();
 
         try {
@@ -233,13 +241,26 @@ export function createUploads(
         } catch (error) {
           const failure = normalizeUploadError(error);
 
+          if (!signal.aborted && failure.code === "uploads.busy") {
+            // The server refused before writing. Outlast its unchanged three-minute lease,
+            // without replaying an ambiguous begin/complete or consuming the outage budget.
+            busySince ??= performance.now();
+            const remaining = 195000 - (performance.now() - busySince);
+
+            if (busyWaits >= 39 || remaining <= 0) throw error;
+            busyWaits++;
+            await wait(Math.min(5000, remaining), signal);
+            continue;
+          }
+
           if (
             signal.aborted ||
-            index >= retries ||
+            !retryOutage ||
+            outages >= retries ||
             (failure.code !== "SDK_TRANSPORT" && failure.code !== "service.unavailable")
           )
             throw error;
-          await wait(delay * 2 ** index, signal);
+          await wait(delay * 2 ** outages++, signal);
         }
       }
     };
@@ -309,13 +330,18 @@ export function createUploads(
             throw new SDKError("SDK_VALIDATION", "A new upload requires a destination.");
 
           // Do not cancel an ambiguous begin: retain its returned ID before observing local cancellation.
-          const begun = await rpc.begin({
-            parentId: input.parentId,
-            replaceId: intent.kind === "replacement" ? intent.targetId : undefined,
-            name: intent.name,
-            size: fingerprint.size,
-            mimeType: fingerprint.type || "application/octet-stream",
-          });
+          const begun = await attempt(
+            () =>
+              rpc.begin({
+                parentId: input.parentId,
+                replaceId: intent.kind === "replacement" ? intent.targetId : undefined,
+                name: intent.name,
+                size: fingerprint.size,
+                mimeType: fingerprint.type || "application/octet-stream",
+              }),
+            signal,
+            false,
+          );
 
           publish({
             checkpoint: Object.freeze({
@@ -366,7 +392,7 @@ export function createUploads(
         // Once commit begins, local cancellation cannot retract it. Await the authoritative outcome.
         finalizing = true;
         publish({ status: "finalizing" });
-        completedFile = await rpc.complete({ uploadId });
+        completedFile = await attempt(() => rpc.complete({ uploadId }), signal, false);
         publish({ status: "complete", file: completedFile, uploadedBytes: file.size });
         tasks.delete(handle);
 

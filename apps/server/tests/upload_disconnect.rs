@@ -287,7 +287,7 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
             Some(&cookie),
         )
         .await
-        .error(503, "service.unavailable");
+        .error(409, "uploads.busy");
     observed.stop_accepting().await;
     let state = server.state.clone();
     // Same app-owned drain that main invokes after Axum stops admission.
@@ -310,7 +310,7 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
             Some(&cookie),
         )
         .await
-        .error(503, "service.unavailable");
+        .error(409, "uploads.busy");
     drop(server);
     pg.stop();
 }

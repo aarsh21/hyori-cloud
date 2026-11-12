@@ -7,7 +7,7 @@ export type CloudErrorCode = CloudError["code"];
 type ErrorCopy = { readonly title: string; readonly detail?: string };
 
 // Keyed by the declared union, so a new API failure fails typechecking here until it has copy.
-const COPY: Record<Exclude<CloudErrorCode, "uploads.limitReached">, ErrorCopy> = {
+const COPY: Record<Exclude<CloudErrorCode, "uploads.limitReached" | "uploads.busy">, ErrorCopy> = {
   "auth.required": { title: "Your session has ended", detail: "Sign in again to continue." },
   "auth.invalidCredentials": { title: "That email and password don’t match" },
   "auth.setupDenied": {
@@ -62,6 +62,8 @@ export function endsItemAccess(error: CloudError): boolean {
 export function describeCloudError(error: CloudError): ErrorCopy {
   // Preserve existing copy until the interface worker adds the pending-upload recovery view.
   if (error.code === "uploads.limitReached") return COPY["resource.conflict"];
+
+  if (error.code === "uploads.busy") return COPY["resource.conflict"];
 
   return COPY[error.code];
 }

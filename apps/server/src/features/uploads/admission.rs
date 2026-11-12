@@ -29,6 +29,13 @@ pub(crate) async fn begin(
     context: &RequestContext,
     input: &BeginUpload,
 ) -> Result<Admission, ApiError> {
+    // Bound even untrusted authorization lookups. A principal refusal drops this immediately;
+    // no request waits for a principal while holding a global slot.
+    let global = state
+        .uploads
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| ApiError::upload_busy())?;
     let keys = db::domain(&state.db, |tx| {
         let (context, input) = (context.clone(), input.clone());
         Box::pin(async move {
@@ -44,7 +51,7 @@ pub(crate) async fn begin(
         })
     })
     .await?;
-    acquire(state, keys).await
+    acquire(state, keys, global).await
 }
 
 pub(crate) async fn existing(
@@ -52,6 +59,11 @@ pub(crate) async fn existing(
     context: &RequestContext,
     id: &str,
 ) -> Result<Admission, ApiError> {
+    let global = state
+        .uploads
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| ApiError::upload_busy())?;
     let keys = db::domain(&state.db, |tx| {
         let (context, id) = (context.clone(), id.to_owned());
         Box::pin(async move {
@@ -71,7 +83,7 @@ pub(crate) async fn existing(
         })
     })
     .await?;
-    acquire(state, keys).await
+    acquire(state, keys, global).await
 }
 
 fn principal(context: &RequestContext, actor: &files::ProductActor) -> String {
@@ -117,7 +129,11 @@ async fn keys(
     Ok(keys)
 }
 
-async fn acquire(state: &Arc<AppState>, keys: Vec<(String, usize)>) -> Result<Admission, ApiError> {
+async fn acquire(
+    state: &Arc<AppState>,
+    keys: Vec<(String, usize)>,
+    global: tokio::sync::OwnedSemaphorePermit,
+) -> Result<Admission, ApiError> {
     let mut principals = Vec::with_capacity(keys.len());
     for (key, limit) in keys {
         principals.push(
@@ -125,14 +141,9 @@ async fn acquire(state: &Arc<AppState>, keys: Vec<(String, usize)>) -> Result<Ad
                 .upload_principals
                 .acquire(key, limit, 0, Duration::ZERO)
                 .await
-                .ok_or_else(ApiError::unavailable)?,
+                .ok_or_else(ApiError::upload_busy)?,
         );
     }
-    let global = state
-        .uploads
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| ApiError::unavailable())?;
     Ok(Admission {
         _principals: principals,
         _global: global,

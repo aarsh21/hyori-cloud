@@ -244,7 +244,7 @@ impl UploadsService {
             }
             // A retry of a part whose previous request is still unwinding (for example its
             // connection died mid-body) is told to retry, not that the part conflicts.
-            if !claim(tx,&upload,&token,"uploading").await? { return Err(ApiError::unavailable().into()); }
+            if !claim(tx,&upload,&token,"uploading").await? { return Err(ApiError::upload_busy().into()); }
             Ok((upload,false))
         }) }).await?;
         let checksum = if upload.editor_bound {
@@ -427,7 +427,7 @@ impl UploadsService {
                         return Err(ApiError::conflict().into());
                     }
                     if !claim(tx, &upload, &token, "finalizing").await? {
-                        return Err(ApiError::conflict().into());
+                        return Err(ApiError::upload_busy().into());
                     }
                     Ok((
                         upload,
