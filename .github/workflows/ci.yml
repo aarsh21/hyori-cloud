@@ -33,6 +33,8 @@ jobs:
         run: bun run check
       - name: Verify anti-slop checker regressions and tooling types
         run: bun run test:anti-slop && bun run check:tooling-types && bun run check:scripts-types
+      - name: Keep browser CI coverage aligned with registered scenarios
+        run: bun test scripts/check-browser-ci.test.ts
       - name: Enforce TypeScript-only authored source
         run: bun run check:source-files
       - name: Run local anti-slop analysis
@@ -217,11 +219,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
           bun x --no-install playwright-core install --with-deps chromium
-      # Serial compilation bounds peak memory, including on the smaller local proof runner.
+      - uses: docker/setup-buildx-action@v4
+      - uses: crazy-max/ghaction-github-runtime@v4
+      # Read the existing image jobs' caches; let those jobs remain their writers.
+      # Avoid another concurrent export replacing the same scope's cache manifest.
       - name: Build the release server and isolated decoder without publishing
         run: |
-          docker build --progress plain --build-arg CARGO_BUILD_JOBS=1 --file apps/server/Dockerfile --tag hyori-browser-server:ci .
-          docker build --progress plain --build-arg CARGO_BUILD_JOBS=1 --file apps/media-worker/Dockerfile --tag hyori-browser-worker:ci .
+          docker buildx build --progress plain --load \
+            --cache-from type=gha,scope=hyori-server \
+            --build-arg CARGO_BUILD_JOBS=4 \
+            --file apps/server/Dockerfile --tag hyori-browser-server:ci .
+          docker buildx build --progress plain --load \
+            --cache-from type=gha,scope=hyori-media-worker \
+            --file apps/media-worker/Dockerfile --tag hyori-browser-worker:ci .
       - name: Build the actual web host
         run: bun run --cwd apps/web build
       - name: Exercise every non-editor browser scenario without retries
