@@ -222,7 +222,8 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
     let mut principals = vec![cookie.clone()];
     // Eight principals, not one bypassing the new two-operation fairness bound. Still fill
     // all sixteen global slots and prove a disconnected worker retains every admission guard.
-    for index in 1..8 {
+    // The ninth principal holds no slots and independently probes the process-wide bound.
+    for index in 1..9 {
         let email = format!("drain-{index}@example.test");
         let password = random_token();
         let user = server
@@ -262,6 +263,18 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
         part(&server, principal, &id).await;
         ids.push((id, principal.clone()));
     }
+    let probe = server
+        .rpc(
+            "uploads.begin",
+            json!({"parentId":folder,"name":"probe.bin","size":3,"mimeType":"application/octet-stream"}),
+            Some(&principals[8]),
+        )
+        .await
+        .value()["uploadId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    part(&server, &principals[8], &probe).await;
     let mut observed = ObservedServer::start(server.state.clone()).await;
     for (id, principal) in &ids {
         gate.mode.store(1, Ordering::SeqCst);
@@ -280,14 +293,38 @@ async fn disconnected_workers_retain_all_sixteen_permits_until_durable_finish_an
         drop(socket);
         signal(&observed.ended).await;
     }
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        server.rpc(
+            "uploads.complete",
+            json!({"uploadId":probe}),
+            Some(&principals[8]),
+        ),
+    )
+    .await
+    .expect("a principal with no held slots must be refused by full process admission immediately")
+    .error(409, "uploads.busy");
+    // Cancel only the probe's reservation so the original accounting invariant stays unchanged.
     server
         .rpc(
-            "uploads.complete",
-            json!({"uploadId":ids[0].0}),
-            Some(&cookie),
+            "uploads.abort",
+            json!({"uploadId":probe}),
+            Some(&principals[8]),
         )
         .await
-        .error(409, "uploads.busy");
+        .value();
+    let mut waiting = Box::pin(server.rpc(
+        "uploads.complete",
+        json!({"uploadId":ids[0].0}),
+        Some(&cookie),
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(2), &mut waiting)
+            .await
+            .is_err(),
+        "the owner's extra request must wait for its account slot"
+    );
+    drop(waiting);
     observed.stop_accepting().await;
     let state = server.state.clone();
     // Same app-owned drain that main invokes after Axum stops admission.
