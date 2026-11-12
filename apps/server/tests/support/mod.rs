@@ -103,7 +103,7 @@ impl Postgres {
 impl Drop for Postgres {
     fn drop(&mut self) {
         let _ = Command::new("docker")
-            .args(["rm", "--force", &self.name])
+            .args(["rm", "--force", "--volumes", &self.name])
             .output();
     }
 }

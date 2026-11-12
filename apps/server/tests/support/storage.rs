@@ -64,7 +64,7 @@ impl RustFs {
 impl Drop for RustFs {
     fn drop(&mut self) {
         let _ = Command::new("docker")
-            .args(["rm", "--force", &self.name])
+            .args(["rm", "--force", "--volumes", &self.name])
             .output();
     }
 }
