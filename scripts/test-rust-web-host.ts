@@ -167,8 +167,9 @@ try {
       const incoming = new URL(request.url);
       const target = new URL(`${incoming.pathname}${incoming.search}`, hostUrl);
 
-      // A real HTTPS terminator preserves the public Host on its private HTTP hop.
-      return fetch(new Request(target, request), { redirect: "manual" });
+      // A real HTTPS terminator preserves the public Host on its private HTTP hop, and passes a
+      // compressed body through as the host encoded it.
+      return fetch(new Request(target, request), { redirect: "manual", decompress: false });
     },
   });
 

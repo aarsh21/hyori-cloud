@@ -97,10 +97,9 @@ test("reset immediately clears only the affected cached identity even when refre
         client.mutation.auth.resetPassword.mutationOptions(),
       ).mutate({ token: "c".repeat(64), newPassword: "new account phrase" });
       await expect(cache.fetchQuery(client.query.auth.status.getOptions({}))).rejects.toBeDefined();
-      expect(cache.getQueryData(client.query.auth.status.getKey({}))).toEqual({
-        initialized: true,
-        user: target === user.id ? null : user,
-      });
+      const cached = cache.getQueryData(client.query.auth.status.getKey({}));
+
+      expect(cached).toEqual({ initialized: true, user: target === user.id ? null : user });
       expect(cache.getMutationCache().getAll()).toHaveLength(0);
     } finally {
       client.dispose();

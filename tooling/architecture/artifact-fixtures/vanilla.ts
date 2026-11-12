@@ -75,12 +75,9 @@ export function consumeEditorResult(result: OutputOf<typeof editorBackend.save>)
 
 let listeners = 0;
 let posts = 0;
-const origin = "https://artifact.invalid";
 
 const messages = createBrowserEditorMessages({
-  origin,
   host: {
-    location: { origin },
     addEventListener() {
       listeners += 1;
     },
@@ -97,11 +94,24 @@ const messages = createBrowserEditorMessages({
 
 const unsubscribe = messages.subscribe(() => undefined);
 
-messages.post({ type: "fixture", name: "fixture.docx", bytes: new Uint8Array([1]) }, origin);
+const fixtureMessage = { type: "fixture", name: "fixture.docx", bytes: new Uint8Array([1]) };
+
+messages.post(fixtureMessage, messages.origin);
+
+let namedOriginRefused = false;
+
+try {
+  messages.post(fixtureMessage, "https://artifact.invalid");
+} catch {
+  namedOriginRefused = true;
+}
 
 unsubscribe();
 
 if (listeners !== 0 || posts !== 1) throw new Error("Packed browser capability lifetime failed.");
+
+if (messages.origin !== "null" || !namedOriginRefused)
+  throw new Error("Packed browser capability addressed something other than a sandboxed frame.");
 
 const status = await sdkClient.rpc.auth.status({});
 

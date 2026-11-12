@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { createClient, createUploadQueue, SDKError, UploadSnapshot } from "@hyori-cloud/client-sdk";
 import { Schema } from "@hyori-cloud/lib/effect";
 import type { UploadCheckpoint, UploadTask } from "@hyori-cloud/client-sdk";
@@ -455,12 +455,16 @@ describe("public vanilla upload queue with explicit task fakes", () => {
   ] as const)
     test(`pending discovery only forgets explicitly gone uploads, not ${code}`, async () => {
       const sdk = createClient();
-      sdk.rpc.uploads.pending = async () => ({ items: [], cursor: "another-page" });
-      sdk.rpc.uploads.status = async () => {
+
+      spyOn(sdk.rpc.uploads, "pending").mockImplementation(async () => ({
+        items: [],
+        cursor: "another-page",
+      }));
+      spyOn(sdk.rpc.uploads, "status").mockImplementation(async () => {
         throw code === "SDK_TRANSPORT"
           ? new SDKError(code, "Probe failure")
           : { code, message: "Probe failure" };
-      };
+      });
 
       const checkpoint: UploadCheckpoint = {
         version: 1,

@@ -2,6 +2,26 @@ import { expect, spyOn, test } from "bun:test";
 import { createClient } from "@hyori-cloud/client-sdk";
 import { fakeAPI } from "#client-sdk-test/fake-api";
 
+// Runs every scheduled wait at once and reports how long the caller asked to wait.
+function skipWaits(onWait: (ms: number) => void) {
+  const timer = globalThis.setTimeout;
+
+  // The global's overloads disagree on their result, so the spy is typed by the one call shape used.
+  const scheduler: {
+    setTimeout(
+      callback: (...args: unknown[]) => void,
+      ms?: number,
+      ...args: unknown[]
+    ): ReturnType<typeof timer>;
+  } = globalThis;
+
+  return spyOn(scheduler, "setTimeout").mockImplementation((callback, ms, ...args) => {
+    onWait(Number(ms));
+
+    return timer(callback, 0, ...args);
+  });
+}
+
 for (const [status, code] of [
   [409, "resource.conflict"],
   [403, "access.denied"],
@@ -182,12 +202,9 @@ test("explicit busy refusals wait across begin, part and complete without replay
   const api = fakeAPI();
   const refused = new Set<string>();
   const waits: number[] = [];
-  const timer = globalThis.setTimeout;
 
-  const timers = spyOn(globalThis, "setTimeout").mockImplementation((callback, ms, ...args) => {
-    waits.push(Number(ms));
-
-    return timer(callback, 0, ...args);
+  const timers = skipWaits((ms) => {
+    waits.push(ms);
   });
 
   const client = createClient({
@@ -239,14 +256,11 @@ test("busy waiting is bounded to the three-minute lease plus fifteen seconds", a
   const waits: number[] = [];
   let clock = 0;
   let puts = 0;
-  const timer = globalThis.setTimeout;
   const now = spyOn(performance, "now").mockImplementation(() => clock);
 
-  const timers = spyOn(globalThis, "setTimeout").mockImplementation((callback, ms, ...args) => {
-    waits.push(Number(ms));
-    clock += Number(ms);
-
-    return timer(callback, 0, ...args);
+  const timers = skipWaits((ms) => {
+    waits.push(ms);
+    clock += ms;
   });
 
   const client = createClient({
