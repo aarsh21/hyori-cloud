@@ -34,12 +34,11 @@ export function prepareHost(app: string, version: string) {
 
   if (protocol) throw new Error("Native host preparation is single-use per iframe");
 
-  if (
-    window.parent === window ||
-    window.location.origin === "null" ||
-    window.parent.location.origin !== window.location.origin
-  )
-    throw new Error("Native host requires a framed exact same-origin parent");
+  // The host sandboxes this frame into an opaque origin, so editor code holds none of the host's
+  // authority: no host DOM, storage or cookies. Only the origin serving this page may frame it
+  // (`frame-ancestors 'self'`); messages go to that origin alone and come only from it.
+  if (window.parent === window || window.origin !== "null")
+    throw new Error("Native host requires a framed, sandboxed opaque-origin document");
   const config = configurations.get(app);
 
   if (!config) throw new Error("Unknown native engine configuration");

@@ -20,6 +20,7 @@ import {
 import {
   decodeNativeHostCommand,
   decodeNativeHostEvent,
+  NATIVE_HOST_PROTOCOL,
   NativeTheme,
 } from "#client-sdk/features/editors/native-runtime";
 import type {
@@ -279,7 +280,7 @@ export function createNativeEditorSession(
     try {
       send({
         type: `${document.app}:set-theme`,
-        protocol: 2,
+        protocol: NATIVE_HOST_PROTOCOL,
         version: document.version,
         requestId,
         theme,
@@ -327,7 +328,7 @@ export function createNativeEditorSession(
       send(
         {
           type: `${document.app}:open`,
-          protocol: 2,
+          protocol: NATIVE_HOST_PROTOCOL,
           version: document.version,
           openId,
           name: document.name,
@@ -461,7 +462,7 @@ export function createNativeEditorSession(
 
     const request = {
       type: `${document.app}:request-save`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       requestId: crypto.randomUUID(),
       openId,
@@ -505,7 +506,7 @@ export function createNativeEditorSession(
 
     const command = decodeNativeHostCommand({
       type: `${document.app}:request-save`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       requestId: crypto.randomUUID(),
       openId,
@@ -538,7 +539,7 @@ export function createNativeEditorSession(
     const { openId: open, documentId: id, revision: native, requestId, saveId } = identity;
 
     const envelope = {
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       openId: open,
       documentId: id,
@@ -614,7 +615,7 @@ export function createNativeEditorSession(
     });
     send({
       type: `${document.app}:save-result`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       ...saved.identity,
       status: "saved",
@@ -630,7 +631,7 @@ export function createNativeEditorSession(
 
     const envelope = {
       type: `${document.app}:save-result`,
-      protocol: 2,
+      protocol: NATIVE_HOST_PROTOCOL,
       version: document.version,
       ...saved.identity,
     } as const;
@@ -1071,7 +1072,7 @@ export function createNativeEditorSession(
             : {
                 command: {
                   type: `${document.app}:cancel-intent`,
-                  protocol: 2,
+                  protocol: NATIVE_HOST_PROTOCOL,
                   version: document.version,
                   openId: event.openId,
                   documentId: event.documentId,

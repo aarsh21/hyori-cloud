@@ -15,9 +15,23 @@ type Attachment = {
   readonly dispose: () => void;
 };
 
-/** Only a path on this origin. Editors run as same-origin code, so nothing else may ever load. */
+/** Only a path on this origin, the one the editor bundle is served from and allowed to frame. */
 function isSameOriginPath(url: string) {
   return url.startsWith("/") && !url.startsWith("//") && !url.includes("\\");
+}
+
+/**
+ * The frame's exact sandbox. Without allow-same-origin the editor runs in an opaque origin: none
+ * of this origin's DOM, storage, cookies or API authority. Popups escape the sandbox so a document
+ * link opens a normal page; nothing may navigate the top window.
+ */
+export const EDITOR_FRAME_SANDBOX =
+  "allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads";
+
+function isEditorSandbox(frame: HTMLIFrameElement) {
+  const tokens = (value: string) => value.split(/\s+/).filter(Boolean).toSorted().join(" ");
+
+  return tokens(frame.getAttribute("sandbox") ?? "") === tokens(EDITOR_FRAME_SANDBOX);
 }
 
 /**
@@ -44,6 +58,10 @@ export function createEditorAttachment({
     throw new Error("An editor frame must be in the document before it's attached.");
   }
 
+  if (!isEditorSandbox(frame)) {
+    throw new Error("An editor frame must carry exactly the editor sandbox before it's attached.");
+  }
+
   const session = createEditorSession({
     backend,
     maxBytes: MAX_EDITOR_BYTES,
@@ -56,11 +74,7 @@ export function createEditorAttachment({
         return () => host.removeEventListener("online", listener);
       },
     },
-    messages: createBrowserEditorMessages({
-      host,
-      editorWindow,
-      origin: host.location.origin,
-    }),
+    messages: createBrowserEditorMessages({ host, editorWindow }),
   });
 
   let navigated = false;

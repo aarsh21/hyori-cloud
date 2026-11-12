@@ -121,7 +121,8 @@ fn editor_descriptor_protocols_and_legacy_save_fingerprints_are_exact() {
     use hyori_server::features::editors::api::{EditorPrepareSave, EditorProtocol};
     assert!(decode::<EditorProtocol>(json!(1)).is_ok());
     assert!(decode::<EditorProtocol>(json!(2)).is_ok());
-    for invalid in [json!(0), json!(3), json!(1.5), json!("2"), json!(null)] {
+    assert!(decode::<EditorProtocol>(json!(3)).is_ok());
+    for invalid in [json!(0), json!(4), json!(1.5), json!("2"), json!(null)] {
         assert!(decode::<EditorProtocol>(invalid).is_err());
     }
     let legacy = format!(

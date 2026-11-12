@@ -3,12 +3,17 @@ import type {
   EditorVisibilityPort,
 } from "#client-sdk/features/editors/editor-contract";
 
+/**
+ * The origin every message from a sandboxed editor frame carries. The frame runs without
+ * `allow-same-origin`, so editor code holds none of the host's authority, and the captured window
+ * is what identifies it.
+ */
+const OPAQUE_ORIGIN = "null";
+
 // The app composition owner must register/mount this host adapter and dispose the session
-// before removing or navigating its frame. Same-origin vendor WASM is trusted executable code;
-// allow-scripts + allow-same-origin is not an isolation boundary for uploaded HTML/SVG.
+// before removing or navigating its frame. The frame must be sandboxed without allow-same-origin.
 export function createBrowserEditorMessages(options: {
   host: {
-    location: { readonly origin: string };
     addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
     removeEventListener(type: "message", listener: (event: MessageEvent) => void): void;
   };
@@ -18,16 +23,11 @@ export function createBrowserEditorMessages(options: {
       options: { targetOrigin: string; transfer?: ArrayBuffer[] },
     ): void;
   };
-  origin: string;
 }): EditorMessagePort {
-  const { host, editorWindow, origin } = options;
-
-  if (new URL(origin).origin !== origin || host.location.origin !== origin) {
-    throw new Error("ArtCraft requires an exact same-origin attachment");
-  }
+  const { host, editorWindow } = options;
 
   return {
-    origin,
+    origin: OPAQUE_ORIGIN,
     source: editorWindow,
     subscribe(listener) {
       const receive = (event: MessageEvent) =>
@@ -38,8 +38,9 @@ export function createBrowserEditorMessages(options: {
       return () => host.removeEventListener("message", receive);
     },
     post(message, targetOrigin, transfer) {
-      if (targetOrigin !== origin) throw new Error("Editor target origin changed");
-      editorWindow.postMessage(message, { targetOrigin: origin, transfer });
+      if (targetOrigin !== OPAQUE_ORIGIN) throw new Error("Editor target origin changed");
+      // An opaque origin can't be named as a target. Only this exact window receives the message.
+      editorWindow.postMessage(message, { targetOrigin: "*", transfer });
     },
   };
 }

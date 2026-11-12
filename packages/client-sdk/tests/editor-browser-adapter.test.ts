@@ -5,11 +5,11 @@ import type { EditorMessageEvent, EditorMessagePort } from "@hyori-cloud/client-
 
 // Compile the actual browser call site without requiring a browser in the vanilla consumer.
 const browserCallSite = (host: Window, editorWindow: Window): EditorMessagePort =>
-  createBrowserEditorMessages({ host, editorWindow, origin: host.location.origin });
+  createBrowserEditorMessages({ host, editorWindow });
 
 void browserCallSite;
 
-test("browser adapter owns exact-origin posting, message subscription and cleanup", () => {
+test("browser adapter owns sandboxed-frame posting, message subscription and cleanup", () => {
   const listeners = new Set<(event: MessageEvent) => void>();
   const received: EditorMessageEvent[] = [];
 
@@ -20,7 +20,6 @@ test("browser adapter owns exact-origin posting, message subscription and cleanu
   }[] = [];
 
   const host: Parameters<typeof createBrowserEditorMessages>[0]["host"] = {
-    location: { origin: "https://cloud.example" },
     addEventListener(type, listener) {
       expect(type).toBe("message");
       listeners.add(listener);
@@ -37,28 +36,24 @@ test("browser adapter owns exact-origin posting, message subscription and cleanu
     },
   };
 
-  const port = createBrowserEditorMessages({ host, editorWindow, origin: host.location.origin });
+  const port = createBrowserEditorMessages({ host, editorWindow });
   const unsubscribe = port.subscribe((event) => received.push(event));
   const data = { type: "wordcraft:ready", version: "0.14.0" };
 
-  for (const listener of listeners)
-    listener(new MessageEvent("message", { origin: host.location.origin, data }));
+  for (const listener of listeners) listener(new MessageEvent("message", { origin: "null", data }));
 
-  expect(received).toEqual([{ source: null, origin: host.location.origin, data }]);
+  expect(received).toEqual([{ source: null, origin: "null", data }]);
+  // A sandboxed frame has the opaque origin; its captured window is what identifies it.
+  expect(port.origin).toBe("null");
   expect(port.source).toBe(editorWindow);
   const message = { type: "wordcraft:open", name: "Report.docx", bytes: new Uint8Array([1]) };
-  port.post(message, host.location.origin);
-  expect(sent).toEqual([{ message, targetOrigin: host.location.origin, transfer: undefined }]);
+  port.post(message, "null");
+  // An opaque origin can't be named as a target, so only the exact window gets the message.
+  expect(sent).toEqual([{ message, targetOrigin: "*", transfer: undefined }]);
   // Exclusively owned buffers are handed over rather than cloned.
-  port.post(message, host.location.origin, [message.bytes.buffer]);
+  port.post(message, "null", [message.bytes.buffer]);
   expect(sent[1]?.transfer).toEqual([message.bytes.buffer]);
-  expect(() => port.post(message, "*")).toThrow("target origin changed");
-  expect(() =>
-    createBrowserEditorMessages({ host, editorWindow, origin: "https://other.example" }),
-  ).toThrow("same-origin");
-  expect(() =>
-    createBrowserEditorMessages({ host, editorWindow, origin: "https://cloud.example/path" }),
-  ).toThrow("same-origin");
+  expect(() => port.post(message, "https://cloud.example")).toThrow("target origin changed");
   unsubscribe();
   expect(listeners.size).toBe(0);
 });

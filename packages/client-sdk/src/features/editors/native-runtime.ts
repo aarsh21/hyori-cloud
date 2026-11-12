@@ -1,7 +1,9 @@
 import { Either, Schema } from "@hyori-cloud/lib/effect";
 
-// This is the local frame IPC contract, not the Rust-owned product API.
-export const NATIVE_HOST_PROTOCOL = 2;
+// This is the local frame IPC contract, not the Rust-owned product API. Protocol 3 is the first
+// that runs in a sandboxed, opaque-origin frame; earlier runtimes need a same-origin one.
+export const NATIVE_HOST_PROTOCOL = 3;
+export const NATIVE_HOST_BRIDGE = "hyori-correlated-host-v3";
 export const NATIVE_MAX_BYTES = 64 * 1024 * 1024;
 
 // Keep this leaf contract independent of product RPC schemas: the frame never calls the API.

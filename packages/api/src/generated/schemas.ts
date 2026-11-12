@@ -196,7 +196,7 @@ export const EditorAvailability = Schema.Struct({ "apps": Schema.Array(EditorAva
 
 export type EditorAvailability = typeof EditorAvailability.Type;
 
-export const EditorBridge = intersection(Schema.Union(Schema.Literal("upstream-host-parent"), Schema.Literal("hyori-correlated-host-v1"), Schema.Literal("hyori-correlated-host-v2")), Schema.String);
+export const EditorBridge = intersection(Schema.Union(Schema.Literal("upstream-host-parent"), Schema.Literal("hyori-correlated-host-v1"), Schema.Literal("hyori-correlated-host-v2"), Schema.Literal("hyori-correlated-host-v3")), Schema.String);
 
 export type EditorBridge = typeof EditorBridge.Type;
 
@@ -216,7 +216,7 @@ export const EditorOutputFormat = Schema.Struct({ "extension": Schema.String.pip
 
 export type EditorOutputFormat = typeof EditorOutputFormat.Type;
 
-export const EditorProtocol = intersection(Schema.Union(Schema.Literal(1), Schema.Literal(2)), Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)));
+export const EditorProtocol = intersection(Schema.Union(Schema.Literal(1), Schema.Literal(2), Schema.Literal(3)), Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)));
 
 export type EditorProtocol = typeof EditorProtocol.Type;
 

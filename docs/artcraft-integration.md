@@ -202,6 +202,8 @@ Production browser/format-fidelity coverage, real SDK-backed DeckCraft storage i
 
 ## Message protocol established in source
 
+> **Since protocol 3**, Hyori embeds every editor in a sandboxed, opaque-origin frame; the same-origin descriptions below record the upstream bridges and earlier Hyori protocols. See [protocol 3](editor-runtime-protocol.md#sandboxed-frame-protocol-3).
+
 WordCraft, GridCraft, and PdfCraft support `?host=parent` in a same-origin iframe. Each prefixes its messages with its application name:
 
 - `:ready`: the parent may send a document.

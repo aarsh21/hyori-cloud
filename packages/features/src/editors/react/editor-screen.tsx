@@ -43,7 +43,10 @@ import { EditorCopyDialog, suggestedName } from "#features/editors/react/editor-
 import { EditorSaveActions } from "#features/editors/react/editor-save-actions.tsx";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
 import { createDestinationRequests } from "#features/editors/destination-requests.ts";
-import { createEditorAttachment } from "#features/editors/editor-attachment.ts";
+import {
+  createEditorAttachment,
+  EDITOR_FRAME_SANDBOX,
+} from "#features/editors/editor-attachment.ts";
 import type { EditorAttachment } from "#features/editors/editor-attachment.ts";
 import { DestinationDialog } from "#features/editors/react/destination-dialog.tsx";
 import type { CopyDestination } from "#features/editors/react/destination-dialog.tsx";
@@ -140,7 +143,12 @@ function EditorAttempt({
         )
       }
     >
-      <HostedDocumentFrame title="Document editor" onAttach={attach} inert={locked} />
+      <HostedDocumentFrame
+        title="Document editor"
+        sandbox={EDITOR_FRAME_SANDBOX}
+        onAttach={attach}
+        inert={locked}
+      />
       {attachment === null ? null : (
         <EditorCover
           session={attachment.session}
@@ -190,7 +198,7 @@ function EditorBar({
   const [copying, setCopying] = useState(false);
 
   const native =
-    snapshot.document?.bridge === "hyori-correlated-host-v2" && snapshot.document.protocol === 2;
+    snapshot.document?.bridge === "hyori-correlated-host-v3" && snapshot.document.protocol === 3;
 
   const copyOnly =
     snapshot.document?.writable === false ||
@@ -604,6 +612,12 @@ function openFailure(reason: EditorStopReason | null): OpenFailure {
         detail: "Reopen the file to use the new version.",
         retry: true,
       };
+    case "runtime-outdated":
+      return {
+        title: "This editor needs an update",
+        detail: "Ask your administrator to install the current editor bundle.",
+        retry: false,
+      };
     case "crashed":
     case "session-ended":
     case null:
@@ -635,6 +649,7 @@ function endedSession(reason: EditorStopReason | null): EndedSession {
       };
     case "access-revoked":
     case "unsupported":
+    case "runtime-outdated":
     case "session-limit":
     case "unavailable":
     case "unreadable":

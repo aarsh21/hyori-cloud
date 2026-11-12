@@ -283,8 +283,9 @@ export async function collectNativeEvidence(
     kind: "hyori-native-host-v3-receipt",
     app,
     artifactVersion: plan.artifactVersion,
-    bridge: "hyori-correlated-host-v2",
-    protocol: 2,
+    // The sandboxed-frame bridge; native-v3-runtime refuses a receipt for another revision.
+    bridge: "hyori-correlated-host-v3",
+    protocol: 3,
     sourceArchiveSha256: plan.sourcePin.sha256,
     buildManifestSha256: sha256(buildManifestBytes),
     sourceSummarySha256: sha256(sourceSummaryBytes),

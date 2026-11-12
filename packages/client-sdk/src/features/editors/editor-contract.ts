@@ -34,7 +34,9 @@ export type EditorStopReason =
   | "crashed"
   | "access-revoked"
   | "session-ended"
-  | "editor-updated";
+  | "editor-updated"
+  /** The server's editor runtime predates sandboxed frames; an administrator must rebuild it. */
+  | "runtime-outdated";
 
 export type EditorSaveResult =
   | Pick<EditorSaved, "status" | "revision">

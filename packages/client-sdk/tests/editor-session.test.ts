@@ -664,7 +664,6 @@ describe("ArtCraft local protocol (fake ports; not WASM/fidelity evidence)", () 
 
     for (const invalid of [
       "*",
-      "null",
       "https://cloud.example/",
       "https://cloud.example/path",
       "file://",
@@ -681,4 +680,27 @@ describe("ArtCraft local protocol (fake ports; not WASM/fidelity evidence)", () 
     expect(f.subscribers.size).toBe(0);
     expect(f.signals).toHaveLength(0);
   });
+
+  // The protocol 2 runtime refuses a sandboxed frame and this SDK no longer speaks it; it would
+  // otherwise wait out the ready timeout for a ready that never comes.
+  for (const overrides of [{ bridge: "hyori-correlated-host-v2", protocol: 2 }] as const) {
+    test(`a ${overrides.bridge} runtime is refused at once`, async () => {
+      const f = fixture("wordcraft", overrides);
+
+      const session = createEditorSession({
+        backend: f.backend,
+        messages: { ...f.messages, origin: "null" },
+        maxBytes: 32,
+      });
+
+      await tick();
+      expect(session.getSnapshot()).toMatchObject({
+        status: "failed",
+        reason: "runtime-outdated",
+        message: "This editor needs an update from your administrator",
+      });
+      expect(f.posted).toHaveLength(0);
+      session.dispose();
+    });
+  }
 });

@@ -1,14 +1,23 @@
-# Native document runtime protocol 2
+# Native document runtime protocol 3
 
-Status: source contract under integration, **not a built/shipping four-engine capability**. The existing immutable runtime remains manual. This document describes the local same-origin frame protocol; Rust separately owns product operations, authorization, file revisions, output policies, and durable persistence.
+Status: source contract under integration, **not a built/shipping four-engine capability**. The existing immutable runtime remains manual. This document describes the local frame protocol; Rust separately owns product operations, authorization, file revisions, output policies, and durable persistence.
+
+## Sandboxed frame (protocol 3)
+
+Protocol 3 is protocol 2's message set in a sandboxed frame. The host creates the editor frame with exactly `sandbox="allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"`: no `allow-same-origin` and no top navigation of any kind. The editor document therefore has an opaque origin. It cannot reach the host page's DOM or storage, its own `localStorage`, IndexedDB or cookies are refused, and its requests to `/api/*` go out cross-site without the `SameSite=Strict` session and with unreadable replies. What it receives is what the bridge deliberately hands it: one document's bytes, save results and theme requests.
+
+- Every frame message carries origin `"null"`, which identifies nothing. The host accepts a message only from the exact window it captured before navigating the frame, and posts only to that window with target `"*"`. The host page's own `frame-src 'self'` keeps that window on Hyori's origin; a frame that navigates itself, even on that origin, is a new document and never receives the document again.
+- The frame bridge requires `window.origin === "null"` and refuses to start otherwise, so a protocol 3 runtime never runs with the host's authority.
+- Because scripts and WASM in an opaque-origin document load with CORS, the gateway sends `Access-Control-Allow-Origin: *` on `/artcraft/*`. Those files are public static assets.
+- Protocol 2 runtimes (`hyori-correlated-host-v2`) refuse an opaque-origin frame. The SDK fails their sessions immediately with reason `runtime-outdated`, and the editor screen tells the person their administrator must update the editor. The backend logs a warning at startup for every current runtime below protocol 3, and `scripts/editor-csp.ts` refuses to print a gateway policy for one.
 
 The single executable IPC schema owner is `packages/client-sdk/src/features/editors/native-runtime.ts`, publicly exported through `@hyori-cloud/client-sdk/editor-runtime`. Both producer adapters and SDK consumers use those strict runtime schemas and inferred types. Native emitters need golden-schema tests. Do not maintain a second JavaScript wire-schema declaration in vendor patches.
 
 ## Binding and bounds
 
-Every message has `type:"<app>:<operation>"`, `protocol:2`, and the exact `version` authorized by the server descriptor. App is one of WordCraft, GridCraft, PdfCraft, or DeckCraft's lowercase identifier. Every event must also come from the exact captured iframe window and exact expected HTTP(S) origin. Payload validation alone does not authorize a sender.
+Every message has `type:"<app>:<operation>"`, `protocol:3`, and the exact `version` authorized by the server descriptor. App is one of WordCraft, GridCraft, PdfCraft, or DeckCraft's lowercase identifier. Every event must also come from the exact captured iframe window, with the opaque origin `"null"`. Payload validation alone does not authorize a sender.
 
-The descriptor must explicitly select `bridge:"hyori-correlated-host-v2"` and `protocol:2`; a version suffix or a frame's self-advertised capability is insufficient. Old official-three and Deck protocol-1 attachments retain their separate manual adapters. New runtime selection must not invalidate a still-authorized session whose exact older version remains in the verified current/legacy catalogue.
+The descriptor must explicitly select `bridge:"hyori-correlated-host-v3"` and `protocol:3`; a version suffix or a frame's self-advertised capability is insufficient. Old official-three and Deck protocol-1 attachments retain their separate manual adapters. New runtime selection must not invalidate a still-authorized session whose exact older version remains in the verified current/legacy catalogue.
 
 IDs are bounded opaque strings. `documentId` and native `revision` are canonical unsigned-64-bit decimal **strings**, preserved exactly, never converted to JavaScript numbers. Equality identifies a snapshot; ordering does not. Native undo, wraparound, and PDF post-save rebasing make ordering unsafe. Native UI draft changes also need observation and acknowledgement guards; the committed-model counter alone is not proof that no new typing exists.
 

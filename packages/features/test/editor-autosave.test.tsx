@@ -30,8 +30,8 @@ type Command<Operation extends string> = Extract<
 const DOCUMENT: EditorDocument = {
   sessionId: "native_1",
   app: "wordcraft",
-  bridge: "hyori-correlated-host-v2",
-  protocol: 2,
+  bridge: "hyori-correlated-host-v3",
+  protocol: 3,
   version: "0.14.0-hyori-host.3",
   name: "Synthetic.docx",
   revision: "3",
@@ -102,9 +102,7 @@ function fixture(
 
   function emit(data: NativeHostEvent) {
     act(() => {
-      window.dispatchEvent(
-        new MessageEvent("message", { origin: window.location.origin, source, data }),
-      );
+      window.dispatchEvent(new MessageEvent("message", { origin: "null", source, data }));
     });
   }
 
@@ -121,7 +119,7 @@ function fixture(
         queueMicrotask(() =>
           emit({
             type: "wordcraft:theme-applied",
-            protocol: 2,
+            protocol: 3,
             version: descriptor.version,
             requestId: command.requestId,
             theme: command.theme,
@@ -132,7 +130,7 @@ function fixture(
       if ("fileRevision" in command)
         emit({
           type: "wordcraft:saved",
-          protocol: 2,
+          protocol: 3,
           version: descriptor.version,
           openId: command.openId,
           documentId: command.documentId,
@@ -152,7 +150,7 @@ function fixture(
     await screen.findByText(descriptor.name);
     emit({
       type: "wordcraft:ready",
-      protocol: 2,
+      protocol: 3,
       version: descriptor.version,
       maxBytes: descriptor.maxBytes,
       capabilities: {
@@ -169,7 +167,7 @@ function fixture(
     openId = command.openId;
     emit({
       type: "wordcraft:opened",
-      protocol: 2,
+      protocol: 3,
       version: descriptor.version,
       openId,
       documentId: nativeDocumentId,
@@ -181,7 +179,7 @@ function fixture(
     revision = String(BigInt(revision) + 1n);
     emit({
       type: "wordcraft:dirty",
-      protocol: 2,
+      protocol: 3,
       version: descriptor.version,
       openId,
       documentId: nativeDocumentId,
@@ -197,7 +195,7 @@ function fixture(
     saveSequence += 1;
     emit({
       type: "wordcraft:save",
-      protocol: 2,
+      protocol: 3,
       version: descriptor.version,
       openId,
       documentId: request.documentId,
@@ -215,7 +213,7 @@ function fixture(
     nativeDocumentId = documentId;
     emit({
       type: "wordcraft:dirty",
-      protocol: 2,
+      protocol: 3,
       version: descriptor.version,
       openId,
       documentId,
@@ -327,7 +325,7 @@ describe("autosave shell consuming the real SDK over explicit synthetic transpor
     if (request === undefined) throw new Error("No capture request");
     f.emit({
       type: "wordcraft:error",
-      protocol: 2,
+      protocol: 3,
       version: f.descriptor.version,
       operation: "save",
       requestId: request.requestId,
@@ -356,7 +354,7 @@ describe("autosave shell consuming the real SDK over explicit synthetic transpor
     if (request === undefined) throw new Error("No explicit copy capture");
     f.emit({
       type: "wordcraft:error",
-      protocol: 2,
+      protocol: 3,
       version: f.descriptor.version,
       operation: "save",
       requestId: request.requestId,
@@ -561,7 +559,7 @@ describe("autosave shell consuming the real SDK over explicit synthetic transpor
       if (request === undefined) throw new Error("No automatic request");
       f.emit({
         type: "wordcraft:error",
-        protocol: 2,
+        protocol: 3,
         version: f.descriptor.version,
         operation: "save",
         requestId: request.requestId,

@@ -8,7 +8,7 @@ use crate::{
 };
 
 crate::wire_enum!(EditorApp { Wordcraft => "wordcraft", Gridcraft => "gridcraft", Deckcraft => "deckcraft", Pdfcraft => "pdfcraft" });
-crate::wire_enum!(EditorBridge { Upstream => "upstream-host-parent", CorrelatedV1 => "hyori-correlated-host-v1", CorrelatedV2 => "hyori-correlated-host-v2" });
+crate::wire_enum!(EditorBridge { Upstream => "upstream-host-parent", CorrelatedV1 => "hyori-correlated-host-v1", CorrelatedV2 => "hyori-correlated-host-v2", CorrelatedV3 => "hyori-correlated-host-v3" });
 crate::wire_enum!(EditorSaveMode { Manual => "manual", Automatic => "automatic" });
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EditorProtocol(pub u8);
@@ -17,7 +17,7 @@ impl schemars::JsonSchema for EditorProtocol {
         "EditorProtocol".into()
     }
     fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        schemars::json_schema!({"type": "integer", "enum": [1, 2]})
+        schemars::json_schema!({"type": "integer", "enum": [1, 2, 3]})
     }
 }
 crate::wire_enum!(EditorOutputKind { Document => "document", Export => "export" });

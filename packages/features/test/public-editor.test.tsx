@@ -135,9 +135,7 @@ type EditorMessage = {
 };
 
 function fromEditor(editorWindow: Window | null, data: EditorMessage) {
-  window.dispatchEvent(
-    new MessageEvent("message", { data, origin: window.location.origin, source: editorWindow }),
-  );
+  window.dispatchEvent(new MessageEvent("message", { data, origin: "null", source: editorWindow }));
 }
 
 /** Attaches to the frame as soon as it exists, because this DOM replaces its window on navigation. */

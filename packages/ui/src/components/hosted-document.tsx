@@ -27,15 +27,18 @@ function HostedDocumentLayout({
 /**
  * An empty frame that hands itself to its owner once, when mounted, and is released just before it
  * leaves the DOM. It knows nothing about what's loaded in it: the owner navigates it, so it can
- * capture the frame's window before there's anything to load.
+ * capture the frame's window before there's anything to load, and the owner names its sandbox.
  */
 function HostedDocumentFrame({
   title,
+  sandbox,
   onAttach,
   inert,
   className,
 }: {
   title: string;
+  /** Applied from the first render, so nothing ever loads in the frame without it. */
+  sandbox: string;
   onAttach: (frame: HTMLIFrameElement) => () => void;
   /** Takes the document out of focus and input while something covers it, without unloading it. */
   inert?: boolean;
@@ -49,6 +52,7 @@ function HostedDocumentFrame({
       ref={attach}
       data-slot="hosted-document-frame"
       title={title}
+      sandbox={sandbox}
       allow="clipboard-read; clipboard-write; fullscreen"
       inert={inert}
       className={cn("absolute inset-0 size-full border-0", className)}

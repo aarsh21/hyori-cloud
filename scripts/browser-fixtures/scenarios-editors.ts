@@ -85,7 +85,7 @@ async function bundleIdentity(run: CoreRun) {
   }
 
   for (const { app, version, protocol } of editorBundle.editors) {
-    if (protocol === 2) {
+    if (protocol === 3) {
       await report.check(`${app} is the native host build`, () => {
         assert.ok(NATIVE_VERSIONS.get(app)?.includes(version), `${app} ${version}`);
       });
@@ -168,7 +168,7 @@ async function bundleServing(run: CoreRun) {
 
   // Modified builds must carry this product's marks, not the upstream ones.
   const modified = editorBundle.editors.filter(
-    ({ app, protocol }) => protocol === 2 || app === "deckcraft",
+    ({ app, protocol }) => protocol === 3 || app === "deckcraft",
   );
 
   for (const editor of modified) {
@@ -583,7 +583,7 @@ async function singleFileLink(run: CoreRun, cases: EditorCases) {
  * evidence: nothing else here can tell a real render from a blank one.
  */
 const isNative = (run: CoreRun, app: EditorApp) =>
-  run.editorBundle?.editors.some((editor) => editor.app === app && editor.protocol === 2) === true;
+  run.editorBundle?.editors.some((editor) => editor.app === app && editor.protocol === 3) === true;
 
 /** Chosen as a person does, from the account menu, which carries the product's Appearance choice. */
 async function chooseAppearance(page: Page, name: "Light" | "Dark" | "System") {
@@ -601,7 +601,7 @@ async function nativeLifecycle(run: CoreRun, cases: EditorCases) {
   const { report, editorBundle, front } = run;
 
   const native = new Set(
-    (editorBundle?.editors ?? []).filter(({ protocol }) => protocol === 2).map(({ app }) => app),
+    (editorBundle?.editors ?? []).filter(({ protocol }) => protocol === 3).map(({ app }) => app),
   );
 
   const items = [cases.word, cases.grid, cases.deck, cases.pdf].filter(({ app }) =>

@@ -2,7 +2,10 @@ import { afterEach, describe, expect, spyOn } from "bun:test";
 import type { EditorBackendPort, EditorDocument } from "@hyori-cloud/client-sdk";
 import { createNavigationGuard } from "#features/cloud/navigation-guard.ts";
 import { CloudNavigationProvider } from "#features/cloud/react/cloud-navigation.tsx";
-import { createEditorAttachment } from "#features/editors/editor-attachment.ts";
+import {
+  createEditorAttachment,
+  EDITOR_FRAME_SANDBOX,
+} from "#features/editors/editor-attachment.ts";
 import { EditorScreen } from "#features/editors/react/editor-screen.tsx";
 import {
   act,
@@ -63,6 +66,7 @@ function refuseToLeave() {
 describe("how long an attachment lives", () => {
   function attached() {
     const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", EDITOR_FRAME_SANDBOX);
     const closes: string[] = [];
     const guard = createNavigationGuard();
 
@@ -115,7 +119,7 @@ describe("how long an attachment lives", () => {
         window.dispatchEvent(
           new MessageEvent("message", {
             data,
-            origin: window.location.origin,
+            origin: "null",
             source: opened.editorWindow,
           }),
         ),
@@ -168,7 +172,7 @@ describe("how long an attachment lives", () => {
       window.dispatchEvent(
         new MessageEvent("message", {
           data: { type: "wordcraft:ready", version: "0.14.0" },
-          origin: window.location.origin,
+          origin: "null",
           source: opened.editorWindow,
         }),
       ),
@@ -178,7 +182,7 @@ describe("how long an attachment lives", () => {
       window.dispatchEvent(
         new MessageEvent("message", {
           data: { type: "wordcraft:dirty", dirty: true },
-          origin: window.location.origin,
+          origin: "null",
           source: opened.editorWindow,
         }),
       ),
@@ -316,7 +320,7 @@ describe("the mounted editor's session", () => {
         window.dispatchEvent(
           new MessageEvent("message", {
             data,
-            origin: window.location.origin,
+            origin: "null",
             source: editorWindow,
           }),
         ),

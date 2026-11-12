@@ -58,7 +58,7 @@
     "test:rust-web-host": "bun scripts/test-rust-web-host.ts",
     "test:node-proxy": "node --test packages/api/test/node-backend-proxy.test.ts",
     "test:web-image": "bun scripts/test-web-image.ts",
-    "test:deployment": "bun test scripts/check-media-deployment.test.ts scripts/editor-assets-fixture.test.ts scripts/artcraft/native-clock-provenance.test.ts",
+    "test:deployment": "bun test scripts/check-media-deployment.test.ts scripts/editor-assets-fixture.test.ts scripts/artcraft/native-clock-provenance.test.ts scripts/editor-csp.test.ts",
     "test:editor-static": "bun --no-env-file scripts/test-editor-static.ts",
     "test:rust-sdk": "bun scripts/test-rust-sdk.ts",
     "test:rust-image": "bun scripts/test-rust-image.ts",

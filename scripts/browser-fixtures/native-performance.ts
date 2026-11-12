@@ -16,7 +16,7 @@ export type NativePerformanceTarget = {
 export type NativePacketMetadata = Partial<NativeSnapshotIdentity> & {
   readonly type: NativeHostCommand["type"] | NativeHostEvent["type"];
   readonly version: string;
-  readonly protocol: 2;
+  readonly protocol: 3;
   capabilities?: Extract<NativeHostEvent, { type: `${string}:ready` }>["capabilities"];
   maxBytes?: number;
   dirty?: boolean;

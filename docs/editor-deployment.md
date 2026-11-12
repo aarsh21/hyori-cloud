@@ -52,7 +52,7 @@ The frame policy restricts resource loading to its own origin, with local image 
 | `script-src`      | `'self' 'wasm-unsafe-eval'` plus exact loader hashes: sibling glue and snippet imports, WebAssembly compilation and Trunk's inline module loader. No JavaScript `eval`, arbitrary inline script or remote script host. |
 | `style-src`       | `'self'` plus exact inline style hashes: the entry page's canvas and loading layout. No arbitrary inline style allowance is added.                                                                                     |
 
-This policy is source-derived, not real-editor acceptance evidence. Before rollout, on the machine with the trusted bundle, regenerate the header and test all four editors: cold and cached load, WASM compilation, embedded fonts and document images, Light/Dark/System, typing and autosave, native Save/Save As/export, Word/Grid/PDF printing, and authorized document hyperlinks. Inspect browser CSP violations and the Network panel; remote fetches, images, scripts, child frames and form submissions must be refused. A blocked required local operation is a compatibility failure to investigate, not a reason to add a broad `https:` allowance. This is still a same-origin trusted-code boundary: the frame can call same-origin authenticated APIs or reach its parent; CSP alone does not isolate compromised editor code or block every navigation-based exfiltration path.
+This policy is source-derived, not real-editor acceptance evidence. Before rollout, on the machine with the trusted bundle, regenerate the header and test all four editors: cold and cached load, WASM compilation, embedded fonts and document images, Light/Dark/System, typing and autosave, native Save/Save As/export, Word/Grid/PDF printing, and authorized document hyperlinks. Inspect browser CSP violations and the Network panel; remote fetches, images, scripts, child frames and form submissions must be refused. A blocked required local operation is a compatibility failure to investigate, not a reason to add a broad `https:` allowance. The isolation boundary is the frame's sandbox, not this policy: the Hyori host runs every editor in a sandboxed, opaque-origin frame (see [protocol 3](editor-runtime-protocol.md#sandboxed-frame-protocol-3)), so compromised editor code cannot read the host page, its storage or cookies, or call `/api/*` with the person's session. CSP still limits what that code can load; it does not block every navigation-based exfiltration path, such as a popup to an attacker's page carrying the open document.
 
 ```caddyfile
 handle_path /artcraft/* {
@@ -92,6 +92,17 @@ The executable handler owner is `scripts/editor-static-handler.ts`, exercised ag
 `precompressed gzip` serves a verified `.gz` sidecar byte-for-byte when negotiated; it does not alter original payload identity. Dynamic gzip remains a compatibility fallback when no sidecar exists. Ship sidecars only in a separately verified version-2 runtime inventory, never by adding files to an existing immutable bundle. The current `bb6…` runtime has no installed sidecars. Neither static transport tests nor these headers establish parsed-document load or durable-save latency; see [measurement boundaries](editor-performance.md).
 
 The runtime notice entry is `/artcraft/legal/RUNTIME-NOTICE-INDEX.md`; retain its linked notices and source references alongside the payloads. A checksum is not a legal opinion or a substitute for those obligations.
+
+## Upgrading to sandboxed editor frames
+
+This release sandboxes every editor frame without `allow-same-origin`. Only the protocol 3 runtime (`hyori-correlated-host-v3`, artifact versions `0.14.0-hyori-host.4`, `0.15.0-hyori-host.3`, `0.17.0-hyori-host.3` and `0.14.1-hyori-host.6`) starts there. An older bundle keeps verifying, so no data or session state is touched, but its editors don't open: people see "This editor needs an update" until the bundle is replaced. Upgrade in this order:
+
+1. Build and verify the protocol 3 bundle with this release's ArtCraft tooling, on the build machine, and record its receipt and manifest SHA-256. The tooling writes `runtime-native-v3-r3.json`.
+2. Add `header Access-Control-Allow-Origin *` to the `/artcraft/*` handler, as shown above. The header is harmless for the old bundle, so it can go first. Without it, the sandboxed frame can't load the editor's own scripts and WASM, and the editors stay on their loading text.
+3. Print the gateway's Content-Security-Policy line for the new bundle with `bun scripts/editor-csp.ts`. It refuses an older bundle and names the runtimes that predate sandboxed frames.
+4. Mount the new bundle in the backend and the gateway, set `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`, then restart the backend with this release and reload the gateway. A backend started on an older bundle logs `Editor runtime predates sandboxed editor frames` once per editor.
+
+Do steps 2 to 4 in one maintenance window. Between the new release and the new bundle, documents don't open in an editor; people see the update message instead. Files, sharing and downloads are unaffected.
 
 ## Opt-in gateway client addresses for authentication limits
 

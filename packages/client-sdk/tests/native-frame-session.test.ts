@@ -143,8 +143,8 @@ function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = 
 
   const document: EditorDocument = {
     app: "wordcraft",
-    bridge: "hyori-correlated-host-v2",
-    protocol: 2,
+    bridge: "hyori-correlated-host-v3",
+    protocol: 3,
     sessionId: "native_session",
     version,
     assetUrl: `/artcraft/wordcraft/${version}/index.html?host=parent`,

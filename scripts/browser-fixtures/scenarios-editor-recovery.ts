@@ -407,7 +407,7 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
   let copyName = "";
 
   const native =
-    run.editorBundle?.editors.some(({ app, protocol }) => app === "deckcraft" && protocol === 2) ===
+    run.editorBundle?.editors.some(({ app, protocol }) => app === "deckcraft" && protocol === 3) ===
     true;
 
   // A protocol 2 editor knows a PPTX is copy-only when it opens, and offers the copy itself;

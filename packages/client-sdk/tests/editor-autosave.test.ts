@@ -45,8 +45,8 @@ function fixture(
 
   const document: EditorDocument = {
     app: "wordcraft",
-    bridge: "hyori-correlated-host-v2",
-    protocol: 2,
+    bridge: "hyori-correlated-host-v3",
+    protocol: 3,
     sessionId: "native_session",
     version: "0.14.0-hyori-host.3",
     assetUrl: "/artcraft/wordcraft/0.14.0-hyori-host.3/index.html?host=parent",
@@ -62,7 +62,7 @@ function fixture(
     ...overrides,
   };
 
-  const envelope = { protocol: 2, version: document.version } as const;
+  const envelope = { protocol: 3, version: document.version } as const;
   let openId = "";
   let nativeRevision = "1";
   let nativeDocumentId = "7";
@@ -513,7 +513,7 @@ describe("protocol2 autosave through the public SDK (synthetic ports, not native
     f.dirty();
     await until(() => f.requests.length === 1);
     f.emit({
-      protocol: 2,
+      protocol: 3,
       version: f.document.version,
       type: "wordcraft:error",
       operation: "save",
@@ -549,7 +549,7 @@ describe("protocol2 autosave through the public SDK (synthetic ports, not native
         // The live draft outlasts the configured maxWait without being forcibly settled.
         await delay(40);
         f.emit({
-          protocol: 2,
+          protocol: 3,
           version: f.document.version,
           type: "gridcraft:error",
           operation: "save",
@@ -957,7 +957,7 @@ describe("protocol2 autosave through the public SDK (synthetic ports, not native
     f.dirty();
     f.nativeIntent("failed-native-job");
     f.emit({
-      protocol: 2,
+      protocol: 3,
       version: f.document.version,
       type: "wordcraft:error",
       operation: "save",

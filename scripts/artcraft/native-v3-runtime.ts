@@ -41,6 +41,7 @@ const revisions = [
     receiptRoot: "builds/native-host-v3",
     bundle: "runtime-all4-native-v3",
     handoff: "runtime-all4-native-v3.json",
+    protocol: 2,
     replaces: {
       authority: "tooling/artcraft/runtime-all4-transport-v2.json",
       manifestSha256: "8427b8b393061473dcb70807f9758ecd0735115366e98871630a231bd172513d",
@@ -52,9 +53,23 @@ const revisions = [
     receiptRoot: "builds/native-host-v3-r2",
     bundle: "runtime-all4-native-v3-r2",
     handoff: "runtime-all4-native-v3-r2.json",
+    protocol: 2,
     replaces: {
       authority: "tooling/artcraft/runtime-all4-native-v3.json",
       manifestSha256: "5697833f6137cd3595b8609ee098d94cb21a32ce65e76077ad72a2f59a1d26db",
+      stillAcceptedByServer: true,
+    },
+  },
+  // The first runtime whose host bridge runs in a sandboxed, opaque-origin frame.
+  {
+    authority: "runtime-native-v3-r3.json",
+    receiptRoot: "builds/native-host-v3-r3",
+    bundle: "runtime-all4-native-v3-r3",
+    handoff: "runtime-all4-native-v3-r3.json",
+    protocol: 3,
+    replaces: {
+      authority: "tooling/artcraft/runtime-all4-native-v3-r2.json",
+      manifestSha256: "8c8998f74a6d11b4ebc84f70f70adb284b9e1bed6ea3f6c9b26e99030e5ab4a4",
       stillAcceptedByServer: true,
     },
   },
@@ -66,7 +81,9 @@ type Revision = (typeof revisions)[number];
 export const currentNativeRevision = revisions[revisions.length - 1]!;
 const current = currentNativeRevision;
 const legalRoot = "legal/native-host-v3";
-const bridge = "hyori-correlated-host-v2";
+const bridges = { 2: "hyori-correlated-host-v2", 3: "hyori-correlated-host-v3" } as const;
+const bridge = z.enum(Object.values(bridges));
+const protocol = z.union([z.literal(2), z.literal(3)]);
 const maxFiles = 10000;
 const maxBytes = 512 * 1024 * 1024;
 
@@ -81,8 +98,8 @@ const receiptSchema = z.object({
   kind: z.literal("hyori-native-host-v3-receipt"),
   app: z.enum(nativeApps),
   artifactVersion: z.string(),
-  bridge: z.literal(bridge),
-  protocol: z.literal(2),
+  bridge,
+  protocol,
   sourceArchiveSha256: digest,
   buildManifestSha256: digest,
   sourceSummarySha256: digest,
@@ -97,8 +114,8 @@ const receiptSchema = z.object({
 export const nativeAuthoritySchema = z
   .object({
     schemaVersion: z.literal(1),
-    bridge: z.literal(bridge),
-    protocol: z.literal(2),
+    bridge,
+    protocol,
     receiptRoot: z.enum(revisions.map((revision) => revision.receiptRoot)),
     apps: z
       .array(
@@ -149,6 +166,8 @@ export async function recordNativeAuthority(evidenceRoot: string) {
 
     if (
       receipt.app !== app ||
+      receipt.protocol !== current.protocol ||
+      receipt.bridge !== bridges[current.protocol] ||
       receipt.artifactVersion !== nativeArtifactVersions[app] ||
       receipt.buildManifestSha256 !== sha256(buildManifest) ||
       receipt.sourceSummarySha256 !== sha256(sourceSummary) ||
@@ -197,8 +216,8 @@ export async function recordNativeAuthority(evidenceRoot: string) {
 
   const authority = nativeAuthoritySchema.parse({
     schemaVersion: 1,
-    bridge,
-    protocol: 2,
+    bridge: bridges[current.protocol],
+    protocol: current.protocol,
     receiptRoot: current.receiptRoot,
     apps,
   });
@@ -222,8 +241,12 @@ async function committedAuthority(revision: Revision) {
   const bytes = await readFile(join(toolingRoot, revision.authority));
   const authority = nativeAuthoritySchema.parse(JSON.parse(bytes.toString()));
 
-  if (authority.receiptRoot !== revision.receiptRoot)
-    throw new Error(`${revision.authority} names another revision's receipts`);
+  if (
+    authority.receiptRoot !== revision.receiptRoot ||
+    authority.protocol !== revision.protocol ||
+    authority.bridge !== bridges[revision.protocol]
+  )
+    throw new Error(`${revision.authority} names another revision's receipts or protocol`);
 
   const receipts = new Map<
     string,
@@ -262,7 +285,7 @@ function modifications(app: (typeof nativeApps)[number], upstream: string) {
 
 Based on ${upstream} by the ArtCraft team. This is a modified version, not an official ArtCraft product, and no upstream sponsorship or endorsement is implied.
 
-Changes from the tagged upstream source: direct native host methods, correlated protocol 2 bridge (background save, parsed-open and durable acknowledgement, host-driven theme), interface colours from Hyori's palette, and removal of the ArtCraft marks, community promotion and upstream brand links as the upstream brand licence requires of modified versions. Plain-text copyright and source attribution remain.
+Changes from the tagged upstream source: direct native host methods, correlated protocol ${current.protocol} bridge (background save, parsed-open and durable acknowledgement, host-driven theme, running in a sandboxed opaque-origin frame from protocol 3), interface colours from Hyori's palette, and removal of the ArtCraft marks, community promotion and upstream brand links as the upstream brand licence requires of modified versions. Plain-text copyright and source attribution remain.
 
 - original-legal/: upstream LICENSE-MIT, LICENSE-APACHE, NOTICE, ATTRIBUTION.md and docs/brand/LICENSE-brand.txt, byte-identical to the tagged source.
 - modified-source/: every changed or added source member, complete.
@@ -379,8 +402,8 @@ function handoffReceipt(
       app: entry.app,
       version: entry.artifactVersion,
       role: "current",
-      bridge,
-      protocol: 2,
+      bridge: authority.bridge,
+      protocol: authority.protocol,
       assetUrl: `/artcraft/${entry.app}/${entry.artifactVersion}/index.html?host=parent`,
       payloadSha256: entry.payloadSha256,
       wasmSha256: entry.wasmSha256,
@@ -489,14 +512,14 @@ export async function createNativeRuntime(
     editors.push({
       app: entry.app,
       role: "current",
-      protocol: 2,
+      protocol: authority.protocol,
       version: entry.artifactVersion,
       sourceArchiveSha256: entry.sourceArchiveSha256,
       buildManifestSha256: entry.buildManifestSha256,
       payloadSha256: entry.payloadSha256,
       index,
       assetUrl: `/artcraft/${index}?host=parent`,
-      bridge,
+      bridge: authority.bridge,
       deployable: true,
       files: receipt.files,
     });
@@ -623,8 +646,8 @@ export async function checkNativeRuntime(root: string, expectedSha256: string) {
             app: z.enum(nativeApps),
             version: z.string(),
             payloadSha256: digest,
-            bridge: z.literal(bridge),
-            protocol: z.literal(2),
+            bridge,
+            protocol,
             files: z.array(record),
           }),
         )
@@ -655,6 +678,8 @@ export async function checkNativeRuntime(root: string, expectedSha256: string) {
 
     if (
       !editor ||
+      editor.bridge !== authority.bridge ||
+      editor.protocol !== authority.protocol ||
       editor.version !== entry.artifactVersion ||
       editor.payloadSha256 !== entry.payloadSha256 ||
       payloadSha256(editor.files) !== entry.payloadSha256 ||

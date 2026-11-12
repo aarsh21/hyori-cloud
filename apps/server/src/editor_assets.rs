@@ -110,9 +110,24 @@ impl EditorAssets {
             return Ok(Self::default());
         };
         let synthetic_allowed = !config.secure_cookies && config.bind.ip().is_loopback();
-        tokio::task::spawn_blocking(move || Self::verify(&settings, synthetic_allowed))
-            .await
-            .map_err(|_| ApiError::unavailable())?
+        let assets =
+            tokio::task::spawn_blocking(move || Self::verify(&settings, synthetic_allowed))
+                .await
+                .map_err(|_| ApiError::unavailable())??;
+        // Tell the operator before a person meets it: the web client sandboxes every editor frame,
+        // and only protocol 3 runs there. Older runtimes stay verified so nothing else breaks.
+        for (app, version) in &assets.current {
+            if let Some(capability) = assets.entries.get(&(app.clone(), version.clone()))
+                && capability.protocol != Some(3)
+            {
+                tracing::warn!(
+                    app = %app,
+                    version = %version,
+                    "Editor runtime predates sandboxed editor frames; it won't open until the editor bundle is rebuilt"
+                );
+            }
+        }
+        Ok(assets)
     }
     fn verify(
         settings: &crate::config::EditorAssetsConfig,
@@ -211,7 +226,7 @@ impl EditorAssets {
             let name = formats::app_name(&editor.app);
             let prefix = format!("{name}/{}/", editor.version);
             let protocol = editor_protocol(&editor)?;
-            if (bundle.schema_version == 1 && (editor.role.is_some() || protocol == Some(2)))
+            if (bundle.schema_version == 1 && (editor.role.is_some() || is_native(protocol)))
                 || (bundle.schema_version == 2 && editor.role.is_none())
             {
                 return Err(ApiError::unavailable());
@@ -403,7 +418,7 @@ fn verify_sidecar(
     Ok(())
 }
 fn editor_protocol(editor: &Editor) -> Result<Option<u8>, ApiError> {
-    let native = native_authorities()?.iter().any(|(authority, _)| {
+    let native = native_authorities()?.into_iter().find(|(authority, _)| {
         authority.bridge == editor.bridge
             && Some(authority.protocol) == editor.protocol
             && authority
@@ -411,8 +426,8 @@ fn editor_protocol(editor: &Editor) -> Result<Option<u8>, ApiError> {
                 .iter()
                 .any(|entry| entry.app == editor.app && entry.artifact_version == editor.version)
     });
-    if native {
-        return Ok(Some(2));
+    if let Some((authority, _)) = native {
+        return Ok(Some(authority.protocol));
     }
     let protocol = if editor.app == EditorApp::Deckcraft {
         Some(1)
@@ -431,6 +446,10 @@ fn editor_protocol(editor: &Editor) -> Result<Option<u8>, ApiError> {
         return Err(ApiError::unavailable());
     }
     Ok(protocol)
+}
+/// Native host protocols: 2 needs a same-origin frame; 3 is the first that runs sandboxed.
+fn is_native(protocol: Option<u8>) -> bool {
+    matches!(protocol, Some(2 | 3))
 }
 fn sha256(value: &str) -> bool {
     value.len() == 64
@@ -465,7 +484,7 @@ fn known_identity_with_pins(
         source_sha256: String,
     }
     let pins: Pins = serde_json::from_str(pins).map_err(|_| ApiError::unavailable())?;
-    if editor.protocol == Some(2) {
+    if is_native(editor.protocol) {
         return known_native_identity(editor, inventory);
     }
     if editor.app == EditorApp::Deckcraft {
