@@ -2,6 +2,9 @@ use hyori_server::{AppState, config::Config, router};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    if std::env::args().nth(1).as_deref() == Some("--health") {
+        return health().await;
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -30,6 +33,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     drained?;
     maintained?;
     closed?;
+    Ok(())
+}
+
+async fn health() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut bind: std::net::SocketAddr = std::env::var("HYORI_SERVER_BIND")
+        .unwrap_or_else(|_| "127.0.0.1:3002".into())
+        .parse()?;
+    if bind.ip().is_unspecified() {
+        bind.set_ip(match bind.ip() {
+            std::net::IpAddr::V4(_) => std::net::Ipv4Addr::LOCALHOST.into(),
+            std::net::IpAddr::V6(_) => std::net::Ipv6Addr::LOCALHOST.into(),
+        });
+    }
+    let response = reqwest::Client::builder()
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(3))
+        .build()?
+        .get(format!("http://{bind}/health/ready"))
+        .send()
+        .await?;
+    if response.status() != reqwest::StatusCode::OK {
+        return Err(format!("backend not ready: HTTP {}", response.status()).into());
+    }
     Ok(())
 }
 
