@@ -195,11 +195,13 @@ async function accountSharing(run: CoreRun, phone: boolean) {
     const ownedBytes = media.bytes(`owned-${size}.bin`, 2713);
     await uploadFiles(page, ownedBytes);
     await clearUploads(page);
-    await page
-      .getByRole("navigation", { name: "Main", exact: true })
-      .last()
-      .getByRole("link", { name: "Files", exact: true })
-      .click();
+    await report.check(`${size}: the Files breadcrumb returns to the root`, async () => {
+      await page
+        .getByRole("navigation", { name: "Folder path", exact: true })
+        .getByRole("link", { name: "Files", exact: true })
+        .click();
+      await page.getByRole("heading", { name: "Files", exact: true }).waitFor();
+    });
 
     for (const role of ["Viewer", "Contributor", "Editor"] as const) {
       await report.check(
@@ -404,10 +406,17 @@ async function recoveryAndAlbums(run: CoreRun, phone: boolean) {
         try {
           await page.getByRole("link", { name: "Shared", exact: true }).first().click();
           await page.getByText("You’re offline", { exact: true }).waitFor();
+          assert.equal(
+            await page.getByRole("navigation", { name: "Main", exact: true }).first().isVisible(),
+            true,
+          );
+          await page.getByRole("button", { name: "Retry", exact: true }).waitFor();
           await report.shot(page, `readiness-${size}-offline`);
         } finally {
           await context.setOffline(false);
         }
+
+        await page.getByRole("heading", { name: "Shared with me", exact: true }).waitFor();
       },
     );
     await report.check(`${size}: reloading after connectivity returns recovers Files`, async () => {

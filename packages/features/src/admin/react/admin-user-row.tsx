@@ -9,7 +9,7 @@ import {
   ItemTableRow,
 } from "@hyori-cloud/ui/components/item-collection";
 import { Tag } from "@hyori-cloud/ui/components/tag";
-import { InlineText, Row } from "@hyori-cloud/ui/components/text";
+import { InlineText } from "@hyori-cloud/ui/components/text";
 import type { AdminUser } from "#features/admin/react/admin-screen.tsx";
 import { formatUsage } from "#features/shared/format.ts";
 
@@ -29,18 +29,24 @@ export function AdminUserRow({
     <ItemTableRow itemKey={user.id}>
       <ItemTableCell className="flex items-center gap-2">
         <ItemName
-          className="flex-none shrink"
           icon={<UserIcon aria-hidden />}
-          meta={deleting ? "Deleting account…" : `${user.email} · ${usage}`}
+          meta={
+            deleting ? (
+              "Deleting account…"
+            ) : (
+              <span className="flex min-w-0 gap-1">
+                <span className="truncate">{user.email}</span>
+                <span className="shrink-0">· {usage}</span>
+              </span>
+            )
+          }
         >
           {user.name}
         </ItemName>
-        <Row className="min-w-0 gap-2">
-          <InlineText tone="muted" truncate className="hidden @2xl:inline">
-            {user.email}
-          </InlineText>
-          {user.role === "admin" ? <Tag>Admin</Tag> : null}
-        </Row>
+        <InlineText tone="muted" truncate className="hidden min-w-0 flex-1 @2xl:inline">
+          {user.email}
+        </InlineText>
+        {user.role === "admin" ? <Tag>Admin</Tag> : null}
       </ItemTableCell>
       <ItemTableDetailCell>{deleting ? "Deleting account…" : usage}</ItemTableDetailCell>
       <ItemTableCell className="overflow-visible">

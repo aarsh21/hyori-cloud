@@ -24,7 +24,7 @@ export const loadEditorScreen = () => import("#features/editors/react/editor-scr
 
 function ignoreLoadFailure() {
   // A preload is only a head start. If the code really is unavailable, rendering the screen fails
-  // into the host's error boundary, which is where someone can act on it.
+  // into its offline recovery boundary, or the host's Reload screen for an online chunk failure.
 }
 
 export function preloadCloudLocation(location: CloudLocation) {

@@ -59,7 +59,7 @@ function SignedInLocationScreen({ location }: { location: SignedInLocation }) {
 
   return (
     <CloudShell>
-      <CloudContent location={location} />
+      <CloudContent key={location.section} location={location} />
     </CloudShell>
   );
 }
