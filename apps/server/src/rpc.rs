@@ -228,12 +228,7 @@ struct Envelope {
     input: Value,
 }
 pub async fn handle(State(state): State<Arc<AppState>>, request: Request<Body>) -> Response {
-    let result = tokio::time::timeout(
-        std::time::Duration::from_secs(30),
-        handle_inner(state, request),
-    )
-    .await
-    .unwrap_or_else(|_| Err(ApiError::unavailable()));
+    let result = handle_inner(state, request).await;
     match result {
         Ok(result) => {
             let mut response =
@@ -255,6 +250,8 @@ async fn handle_inner(
     state: Arc<AppState>,
     request: Request<Body>,
 ) -> Result<RpcResult<Value>, ApiError> {
+    let started = std::time::Instant::now();
+    let ordinary_budget = std::time::Duration::from_secs(30);
     validate_origin(request.headers(), &state.config.origin)?;
     if request
         .headers()
@@ -274,9 +271,13 @@ async fn handle_inner(
             .map(|info| info.0.ip()),
         &state.config.trusted_proxies,
     );
-    let bytes = to_bytes(request.into_body(), MAX_JSON_BYTES)
-        .await
-        .map_err(|_| ApiError::invalid())?;
+    let bytes = tokio::time::timeout(
+        ordinary_budget,
+        to_bytes(request.into_body(), MAX_JSON_BYTES),
+    )
+    .await
+    .map_err(|_| ApiError::unavailable())?
+    .map_err(|_| ApiError::invalid())?;
     let envelope: Envelope = serde_json::from_slice(&bytes).map_err(|_| ApiError::invalid())?;
     // Admission bounds handler work, not clients: taken only once the whole bounded body has
     // arrived, so connections that never finish sending one cannot hold every slot.
@@ -284,7 +285,26 @@ async fn handle_inner(
         .requests
         .try_acquire()
         .map_err(|_| ApiError::unavailable())?;
-    state.rpc.dispatch(state.clone(), context, envelope).await
+    // Only upload mutations may wait through a bounded part writer's FIFO turn. Reading JSON
+    // and every other operation retain the original thirty-second overall deadline.
+    let budget = if matches!(
+        envelope.operation.as_str(),
+        "uploads.begin"
+            | "uploads.part"
+            | "uploads.complete"
+            | "editors.prepareSave"
+            | "editors.completeSave"
+    ) {
+        crate::features::uploads::admission::QUEUE_WAIT + std::time::Duration::from_secs(140)
+    } else {
+        ordinary_budget
+    };
+    tokio::time::timeout(
+        budget.saturating_sub(started.elapsed()),
+        state.rpc.dispatch(state.clone(), context, envelope),
+    )
+    .await
+    .unwrap_or_else(|_| Err(ApiError::unavailable()))
 }
 pub fn validate_origin(headers: &HeaderMap, origin: &str) -> Result<(), ApiError> {
     if headers.get_all("origin").iter().count() > 1 {

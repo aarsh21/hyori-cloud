@@ -31,6 +31,10 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
     detail:
       "You’ve reached the limit on unfinished uploads. Cancel some in Unfinished uploads, in your account menu, then try again.",
   },
+  "uploads.busy": {
+    title: "Uploads are busy",
+    detail: "Wait for a running transfer to finish, then try again.",
+  },
   "storage.quotaExceeded": {
     title: "Not enough storage",
     detail: "Free up space or ask your admin for a larger quota.",

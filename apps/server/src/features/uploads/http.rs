@@ -63,13 +63,19 @@ pub(crate) async fn put(
     }
     let context = RequestContext::from_headers(request.headers());
     // A silently dead connection must fail the part (and release its lease) promptly, not after
-    // the storage adapter's two-minute request bound.
+    // the storage adapter's two-minute request bound. Admission waiting must not restart the
+    // first-chunk clock: an empty queued body has already spent that idle time.
     let body = stream::unfold(
-        Some(request.into_body().into_data_stream()),
+        Some((
+            request.into_body().into_data_stream(),
+            tokio::time::Instant::now() + IDLE,
+        )),
         |body| async move {
-            let mut body = body?;
-            match tokio::time::timeout(IDLE, body.next()).await {
-                Ok(Some(Ok(bytes))) => Some((Ok(bytes), Some(body))),
+            let (mut body, deadline) = body?;
+            match tokio::time::timeout_at(deadline, body.next()).await {
+                Ok(Some(Ok(bytes))) => {
+                    Some((Ok(bytes), Some((body, tokio::time::Instant::now() + IDLE))))
+                }
                 Ok(None) => None,
                 Ok(Some(Err(_))) => {
                     Some((Err(StorageError::Body("incoming request failed")), None))

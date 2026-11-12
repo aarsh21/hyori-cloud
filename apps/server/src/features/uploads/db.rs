@@ -31,6 +31,7 @@ pub(crate) struct Upload {
     pub file_id: Option<String>,
     pub result: Option<serde_json::Value>,
     pub lease_token: Option<String>,
+    pub lease_until: Option<DateTime<Utc>>,
     pub expires_at: DateTime<Utc>,
     /// Consecutive clean cleanup observations; drives revisit backoff.
     pub clean_checks: i32,
@@ -57,6 +58,7 @@ impl Upload {
             file_id: row.try_get("", "file_id")?,
             result: row.try_get("", "result")?,
             lease_token: row.try_get("", "lease_token")?,
+            lease_until: row.try_get("", "lease_until")?,
             expires_at: row.try_get("", "expires_at")?,
             clean_checks: row.try_get("", "clean_checks")?,
         })

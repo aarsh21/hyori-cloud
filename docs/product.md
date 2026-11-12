@@ -403,4 +403,16 @@ Validate capabilities against the selected versions and official documentation b
 
 - **Decision:** Bound upload operations per authenticated account (across sessions) or anonymous visitor, and additionally per applicable public link, inside the sixteen per-process upload slots. The implementation uses two per principal and four per link, matching two concurrent SDK files with serial parts and permitting two visitor queues per link.
 - **Rationale:** The production-readiness lead chose separate principal/link budgets so one slow contributor cannot prevent unrelated accounts from uploading. Public grants can be reissued, so grant identity alone is insufficient.
-- **Scope consequence:** Begin, part and complete share admission; rejected requests hold no global slot and no server queue. These are per-process budgets, not cluster-wide quotas. Thirty-second body idle and 125-second whole-worker bounds limit slow part lifetimes.
+- **Scope consequence:** Begin, part and complete share admission. A separate sixteen-query gate bounds authorization before the database pool. Account/link admission uses bounded FIFO waiting without a database transaction or process-wide upload slot; the global transfer slot is acquired only afterward. Clients retain the 195-second retry budget on explicit `uploads.busy` refusals, using five-second intervals. These are per-process budgets, not cluster-wide quotas. Thirty-second body idle and 125-second whole-worker bounds limit slow part lifetimes.
+
+### 2026-11-12: editor saves and multiple uploading devices
+
+- **Decision:** The same person's background uploads must not refuse or delay editor saves. A second device or additional contributor must get a turn at a part boundary while existing transfers continue, rather than hoping a five-second poll catches an empty slot.
+- **Rationale:** The production-readiness lead identified interference with ordinary editor use and starvation across long multi-part queues; a gateway SDK drill reproduced a save refusal while both account slots were held.
+- **Scope consequence:** Server-bound editor saves have an independent two-per-principal/four-per-link allowance, still inside the same sixteen global transfer slots. Normal account/link limits stay two/four. Admission queues at most twice each allowance for up to 130 seconds, outlasting the 125-second writer and five-second release. Upload/save RPC deadlines permit this wait plus the bounded storage operation; JSON reading and other RPCs keep their thirty-second deadline. No new interface copy or wire code is added.
+
+### 2026-11-12: upload lease recovery
+
+- **Decision:** Keep the three-minute upload lease unchanged, without renewal or startup clearing. Distinguish a held lease from an outage; let the SDK wait up to the lease lifetime plus fifteen seconds. Outage retries remain at one, two and four seconds. Begin/completion may retry only an explicit pre-write busy refusal, never an ambiguous failure.
+- **Rationale:** The production-readiness lead withdrew short renewed leases after a two-replica drill showed that a delayed storage write can overwrite a later writer's acknowledged part. Database tokens fence acknowledgement and stored ETags fence completion, not the mutable multipart part itself.
+- **Scope consequence:** Retain existing pending/uploading/finalizing states while waiting, without new interface copy. Record the stale-part recovery defect rather than repairing it in this round.

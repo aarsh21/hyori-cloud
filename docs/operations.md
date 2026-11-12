@@ -80,11 +80,13 @@ The baseline drills below used commit `6b08373`, `scripts/ops-drills.ts` and two
 
 The gateway 502 was caused by an earlier rejected upload, not by the RPC waiting for storage. An early PUT rejection cancels an unfinished Node request body. The gateway reused that connection for the next RPC, but Node never parsed that RPC and destroyed the connection on its 6-second socket timeout. The Node proxy now sends `Connection: close` for rejected PUTs on its gateway hop, preventing reuse. It still streams successful transfers. The SDK also maps a 502, 503 or 504 with no RPC envelope to `service.unavailable`; other malformed envelopes remain protocol errors, and valid declared RPC errors are preserved.
 
-Uploads now make up to three automatic retries after 1, 2 and 4 seconds for idempotent status/part requests, including declared `service.unavailable` as well as transport failures. Every attempt retains the upload ID, part number and bounded byte slice. Permanent refusals and cancellation do not retry. Begin and completion are not automatically replayed; an ambiguous begin must not allocate another upload. A persistent outage still exhausts the budget and leaves the checkpoint for explicit Retry.
+Uploads now make up to three automatic retries after 1, 2 and 4 seconds for idempotent status/part requests, including declared `service.unavailable` as well as transport failures. Every attempt retains the upload ID, part number and bounded byte slice. Permanent refusals and cancellation do not retry. Begin and completion replay only an explicit pre-write `uploads.busy` refusal, never an ambiguous outage or lost response: an ambiguous begin must not allocate another upload automatically. A persistent outage still exhausts the budget and leaves the checkpoint for explicit Retry.
 
-The checkpoint-boundary crash drill now completes automatically with its SHA-256 intact. Recovery from every crash timing is **not fixed**: a separate drill confirmed that killing the backend during an actively leased PUT leaves its three-minute database lease in place. All four automatic attempts finish before that lease expires and the upload still needs explicit Retry afterwards. Shortening or clearing leases on startup would risk interfering with still-running writes in another replica; no such change was made.
+Both the checkpoint-boundary and actively leased part crash drills now complete automatically with intact SHA-256. The latter takes about three minutes: a dead writer's unchanged lease remains in PostgreSQL, and the SDK waits on `uploads.busy` for up to 195 seconds. The small part-capability RPC checks admission and the lease before the client sends bytes, because an early binary rejection can lose its envelope through Node's body cancellation. The PUT still authorizes and claims atomically; a capability is not a reservation. No lease is renewed or cleared at startup.
 
-The proposed short renewable lease also needs storage-side fencing before it is safe. A two-replica drill paused writer A after issuing its storage PUT and shortened only that fixture's database lease to three seconds. After expiry, B wrote different same-length bytes and acknowledged the part once. Releasing A's delayed storage request overwrote B's remote part: A's acknowledgement was refused with 409, but completion then failed with S3 `InvalidPart` (HTTP 400, mapped to `service.unavailable`). The database token fences acknowledgement, not an already-issued S3 write. Renewal cannot run in a paused process or retract that remote request. The production lease and retry budget were left unchanged after this counterexample; no startup lease clearing was added.
+A stale storage write remains a known defect, including with the unchanged three-minute lease. A two-replica drill paused writer A after issuing its storage PUT, waited 181 seconds without changing the lease, then let B acknowledge different same-length bytes. Releasing A's delayed request overwrote B's remote part. There was one database acknowledgement, but completion failed with S3 `InvalidPart` (HTTP 400, mapped to `service.unavailable`). No file was published; the upload stayed `finalizing` with its reservation held. Replaying the part or using SDK Retry did not repair it; Cancel released the reservation. Repeating the original accelerated fixture with identical bytes produced equal RustFS ETags and completed intact. The database token fences acknowledgement and stored ETags fence completion, not an already-issued S3 write. Short renewable leases were withdrawn; stale-part repair is a follow-up, not implemented here.
+
+Ambiguous begin/completion crashes still surface a failed upload rather than being automatically replayed. A lost begin has no local checkpoint; its retained `starting` intent appears in the account's pending list and can be canceled. An explicit Retry starts a new intent. A lost completion retains its checkpoint; explicit Retry uses that upload ID, waits out the lease if necessary, and reconciles the already-completed object instead of publishing duplicate bytes.
 
 ### Replicas
 
@@ -117,8 +119,42 @@ Each backend admits sixteen concurrent upload operations. Within those slots, on
 account (across all its sessions) or anonymous visitor grant set may hold two. Each applicable
 public contributor/editor link may hold four across all visitors. The SDK queues two files and
 sends their parts serially; the link budget allows two such queues. Begin, part and complete
-share these limits. Excess work gets `service.unavailable` without waiting in a server queue;
-SDK part retries remain bounded. These are per-process limits, so replicas multiply capacity.
+share these limits. Each account/link has a FIFO queue of at most twice its allowance, waiting
+at most 130 seconds, with no database transaction or global upload slot held while waiting.
+Server-bound editor saves have independent two/four allowances, still inside the same sixteen
+global slots, so background uploads do not consume that person's editor allowance.
+Queue overflow, queue timeout or global saturation gets HTTP 409 `uploads.busy`. The SDK waits
+five seconds between attempts, for at most 195 seconds or 39 additional attempts after its first
+busy answer, then retains its checkpoint for explicit Retry. This also applies to begin and completion only
+when the server explicitly refused with `uploads.busy`; ambiguous begin/completion failures
+are never replayed automatically. A queued request's in-flight time is additional to client
+retry delays. These are per-process limits, so replicas multiply capacity.
+
+A separate sixteen-query authorization gate bounds even unknown/anonymous part lookups before
+the database pool. Credential-bearing requests may queue there for up to one second (at most
+sixteen waiters); credentials still require database validation. Credential-less requests do not
+queue. Unknown or unauthorized uploads never consume a global transfer slot. The upload/save
+RPC deadline is 270 seconds to include a queue turn and bounded storage work; reading JSON and
+all other RPCs retain the original thirty-second overall deadline.
+
+Anonymous request volume can still slow legitimate uploads; rate limiting at the gateway is
+outside this reliability change. Before FIFO admission and separating the authorization gate,
+waiting clients polled rather than receiving first-come admission. One run per identity on a
+shared two-CPU orb, with 500 concurrent anonymous unknown-ID PUT
+workers and a six-part 41,943,043-byte SDK upload, completed intact in 343.782 seconds for an
+account (quiet: 1.546 seconds) and 244.769 seconds for a contributor (quiet: 0.367 seconds).
+The original `6b08373` backend failed the same runs after 11.786 and 8.123 seconds respectively.
+These are single-run failure-drill observations, not deployment performance targets.
+
+After adding FIFO turns, a gateway SDK run with two 167,772,163-byte files (twenty full
+8-MiB parts plus three bytes each, about twelve seconds per full part) let another device's
+small upload finish in 8.508 seconds while both large files continued. A third contributor
+visitor finished in 8.068 seconds while four such files continued on the same link. Both
+observed zero busy responses. A same-account SDK editor replace save took 155 ms during those
+uploads versus 151 ms quiet, with zero busy responses. All six large-file readbacks across
+these runs matched their source SHA-256. These were single runs through the built web host
+and Caddy on the shared two-CPU orb, with synthetic editor inventory, not real vendor UI.
+They do not establish latency under a simultaneous anonymous flood or cluster-wide fairness.
 
 A part body that supplies no chunk for thirty seconds is abandoned. The storage operation has
 a 120-second deadline and the leased worker a 125-second deadline, so sending occasional tiny

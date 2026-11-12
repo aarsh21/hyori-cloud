@@ -407,6 +407,214 @@ async fn slow_parts_cannot_exhaust_another_principals_upload_admission() {
 
 #[tokio::test]
 #[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
+async fn another_device_waits_for_a_part_boundary_instead_of_failing_admission() {
+    use tokio::io::AsyncWriteExt;
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (_, cookie) = setup(&server).await;
+    let mut sockets = vec![];
+    for name in ["first-device-a", "first-device-b"] {
+        let id = begin(&server, &cookie, name, 3, None, None).await;
+        let mut socket = tokio::net::TcpStream::connect(server.url.trim_start_matches("http://"))
+            .await
+            .unwrap();
+        socket.write_all(format!("PUT /api/storage/uploads/{id}/1 HTTP/1.1\r\nHost: localhost:3001\r\nOrigin: http://localhost:3001\r\nCookie: {cookie}\r\nContent-Length: 3\r\n\r\n").as_bytes()).await.unwrap();
+        sockets.push(socket);
+    }
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let active = server
+                .state
+                .db
+                .query_one_raw(sql(
+                    "SELECT count(*)::bigint AS n FROM hyori_uploads WHERE lease_until>now()",
+                    vec![],
+                ))
+                .await
+                .unwrap()
+                .unwrap()
+                .try_get::<i64>("", "n")
+                .unwrap();
+            if active == 2 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let waiting = {
+        let (client, url, cookie) = (server.client.clone(), server.url.clone(), cookie.clone());
+        tokio::spawn(async move {
+            client.post(format!("{url}/api/rpc"))
+                .header("host", "localhost:3001")
+                .header("origin", "http://localhost:3001")
+                .header("cookie", cookie)
+                .json(&json!({"operation":"uploads.begin","input":{"parentId":null,"name":"second-device","size":3,"mimeType":"text/plain"}}))
+                .send().await.unwrap()
+        })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert!(
+        !waiting.is_finished(),
+        "admission should wait for a part boundary"
+    );
+    sockets[0].write_all(b"abc").await.unwrap();
+    let response = tokio::time::timeout(std::time::Duration::from_secs(5), waiting)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let value: Value = response.json().await.unwrap();
+    let id = value["value"]["uploadId"].as_str().unwrap();
+    assert_eq!(put(&server, &cookie, id, b"xyz").await.status(), 200);
+    let completed = server
+        .rpc("uploads.complete", json!({"uploadId":id}), Some(&cookie))
+        .await;
+    assert_eq!(completed.value()["size"], 3);
+    drop(sockets);
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
+async fn held_upload_lease_is_distinct_from_outage_for_part_and_completion() {
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (_, cookie) = setup(&server).await;
+    let id = begin(&server, &cookie, "held", 3, None, None).await;
+    server.state.db.execute_raw(sql("UPDATE hyori_uploads SET lease_token='another-writer',lease_until=now()+interval '3 minutes' WHERE id=$1",vec![id.clone().into()])).await.unwrap();
+    server
+        .rpc(
+            "uploads.part",
+            json!({"uploadId":id,"partNumber":1}),
+            Some(&cookie),
+        )
+        .await
+        .error(409, "uploads.busy");
+    let refused = put(&server, &cookie, &id, b"abc").await;
+    assert_eq!(refused.status(), 409);
+    assert_eq!(
+        refused.json::<Value>().await.unwrap()["error"]["code"],
+        "uploads.busy"
+    );
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_uploads SET lease_until=now()-interval '1 second' WHERE id=$1",
+            vec![id.clone().into()],
+        ))
+        .await
+        .unwrap();
+    server
+        .rpc(
+            "uploads.part",
+            json!({"uploadId":id,"partNumber":1}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    assert_eq!(put(&server, &cookie, &id, b"abc").await.status(), 200);
+    server.state.db.execute_raw(sql("UPDATE hyori_uploads SET lease_token='another-writer',lease_until=now()+interval '3 minutes' WHERE id=$1",vec![id.clone().into()])).await.unwrap();
+    server
+        .rpc("uploads.complete", json!({"uploadId":id}), Some(&cookie))
+        .await
+        .error(409, "uploads.busy");
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_uploads SET lease_until=now()-interval '1 second' WHERE id=$1",
+            vec![id.clone().into()],
+        ))
+        .await
+        .unwrap();
+    let file = complete(&server, &cookie, &id).await;
+    assert_eq!(
+        get(&server, &cookie, file["id"].as_str().unwrap(), None)
+            .await
+            .bytes()
+            .await
+            .unwrap(),
+        b"abc"[..]
+    );
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL and controlled upload-table lock"]
+async fn anonymous_part_authorization_is_bounded_before_the_database_pool() {
+    use sea_orm::TransactionTrait;
+    let pg = Postgres::start().await;
+    let server = TestServer::start(pg.config.clone()).await;
+    let (_, cookie) = setup(&server).await;
+    let barrier = server.state.db.begin().await.unwrap();
+    barrier
+        .execute_unprepared("LOCK TABLE hyori_uploads IN ACCESS EXCLUSIVE MODE")
+        .await
+        .unwrap();
+    let mut requests = tokio::task::JoinSet::new();
+    for _ in 0..80 {
+        let (client, url, origin) = (
+            server.client.clone(),
+            server.url.clone(),
+            server.state.config.origin.clone(),
+        );
+        requests.spawn(async move {
+            client
+                .put(format!("{url}/api/storage/uploads/unknown/1"))
+                .header("host", "localhost:3001")
+                .header("origin", origin)
+                .body("abc")
+                .send()
+                .await
+                .unwrap()
+                .status()
+        });
+    }
+    let mut refused = 0;
+    let waiting = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            while let Some(response) = requests.try_join_next() {
+                assert_eq!(response.unwrap(), 409);
+                refused += 1;
+            }
+            barrier.execute_unprepared("SELECT pg_stat_clear_snapshot()").await.unwrap();
+            let waiting = barrier.query_one_raw(sql("SELECT count(*)::bigint AS n FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE '%hyori_uploads%'",vec![])).await.unwrap().unwrap().try_get::<i64>("","n").unwrap();
+            if waiting > 16 || (waiting == 16 && refused == 64) { break waiting; }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    }).await.expect("all eighty requests must reach bounded admission");
+    eprintln!("anonymous part transactions waiting on upload-table lock: {waiting}");
+    assert_eq!(
+        waiting, 16,
+        "part authorization must be bounded before entering the database"
+    );
+    assert_eq!(refused, 64);
+    let listed = tokio::time::timeout(
+        std::time::Duration::from_secs(1),
+        server.rpc("files.list", json!({"parentId":null}), Some(&cookie)),
+    )
+    .await
+    .expect("anonymous part authorization must leave database capacity for metadata");
+    listed.value();
+    barrier.commit().await.unwrap();
+    while let Some(response) = requests.join_next().await {
+        assert!(matches!(response.unwrap().as_u16(), 404 | 409));
+    }
+    drop(server);
+    pg.stop();
+}
+
+#[tokio::test]
+#[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
 async fn upload_download_replay_versions_ranges_quota_and_shared_authority() {
     let mut pg = Postgres::start().await;
     let metadata = TestServer::start(pg.config.clone()).await;
