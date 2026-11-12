@@ -50,15 +50,18 @@ export async function runReadinessPhotoScenarios(run: CoreRun, phone: boolean) {
             await page.getByRole("switch", { name: "All my files" }).press("Space");
           }
 
+          const sourceCheckbox = page
+            .getByRole("listitem")
+            .filter({ hasText: folder })
+            .getByRole("checkbox");
+
+          await sourceCheckbox.waitFor({ state: "visible" });
+
           for (const checkbox of await page.getByRole("checkbox").all()) {
             if (await checkbox.isChecked()) await checkbox.uncheck();
           }
 
-          await page
-            .getByRole("listitem")
-            .filter({ hasText: folder })
-            .getByRole("checkbox")
-            .check();
+          await sourceCheckbox.check();
           await page.getByRole("button", { name: /^(Save|Show my photos)$/ }).click();
 
           for (const name of [image, video]) {
