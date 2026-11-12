@@ -2,12 +2,16 @@ import { Schema } from "@hyori-cloud/lib/effect";
 import type { RPC } from "#client-sdk/product-types";
 import { normalizeClientError, SDKError, type ClientError } from "#client-sdk/errors";
 import {
+  checkpointIntent,
   decodeUploadCheckpoint,
   matchesCheckpointFile,
+  UploadFileFingerprint,
 } from "#client-sdk/features/uploads/upload-checkpoint";
 import type { UploadCheckpoint } from "#client-sdk/features/uploads/upload-checkpoint";
 import type { InputOf, OutputOf } from "#client-sdk/inference";
 import { UploadSnapshot } from "#client-sdk/features/uploads/upload-state";
+import { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
+import { readBinaryRejection } from "#client-sdk/read-binary-rejection";
 
 type UploadRpc = RPC["uploads"];
 
@@ -64,6 +68,13 @@ export type StartUpload = Omit<BeginInput, "name" | "size" | "mimeType"> & {
   readonly file: UploadFile;
 };
 
+export type ReplaceUpload = Omit<StartUpload, "replaceId"> & {
+  readonly target: {
+    readonly id: NonNullable<BeginInput["replaceId"]>;
+    readonly name: BeginInput["name"];
+  };
+};
+
 export type ResumeUpload = {
   readonly checkpoint: UploadCheckpoint;
   readonly file: UploadFile;
@@ -72,6 +83,7 @@ export type ResumeUpload = {
 };
 
 export type UploadTask = {
+  readonly intent: UploadIntent;
   readonly result: Promise<FileEntry>;
   readonly getSnapshot: () => UploadSnapshot;
   readonly subscribe: (listener: () => void) => () => void;
@@ -105,23 +117,56 @@ export function createUploads(
 ) {
   const tasks = new Set<UploadTask>();
 
-  function task(input: StartUpload | ResumeUpload, options: UploadOptions = {}): UploadTask {
+  function task(
+    input: StartUpload | ReplaceUpload | ResumeUpload,
+    options: UploadOptions = {},
+  ): UploadTask {
     const file = input.file;
     const resume = "checkpoint" in input ? input : null;
+    let checkpoint: UploadCheckpoint | null = null;
+    let fingerprint: UploadFileFingerprint;
+    let intent: UploadIntent;
 
-    if (resume) {
-      try {
-        decodeUploadCheckpoint(resume.checkpoint);
-      } catch (error) {
-        throw new SDKError("SDK_VALIDATION", "The saved upload checkpoint is invalid.", {
-          cause: error,
-        });
+    try {
+      // Decode copies only metadata: never freeze or serialize a host's File/slice capability.
+      fingerprint = Schema.decodeUnknownSync(UploadFileFingerprint)({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified,
+      });
+      checkpoint = resume ? decodeUploadCheckpoint(resume.checkpoint) : null;
+      let requestedIntent: UploadIntent = { kind: "new", name: file.name };
+
+      if (checkpoint) requestedIntent = checkpointIntent(checkpoint);
+      else if ("target" in input)
+        requestedIntent = {
+          kind: "replacement",
+          name: input.target.name,
+          targetId: input.target.id,
+        };
+      else if ("replaceId" in input && input.replaceId !== undefined)
+        requestedIntent = { kind: "replacement", name: file.name, targetId: input.replaceId };
+      intent = Schema.decodeUnknownSync(UploadIntent)(requestedIntent);
+      // These values are exposed to observers and durable storage; they must not be retargetable.
+      Object.freeze(fingerprint);
+      Object.freeze(intent);
+
+      if (checkpoint) {
+        Object.freeze(checkpoint.file);
+
+        if (checkpoint.version === 2) Object.freeze(checkpoint.intent);
+        Object.freeze(checkpoint);
       }
+    } catch (error) {
+      throw new SDKError("SDK_VALIDATION", "The upload source, target or checkpoint is invalid.", {
+        cause: error,
+      });
     }
 
     if (
       resume &&
-      (resume.confirmSameFile !== true || !matchesCheckpointFile(resume.checkpoint, file))
+      (resume.confirmSameFile !== true || !matchesCheckpointFile(checkpoint!, fingerprint))
     ) {
       throw new SDKError(
         "SDK_FILE_MISMATCH",
@@ -129,8 +174,6 @@ export function createUploads(
       );
     }
 
-    if (!Number.isSafeInteger(file.size) || file.size < 0)
-      throw new SDKError("SDK_VALIDATION", "The local file size is invalid.");
     const retries = options.maxRetries ?? 2;
     const delay = options.retryDelayMs ?? 250;
 
@@ -148,7 +191,7 @@ export function createUploads(
       status: "pending",
       uploadedBytes: 0,
       totalBytes: file.size,
-      checkpoint: resume?.checkpoint ?? null,
+      checkpoint,
       error: null,
       file: null,
     };
@@ -261,29 +304,25 @@ export function createUploads(
         signal.throwIfAborted();
 
         if (!snapshot.checkpoint) {
-          if (!("parentId" in input))
+          if (!("parentId" in input) || intent.kind === "legacy")
             throw new SDKError("SDK_VALIDATION", "A new upload requires a destination.");
 
           // Do not cancel an ambiguous begin: retain its returned ID before observing local cancellation.
           const begun = await rpc.begin({
             parentId: input.parentId,
-            replaceId: input.replaceId,
-            name: file.name,
-            size: file.size,
-            mimeType: file.type || "application/octet-stream",
+            replaceId: intent.kind === "replacement" ? intent.targetId : undefined,
+            name: intent.name,
+            size: fingerprint.size,
+            mimeType: fingerprint.type || "application/octet-stream",
           });
 
           publish({
-            checkpoint: {
-              version: 1,
+            checkpoint: Object.freeze({
+              version: 2,
               uploadId: begun.uploadId,
-              file: {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                lastModified: file.lastModified,
-              },
-            },
+              file: fingerprint,
+              intent,
+            }),
           });
         }
 
@@ -315,10 +354,7 @@ export function createUploads(
               if (!response.ok) {
                 if (response.status === 408 || response.status === 429 || response.status >= 500)
                   throw new SDKError("SDK_TRANSPORT", `Upload part failed (${response.status}).`);
-                throw new SDKError(
-                  "SDK_PROTOCOL",
-                  `Upload part was rejected (${response.status}).`,
-                );
+                throw await readBinaryRejection(response, signal);
               }
             }, signal);
             publish({ uploadedBytes: snapshot.uploadedBytes + body.size });
@@ -349,6 +385,7 @@ export function createUploads(
     };
 
     const handle: UploadTask = {
+      intent,
       get result() {
         return promise;
       },
@@ -448,8 +485,12 @@ export function createUploads(
   }
 
   return {
-    start: (input: StartUpload, options?: UploadOptions) => task(input, options),
-    resume: (input: ResumeUpload, options?: UploadOptions) => task(input, options),
+    start: ({ file, parentId, replaceId }: StartUpload, options?: UploadOptions) =>
+      task({ file, parentId, replaceId }, options),
+    replace: ({ file, parentId, target }: ReplaceUpload, options?: UploadOptions) =>
+      task({ file, parentId, target }, options),
+    resume: ({ checkpoint, file, confirmSameFile }: ResumeUpload, options?: UploadOptions) =>
+      task({ checkpoint, file, confirmSameFile }, options),
     /** Disposal pauses local transfers. It intentionally does not destroy resumable server checkpoints. */
     dispose: () => {
       for (const upload of tasks) upload.dispose();

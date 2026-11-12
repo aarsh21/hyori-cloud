@@ -2,14 +2,16 @@ import type { FileEntry } from "@hyori-cloud/client-sdk";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { ItemButton, ItemLink } from "@hyori-cloud/ui/components/item-collection";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
+import { useOpenInEditor } from "#features/editors/react/use-open-in-editor.ts";
 import { useFileActions } from "#features/files/react/file-actions.tsx";
 import { useFolderPath } from "#features/files/react/folder-path.tsx";
 
-/** Folders are real links. Files open in the viewer when they're media and download otherwise. */
+/** The primary target opens an available editor, then falls back to preview or download. */
 export function FileEntryTarget({ entry, children }: { entry: FileEntry; children: ReactNode }) {
   const { navigatePath } = useCloudNavigation();
   const folderPath = useFolderPath();
   const { openFile } = useFileActions();
+  const openEditor = useOpenInEditor(entry);
 
   if (entry.kind === "folder") {
     return (
@@ -19,5 +21,22 @@ export function FileEntryTarget({ entry, children }: { entry: FileEntry; childre
     );
   }
 
-  return <ItemButton onClick={() => openFile(entry)}>{children}</ItemButton>;
+  return (
+    <ItemButton
+      aria-disabled={openEditor === undefined || undefined}
+      aria-busy={openEditor === undefined || undefined}
+      title={openEditor === undefined ? "Waiting for available editors" : undefined}
+      onClick={(event) => {
+        if (openEditor === undefined) return;
+
+        // Modified activation belongs to selection, never an accidental open or download.
+        if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+
+        if (openEditor !== null) openEditor();
+        else openFile(entry);
+      }}
+    >
+      {children}
+    </ItemButton>
+  );
 }

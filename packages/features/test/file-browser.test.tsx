@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test";
 import type { FileEntry } from "@hyori-cloud/client-sdk";
+import { writeSingleKeyShortcuts } from "@hyori-cloud/ui/lib/single-key-shortcuts";
 import { CloudScreen } from "#features/cloud/react/cloud-screen.tsx";
 import {
   act,
@@ -155,7 +156,7 @@ describe("dialogs belong to the folder and target they opened on", () => {
         ? fileList([], FOLDER_B, [{ id: FOLDER_B.id, name: FOLDER_B.name }])
         : fileList(items, FOLDER_A, [{ id: FOLDER_A.id, name: FOLDER_A.name }]);
 
-    api.handlers["files.download"] = () => ({
+    api.handlers["files.preview"] = () => ({
       url: "/content/photo_1",
       name: PHOTO.name,
       size: 7,
@@ -503,7 +504,7 @@ describe("file action failure ownership", () => {
     expect(await screen.findByText("Couldn’t restore “notes.txt”")).toBeTruthy();
   });
 
-  test("retrying a toast Undo clears its older restore failure", async () => {
+  test("a failed Undo reports once, from its toast, and retries there", async () => {
     const api = signedInApi();
     api.handlers["files.trash"] = () => ({ ...NOTES, trashedAt: "2026-11-04T00:00:00Z" });
     api.handlers["files.restore"] = () => {
@@ -516,11 +517,28 @@ describe("file action failure ownership", () => {
     });
     fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
     await screen.findByText("Couldn’t restore “notes.txt”");
-    await screen.findByText("Hyori can’t reach its services");
+    expect(screen.getAllByText("Hyori can’t reach its services")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
     api.handlers["files.restore"] = () => NOTES;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(api.callsTo("files.restore")).toHaveLength(2));
-    await waitFor(() => expect(screen.queryByText("Hyori can’t reach its services")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Couldn’t restore “notes.txt”")).toBeNull());
+  });
+
+  test("a failed delete on the page reports once, in its notice", async () => {
+    const api = signedInApi();
+    api.handlers["files.trash"] = () => {
+      throw new ApiFailure("service.unavailable");
+    };
+
+    renderAt("/folders/folder_a", api);
+    fireEvent.keyDown(await screen.findByRole("button", { name: /^notes\.txt/ }), {
+      key: "Delete",
+    });
+    await screen.findByRole("button", { name: "Dismiss" });
+    await waitFor(() => expect(api.callsTo("files.trash")).toHaveLength(1));
+    expect(screen.getAllByText("Hyori can’t reach its services")).toHaveLength(1);
+    expect(screen.queryByText("Couldn’t move “notes.txt” to Trash")).toBeNull();
   });
 
   test("retrying a failed download clears only that download's older failure", async () => {
@@ -580,22 +598,22 @@ describe("file action failure ownership", () => {
   test("retrying one item preserves an earlier failure on another item", async () => {
     const api = signedInApi();
     api.handlers["files.trash"] = ({ id }) => {
-      throw new ApiFailure("access.denied", id === ROADMAP.id ? "Problem A" : "Problem B");
+      throw new ApiFailure(id === ROADMAP.id ? "access.denied" : "resource.conflict");
     };
 
     renderAt("/folders/folder_a", api);
     const first = await screen.findByRole("button", { name: /^roadmap\.pdf/ });
     fireEvent.keyDown(first, { key: "Delete" });
     fireEvent.keyDown(screen.getByRole("button", { name: /^notes\.txt/ }), { key: "Delete" });
-    await screen.findByText("Problem A");
+    await screen.findByText("You don’t have access to this");
     await waitFor(() =>
       expect(screen.queryByRole("status", { name: "Working on notes.txt" })).toBeNull(),
     );
     api.handlers["files.trash"] = () => ({ ...ROADMAP, trashedAt: "2026-11-04T00:00:00Z" });
     fireEvent.keyDown(first, { key: "Delete" });
     await screen.findByText("Moved “roadmap.pdf” to Trash");
-    expect(screen.getByText("Problem B")).toBeTruthy();
-    expect(screen.queryByText("Problem A")).toBeNull();
+    expect(screen.getByText("That couldn’t be applied")).toBeTruthy();
+    expect(screen.queryByText("You don’t have access to this")).toBeNull();
   });
 
   test("a Trash restore failure does not leak into Files", async () => {
@@ -626,7 +644,7 @@ describe("file action failure ownership", () => {
 
     const api = signedInApi();
     api.handlers["files.list"] = () => fileList([photo], FOLDER_A, []);
-    api.handlers["files.download"] = () => ({
+    api.handlers["files.preview"] = () => ({
       url: "/content/photo_1",
       name: photo.name,
       size: photo.size,
@@ -646,6 +664,27 @@ describe("file action failure ownership", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close viewer" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("single-key shortcuts", () => {
+  test("work until turned off, and their hint goes with them", async () => {
+    renderAt("/folders/folder_a", signedInApi());
+    await screen.findByText("roadmap.pdf");
+    expect(searchBox().getAttribute("aria-keyshortcuts")).toBe("/");
+
+    fireEvent.keyDown(document.body, { key: "n" });
+    expect(await screen.findByRole("dialog", { name: "New folder" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    act(() => writeSingleKeyShortcuts(false));
+
+    await waitFor(() => expect(searchBox().getAttribute("aria-keyshortcuts")).toBeNull());
+    fireEvent.keyDown(document.body, { key: "n" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    act(() => writeSingleKeyShortcuts(true));
   });
 });
 
@@ -713,5 +752,108 @@ describe("a session that ended", () => {
     fireEvent.click(signIn);
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeTruthy();
+  });
+});
+
+describe("the list or grid choice", () => {
+  test("survives leaving the screen and coming back", async () => {
+    const api = signedInApi();
+    const view = renderAt("/folders/folder_a", api);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Grid" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Grid" }).getAttribute("aria-pressed")).toBe(
+        "true",
+      ),
+    );
+
+    api.handlers["files.list"] = () => fileList([]);
+    view.rerender(<CloudScreen path="/trash" onNavigate={() => {}} />);
+    await screen.findByText("Trash is empty");
+    api.handlers["files.list"] = listFolder;
+    view.rerender(<CloudScreen path="/folders/folder_a" onNavigate={() => {}} />);
+
+    const grid = await screen.findByRole("button", { name: "Grid" });
+
+    expect(grid.getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
+describe("Trash and the keyboard", () => {
+  test("restoring moves focus to the row that takes its place", async () => {
+    const trashed = fileEntry({
+      id: "file_t1",
+      name: "old.txt",
+      trashedAt: "2026-11-04T00:00:00Z",
+    });
+
+    const other = fileEntry({
+      id: "file_t2",
+      name: "older.txt",
+      trashedAt: "2026-11-03T00:00:00Z",
+    });
+
+    let items = [trashed, other];
+
+    const api = createFakeApi({
+      "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
+      "files.list": () => fileList(items),
+      "files.restore": () => {
+        items = [other];
+
+        return trashed;
+      },
+    });
+
+    renderAt("/trash", api);
+
+    const [first] = await screen.findAllByRole("button", { name: "Restore" });
+
+    if (first === undefined) throw new Error("Trash has no rows.");
+    act(() => first.focus());
+    fireEvent.click(first);
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Restore" })).toHaveLength(1));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Restore" })),
+    );
+  });
+
+  test("a tap elsewhere in the row can't restore", async () => {
+    const trashed = fileEntry({
+      id: "file_t1",
+      name: "old.txt",
+      trashedAt: "2026-11-04T00:00:00Z",
+    });
+
+    const api = createFakeApi({
+      "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
+      "files.list": () => fileList([trashed]),
+    });
+
+    renderAt("/trash", api);
+
+    const restore = await screen.findByRole("button", { name: "Restore" });
+
+    expect(restore.className).toContain("after:hidden!");
+  });
+});
+
+describe("what the server's errors mean to people", () => {
+  test("a name clash reads as a sentence, not the server's message", async () => {
+    const api = signedInApi();
+
+    api.handlers["files.rename"] = () => {
+      throw new ApiFailure("resource.conflict", "Resource conflicts with existing state");
+    };
+
+    renderAt("/folders/folder_a", api);
+    fireEvent.click(await screen.findByRole("button", { name: "Actions for roadmap.pdf" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Rename/ }));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "notes.txt" } });
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+
+    await screen.findByText("That couldn’t be applied");
+    expect(screen.queryByText(/Resource conflicts/)).toBeNull();
   });
 });

@@ -1,0 +1,369 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+use crate::fallback::{LocaleFallbackConfig, LocaleFallbackPriority};
+use crate::{DataError, DataErrorKind, DataLocale, DataProvider, DataProviderWithMarker};
+use core::fmt;
+use core::marker::PhantomData;
+use icu_locale_core::preferences::LocalePreferences;
+use yoke::Yokeable;
+use zerovec::ule::*;
+
+/// Trait marker for data structs. All types delivered by the data provider must be associated with
+/// something implementing this trait.
+///
+/// Data markers normally generated with the [`data_marker`](crate::data_marker) macro.
+///
+/// Also see [`DataMarker`].
+///
+/// Note: [`DynamicDataMarker`]s are quasi-const-generic compile-time objects, and as such are expected
+/// to be unit structs. As this is not something that can be enforced by the type system, we
+/// currently only have a `'static` bound on them (which is needed by a lot of our code).
+///
+/// # Examples
+///
+/// Manually implementing [`DynamicDataMarker`] for a custom type:
+///
+/// ```
+/// use icu_provider::prelude::*;
+/// use std::borrow::Cow;
+///
+/// #[derive(yoke::Yokeable, zerofrom::ZeroFrom)]
+/// struct MyDataStruct<'data> {
+///     message: Cow<'data, str>,
+/// }
+///
+/// struct MyDataStructMarker;
+///
+/// impl DynamicDataMarker for MyDataStructMarker {
+///     type DataStruct = MyDataStruct<'static>;
+/// }
+///
+/// // We can now use MyDataStruct with DataProvider:
+/// let s = MyDataStruct {
+///     message: Cow::Owned("Hello World".into()),
+/// };
+/// let payload = DataPayload::<MyDataStructMarker>::from_owned(s);
+/// assert_eq!(payload.get().message, "Hello World");
+/// ```
+///
+/// [`data_struct`]: crate::data_struct
+pub trait DynamicDataMarker: 'static {
+    /// A type that implements [`Yokeable`]. This should typically be the `'static` version of a
+    /// data struct.
+    type DataStruct: for<'a> Yokeable<'a>;
+}
+
+/// A [`DynamicDataMarker`] with a [`DataMarkerInfo`] attached.
+///
+/// Structs implementing this trait are normally generated with the [`data_struct!`] macro.
+///
+/// Implementing this trait enables this marker to be used with the main [`DataProvider`] trait.
+/// Most markers should be associated with a specific marker and should therefore implement this
+/// trait.
+///
+/// [`BufferMarker`] is an example of a marker that does _not_ implement this trait.
+///
+/// Note: `DataMarker`s are quasi-const-generic compile-time objects, and as such are expected
+/// to be unit structs. As this is not something that can be enforced by the type system, we
+/// currently only have a `'static` bound on them (which is needed by a lot of our code).
+///
+/// [`data_struct!`]: crate::data_struct
+/// [`DataProvider`]: crate::DataProvider
+/// [`BufferMarker`]: crate::buf::BufferMarker
+pub trait DataMarker: DynamicDataMarker {
+    /// The single [`DataMarkerInfo`] associated with this marker.
+    const INFO: DataMarkerInfo;
+}
+
+/// Extension trait for methods on [`DataMarker`]
+pub trait DataMarkerExt: DataMarker + Sized {
+    /// Binds a [`DataMarker`] to a provider supporting it.
+    fn bind<P>(provider: P) -> DataProviderWithMarker<Self, P>
+    where
+        P: DataProvider<Self>;
+    /// Constructs a [`DataLocale`] using fallback preferences from this [`DataMarker`].
+    fn make_locale(locale: LocalePreferences) -> DataLocale;
+}
+
+impl<M: DataMarker + Sized> DataMarkerExt for M {
+    fn bind<P>(provider: P) -> DataProviderWithMarker<Self, P>
+    where
+        P: DataProvider<Self>,
+    {
+        DataProviderWithMarker::new(provider)
+    }
+
+    fn make_locale(locale: LocalePreferences) -> DataLocale {
+        M::INFO.make_locale(locale)
+    }
+}
+
+/// A [`DynamicDataMarker`] that never returns data.
+///
+/// All types that have non-blanket impls of `DataProvider<M>` are expected to explicitly
+/// implement `DataProvider<NeverMarker<Y>>`, returning [`DataErrorKind::MarkerNotFound`].
+/// See [`impl_data_provider_never_marker!`].
+///
+/// [`DataErrorKind::MarkerNotFound`]: crate::DataErrorKind::MarkerNotFound
+/// [`impl_data_provider_never_marker!`]: crate::marker::impl_data_provider_never_marker
+///
+/// # Examples
+///
+/// ```
+/// use icu_locale_core::data_locale;
+/// use icu_provider::hello_world::*;
+/// use icu_provider::marker::NeverMarker;
+/// use icu_provider::prelude::*;
+///
+/// let buffer_provider = HelloWorldProvider.into_json_provider();
+///
+/// let result = DataProvider::<NeverMarker<HelloWorld<'static>>>::load(
+///     &buffer_provider.as_deserializing(),
+///     DataRequest {
+///         id: DataIdentifierBorrowed::for_locale(&data_locale!("en")),
+///         ..Default::default()
+///     },
+/// );
+///
+/// assert!(matches!(
+///     result,
+///     Err(DataError {
+///         kind: DataErrorKind::MarkerNotFound,
+///         ..
+///     })
+/// ));
+/// ```
+#[derive(Debug, Copy, Clone)]
+pub struct NeverMarker<Y>(PhantomData<Y>);
+
+impl<Y> DynamicDataMarker for NeverMarker<Y>
+where
+    for<'a> Y: Yokeable<'a>,
+{
+    type DataStruct = Y;
+}
+
+impl<Y> DataMarker for NeverMarker<Y>
+where
+    for<'a> Y: Yokeable<'a>,
+{
+    const INFO: DataMarkerInfo = DataMarkerInfo::from_id(DataMarkerId {
+        #[cfg(any(feature = "export", debug_assertions))]
+        debug: "NeverMarker",
+        hash: *b"nevermar",
+    });
+}
+
+/// Implements `DataProvider<NeverMarker<Y>>` on a struct.
+///
+/// For more information, see [`NeverMarker`].
+///
+/// # Examples
+///
+/// ```
+/// use icu_locale_core::data_locale;
+/// use icu_provider::hello_world::*;
+/// use icu_provider::marker::NeverMarker;
+/// use icu_provider::prelude::*;
+///
+/// struct MyProvider;
+///
+/// icu_provider::marker::impl_data_provider_never_marker!(MyProvider);
+///
+/// let result = DataProvider::<NeverMarker<HelloWorld<'static>>>::load(
+///     &MyProvider,
+///     DataRequest {
+///         id: DataIdentifierBorrowed::for_locale(&data_locale!("und")),
+///         ..Default::default()
+///     },
+/// );
+///
+/// assert!(matches!(
+///     result,
+///     Err(DataError {
+///         kind: DataErrorKind::MarkerNotFound,
+///         ..
+///     })
+/// ));
+/// ```
+#[doc(hidden)] // macro
+#[macro_export]
+macro_rules! __impl_data_provider_never_marker {
+    ($ty:path) => {
+        impl<Y> $crate::DataProvider<$crate::marker::NeverMarker<Y>> for $ty
+        where
+            for<'a> Y: $crate::prelude::yoke::Yokeable<'a>,
+        {
+            fn load(
+                &self,
+                req: $crate::DataRequest,
+            ) -> Result<$crate::DataResponse<$crate::marker::NeverMarker<Y>>, $crate::DataError>
+            {
+                Err($crate::DataErrorKind::MarkerNotFound.with_req(
+                    <$crate::marker::NeverMarker<Y> as $crate::DataMarker>::INFO,
+                    req,
+                ))
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_data_provider_never_marker as impl_data_provider_never_marker;
+
+/// A compact hash of a [`DataMarkerInfo`]. Useful for keys in maps.
+///
+/// The hash will be stable over time within major releases.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, ULE)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(transparent)]
+pub struct DataMarkerIdHash([u8; 4]);
+
+impl DataMarkerIdHash {
+    /// Magic bytes to locate [`DataMarkerIdHash`]es in binaries.
+    pub const LEADING_TAG: &[u8] = b"tdmh";
+
+    /// Gets the hash value as a byte array.
+    pub const fn to_bytes(self) -> [u8; 4] {
+        self.0
+    }
+}
+
+/// Const function to compute the `FxHash` of a byte array.
+///
+/// `FxHash` is a speedy hash algorithm used within rustc. The algorithm is satisfactory for our
+/// use case since the strings being hashed originate from a trusted source (the ICU4X
+/// components), and the hashes are computed at compile time, so we can check for collisions.
+///
+/// We could have considered a SHA or other cryptographic hash function. However, we are using
+/// `FxHash` because:
+///
+/// 1. There is precedent for this algorithm in Rust
+/// 2. The algorithm is easy to implement as a const function
+/// 3. The amount of code is small enough that we can reasonably keep the algorithm in-tree
+/// 4. `FxHash` is designed to output 32-bit or 64-bit values, whereas SHA outputs more bits,
+///    such that truncation would be required in order to fit into a u32, partially reducing
+///    the benefit of a cryptographically secure algorithm
+// The indexing operations in this function have been reviewed in detail and won't panic.
+#[expect(clippy::indexing_slicing)]
+const fn fxhash_32(bytes: &[u8]) -> u32 {
+    // This code is adapted from https://github.com/rust-lang/rustc-hash,
+    // whose license text is reproduced below.
+    //
+    // Copyright 2015 The Rust Project Developers. See the COPYRIGHT
+    // file at the top-level directory of this distribution and at
+    // http://rust-lang.org/COPYRIGHT.
+    //
+    // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+    // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+    // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+    // option. This file may not be copied, modified, or distributed
+    // except according to those terms.
+
+    #[inline]
+    const fn hash_word_32(mut hash: u32, word: u32) -> u32 {
+        const ROTATE: u32 = 5;
+        const SEED32: u32 = 0x9e_37_79_b9;
+        hash = hash.rotate_left(ROTATE);
+        hash ^= word;
+        hash = hash.wrapping_mul(SEED32);
+        hash
+    }
+
+    let mut cursor = 0;
+    let end = bytes.len();
+    let mut hash = 0;
+
+    while end - cursor >= 4 {
+        let word = u32::from_le_bytes([
+            bytes[cursor],
+            bytes[cursor + 1],
+            bytes[cursor + 2],
+            bytes[cursor + 3],
+        ]);
+        hash = hash_word_32(hash, word);
+        cursor += 4;
+    }
+
+    if end - cursor >= 2 {
+        let word = u16::from_le_bytes([bytes[cursor], bytes[cursor + 1]]);
+        hash = hash_word_32(hash, word as u32);
+        cursor += 2;
+    }
+
+    if end - cursor >= 1 {
+        hash = hash_word_32(hash, bytes[cursor] as u32);
+    }
+
+    hash
+}
+
+#[cfg(feature = "alloc")]
+impl<'a> zerovec::maps::ZeroMapKV<'a> for DataMarkerIdHash {
+    type Container = zerovec::ZeroVec<'a, DataMarkerIdHash>;
+    type Slice = zerovec::ZeroSlice<DataMarkerIdHash>;
+    type GetType = <DataMarkerIdHash as AsULE>::ULE;
+    type OwnedType = DataMarkerIdHash;
+}
+
+impl AsULE for DataMarkerIdHash {
+    type ULE = Self;
+    #[inline]
+    fn to_unaligned(self) -> Self::ULE {
+        self
+    }
+    #[inline]
+    fn from_unaligned(unaligned: Self::ULE) -> Self {
+        unaligned
+    }
+}
+
+// Safe since the ULE type is `self`.
+unsafe impl EqULE for DataMarkerIdHash {}
+
+/// The ID of a data marker.
+///
+/// This is generally a [`DataMarkerIdHash`]. If debug assertions or the `export` Cargo feature
+/// are enabled, this also contains a human-readable string for an improved `Debug` implementation.
+#[derive(Debug, Copy, Clone, Eq)]
+pub struct DataMarkerId {
+    #[cfg(any(feature = "export", debug_assertions))]
+    debug: &'static str,
+    hash: [u8; 8],
+}
+
+impl PartialEq for DataMarkerId {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Ord for DataMarkerId {
+    #[inline]
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
+impl PartialOrd for DataMarkerId {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl core::hash::Hash for DataMarkerId {
+    #[inline]
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.hash.hash(state)
+    }
+}
+
+impl DataMarkerId {
+    #[doc(hidden)]
+    // macro use
+    // Error is a str of the expected character class and the index where it wasn't encountered
+    // The indexing operations in this function have been reviewed in detail and won't panic.
+    pub const fn from

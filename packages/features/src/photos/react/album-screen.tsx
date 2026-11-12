@@ -1,7 +1,9 @@
 import { Images } from "@hyori-cloud/lib/icons";
 import { PageBody, PageSection } from "@hyori-cloud/ui/components/app-shell";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
+import { Skeleton } from "@hyori-cloud/ui/components/skeleton";
 import { SectionHeading } from "@hyori-cloud/ui/components/text";
+import { thumbnailProgressSummary } from "#features/photos/photo-derivative.ts";
 import { PhotoTimeline } from "#features/photos/react/photo-timeline.tsx";
 import { PhotosBar } from "#features/photos/react/photos-bar.tsx";
 import { useAlbums, usePhotoTimeline } from "#features/photos/react/use-photos.ts";
@@ -13,12 +15,16 @@ export function AlbumScreen({ albumId }: { albumId: string }) {
 
   return (
     <>
-      <PhotosBar />
+      <PhotosBar status={thumbnailProgressSummary(timeline.data?.pages ?? [])} />
       <PageBody>
         <PageSection>
-          {name === undefined ? null : (
-            <SectionHeading className="px-1 text-[15px]">{name}</SectionHeading>
-          )}
+          {/* Holds its line while albums load, so the photos below don't move when the name lands. */}
+          <SectionHeading className="flex min-h-5 items-center px-1 text-[15px]">
+            {name ??
+              (albums.data === undefined && albums.error === null ? (
+                <Skeleton className="h-3 w-24" />
+              ) : null)}
+          </SectionHeading>
           <PhotoTimeline
             timeline={timeline}
             empty={

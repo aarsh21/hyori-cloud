@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "ce1a8faf72cf8f0e28a28658c59033b02726e3caecd9a3d358b4c6f6cd3e6c24",
+      "lines": [
+        {
+          "line": 339,
+          "text": "([LICENSE-UNICODE](https://www.unicode.org/copyright.html#License))."
+        }
+      ]
+    }
+  ]
+}

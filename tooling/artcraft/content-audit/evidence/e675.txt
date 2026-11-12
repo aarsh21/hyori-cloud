@@ -1,0 +1,266 @@
+//! Xml Attributes module
+//!
+//! Provides an iterator over attributes key/value pairs
+
+use crate::encoding::Decoder;
+use crate::errors::Result as XmlResult;
+use crate::escape::{escape, resolve_predefined_entity};
+use crate::name::{LocalName, Namespace, NamespaceResolver, QName};
+use crate::utils::{is_whitespace, Bytes};
+use crate::XmlVersion;
+
+use std::collections::HashSet;
+use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{BuildHasherDefault, DefaultHasher, Hasher};
+use std::iter::FusedIterator;
+use std::{borrow::Cow, ops::Range};
+
+/// A struct representing a key/value XML attribute.
+///
+/// Field `value` stores raw bytes, possibly containing escape-sequences. Most users will likely
+/// want to access the value using one of the [`normalized_value`] and [`decoded_and_normalized_value`]
+/// functions.
+///
+/// [`normalized_value`]: Self::normalized_value
+/// [`decoded_and_normalized_value`]: Self::decoded_and_normalized_value
+#[derive(Clone, Eq, PartialEq)]
+pub struct Attribute<'a> {
+    /// The key to uniquely define the attribute.
+    ///
+    /// If [`Attributes::with_checks`] is turned off, the key might not be unique.
+    pub key: QName<'a>,
+    /// The raw value of the attribute.
+    pub value: Cow<'a, [u8]>,
+}
+
+impl<'a> Attribute<'a> {
+    /// Returns the attribute value normalized as per [the XML specification] (or [for 1.0]).
+    ///
+    /// The document **must** be UTF-8 encoded, or pre-processed using [`DecodingReader`].
+    ///
+    /// The characters `\t`, `\r`, `\n` are replaced with whitespace characters (`0x20`).
+    ///
+    /// The following escape sequences are replaced with their unescaped equivalents:
+    ///
+    /// | Escape Sequence | Replacement
+    /// |-----------------|------------
+    /// | `&lt;`          | `<`
+    /// | `&gt;`          | `>`
+    /// | `&amp;`         | `&`
+    /// | `&apos;`        | `'`
+    /// | `&quot;`        | `"`
+    ///
+    /// This will allocate unless the raw attribute value does not require normalization.
+    ///
+    /// Note, although you may use this library to parse HTML, you cannot use this
+    /// method to get HTML content, because its returns normalized value: the following
+    /// sequences are translated into a single space (U+0020) character:
+    ///
+    /// - `\r\n`
+    /// - `\r\x85` (only XML 1.1)
+    /// - `\r`
+    /// - `\n`
+    /// - `\t`
+    /// - `\x85` (only XML 1.1)
+    /// - `\x2028` (only XML 1.1)
+    ///
+    /// The text in HTML normally is not normalized in any way; normalization is
+    /// performed only in limited contexts and [only for] `\r\n` and `\r`.
+    ///
+    /// See also [`normalized_value_with()`](Self::normalized_value_with).
+    ///
+    /// <div style="background:rgba(120,145,255,0.45);padding:0.75em;">
+    ///
+    /// NOTE: If you are using this in a context where the input is not controlled,
+    /// it is preferred to wrap the input stream in [`DecodingReader`] or to use
+    /// [`decoded_and_normalized_value()`](Self::decoded_and_normalized_value) instead.
+    ///
+    /// </div>
+    ///
+    /// [the XML specification]: https://www.w3.org/TR/xml11/#AVNormalize
+    /// [`DecodingReader`]: ../../encoding/struct.DecodingReader.html
+    /// [for 1.0]: https://www.w3.org/TR/xml/#AVNormalize
+    /// [only for]: https://html.spec.whatwg.org/#normalize-newlines
+    pub fn normalized_value(&self, version: XmlVersion) -> XmlResult<Cow<'a, str>> {
+        // resolve_predefined_entity returns only non-recursive replacements, so depth=1 is enough
+        self.normalized_value_with(version, 1, resolve_predefined_entity)
+    }
+
+    /// Returns the attribute value normalized as per [the XML specification] (or [for 1.0]),
+    /// using a custom entity resolver.
+    ///
+    /// The document **must** be UTF-8 encoded, or pre-processed using [`DecodingReader`].
+    ///
+    /// Do not use this method with HTML attributes.
+    ///
+    /// The characters `\t`, `\r`, `\n` are replaced with whitespace characters (`0x20`).
+    ///
+    /// A function for resolving entities can be provided as `resolve_entity`.
+    /// This method does not resolve any predefined entities, but you can use
+    /// [`resolve_predefined_entity`] in your function.
+    ///
+    /// This will allocate unless the raw attribute value does not require normalization.
+    ///
+    /// Note, although you may use this library to parse HTML, you cannot use this
+    /// method to get HTML content, because its returns normalized value: the following
+    /// sequences are translated into a single space (U+0020) character:
+    ///
+    /// - `\r\n`
+    /// - `\r\x85` (only XML 1.1)
+    /// - `\r`
+    /// - `\n`
+    /// - `\t`
+    /// - `\x85` (only XML 1.1)
+    /// - `\x2028` (only XML 1.1)
+    ///
+    /// The text in HTML normally is not normalized in any way; normalization is
+    /// performed only in limited contexts and [only for] `\r\n` and `\r`.
+    ///
+    /// See also [`normalized_value()`](Self::normalized_value).
+    ///
+    /// <div style="background:rgba(120,145,255,0.45);padding:0.75em;">
+    ///
+    /// NOTE: If you are using this in a context where the input is not controlled,
+    /// it is preferred to wrap the input stream in [`DecodingReader`] or to use
+    /// [`decoded_and_normalized_value_with()`](Self::decoded_and_normalized_value_with) instead.
+    ///
+    /// </div>
+    ///
+    /// # Parameters
+    ///
+    /// - `depth`: maximum number of nested entities that can be expanded. If expansion
+    ///   chain will be more that this value, the function will return [`EscapeError::TooManyNestedEntities`]
+    /// - `resolve_entity`: a function to resolve entity. This function could be called
+    ///   multiple times on the same input and can return different values in each case
+    ///   for the same input, although it is not recommended
+    ///
+    /// [the XML specification]: https://www.w3.org/TR/xml11/#AVNormalize
+    /// [`DecodingReader`]: ../../encoding/struct.DecodingReader.html
+    /// [for 1.0]: https://www.w3.org/TR/xml/#AVNormalize
+    /// [only for]: https://html.spec.whatwg.org/#normalize-newlines
+    /// [`EscapeError::TooManyNestedEntities`]: crate::escape::EscapeError::TooManyNestedEntities
+    pub fn normalized_value_with<'entity>(
+        &self,
+        version: XmlVersion,
+        depth: usize,
+        resolve_entity: impl FnMut(&str) -> Option<&'entity str>,
+    ) -> XmlResult<Cow<'a, str>> {
+        use crate::encoding::EncodingError;
+        use std::str::from_utf8;
+
+        let decoded = match &self.value {
+            Cow::Borrowed(bytes) => Cow::Borrowed(from_utf8(bytes).map_err(EncodingError::Utf8)?),
+            // Convert to owned, because otherwise Cow will be bound with wrong lifetime
+            Cow::Owned(bytes) => {
+                Cow::Owned(from_utf8(bytes).map_err(EncodingError::Utf8)?.to_owned())
+            }
+        };
+
+        match version.normalize_attribute_value(&decoded, depth, resolve_entity)? {
+            // Because result is borrowed, no replacements was done and we can use original string
+            Cow::Borrowed(_) => Ok(decoded),
+            Cow::Owned(s) => Ok(s.into()),
+        }
+    }
+
+    /// Decodes using a provided reader and returns the attribute value normalized
+    /// as per [the XML specification] (or [for 1.0]).
+    ///
+    /// Do not use this method with HTML attributes.
+    ///
+    /// The characters `\t`, `\r`, `\n` are replaced with whitespace characters (`0x20`).
+    ///
+    /// The following escape sequences are replaced with their unescaped equivalents:
+    ///
+    /// | Escape Sequence | Replacement
+    /// |-----------------|------------
+    /// | `&lt;`          | `<`
+    /// | `&gt;`          | `>`
+    /// | `&amp;`         | `&`
+    /// | `&apos;`        | `'`
+    /// | `&quot;`        | `"`
+    ///
+    /// This will allocate unless the raw attribute value does not require normalization.
+    ///
+    /// Note, although you may use this library to parse HTML, you cannot use this
+    /// method to get HTML content, because its returns normalized value: the following
+    /// sequences are translated into a single space (U+0020) character:
+    ///
+    /// - `\r\n`
+    /// - `\r\x85` (only XML 1.1)
+    /// - `\r`
+    /// - `\n`
+    /// - `\t`
+    /// - `\x85` (only XML 1.1)
+    /// - `\x2028` (only XML 1.1)
+    ///
+    /// The text in HTML normally is not normalized in any way; normalization is
+    /// performed only in limited contexts and [only for] `\r\n` and `\r`.
+    ///
+    /// See also [`decoded_and_normalized_value_with()`](#method.decoded_and_normalized_value_with)
+    ///
+    /// [the XML specification]: https://www.w3.org/TR/xml11/#AVNormalize
+    /// [for 1.0]: https://www.w3.org/TR/xml/#AVNormalize
+    /// [only for]: https://html.spec.whatwg.org/#normalize-newlines
+    pub fn decoded_and_normalized_value(
+        &self,
+        version: XmlVersion,
+        decoder: Decoder,
+    ) -> XmlResult<Cow<'a, str>> {
+        // resolve_predefined_entity returns only non-recursive replacements, so depth=1 is enough
+        self.decoded_and_normalized_value_with(version, decoder, 1, resolve_predefined_entity)
+    }
+
+    /// Decodes using a provided reader and returns the attribute value normalized
+    /// as per [the XML specification] (or [for 1.0]), using a custom entity resolver.
+    ///
+    /// Do not use this method with HTML attributes.
+    ///
+    /// The characters `\t`, `\r`, `\n` are replaced with whitespace characters (`0x20`).
+    ///
+    /// A function for resolving entities can be provided as `resolve_entity`.
+    /// This method does not resolve any predefined entities, but you can use
+    /// [`resolve_predefined_entity`] in your function.
+    ///
+    /// This will allocate unless the raw attribute value does not require normalization.
+    ///
+    /// Note, although you may use this library to parse HTML, you cannot use this
+    /// method to get HTML content, because its returns normalized value: the following
+    /// sequences are translated into a single space (U+0020) character:
+    ///
+    /// - `\r\n`
+    /// - `\r\x85` (only XML 1.1)
+    /// - `\r`
+    /// - `\n`
+    /// - `\t`
+    /// - `\x85` (only XML 1.1)
+    /// - `\x2028` (only XML 1.1)
+    ///
+    /// The text in HTML normally is not normalized in any way; normalization is
+    /// performed only in limited contexts and [only for] `\r\n` and `\r`.
+    ///
+    /// See also [`decoded_and_normalized_value()`](#method.decoded_and_normalized_value)
+    ///
+    /// # Parameters
+    ///
+    /// - `depth`: maximum number of nested entities that can be expanded. If expansion
+    ///   chain will be more that this value, the function will return [`EscapeError::TooManyNestedEntities`]
+    /// - `resolve_entity`: a function to resolve entity. This function could be called
+    ///   multiple times on the same input and can return different values in each case
+    ///   for the same input, although it is not recommended
+    ///
+    /// [the XML specification]: https://www.w3.org/TR/xml11/#AVNormalize
+    /// [for 1.0]: https://www.w3.org/TR/xml/#AVNormalize
+    /// [only for]: https://html.spec.whatwg.org/#normalize-newlines
+    /// [`EscapeError::TooManyNestedEntities`]: crate::escape::EscapeError::TooManyNestedEntities
+    pub fn decoded_and_normalized_value_with<'entity>(
+        &self,
+        version: XmlVersion,
+        decoder: Decoder,
+        depth: usize,
+        resolve_entity: impl FnMut(&str) -> Option<&'entity str>,
+    ) -> XmlResult<Cow<'a, str>> {
+        let decoded = match &self.value {
+            Cow::Borrowed(bytes) => decoder.decode(bytes)?,
+            // Convert to owned, because otherwise Cow will be bound with wrong lifetime
+            Cow::Owned(bytes) => decoder.decode(bytes)?.into_owned().

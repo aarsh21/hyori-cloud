@@ -1,0 +1,557 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/alpha_runs.rs",
+      "sha256": "0e54d650e1302b1c9547664201f6ddc3329d4a4b42e9ee86c2b9683b6586659e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/blitter.rs",
+      "sha256": "3262acaac9f2a78736295e937eee9542667b1de07b5a23db554830b192eb929e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/color.rs",
+      "sha256": "41a25664ba67f30823dc48781fa35fd344d7f3cfd0c02a83e736c3fe6c18bc7d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/edge_builder.rs",
+      "sha256": "82f050de9a216141ca6c1a4d190bc001ecaed90eb65998d05a69b2016bf3310d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2011 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/edge_clipper.rs",
+      "sha256": "ecc3c4ea2da87cc4dce22a8e61b828528bee875ec096ce53f2c580aa2d493dc2",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2009 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/edge.rs",
+      "sha256": "5920f878dcca4f17293bb507f55694c28a1c21de1137c7bea189105c4b1783b6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/fixed_point.rs",
+      "sha256": "8d53d139545f9d531fcbae4b3c5550de7db9338ae22f893ec3b49a890eef3418",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/geom.rs",
+      "sha256": "b93fdae6878e40c4b8b7b0e4f608634c78c6281e30f18e399d093b5b9c945ab9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/line_clipper.rs",
+      "sha256": "b17d6ce38666a08f24d365551d10632c17edee5838943a31506c77417762e798",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2011 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/mask.rs",
+      "sha256": "adadaf730f65298b892b88a3b238f92b972f7de01d8bdc4808b4bfe095e9a902",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/math.rs",
+      "sha256": "59ff8f3201e0ff5c26b8057dc7105e59be7bff7a5120bb4d7b3aa20f000f5342",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/painter.rs",
+      "sha256": "76d57ca174e7619a4ac8b7170b3d640a4c85d92eafe3fe12879dffcbe34599eb",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path_geometry.rs",
+      "sha256": "7b3a7070bafb899cea0195b72dba9a88556633e17b208769342214d97daa9bd4",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path64/cubic64.rs",
+      "sha256": "1f03bfd3a26c465a8a861aac7ce7d9b6d77ad73c9db07f27fe13500b02e83d60",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path64/line_cubic_intersections.rs",
+      "sha256": "67164e6971ae50b553b7553b3a37e389966d25590b637a3b5b1b3aecf77fd5df",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path64/mod.rs",
+      "sha256": "b1a931a1e0cfcb2d42e50ae535f4e6991a9db4ff41eb28cdb1f45f14cf0b2e95",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path64/point64.rs",
+      "sha256": "1f2c35539aad92ed3a3335d5bf03fedff2ac125ee104f732588694412835fd63",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/path64/quad64.rs",
+      "sha256": "05b3263b9287c5c506442f3e1d4dfb17bb3f729d8c5074ce4c6387ee489ffc96",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/pipeline/blitter.rs",
+      "sha256": "959da6b806093b45ba3e8a368d4d81e6f3921a309b5ea8c39e7c989f2008e6b8",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/pipeline/highp.rs",
+      "sha256": "96f9d086b0ff783adce4e4121f00bf31983213a8edaa94fcce4f5d89ed2ea393",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/pipeline/lowp.rs",
+      "sha256": "878f4d05da7a5b101ff5bb2af87b5ccc208b94fc85c108644b95654198d66ab8",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/pipeline/mod.rs",
+      "sha256": "7df1741a836ab33359002d095a19d0b5c07fdef9401c29c8023beb96b3a30581",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2016 Google Inc."
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/pixmap.rs",
+      "sha256": "a7845a931a40b5b24eaa24b6053121e61bfe8b3fffa4c0db89f58c368fb9bc56",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/scan/hairline_aa.rs",
+      "sha256": "3dd9bc2e4511442fb4a9056e5b1818021128aba41748d1ecd73b9d15a17be266",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2011 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/scan/hairline.rs",
+      "sha256": "aa50d030fc207e198d0b106b9792dd9fc606bd6ccc11384327ce768d879ab5b1",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/scan/mod.rs",
+      "sha256": "db9ca53fad681f35b4c13dc228e1bab54cb08a0c3efb4d1e4b13d937c5ec1a65",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2011 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/scan/path_aa.rs",
+      "sha256": "d6fee0876986a9225be67d47c9f3e60dc6cf863d1b0ef2949ec499e72f7e893c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/scan/path.rs",
+      "sha256": "3ef0bf59edb4e4a07634774cafe4e0a4745a80358ec6cda850481cde701b62be",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/shaders/gradient.rs",
+      "sha256": "df396a8df82213ea576f031110ce7e786912bc68b1fed6bbea0a79a1e3547d3c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/shaders/linear_gradient.rs",
+      "sha256": "2d101e497d51e431f8d31fbf343d0e6eedfad0a1d42d0dcd1b75e742f456bb53",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/shaders/mod.rs",
+      "sha256": "05b9d88de14df33ad56122bd03ceb717abf2d4223609c58d6b28b49bba214d62",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/shaders/pattern.rs",
+      "sha256": "96865d92752b85b20024f5aa81d36239efdb606224aa6e23c180125b0d2be1ab",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/shaders/radial_gradient.rs",
+      "sha256": "ddcd5026ccfa12dc5277e65180511698b2a2db54351032cb7a8cd2e85c84f648",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2006 The Android Open Source Project"
+        },
+        {
+          "line": 2,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/f32x16_t.rs",
+      "sha256": "a4907134acfaa60fbc06c324c8595259795fae7aecd740ad268ba439155c38a9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/f32x4_t.rs",
+      "sha256": "7dc219c8dc68965994de82632d00f34480502096f9a8bafffd63f21f0cd76443",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/f32x8_t.rs",
+      "sha256": "661777a07ae3bc2aad17228b067d75bb8674eebefae966bb37fff08819896104",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/i32x4_t.rs",
+      "sha256": "2f4de262ed53ad6d429c140a6401b8267c8df8ebf7fefa5362865ef1ce007c05",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/i32x8_t.rs",
+      "sha256": "7bfc17eacd1442e2008a3e213f04118d7c33150f5902091a59b50340e30cfe06",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/mod.rs",
+      "sha256": "653956086a14cbae739357bcddac8baacf56f88360100c07e3171ecccc313ee8",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        },
+        {
+          "line": 6,
+          "text": "// This module was written from scratch, therefore there is no Google copyright."
+        }
+      ]
+    },
+    {
+      "path": "src/wide/u16x16_t.rs",
+      "sha256": "fbbf313213582c8663471cb3739612840e9544d4a08ae78c1123fbbd2a6e8f54",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/u32x4_t.rs",
+      "sha256": "f99f7275a75c8433d015eba645263ce7e94504afcc7a9a6060ca51f66f0df4b9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    },
+    {
+      "path": "src/wide/u32x8_t.rs",
+      "sha256": "061feb0a51f6ca4dc715a53a9ac92f7bc163ca39366a73d9b6f2190ae30c8f6a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 Yevhenii Reizner"
+        }
+      ]
+    }
+  ]
+}

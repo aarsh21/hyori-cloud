@@ -6,8 +6,10 @@ export type CloudLocation =
   | { readonly section: "albums" }
   | { readonly section: "album"; readonly albumId: string }
   | { readonly section: "admin" }
+  | { readonly section: "editor"; readonly fileId: string }
   | { readonly section: "invite"; readonly token: string }
   | { readonly section: "publicShare"; readonly token: string; readonly folderId: string | null }
+  | { readonly section: "publicEditor"; readonly token: string; readonly fileId: string }
   | { readonly section: "notFound" };
 
 function decodeSegment(segment: string) {
@@ -49,8 +51,18 @@ export function parseCloudPath(path: string): CloudLocation {
 
   if (head === "admin" && segments.length === 1) return { section: "admin" };
 
+  if (head === "edit" && second && segments.length === 2) {
+    return { section: "editor", fileId: second };
+  }
+
   if (head === "invite" && second && segments.length === 2) {
     return { section: "invite", token: second };
+  }
+
+  if (head === "share" && second && third === "edit" && segments.length === 4) {
+    const fileId = decodeSegment(segments[3] ?? "");
+
+    if (fileId) return { section: "publicEditor", token: second, fileId };
   }
 
   if (head === "share" && second && segments.length <= 3) {
@@ -76,6 +88,8 @@ export function formatCloudPath(location: CloudLocation): string {
       return `/photos/albums/${encodeURIComponent(location.albumId)}`;
     case "admin":
       return "/admin";
+    case "editor":
+      return `/edit/${encodeURIComponent(location.fileId)}`;
     case "invite":
       return `/invite/${encodeURIComponent(location.token)}`;
     case "publicShare": {
@@ -84,6 +98,8 @@ export function formatCloudPath(location: CloudLocation): string {
       return location.folderId === null ? base : `${base}/${encodeURIComponent(location.folderId)}`;
     }
 
+    case "publicEditor":
+      return `/share/${encodeURIComponent(location.token)}/edit/${encodeURIComponent(location.fileId)}`;
     case "notFound":
       return "/";
   }

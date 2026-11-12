@@ -1,0 +1,313 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "examples/custom_href_resolver.rs",
+      "sha256": "df99856abb07c0729699b21349ed9377670d605bfdc69432fcde42e247a5e3fa",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "examples/draw_bboxes.rs",
+      "sha256": "4d1351ef37966df2ab7b12ee1ad67949d2a98323482f3e823cab70c86ddbcb48",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2017 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "examples/minimal.rs",
+      "sha256": "e0da5ccf8cf7acc6c40fc6385c322edbc5dc8c446877feacfce74baf2b613f0b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2017 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/clip.rs",
+      "sha256": "645c0f96b1e335f3eddd77a40be4f93e74b026f6c8f05517b7c20711d5e3f262",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/box_blur.rs",
+      "sha256": "3beebe6fc273b896b122e66b10b757b9d3a23dc06a28220da32adf4b6a6654fb",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/color_matrix.rs",
+      "sha256": "e476e84b84e6a90bd51bba1b53cef109d2acd4c24ef714ce242bfcfc09b0165f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/component_transfer.rs",
+      "sha256": "5be9d58bb4fb1b48e22125e0bf431ae0f52b82fbf67e878861fd6b6ec7bfe6f3",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/composite.rs",
+      "sha256": "e5243b88beb4accef2bbc7eb6a681a95d912ad3758ee003ac43eda85683690a0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/convolve_matrix.rs",
+      "sha256": "c180b950b596a5f106d743b7ba3ddaafc25b113eb9576b91996c064ba5e8efc4",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/displacement_map.rs",
+      "sha256": "86935453e848fd4a3cae80e0bcb19ca0c50c16c13165b92bc607538c43c8b584",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/iir_blur.rs",
+      "sha256": "ee4cc7be9cd91021967b1a5a02c081d5915e471ee3a31daf011fe0c7e23cd068",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/lighting.rs",
+      "sha256": "f3da32d916444abf70c9fb1d830bf64a48c33eba4775e70a89f5bcde3e378d2b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/mod.rs",
+      "sha256": "b97ca98a05d98ea7a551826f3f80541aee0b2262cc3d1262ac3c618e67cad644",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/morphology.rs",
+      "sha256": "f31ad2ea03659309f544c003aeec4e0c09f0c71630e0fe9218994418e174057e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter/turbulence.rs",
+      "sha256": "908ae9324973331a6935bfdf9c65bcb47bfb1e5444c6e16a38aa5e9c55a847b9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/geom.rs",
+      "sha256": "2231dd54f9444399f2a2c528b8c163b0a930f4861e9e32927f62fa2289fa10e3",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/image.rs",
+      "sha256": "19162ce56b6906e67eaef9a3b57f8fec7fc92613fd74283b052e3aa1f9577e63",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "b96332b302efedcd7ade0ebbe664603e32363761cfb7bfb87e339a650317f82b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2017 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "977012c9f7ff8d2bf6bc6bcf8e845d7530b612088ab93125ffe72ae6f9e8e852",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2020 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/mask.rs",
+      "sha256": "dc9e0d6dd22d2dd9981ff68e27f2ac45d303f574c4ca293877dfdd5af2a3c37d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/path.rs",
+      "sha256": "be05a9187c316b0f58c5493768dd146e81ee18c9c2e9d150f53e8097dc8f10b3",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/render.rs",
+      "sha256": "4b59dfa15d3fbe1d79cabc64e0bcf1f41fa46f70576c732b5f90deec12317091",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the Resvg Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

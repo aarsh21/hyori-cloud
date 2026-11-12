@@ -10,6 +10,8 @@ import {
   act,
   ApiFailure,
   createFakeApi,
+  fireEvent,
+  mount,
   screen,
   SIGNED_IN_USER,
   test,
@@ -77,4 +79,34 @@ test("real AuthBoundary removes old authenticated content after logout despite a
     queryClient.clear();
     sdk.dispose();
   }
+});
+
+test("retrying keeps the same focused button in place, however the attempt ends", async () => {
+  let attempt = 0;
+
+  const api = createFakeApi({
+    "auth.status": () => {
+      attempt += 1;
+
+      if (attempt < 3) throw new ApiFailure("service.unavailable");
+
+      return { initialized: true, user: SIGNED_IN_USER };
+    },
+  });
+
+  mount(<AuthBoundary>Private content</AuthBoundary>, api);
+
+  const retry = await screen.findByRole("button", { name: "Try again" });
+
+  act(() => retry.focus());
+  fireEvent.click(retry);
+
+  await waitFor(() => expect(attempt).toBe(2));
+  await waitFor(() => expect(retry.getAttribute("aria-busy")).toBeNull());
+  expect(retry.isConnected).toBe(true);
+  expect(document.activeElement).toBe(retry);
+
+  fireEvent.click(retry);
+
+  expect(await screen.findByText("Private content")).toBeTruthy();
 });

@@ -15,7 +15,9 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./react": "./src/react/index.ts"
+    "./react": "./src/react/index.ts",
+    "./browser": "./src/browser/index.ts",
+    "./editor-runtime": "./src/editor-runtime.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit -p tsconfig.json",

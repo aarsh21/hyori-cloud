@@ -1,0 +1,17 @@
+/* SPDX-License-Identifier: MIT */
+/* origin: core-math/src/binary64/hypot/hypot.c
+ * Copyright (c) 2022 Alexei Sibidanov.
+ * Ported to Rust in 2025, TG
+ * Approximate CORE-MATH commit: 8ea8ea35c518
+ */
+
+//! Euclidian distance via the pythagorean theorem (`√(x2 + y2)`).
+//!
+//! Per IEEE 754-2019:
+//!
+//! - Domain: `[−∞, +∞] × [−∞, +∞]`
+//! - `hypot(±0, ±0)` is +0
+//! - `hypot(±∞, qNaN)` is +∞
+//! - `hypot(qNaN, ±∞)` is +∞.
+//! - May raise overflow or underflow
+

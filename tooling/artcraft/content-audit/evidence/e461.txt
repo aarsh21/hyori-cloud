@@ -1,0 +1,381 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+use crate::props::*;
+use crate::provider::names::*;
+use core::marker::PhantomData;
+use icu_collections::codepointtrie::TrieValue;
+use icu_provider::marker::ErasedMarker;
+use icu_provider::prelude::*;
+use yoke::Yokeable;
+use zerotrie::cursor::ZeroTrieSimpleAsciiCursor;
+
+/// A struct capable of looking up a property value from a string name.
+/// Access its data by calling [`Self::as_borrowed()`] and using the methods on
+/// [`PropertyParserBorrowed`].
+///
+/// The name can be a short name (`Lu`), a long name(`Uppercase_Letter`),
+/// or an alias.
+///
+/// Property names can be looked up using "strict" matching (looking for a name
+/// that matches exactly), or "loose matching", where the name is allowed to deviate
+/// in terms of ASCII casing, whitespace, underscores, and hyphens.
+///
+/// # Example
+///
+/// ```
+/// use icu::properties::PropertyParser;
+/// use icu::properties::props::GeneralCategory;
+///
+/// let lookup = PropertyParser::<GeneralCategory>::new();
+/// // short name for value
+/// assert_eq!(
+///     lookup.get_strict("Lu"),
+///     Some(GeneralCategory::UppercaseLetter)
+/// );
+/// assert_eq!(
+///     lookup.get_strict("Pd"),
+///     Some(GeneralCategory::DashPunctuation)
+/// );
+/// // long name for value
+/// assert_eq!(
+///     lookup.get_strict("Uppercase_Letter"),
+///     Some(GeneralCategory::UppercaseLetter)
+/// );
+/// assert_eq!(
+///     lookup.get_strict("Dash_Punctuation"),
+///     Some(GeneralCategory::DashPunctuation)
+/// );
+/// // name has incorrect casing
+/// assert_eq!(lookup.get_strict("dashpunctuation"), None);
+/// // loose matching of name
+/// assert_eq!(
+///     lookup.get_loose("dash-punctuation"),
+///     Some(GeneralCategory::DashPunctuation)
+/// );
+/// // fake property
+/// assert_eq!(lookup.get_strict("Animated_Gif"), None);
+/// ```
+#[derive(Debug)]
+pub struct PropertyParser<T> {
+    map: DataPayload<ErasedMarker<PropertyValueNameToEnumMap<'static>>>,
+    markers: PhantomData<fn() -> T>,
+}
+
+/// A borrowed wrapper around property value name-to-enum data, returned by
+/// [`PropertyParser::as_borrowed()`]. More efficient to query.
+#[derive(Debug)]
+pub struct PropertyParserBorrowed<'a, T> {
+    map: &'a PropertyValueNameToEnumMap<'a>,
+    markers: PhantomData<fn() -> T>,
+}
+
+impl<T> Clone for PropertyParserBorrowed<'_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T> Copy for PropertyParserBorrowed<'_, T> {}
+
+impl<T> PropertyParser<T> {
+    /// Creates a new instance of `PropertyParser<T>` using compiled data.
+    ///
+    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
+    ///
+    /// [📚 Help choosing a constructor](icu_provider::constructors)
+    #[cfg(feature = "compiled_data")]
+    #[expect(clippy::new_ret_no_self)]
+    pub const fn new() -> PropertyParserBorrowed<'static, T>
+    where
+        T: ParseableEnumeratedProperty,
+    {
+        PropertyParserBorrowed::new()
+    }
+
+    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new)]
+    pub fn try_new_unstable(
+        provider: &(impl DataProvider<T::DataMarker> + ?Sized),
+    ) -> Result<Self, DataError>
+    where
+        T: ParseableEnumeratedProperty,
+    {
+        Ok(Self {
+            map: provider.load(Default::default())?.payload.cast(),
+            markers: PhantomData,
+        })
+    }
+
+    /// Construct a borrowed version of this type that can be queried.
+    ///
+    /// This avoids a potential small underlying cost per API call (like `get_strict()`) by consolidating it
+    /// up front.
+    #[inline]
+    pub fn as_borrowed(&self) -> PropertyParserBorrowed<'_, T> {
+        PropertyParserBorrowed {
+            map: self.map.get(),
+            markers: PhantomData,
+        }
+    }
+
+    #[doc(hidden)] // used by FFI code
+    pub fn erase(self) -> PropertyParser<u16> {
+        PropertyParser {
+            map: self.map.cast(),
+            markers: PhantomData,
+        }
+    }
+}
+
+impl<T: TrieValue> PropertyParserBorrowed<'_, T> {
+    /// Get the property value as a u16, doing a strict search looking for
+    /// names that match exactly
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use icu::properties::PropertyParser;
+    /// use icu::properties::props::GeneralCategory;
+    ///
+    /// let lookup = PropertyParser::<GeneralCategory>::new();
+    /// assert_eq!(
+    ///     lookup.get_strict_u16("Lu"),
+    ///     Some(GeneralCategory::UppercaseLetter as u16)
+    /// );
+    /// assert_eq!(
+    ///     lookup.get_strict_u16("Uppercase_Letter"),
+    ///     Some(GeneralCategory::UppercaseLetter as u16)
+    /// );
+    /// // does not do loose matching
+    /// assert_eq!(lookup.get_strict_u16("UppercaseLetter"), None);
+    /// ```
+    #[inline]
+    pub fn get_strict_u16(self, name: &str) -> Option<u16> {
+        self.get_strict_u16_utf8(name.as_bytes())
+    }
+
+    #[doc(hidden)]
+    pub fn get_strict_u16_utf8(self, name: &[u8]) -> Option<u16> {
+        get_strict_u16(self.map, name)
+    }
+
+    /// Get the property value as a `T`, doing a strict search looking for
+    /// names that match exactly
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use icu::properties::PropertyParser;
+    /// use icu::properties::props::GeneralCategory;
+    ///
+    /// let lookup = PropertyParser::<GeneralCategory>::new();
+    /// assert_eq!(
+    ///     lookup.get_strict("Lu"),
+    ///     Some(GeneralCategory::UppercaseLetter)
+    /// );
+    /// assert_eq!(
+    ///     lookup.get_strict("Uppercase_Letter"),
+    ///     Some(GeneralCategory::UppercaseLetter)
+    /// );
+    /// // does not do loose matching
+    /// assert_eq!(lookup.get_strict("UppercaseLetter"), None);
+    /// ```
+    #[inline]
+    pub fn get_strict(self, name: &str) -> Option<T> {
+        self.get_strict_utf8(name.as_bytes())
+    }
+
+    #[doc(hidden)]
+    pub fn get_strict_utf8(self, name: &[u8]) -> Option<T> {
+        T::try_from_u32(self.get_strict_u16_utf8(name)? as u32).ok()
+    }
+
+    /// Get the property value as a u16, doing a loose search looking for
+    /// names that match case-insensitively, ignoring ASCII hyphens, underscores, and
+    /// whitespaces.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use icu::properties::PropertyParser;
+    /// use icu::properties::props::GeneralCategory;
+    ///
+    /// let lookup = PropertyParser::<GeneralCategory>::new();
+    /// assert_eq!(
+    ///     lookup.get_loose_u16("Lu"),
+    ///     Some(GeneralCategory::UppercaseLetter as u16)
+    /// );
+    /// assert_eq!(
+    ///     lookup.get_loose_u16("Uppercase_Letter"),
+    ///     Some(GeneralCategory::UppercaseLetter as u16)
+    /// );
+    /// // does do loose matching
+    /// assert_eq!(
+    ///     lookup.get_loose_u16("UppercaseLetter"),
+    ///     Some(GeneralCategory::UppercaseLetter as u16)
+    /// );
+    /// ```
+    #[inline]
+    pub fn get_loose_u16(self, name: &str) -> Option<u16> {
+        self.get_loose_u16_utf8(name.as_bytes())
+    }
+
+    #[doc(hidden)]
+    pub fn get_loose_u16_utf8(self, name: &[u8]) -> Option<u16> {
+        get_loose_u16(self.map, name)
+    }
+
+    /// Get the property value as a `T`, doing a loose search looking for
+    /// names that match case-insensitively, ignoring ASCII hyphens, underscores, and
+    /// whitespaces.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use icu::properties::PropertyParser;
+    /// use icu::properties::props::GeneralCategory;
+    ///
+    /// let lookup = PropertyParser::<GeneralCategory>::new();
+    /// assert_eq!(
+    ///     lookup.get_loose("Lu"),
+    ///     Some(GeneralCategory::UppercaseLetter)
+    /// );
+    /// assert_eq!(
+    ///     lookup.get_loose("Uppercase_Letter"),
+    ///     Some(GeneralCategory::UppercaseLetter)
+    /// );
+    /// // does do loose matching
+    /// assert_eq!(
+    ///     lookup.get_loose("UppercaseLetter"),
+    ///     Some(GeneralCategory::UppercaseLetter)
+    /// );
+    /// ```
+    #[inline]
+    pub fn get_loose(self, name: &str) -> Option<T> {
+        self.get_loose_utf8(name.as_bytes())
+    }
+
+    #[doc(hidden)]
+    pub fn get_loose_utf8(self, name: &[u8]) -> Option<T> {
+        T::try_from_u32(self.get_loose_u16_utf8(name)? as u32).ok()
+    }
+}
+
+#[cfg(feature = "compiled_data")]
+impl<T: ParseableEnumeratedProperty> Default for PropertyParserBorrowed<'static, T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: TrieValue> PropertyParserBorrowed<'static, T> {
+    /// Creates a new instance of `PropertyParserBorrowed<T>` using compiled data.
+    ///
+    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
+    ///
+    /// [📚 Help choosing a constructor](icu_provider::constructors)
+    #[cfg(feature = "compiled_data")]
+    pub const fn new() -> Self
+    where
+        T: ParseableEnumeratedProperty,
+    {
+        Self {
+            map: T::SINGLETON,
+            markers: PhantomData,
+        }
+    }
+
+    /// Cheaply converts a [`PropertyParserBorrowed<'static>`] into a [`PropertyParser`].
+    ///
+    /// Note: Due to branching and indirection, using [`PropertyParser`] might inhibit some
+    /// compile-time optimizations that are possible with [`PropertyParserBorrowed`].
+    pub const fn static_to_owned(self) -> PropertyParser<T> {
+        PropertyParser {
+            map: DataPayload::from_static_ref(self.map),
+            markers: PhantomData,
+        }
+    }
+}
+
+/// Avoid monomorphizing multiple copies of this function
+fn get_strict_u16(payload: &PropertyValueNameToEnumMap<'_>, name: &[u8]) -> Option<u16> {
+    payload.map.get(name).and_then(|i| i.try_into().ok())
+}
+
+/// Avoid monomorphizing multiple copies of this function
+fn get_loose_u16(payload: &PropertyValueNameToEnumMap<'_>, name: &[u8]) -> Option<u16> {
+    fn recurse(mut cursor: ZeroTrieSimpleAsciiCursor, mut rest: &[u8]) -> Option<usize> {
+        if cursor.is_empty() {
+            return None;
+        }
+
+        // Skip underscore in trie
+        let mut skip_cursor = cursor.clone();
+        skip_cursor.step(b'_');
+        if let Some(r) = recurse(skip_cursor, rest) {
+            return Some(r);
+        }
+
+        let ascii = loop {
+            let Some((&a, r)) = rest.split_first() else {
+                return cursor.take_value();
+            };
+            rest = r;
+
+            // Skip whitespace, underscore, hyphen in input
+            if !matches!(
+                a,
+                b'\t' | b'\n' | b'\x0C' | b'\r' | b' ' | 0x0B | b'_' | b'-'
+            ) {
+                break a;
+            }
+        };
+
+        // Try matching with the original case first
+        let mut cursor_clone = cursor.clone();
+        cursor_clone.step(ascii);
+        if let Some(r) = recurse(cursor_clone, rest) {
+            return Some(r);
+        }
+
+        // Try matching with the other case
+        let other_case = if ascii.is_ascii_lowercase() {
+            ascii.to_ascii_uppercase()
+        } else {
+            ascii.to_ascii_lowercase()
+        };
+
+        // If the other_case is different then recurse
+        if other_case != ascii {
+            cursor.step(other_case);
+            return recurse(cursor, rest);
+        }
+
+        None
+    }
+
+    recurse(payload.map.cursor(), name).and_then(|i| i.try_into().ok())
+}
+
+/// A struct capable of looking up a property name from a value
+/// Access its data by calling [`Self::as_borrowed()`] and using the methods on
+/// [`PropertyNamesLongBorrowed`].
+///
+/// # Example
+///
+/// ```
+/// use icu::properties::PropertyNamesLong;
+/// use icu::properties::props::CanonicalCombiningClass;
+///
+/// let names = PropertyNamesLong::<CanonicalCombiningClass>::new();
+/// assert_eq!(
+///     names.get(CanonicalCombiningClass::KanaVoicing),
+///     Some("Kana_Voicing")
+/// );
+/// assert_eq!(
+///     names.get(CanonicalCombiningClass::AboveLeft),
+///     Some("Above_Left")
+/// );
+/// ```
+pub struct PropertyNamesLong<T: NamedEnumeratedProperty> {
+    map: DataPayload<ErasedMarker<T::DataStru

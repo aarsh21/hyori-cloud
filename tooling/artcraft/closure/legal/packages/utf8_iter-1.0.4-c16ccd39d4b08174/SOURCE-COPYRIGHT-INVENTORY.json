@@ -1,0 +1,45 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "806ed7e6fad84cb440a763c03369af8a2dd01c60712bb19c635448c2a9d58b7e",
+      "lines": [
+        {
+          "line": 28,
+          "text": "[COPYRIGHT](https://github.com/hsivonen/utf8_iter/blob/master/COPYRIGHT)."
+        }
+      ]
+    },
+    {
+      "path": "src/indices.rs",
+      "sha256": "b01fbaac3c9a09be130cac57066a980362a1290fac2fe0f27f6238818235f94c",
+      "lines": [
+        {
+          "line": 5,
+          "text": "// Excerpt from https://github.com/rust-lang/rust/blob/ab32548539ec38a939c1b58599249f3b54130026/COPYRIGHT ,"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "5ac63cc86ea5ff25ac5b2988f172efa9f338ea1214874f16e568c965b210e427",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation"
+        }
+      ]
+    },
+    {
+      "path": "src/report.rs",
+      "sha256": "4b228198912dbc65733f6a9d42051440148833bfb4ae31a10bfeafe9ed45b7ef",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation"
+        }
+      ]
+    }
+  ]
+}

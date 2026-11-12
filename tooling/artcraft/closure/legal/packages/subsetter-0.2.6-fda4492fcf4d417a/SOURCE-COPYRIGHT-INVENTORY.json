@@ -1,0 +1,81 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/cff/dict/mod.rs",
+      "sha256": "41a6c4f7e1dcfbce00f6bb73b1e1b971a221a08049ff2382bd121c37f7b37216",
+      "lines": [
+        {
+          "line": 159,
+          "text": "    pub const COPYRIGHT: Operator ="
+        }
+      ]
+    },
+    {
+      "path": "src/cff/dict/top_dict.rs",
+      "sha256": "2e5e3cec1391166936cc82a14d88c220de93fe0828d92e7232428150ab67341a",
+      "lines": [
+        {
+          "line": 23,
+          "text": "    pub copyright: Option<StringId>,"
+        },
+        {
+          "line": 44,
+          "text": "            // We only need to preserve the copyrights and font name."
+        },
+        {
+          "line": 46,
+          "text": "            COPYRIGHT => top_dict.copyright = Some(dict_parser.parse_sid()?),"
+        },
+        {
+          "line": 88,
+          "text": "    // Copyright notices."
+        },
+        {
+          "line": 89,
+          "text": "    if let Some(copyright) ="
+        },
+        {
+          "line": 90,
+          "text": "        top_dict_data.copyright.and_then(|s| sid_remapper.get_new_sid(s))"
+        },
+        {
+          "line": 92,
+          "text": "        sub_w.write(Number::from_i32(copyright.0 as i32));"
+        },
+        {
+          "line": 93,
+          "text": "        sub_w.write(COPYRIGHT);"
+        }
+      ]
+    },
+    {
+      "path": "src/cff/mod.rs",
+      "sha256": "bbb1c58ed0a91ea349c0fbd4a81f4097b081643cd067e3643cc79fe385ea4540",
+      "lines": [
+        {
+          "line": 320,
+          "text": "    if let Some(copyright) = table.top_dict_data.copyright {"
+        },
+        {
+          "line": 321,
+          "text": "        remap_sid(copyright)?;"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "3560b769ae006b7af4252f4884e504eb847dfc2f1963c445827a27490ef7b1ca",
+      "lines": [
+        {
+          "line": 22,
+          "text": "- Copyright information in the font will be retained."
+        },
+        {
+          "line": 244,
+          "text": "    // However, it contains copyright information which probably should not be removed..."
+        }
+      ]
+    }
+  ]
+}

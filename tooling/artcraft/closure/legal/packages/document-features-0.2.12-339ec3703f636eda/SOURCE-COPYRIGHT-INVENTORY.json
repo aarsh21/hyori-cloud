@@ -1,0 +1,19 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "lib.rs",
+      "sha256": "4b137510dcedb04a4c630fbb3ecd98f8cf5695ae22b17b6d52c6cc2d8028538c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright © SixtyFPS GmbH <info@sixtyfps.io>"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: MIT OR Apache-2.0"
+        }
+      ]
+    }
+  ]
+}

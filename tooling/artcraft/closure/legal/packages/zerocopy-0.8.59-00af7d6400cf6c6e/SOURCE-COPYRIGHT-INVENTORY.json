@@ -1,0 +1,499 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "170b78f493a3e852134ec33dcd32683607bf2422827d7cc5534fa8a9632af01c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "<!-- Copyright 2025 The Fuchsia Authors"
+        },
+        {
+          "line": 35,
+          "text": "- **File headers:** New files must use the repository copyright header with the"
+        }
+      ]
+    },
+    {
+      "path": "build.rs",
+      "sha256": "a45528e5f53be3899e8b0aaf0c523a332a5a816321f29f1c5e6ba0732dc7435d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "876e5a74db78bdc53677ec4d489ce7b2fc87840f2dc094423cef406138082708",
+      "lines": [
+        {
+          "line": 1,
+          "text": "<!-- Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "clippy.toml",
+      "sha256": "df67a6131fff2fe52309e797d2dfad080fc8cbdfcb1baa7f14415b3e397c291c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "# Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "POLICIES.md",
+      "sha256": "c1a54cb1010af32f7ce5a2501f5ef62db44521aae816a08c577f5ec06afd09ea",
+      "lines": [
+        {
+          "line": 1,
+          "text": "<!-- Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "README.md",
+      "sha256": "de9d295f1a9baa9c505ca73761e3f53d55c059f77af5fb5a6d0c984579ac1845",
+      "lines": [
+        {
+          "line": 1,
+          "text": "<!-- Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/byte_slice.rs",
+      "sha256": "d7192aa0c5845d7a1f01d36235ecee93ab05ea6fdc42f4666fefe3d1d12bd829",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/byteorder.rs",
+      "sha256": "007bbc8ba5d76e8ce96f580faf732c200982dd372433026ac2625d28a5ee10f2",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2019 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/deprecated.rs",
+      "sha256": "0762789a318b47fefd1d852160472d1ef91d994f2914304bd7c4544cc8368664",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/doctests.rs",
+      "sha256": "dcbadd8d83a676ba003d00e9ce038cb7752224fd700be4547ae7f56b17ab718d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2025 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/error.rs",
+      "sha256": "934e0e13a658c30d528b098365d542bd34292642e9b8a9e44ba88b603293e354",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/impls.rs",
+      "sha256": "0ba67c0b85dc1bf820a33c6ffa0c161432aa6307984568af88e55aaece9a5504",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/layout.rs",
+      "sha256": "e9528c0ea3dc40aee4b8a6746c158cdaf259e56ccc8173e0a86be31d5c92df09",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "0071ff03e5c3d24c68cfb6cd58c85185ffeae4c3fe571d2805c1831fff396e0d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2018 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/macros.rs",
+      "sha256": "22722408493f841191fa27517174be96f50bbfea6acc725ea0b96237ad40324c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/pointer/inner.rs",
+      "sha256": "e7fbf63f695054fcebc0e353d0c1b7a75d87c30af7d64395aca86b088dd07bac",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/pointer/invariant.rs",
+      "sha256": "a5ed83dad776e25101d4a7af3f041a9583444658b0f8cc21810dfc672069525e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/pointer/mod.rs",
+      "sha256": "0ac86a7ecbb849d0b5afe7f58325a70285c6863b60c1a5c8adff104f22162eba",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/pointer/ptr.rs",
+      "sha256": "439ceb582c1fa113fc9840fb2d5069af3c55c566c19546c530dc4aeef003cc4b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/pointer/transmute.rs",
+      "sha256": "98c0839a2b9a8ff264f540578dd39bf21c1d07d5666b6d2d501ee6c9c80a69bf",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2025 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/ref.rs",
+      "sha256": "b9a72a3333f015d8f374ea339cba66b59ac6eae7bba7a65ab7a6094fa25a2381",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/split_at.rs",
+      "sha256": "58ed7e5c2b0a0210367dea07c6f0735aff8b1baa3586a9b4bb206037e1ae0617",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2025 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/util/macro_util.rs",
+      "sha256": "eca22752ac26166fb92b20a69f44457e88625a9a665a3b054cdc46ec08131591",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2022 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/util/macros.rs",
+      "sha256": "5048805fd420822092a9768bf2c12b57849d629792356d8849ca5493f75f078c",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/util/mod.rs",
+      "sha256": "13a84ee008dc40d2420d4b99b786d15496d63501bbc12b1c2888758068da1055",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "src/wrappers.rs",
+      "sha256": "24c52211740e0baefdb9363880b2985a26eac5751a749f76f72291461422e3f0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT"
+        },
+        {
+          "line": 3,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/codegen.rs",
+      "sha256": "51afd6c3e479bcff84fca340573116db6be9f1fc99c0c5a411583bd12f440c0f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2026 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/include.rs",
+      "sha256": "6ba5b8d8d0d492a6ef8e9d855c5d2438c9fd28d22f5349322bc14c1af31ba949",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2026 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui.rs",
+      "sha256": "d5d4e4711aad7d8c78f308f54c6bb258ae703345f730fe0d254135f0d807afb0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2019 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/diagnostic-not-implemented.rs",
+      "sha256": "04444c8b5e902ae5d6ca95d7bf049ea4dc992df03e05209abce7ca0de261cf73",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/include_value.rs",
+      "sha256": "5f9a57d10865b2daca4d0bdac56ed5d780b7cf614854b22a4a13073f5700732a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/late-compile-pass.rs",
+      "sha256": "b4524a6c3484be51b3279d797bdbaa91171f830aab6874c794f95db1712ec22b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2026 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/max-align.rs",
+      "sha256": "9866fc49d8bbeea1e4dfbfb971ed7bc6e2087857abd021b3125f487fb89788fe",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/ptr-is-invariant-over-v.rs",
+      "sha256": "24b23ab599a8a5f20afda6edc49a215309948474aed5e05590708bc281a6fc06",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2025 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/transmute_mut.rs",
+      "sha256": "6adbfef906b6f4321f8b00510e422c421378465eaab1f2d41395e178d629ac16",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/transmute_ref.rs",
+      "sha256": "b4df55cc80bac00a05e3ab26bcd18be48901a5165d48b9bc5d35280633ce3da1",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/transmute-ptr-to-usize.rs",
+      "sha256": "2860895519d4d28b6d6d56393b6d85895022c5629bc45cdcf549786486cdeddd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/transmute.rs",
+      "sha256": "49d473f40d7cdde8e42b1cc38cb2cadedb13c7148e2ef08f5119fe5bb351a851",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/try_transmute_mut.rs",
+      "sha256": "9860d6d8beb0a6c553b91c6cd8c0b8143ee9dd57f80d0ad5eac90d6f0d442e67",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/try_transmute_ref.rs",
+      "sha256": "bde79572927a2f31f40e5249bf07befb9a7e5e31b0fcb601751d916d5da39a1f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2024 The Fuchsia Authors"
+        }
+      ]
+    },
+    {
+      "path": "tests/ui/try_transmute.rs",
+      "sha256": "a81e8d96baca0d16e985ab9f9626f5d7d09b0dc61a5e61ccfadcc173d2a3bcfd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 The Fuchsia Authors"
+        }
+      ]
+    }
+  ]
+}

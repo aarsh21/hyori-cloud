@@ -1,4 +1,5 @@
 {
+  "timeoutMs": 900000,
   "sdkPackageJson": "../../packages/client-sdk/package.json",
   "reactEntry": "../../packages/client-sdk/src/react/index.ts",
   "requiredSymbols": [

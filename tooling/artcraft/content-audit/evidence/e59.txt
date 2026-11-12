@@ -1,0 +1,27 @@
+{
+  "offset": 3687091,
+  "bytes": 3484,
+  "sha256": "122806555c73df7cef55aa1d945289ae27fbc4dbbd31abbb4204ee0cda829cc8",
+  "names": [
+    {
+      "id": 1,
+      "text": "emoji"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "emoji"
+    },
+    {
+      "id": 4,
+      "text": "emoji"
+    },
+    {
+      "id": 6,
+      "text": "emoji"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "inline-flex h-8 min-w-0 items-center justify-between gap-1.5 rounded-lg border border-input bg-card px-2.5 text-[13px] whitespace-nowrap shadow-(--shadow-control) transition-[background-color,border-color,box-shadow] duration-150 outline-none select-none hover:bg-accent focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 data-disabled:pointer-events-none data-disabled:opacity-50 data-popup-open:bg-accent coarse:h-10",
+        "inline-flex h-8 min-w-0 items-center justify-between gap-1.5 rounded-lg border border-input bg-card px-2.5 text-[13px] whitespace-nowrap shadow-(--shadow-control) transition-[background-color,border-color,box-shadow] duration-150 outline-none select-none hover:bg-accent focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 data-disabled:pointer-events-none data-disabled:opacity-50 data-popup-open:bg-accent coarse:h-11",
         className,
       )}
       {...props}
@@ -72,7 +72,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative grid cursor-default grid-cols-[1fr_1rem] items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground",
+        "relative grid cursor-default grid-cols-[1fr_1rem] items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] outline-none select-none coarse:min-h-11 data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground",
         className,
       )}
       {...props}

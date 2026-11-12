@@ -1,0 +1,693 @@
+{
+  "browser": "156.0.8078.4",
+  "runtimeManifestSha256": "bb6d2eb3f4e81976429c4e0c65de57452898398dd962af7e81083478daa28ea0",
+  "syntheticOnly": true,
+  "sandboxEnabled": true,
+  "focusStealingInDispatch": false,
+  "actualHttpPerformanceBaseline": false,
+  "results": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0",
+      "inputSha256": "d32cb22c833fb37772f33a083f84fc700aa2ccb702aa095185f5520284fd7053",
+      "attempts": [
+        {
+          "focus": "parent",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 1
+        },
+        {
+          "focus": "editor",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        }
+      ],
+      "trustedControlNativeSaves": 1,
+      "observed": {
+        "messages": [
+          {
+            "type": "wordcraft:ready",
+            "version": "0.14.0"
+          },
+          {
+            "type": "wordcraft:dirty",
+            "dirty": false
+          },
+          {
+            "type": "wordcraft:save",
+            "name": "Synthetic.rtf",
+            "saveAs": false
+          },
+          {
+            "type": "wordcraft:save",
+            "name": "Synthetic.rtf",
+            "saveAs": false
+          }
+        ],
+        "saves": [
+          {
+            "type": "wordcraft:save",
+            "name": "Synthetic.rtf",
+            "saveAs": false,
+            "bytes": 916,
+            "sha256": "1382f2a369383c2a86e87736d2d95adeff048be63b6d59223a90529450a38e81",
+            "prefix": [
+              123,
+              92,
+              114,
+              116,
+              102,
+              49,
+              92,
+              97,
+              110,
+              115,
+              105,
+              92,
+              97,
+              110,
+              115,
+              105
+            ]
+          },
+          {
+            "type": "wordcraft:save",
+            "name": "Synthetic.rtf",
+            "saveAs": false,
+            "bytes": 916,
+            "sha256": "1382f2a369383c2a86e87736d2d95adeff048be63b6d59223a90529450a38e81",
+            "prefix": [
+              123,
+              92,
+              114,
+              116,
+              102,
+              49,
+              92,
+              97,
+              110,
+              115,
+              105,
+              92,
+              97,
+              110,
+              115,
+              105
+            ]
+          }
+        ]
+      },
+      "errors": [],
+      "wasm": [
+        {
+          "url": "http://127.0.0.1:38845/wordcraft/0.14.0/wordcraft-web-a75a8b404d46b7ab_bg.wasm",
+          "durationMs": 149.79999995231628
+        }
+      ]
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0",
+      "inputSha256": "b7d7367bbae85475509de46126bd15300d43db720c48a36504d78d6b093ae780",
+      "attempts": [
+        {
+          "focus": "parent",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 1
+        },
+        {
+          "focus": "editor",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        }
+      ],
+      "trustedControlNativeSaves": 1,
+      "observed": {
+        "messages": [
+          {
+            "type": "gridcraft:ready",
+            "version": "0.15.0"
+          },
+          {
+            "type": "gridcraft:dirty",
+            "dirty": false
+          },
+          {
+            "type": "gridcraft:save",
+            "name": "Synthetic.xlsx"
+          },
+          {
+            "type": "gridcraft:save",
+            "name": "Synthetic.xlsx"
+          }
+        ],
+        "saves": [
+          {
+            "type": "gridcraft:save",
+            "name": "Synthetic.xlsx",
+            "bytes": 4107,
+            "sha256": "cbaa1830e7b79c3f11fb2cbe0411e9cec096bd4e4b8d651d37488496303f8d51",
+            "prefix": [
+              80,
+              75,
+              3,
+              4,
+              20,
+              0,
+              0,
+              0,
+              8,
+              0,
+              0,
+              0,
+              33,
+              0,
+              255,
+              22
+            ]
+          },
+          {
+            "type": "gridcraft:save",
+            "name": "Synthetic.xlsx",
+            "bytes": 4107,
+            "sha256": "cbaa1830e7b79c3f11fb2cbe0411e9cec096bd4e4b8d651d37488496303f8d51",
+            "prefix": [
+              80,
+              75,
+              3,
+              4,
+              20,
+              0,
+              0,
+              0,
+              8,
+              0,
+              0,
+              0,
+              33,
+              0,
+              255,
+              22
+            ]
+          }
+        ]
+      },
+      "errors": [],
+      "wasm": [
+        {
+          "url": "http://127.0.0.1:38845/gridcraft/0.15.0/gridcraft-web-7d721fa0754b75b9_bg.wasm",
+          "durationMs": 83.79999995231628
+        }
+      ]
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0",
+      "inputSha256": "c7ea3b0ee4dee499f5c57e48470bfe7084103c41fbb03aa193bd3e5a58072a2e",
+      "attempts": [
+        {
+          "focus": "parent",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 1
+        },
+        {
+          "focus": "editor",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        }
+      ],
+      "trustedControlNativeSaves": 1,
+      "observed": {
+        "messages": [
+          {
+            "type": "pdfcraft:ready",
+            "version": "0.17.0"
+          },
+          {
+            "type": "pdfcraft:save",
+            "name": "Synthetic.pdf",
+            "saveAs": false
+          },
+          {
+            "type": "pdfcraft:save",
+            "name": "Synthetic.pdf",
+            "saveAs": false
+          }
+        ],
+        "saves": [
+          {
+            "type": "pdfcraft:save",
+            "name": "Synthetic.pdf",
+            "saveAs": false,
+            "bytes": 431,
+            "sha256": "c7ea3b0ee4dee499f5c57e48470bfe7084103c41fbb03aa193bd3e5a58072a2e",
+            "prefix": [
+              37,
+              80,
+              68,
+              70,
+              45,
+              49,
+              46,
+              55,
+              10,
+              49,
+              32,
+              48,
+              32,
+              111,
+              98,
+              106
+            ]
+          },
+          {
+            "type": "pdfcraft:save",
+            "name": "Synthetic.pdf",
+            "saveAs": false,
+            "bytes": 431,
+            "sha256": "c7ea3b0ee4dee499f5c57e48470bfe7084103c41fbb03aa193bd3e5a58072a2e",
+            "prefix": [
+              37,
+              80,
+              68,
+              70,
+              45,
+              49,
+              46,
+              55,
+              10,
+              49,
+              32,
+              48,
+              32,
+              111,
+              98,
+              106
+            ]
+          }
+        ]
+      },
+      "errors": [],
+      "wasm": [
+        {
+          "url": "http://127.0.0.1:38845/pdfcraft/0.17.0/pdfcraft-web-f32e9f5f03a85965_bg.wasm",
+          "durationMs": 134.5
+        }
+      ]
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.14.1-hyori-host.2",
+      "inputSha256": "953416e28f240c7dde04af1eec880dbb59ef3ae7ab9ed35e552f98a868a9bc80",
+      "attempts": [
+        {
+          "focus": "parent",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "parent",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": false,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "window",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "document",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        },
+        {
+          "focus": "editor",
+          "target": "canvas",
+          "available": true,
+          "trusted": false,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 1
+        },
+        {
+          "focus": "editor",
+          "target": "textarea",
+          "available": false,
+          "trusted": null,
+          "focusUnchanged": true,
+          "documentFocused": true,
+          "nativeSaveEvents": 0
+        }
+      ],
+      "trustedControlNativeSaves": 1,
+      "observed": {
+        "messages": [
+          {
+            "type": "deckcraft:ready",
+            "supportedInputFormats": [
+              ".deckcraft",
+              ".pptx"
+            ],
+            "maxBytes": 67108864,
+            "acknowledgements": true,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          },
+          {
+            "type": "deckcraft:opened",
+            "openId": "synthetic-open",
+            "name": "Synthetic.deckcraft",
+            "documentId": "8683841552121856",
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          },
+          {
+            "type": "deckcraft:dirty",
+            "dirty": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          },
+          {
+            "type": "deckcraft:save",
+            "openId": "synthetic-open",
+            "saveId": "synthetic-open:1",
+            "name": "Synthetic.deckcraft",
+            "saveAs": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          },
+          {
+            "type": "deckcraft:saved",
+            "saveId": "synthetic-open:1",
+            "dirty": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          },
+          {
+            "type": "deckcraft:save",
+            "openId": "synthetic-open",
+            "saveId": "synthetic-open:2",
+            "name": "Synthetic.deckcraft",
+            "saveAs": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          },
+          {
+            "type": "deckcraft:saved",
+            "saveId": "synthetic-open:2",
+            "dirty": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2"
+          }
+        ],
+        "saves": [
+          {
+            "type": "deckcraft:save",
+            "openId": "synthetic-open",
+            "saveId": "synthetic-open:1",
+            "name": "Synthetic.deckcraft",
+            "saveAs": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2",
+            "bytes": 4758,
+            "sha256": "46c34a88695b7fd009fe7b957ef65b99372d0bf956e31828a062c976563612e8",
+            "prefix": [
+              80,
+              75,
+              3,
+              4,
+              10,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              33,
+              0,
+              80,
+              147
+            ]
+          },
+          {
+            "type": "deckcraft:save",
+            "openId": "synthetic-open",
+            "saveId": "synthetic-open:2",
+            "name": "Synthetic.deckcraft",
+            "saveAs": false,
+            "protocol": 1,
+            "version": "0.14.1-hyori-host.2",
+            "bytes": 4758,
+            "sha256": "46c34a88695b7fd009fe7b957ef65b99372d0bf956e31828a062c976563612e8",
+            "prefix": [
+              80,
+              75,
+              3,
+              4,
+              10,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              33,
+              0,
+              80,
+              147
+            ]
+          }
+        ]
+      },
+      "errors": [],
+      "wasm": [
+        {
+          "url": "http://127.0.0.1:38845/deckcraft/0.14.1-hyori-host.2/deckcraft-web-75e966a6dd7e7144_bg.wasm",
+          "durationMs": 117
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "sourceArchiveSha256": "51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+  "commit": "7d78f3e14474b978be014715e0cc64895d77025a",
+  "deployable": false,
+  "files": [
+    {
+      "member": "crates/fonts/src/std14_metrics.rs",
+      "path": "0.txt",
+      "bytes": 20490,
+      "sha256": "f225e0b044875b8fa6375b6b5ad935f0d99fcc1ad03ecf9f0baae2cedbfca4d2"
+    },
+    {
+      "member": "crates/fonts/src/encodings.rs",
+      "path": "1.txt",
+      "bytes": 9577,
+      "sha256": "2fa227f5286859bdcf1c04e631ce5b18db75ebc323f577b5437b097892ba75d5"
+    },
+    {
+      "member": "crates/fonts/src/std14.rs",
+      "path": "2.txt",
+      "bytes": 11428,
+      "sha256": "927d1b5516342279a3940fcaf79fee97a961f5cd9da92185f261216d488c6885"
+    },
+    {
+      "member": "crates/fonts/src/lib.rs",
+      "path": "3.txt",
+      "bytes": 23403,
+      "sha256": "3eecaaeae53a81cfe3cba190df33622814c4f33d553f0d5de4a26d3057cc7a65"
+    },
+    {
+      "member": "crates/fonts/src/pdf.rs",
+      "path": "4.txt",
+      "bytes": 70255,
+      "sha256": "8a89739c12e69ce1bcdd7664c96e4dba4d38eba0deb3991261cca4925e4a78c6"
+    },
+    {
+      "member": "ATTRIBUTION.toml",
+      "path": "5.txt",
+      "bytes": 175764,
+      "sha256": "cf2abfe26f14e4bee8dacfb334c958a2e83591c761bb30fbaeb2e91de1f1bf8c"
+    },
+    {
+      "member": "AGENTS.md",
+      "path": "6.txt",
+      "bytes": 15675,
+      "sha256": "6467f03d1fd563a8f9efb78463af335256d2d100cc79f29028be0bc11e60971f"
+    },
+    {
+      "member": "vendor/hayro-interpret/src/font/standard_font.rs",
+      "path": "7.txt",
+      "bytes": 32360,
+      "sha256": "30437a43d979595df55a22ca8fec2c42786b0b81378e73a177dcc35bf0fbc14f"
+    },
+    {
+      "member": "vendor/hayro-interpret/assets/LICENSE_FOXIT",
+      "path": "8.txt",
+      "bytes": 1553,
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+    }
+  ]
+}

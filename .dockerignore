@@ -1,4 +1,6 @@
 **/node_modules
+/target
+.cache
 .git
 
 **/dist
@@ -31,3 +33,6 @@ docker-compose.yml
 local.db
 local.db-*
 .data
+
+# Unapproved vendor acquisition/build scratch is neither compiler input nor a shipped asset.
+tooling/artcraft/.generated

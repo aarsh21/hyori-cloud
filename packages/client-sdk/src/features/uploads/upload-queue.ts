@@ -1,19 +1,27 @@
+import { Schema } from "@hyori-cloud/lib/effect";
 import type { Client } from "#client-sdk/client";
 import { normalizeError, SDKError } from "#client-sdk/errors";
 import { confirmUploadAbort, normalizeUploadError } from "#client-sdk/features/uploads/upload";
 import {
+  checkpointIntent,
   decodeUploadCheckpoint,
   matchesCheckpointFile,
 } from "#client-sdk/features/uploads/upload-checkpoint";
 import type { UploadCheckpoint } from "#client-sdk/features/uploads/upload-checkpoint";
-import type { UploadFile, UploadSnapshot, UploadTask } from "#client-sdk/features/uploads/upload";
+import type {
+  ReplaceUpload,
+  UploadFile,
+  UploadSnapshot,
+  UploadTask,
+} from "#client-sdk/features/uploads/upload";
+import { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
 
 export type CheckpointStore = {
   readonly read: () => readonly unknown[];
   readonly write: (checkpoints: readonly UploadCheckpoint[]) => void;
 };
 
-export type UploadEntry =
+export type UploadEntry = { readonly intent: UploadIntent } & (
   | {
       readonly state: "waiting";
       readonly id: string;
@@ -24,6 +32,8 @@ export type UploadEntry =
       readonly state: "started";
       readonly id: string;
       readonly name: string;
+      /** A requested retry is waiting for one of this queue's transfer slots. */
+      readonly retryQueued: boolean;
       readonly task: UploadTask;
     }
   | {
@@ -32,7 +42,8 @@ export type UploadEntry =
       readonly checkpoint: UploadCheckpoint;
       readonly cancelling?: boolean;
       readonly error: ReturnType<typeof normalizeUploadError> | null;
-    };
+    }
+);
 
 export type UploadSummary = {
   readonly total: number;
@@ -94,6 +105,7 @@ export function createUploadQueue(
       state: "interrupted" as const,
       id: checkpoint.uploadId,
       checkpoint,
+      intent: Object.freeze(checkpointIntent(checkpoint)),
       error: null,
     }));
   } catch (error) {
@@ -163,6 +175,17 @@ export function createUploadQueue(
   }
 
   function publish() {
+    if (
+      entries.some(
+        (entry) => entry.state === "started" && entry.retryQueued !== retries.has(entry.id),
+      )
+    )
+      entries = entries.map((entry) =>
+        entry.state === "started" && entry.retryQueued !== retries.has(entry.id)
+          ? { ...entry, retryQueued: retries.has(entry.id) }
+          : entry,
+      );
+
     let active = 0;
     let failed = 0;
     let complete = 0;
@@ -329,7 +352,14 @@ export function createUploadQueue(
           try {
             const task = start();
             pendingCheckpoints.delete(entry.id);
-            replace(entry.id, { state: "started", id: entry.id, name: entry.file.name, task });
+            replace(entry.id, {
+              state: "started",
+              id: entry.id,
+              name: entry.intent.name,
+              intent: entry.intent,
+              retryQueued: false,
+              task,
+            });
             observe(entry.id, task);
             active++;
           } catch (error) {
@@ -341,6 +371,7 @@ export function createUploadQueue(
                 state: "interrupted",
                 id: entry.id,
                 checkpoint,
+                intent: entry.intent,
                 error: normalizeUploadError(error),
               });
             else entries = entries.filter((current) => current.id !== entry.id);
@@ -374,10 +405,38 @@ export function createUploadQueue(
 
       for (const file of files) {
         const id = `local-${++sequence}`;
-        entries = [...entries, { state: "waiting", id, file, parentId }];
+        const intent = Object.freeze({ kind: "new" as const, name: file.name });
+        entries = [...entries, { state: "waiting", id, file, parentId, intent }];
         starts.set(id, () => sdkClient.uploads.start({ file, parentId }));
       }
 
+      pump();
+      persist();
+      publish();
+    },
+    replace(input: ReplaceUpload) {
+      assertActive();
+      let intent: UploadIntent;
+
+      try {
+        intent = Object.freeze(
+          Schema.decodeUnknownSync(UploadIntent)({
+            kind: "replacement",
+            name: input.target.name,
+            targetId: input.target.id,
+          }),
+        );
+      } catch (error) {
+        throw new SDKError("SDK_VALIDATION", "The replacement target is invalid.", {
+          cause: error,
+        });
+      }
+
+      const { file, parentId } = input;
+      const target = Object.freeze({ id: input.target.id, name: input.target.name });
+      const id = `local-${++sequence}`;
+      entries = [...entries, { state: "waiting", id, file, parentId, intent }];
+      starts.set(id, () => sdkClient.uploads.replace({ file, parentId, target }));
       pump();
       persist();
       publish();
@@ -403,7 +462,7 @@ export function createUploadQueue(
 
       pendingCheckpoints.set(id, checkpoint);
       starts.set(id, () => sdkClient.uploads.resume({ checkpoint, file, confirmSameFile: true }));
-      replace(id, { state: "waiting", id, file, parentId: null });
+      replace(id, { state: "waiting", id, file, parentId: null, intent: entry.intent });
       pump();
       persist();
       publish();
@@ -426,6 +485,7 @@ export function createUploadQueue(
       const entry = find(id);
 
       if (entry?.state === "started") entry.task.pause();
+      publish();
     },
     cancel(id: string): Promise<void> {
       assertActive();
@@ -465,6 +525,7 @@ export function createUploadQueue(
                   state: "interrupted",
                   id,
                   checkpoint,
+                  intent: owner.intent,
                   cancelling: false,
                   error: normalizeUploadError(error),
                 });

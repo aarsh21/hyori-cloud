@@ -14,6 +14,10 @@ import { Notice } from "@hyori-cloud/ui/components/notice";
 import { Skeleton } from "@hyori-cloud/ui/components/skeleton";
 import { Stack } from "@hyori-cloud/ui/components/text";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
+import {
+  AccessRecoveryButton,
+  useAccessRecovery,
+} from "#features/shared/react/access-recovery.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 import { AccountShares } from "#features/sharing/react/account-shares.tsx";
 import { LinkShares } from "#features/sharing/react/link-shares.tsx";
@@ -59,17 +63,23 @@ function ShareDialogBody({
   entry: FileEntry;
   shares: ReturnType<typeof useItemShares>;
 }) {
+  const recovery = useAccessRecovery(shares.error);
+
   if (shares.data === undefined) {
     if (shares.error !== null) {
-      const copy = describeCloudError(shares.error);
+      const copy = recovery ?? describeCloudError(shares.error);
 
       return (
         <Notice
           title={copy.title}
           action={
-            <Button size="sm" variant="outline" onClick={() => shares.refetch()}>
-              Try again
-            </Button>
+            recovery === null ? (
+              <Button size="sm" variant="outline" onClick={() => shares.refetch()}>
+                Try again
+              </Button>
+            ) : (
+              <AccessRecoveryButton recovery={recovery} size="sm" />
+            )
           }
         >
           {copy.detail}
@@ -98,6 +108,7 @@ function ShareDialogBody({
       />
       <LinkShares
         itemId={entry.id}
+        itemName={entry.name}
         inheritsAccess={entry.parentId !== null}
         shares={shares.data.items.filter((share) => share.public)}
       />

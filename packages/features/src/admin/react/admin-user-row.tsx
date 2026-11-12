@@ -35,8 +35,8 @@ export function AdminUserRow({
         >
           {user.name}
         </ItemName>
-        <Row className="hidden min-w-0 gap-2 @2xl:flex">
-          <InlineText tone="muted" truncate>
+        <Row className="min-w-0 gap-2">
+          <InlineText tone="muted" truncate className="hidden @2xl:inline">
             {user.email}
           </InlineText>
           {user.role === "admin" ? <Tag>Admin</Tag> : null}

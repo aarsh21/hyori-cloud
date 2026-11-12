@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./deckcraft-*.ts",
+    "../../tooling/artcraft/patches/deckcraft-host-v1/*.ts",
+    "../../tooling/artcraft/patches/deckcraft-host-v2/*.ts"
+  ]
+}

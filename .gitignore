@@ -4,6 +4,7 @@ node_modules
 .pnp.js
 
 # Build outputs
+/target
 dist
 build
 *.tsbuildinfo
@@ -15,6 +16,7 @@ local.db-*
 
 # Environment variables
 .env
+.env.deployment
 .env*.local
 
 # IDEs and editors
@@ -50,6 +52,9 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+
+# Amp orb portals
+.amp/portals/*
 
 # Misc
 *.tgz

@@ -9,7 +9,7 @@ import * as React from "react";
 const trackClasses = "inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-0.5";
 
 const segmentClasses =
-  "inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:h-9 [&_svg]:size-4 [&_svg]:stroke-[1.75]";
+  "inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:h-11 coarse:min-w-11 [&_svg]:size-4 [&_svg]:stroke-[1.75]";
 
 const selectedClasses = "bg-card font-medium text-foreground shadow-(--shadow-panel)";
 

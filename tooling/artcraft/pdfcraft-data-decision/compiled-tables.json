@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "artifact": "pdfcraft@0.17.0",
+  "archiveSha256": "393420ab35e25afc174cb6d1791098bb714099aca91cf6598b4553e57c48a835",
+  "wasm": {
+    "path": "pdfcraft-web-f32e9f5f03a85965_bg.wasm",
+    "sha256": "5c5a618eccbfd41102e1310b0a9e6759f0a950f794c0a048da7e217724bb8240"
+  },
+  "deployable": false,
+  "fullNoticeAuditComplete": false,
+  "legalOpinion": false,
+  "method": "Static active-memory search for exact little-endian numeric table serialization. Positive observations establish data identity, not unique authorship/source origin, upstream rights or independent toolchain attestation. A miss never proves absence.",
+  "tables": [
+    {
+      "name": "WIDTHS",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 7168,
+      "sha256": "d1e0b65bb3c4236806cec97918ca03ce96d60377951b5ba8615688c0873fb92a",
+      "offsets": [
+        4880728
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[0]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "d8a051844d173057471882d7cac55a15be3d0b0086bb486902f166f9c9a93f8f",
+      "offsets": [
+        4880728,
+        4881752
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[1]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "89b547c15256ac78dee94c3fbaf228271763507f3c5d8e5426d029260856cf65",
+      "offsets": [
+        4881240,
+        4882264
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[2]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "d8a051844d173057471882d7cac55a15be3d0b0086bb486902f166f9c9a93f8f",
+      "offsets": [
+        4880728,
+        4881752
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[3]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "89b547c15256ac78dee94c3fbaf228271763507f3c5d8e5426d029260856cf65",
+      "offsets": [
+        4881240,
+        4882264
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[4]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "6820336289c526c5347547708cc1abd0879db2ec6999423923167616fc4dd0e3",
+      "offsets": [
+        4882776
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[5]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "4043ee7554a68ea9c68f085612e4434a7cea354e8b0258e153253afb5daad61f",
+      "offsets": [
+        4883288
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[6]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "3ab297b57818425f408ba1b400b8b5f2e3ea13904e1f9f5403beea07522bb921",
+      "offsets": [
+        4883800
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[7]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "0795e49828a06c93fda20027366bdf9bf30174eb8487be7e0f8bb30174c354b4",
+      "offsets": [
+        4884312
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[8]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "012c75c6fded09b932ce4a997f313052ca4bd339e8026e14131f378f2bcfb6e3",
+      "offsets": [
+        4884824,
+        4885336,
+        4885848,
+        4886360
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[9]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "012c75c6fded09b932ce4a997f313052ca4bd339e8026e14131f378f2bcfb6e3",
+      "offsets": [
+        4884824,
+        4885336,
+        4885848,
+        4886360
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[10]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "012c75c6fded09b932ce4a997f313052ca4bd339e8026e14131f378f2bcfb6e3",
+      "offsets": [
+        4884824,
+        4885336,
+        4885848,
+        4886360
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[11]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "012c75c6fded09b932ce4a997f313052ca4bd339e8026e14131f378f2bcfb6e3",
+      "offsets": [
+        4884824,
+        4885336,
+        4885848,
+        4886360
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[12]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "cbcb7ee82a5e39a183ef284ddc4a20b5522962c5dc8aa2b33652ab14550d62e7",
+      "offsets": [
+        4886872
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIDTHS[13]",
+      "sourceMember": "crates/fonts/src/std14_metrics.rs",
+      "bytes": 512,
+      "sha256": "22452da2c0b11f0a3cd73839eaa92f3bd64ab392eb4ba7fd362739f35c09a81e",
+      "offsets": [
+        4887384
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "WIN_ANSI",
+      "sourceMember": "crates/fonts/src/encodings.rs",
+      "bytes": 1024,
+      "sha256": "cee8dba93d74de223fd3cdbdc0ed92b03170e78d4be04ae5687ec2c23ad80d32",
+      "offsets": [
+        5860352
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "MAC_ROMAN",
+      "sourceMember": "crates/fonts/src/encodings.rs",
+      "bytes": 1024,
+      "sha256": "bb70db099878290d122fc74e106dbab019768a8ae6a47a8c26b3dd6d2a7fc70d",
+      "offsets": [
+        5861376
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    },
+    {
+      "name": "STANDARD",
+      "sourceMember": "crates/fonts/src/encodings.rs",
+      "bytes": 1024,
+      "sha256": "876520228128aa61d7265339b2bacdc80e5e538838b03ed35b35c1b9f8308346",
+      "offsets": [
+        5859328
+      ],
+      "allOccurrencesRecorded": true,
+      "disposition": "exact-numeric-bytes-observed-rights-unresolved"
+    }
+  ]
+}

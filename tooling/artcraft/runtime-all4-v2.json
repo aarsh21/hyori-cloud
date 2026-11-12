@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "all-four-runtime-static-bundle-handoff",
+  "bundleRoot": "tooling/artcraft/.generated/runtime-all4-v2",
+  "manifest": "runtime-bundle-manifest.json",
+  "manifestBytes": 1217401,
+  "manifestSha256": "bb6d2eb3f4e81976429c4e0c65de57452898398dd962af7e81083478daa28ea0",
+  "assetFiles": 3964,
+  "assetBytes": 212379781,
+  "fileMode": "0444",
+  "directoryMode": "0555",
+  "mountPath": "/artcraft",
+  "requiresReadOnlyMount": true,
+  "deckAuthority": "tooling/artcraft/runtime-deckcraft-v2.json",
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0",
+      "assetUrl": "/artcraft/wordcraft/0.14.0/index.html?host=parent"
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0",
+      "assetUrl": "/artcraft/gridcraft/0.15.0/index.html?host=parent"
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0",
+      "assetUrl": "/artcraft/pdfcraft/0.17.0/index.html?host=parent"
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.14.1-hyori-host.2",
+      "assetUrl": "/artcraft/deckcraft/0.14.1-hyori-host.2/index.html?host=parent"
+    }
+  ],
+  "deploymentScope": "verified-static-assets-only-not-product-launch-or-legal-clearance",
+  "legalOpinion": false,
+  "productIntegrationVerified": false,
+  "allFourLaunchReady": false,
+  "verification": {
+    "tests": 150,
+    "assertions": 15568,
+    "rootAntiSlop": "passed",
+    "containerExitStatus": null,
+    "containerNote": "All six final driver commands recorded exit0; original attachment completion record missing after session ended."
+  }
+}

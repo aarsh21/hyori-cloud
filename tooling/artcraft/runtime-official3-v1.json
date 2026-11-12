@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "runtime-static-bundle-handoff-receipt",
+  "bundleRoot": "tooling/artcraft/.generated/runtime-official3-v1",
+  "manifest": "runtime-bundle-manifest.json",
+  "manifestBytes": 829146,
+  "manifestSha256": "1bfd3449257f4bd8cf7b6c124817754dda5406e707b26a36a76dff1db318e8fc",
+  "assetFiles": 2764,
+  "assetBytes": 160302881,
+  "mountPath": "/artcraft",
+  "fileMode": "0444",
+  "directoryMode": "0555",
+  "requiresReadOnlyMount": true,
+  "deploymentScope": "verified-static-assets-only-not-product-launch-or-legal-clearance",
+  "legalOpinion": false,
+  "fullNoticeAuditComplete": false,
+  "compilerGeneratedNoticeAuditComplete": false,
+  "productIntegrationVerified": false,
+  "allFourLaunchReady": false,
+  "adoptionIndexSha256": "607e858087a0b64f1bf5e30a9fed7fe14e2aaded394e2f05e163e32b9d09f216",
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0",
+      "assetUrl": "/artcraft/wordcraft/0.14.0/index.html?host=parent",
+      "indexSha256": "df2530aadf5686985852dfc586b30f737a2aad7e074569d2cc3eb7df3987493d",
+      "wasmSha256": "b92e14bc7be246f67ae914f834bcf50d9cd772ff9f71840aee3d7f7c362c689c"
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0",
+      "assetUrl": "/artcraft/gridcraft/0.15.0/index.html?host=parent",
+      "indexSha256": "4106738762d6212155d92acb12cdc15eff729687d7f785889b35be69c6220ac9",
+      "wasmSha256": "4e46b23339e36fbadeaae9ec4fc3a71a5dfe2d72b9bd645166ec3bd3149a905b"
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0",
+      "assetUrl": "/artcraft/pdfcraft/0.17.0/index.html?host=parent",
+      "indexSha256": "5aab94fcf5b1c9ea271bde8048d68ed0b68f4947745310ac7b33c591e44b8ed9",
+      "wasmSha256": "5c5a618eccbfd41102e1310b0a9e6759f0a950f794c0a048da7e217724bb8240"
+    }
+  ],
+  "excluded": {
+    "app": "deckcraft",
+    "officialVersion": "0.14.1",
+    "modifiedVersion": "0.14.1-hyori-host.1",
+    "blockers": [
+      "Official 0.14.1 lacks the required cloud host bridge.",
+      "Modified .1 still has protected marks: Opus owns removal/version patch.",
+      "A new distinct modified version needs one coordinated restricted build and exact artifact/notice receipt before static catalogue admission."
+    ]
+  }
+}

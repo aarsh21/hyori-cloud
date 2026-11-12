@@ -1,0 +1,332 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+use alloc::borrow::Cow;
+use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::fmt::Display;
+use core::{iter::Peekable, str::CharIndices};
+
+use crate::props::IndicConjunctBreak;
+use crate::script::ScriptWithExtensions;
+use crate::{
+    CodePointMapData,
+    props::{
+        CanonicalCombiningClass, EastAsianWidth, EnumeratedProperty, GeneralCategory,
+        GeneralCategoryGroup, GraphemeClusterBreak, LineBreak, Script, SentenceBreak, WordBreak,
+    },
+};
+use crate::{
+    CodePointSetData,
+    props::{PatternWhiteSpace, XidContinue, XidStart},
+};
+use crate::{PropertyParser, provider::*};
+use icu_collections::{
+    codepointinvlist::{CodePointInversionList, CodePointInversionListBuilder},
+    codepointinvliststringlist::CodePointInversionListAndStringList,
+};
+use icu_provider::prelude::*;
+
+/// The kind of error that occurred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, displaydoc::Display)]
+#[non_exhaustive]
+pub enum ParseErrorKind {
+    /// An unexpected character was encountered.
+    ///
+    /// This variant implies the other variants
+    /// (notably `UnknownProperty` and `Unimplemented`) do not apply.
+    #[displaydoc("An unexpected character was encountered")]
+    UnexpectedChar(char),
+    /// The property name or value is unknown.
+    ///
+    /// For property names, make sure you use the spelling
+    /// defined in [ECMA-262](https://tc39.es/ecma262/#table-nonbinary-unicode-properties).
+    #[displaydoc("The property name or value is unknown")]
+    UnknownProperty,
+    /// A reference to an unknown variable.
+    UnknownVariable,
+    /// A variable of a certain type occurring in an unexpected context.
+    UnexpectedVariable,
+    /// The source is an incomplete unicode set.
+    Eof,
+    /// Something unexpected went wrong with our code. Please file a bug report on GitHub.
+    Internal,
+    /// The provided syntax is not supported by us.
+    ///
+    /// Note that unknown properties will return the
+    /// `UnknownProperty` variant, not this one.
+    #[displaydoc("The provided syntax is not supported by us.")]
+    Unimplemented,
+    /// The provided escape sequence is not a valid Unicode code point or represents too many code points.
+    InvalidEscape,
+}
+use ParseErrorKind as PEK;
+use zerovec::VarZeroVec;
+
+impl ParseErrorKind {
+    fn with_offset(self, offset: usize) -> ParseError {
+        ParseError {
+            offset: Some(offset),
+            kind: self,
+        }
+    }
+}
+
+impl From<ParseErrorKind> for ParseError {
+    fn from(kind: ParseErrorKind) -> Self {
+        ParseError { offset: None, kind }
+    }
+}
+
+/// The error type returned by the `parse` functions in this crate.
+///
+/// See [`ParseError::fmt_with_source`] for pretty-printing and [`ParseErrorKind`] of the
+/// different types of errors represented by this struct.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseError {
+    // offset is the index to an arbitrary byte in the last character in the source that makes sense
+    // to display as location for the error, e.g., the unexpected character itself or
+    // for an unknown property name the last character of the name.
+    offset: Option<usize>,
+    kind: ParseErrorKind,
+}
+
+type Result<T, E = ParseError> = core::result::Result<T, E>;
+
+impl ParseError {
+    /// Pretty-prints this error and if applicable, shows where the error occurred in the source.
+    ///
+    /// Must be called with the same source that was used to parse the set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use icu::properties::unicodeset_parse::*;
+    ///
+    /// let source = "[[abc]-x]";
+    /// let set = parse(source);
+    /// assert!(set.is_err());
+    /// let err = set.unwrap_err();
+    /// assert_eq!(
+    ///     err.fmt_with_source(source).to_string(),
+    ///     "[[abc]-x← error: unexpected character 'x'"
+    /// );
+    /// ```
+    ///
+    /// ```
+    /// use icu::properties::unicodeset_parse::*;
+    ///
+    /// let source = r"[\N{LATIN CAPITAL LETTER A}]";
+    /// let set = parse(source);
+    /// assert!(set.is_err());
+    /// let err = set.unwrap_err();
+    /// assert_eq!(
+    ///     err.fmt_with_source(source).to_string(),
+    ///     r"[\N← error: unimplemented"
+    /// );
+    /// ```
+    pub fn fmt_with_source(&self, source: &str) -> impl Display + use<> {
+        let ParseError { offset, kind } = *self;
+
+        if kind == ParseErrorKind::Eof {
+            return format!("{source}← error: unexpected end of input");
+        }
+        let mut s = String::new();
+        if let Some(offset) = offset
+            && offset < source.len()
+        {
+            // offset points to any byte of the last character we want to display.
+            // in the case of ASCII, this is easy - we just display bytes [..=offset].
+            // however, if the last character is more than one byte in UTF-8
+            // we cannot use ..=offset, because that would potentially include only partial
+            // bytes of last character in our string. hence we must find the start of the
+            // following character and use that as the (exclusive) end of our string.
+
+            // offset points into the last character we want to include, hence the start of the
+            // first character we want to exclude is at least offset + 1.
+            let mut exclusive_end = offset + 1;
+            // TODO: replace this loop with str::ceil_char_boundary once stable
+            for _ in 0..3 {
+                // is_char_boundary returns true at the latest once exclusive_end == source.len()
+                if source.is_char_boundary(exclusive_end) {
+                    break;
+                }
+                exclusive_end += 1;
+            }
+
+            // exclusive_end is at most source.len() due to str::is_char_boundary and at least 0 by type
+            s.push_str(&source[..exclusive_end]);
+            s.push_str("← ");
+        }
+        s.push_str("error: ");
+        match kind {
+            ParseErrorKind::UnexpectedChar(c) => {
+                s.push_str(&format!("unexpected character '{}'", c.escape_debug()));
+            }
+            ParseErrorKind::UnknownProperty => {
+                s.push_str("unknown property");
+            }
+            ParseErrorKind::UnknownVariable => {
+                s.push_str("unknown variable");
+            }
+            ParseErrorKind::UnexpectedVariable => {
+                s.push_str("unexpected variable");
+            }
+            ParseErrorKind::Eof => {
+                s.push_str("unexpected end of input");
+            }
+            ParseErrorKind::Internal => {
+                s.push_str("internal error");
+            }
+            ParseErrorKind::Unimplemented => {
+                s.push_str("unimplemented");
+            }
+            ParseErrorKind::InvalidEscape => {
+                s.push_str("invalid escape sequence");
+            }
+        }
+
+        s
+    }
+
+    /// Returns the [`ParseErrorKind`] of this error.
+    pub fn kind(&self) -> ParseErrorKind {
+        self.kind
+    }
+
+    /// Returns the offset of this error in the source string, if it was specified.
+    pub fn offset(&self) -> Option<usize> {
+        self.offset
+    }
+
+    fn or_with_offset(self, offset: usize) -> Self {
+        match self.offset {
+            Some(_) => self,
+            None => ParseError {
+                offset: Some(offset),
+                ..self
+            },
+        }
+    }
+}
+
+/// The value of a variable in a `UnicodeSet`. Used as value type in [`VariableMap`].
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum VariableValue<'a> {
+    /// A `UnicodeSet`, represented as a [`CodePointInversionListAndStringList`](CodePointInversionListAndStringList).
+    UnicodeSet(CodePointInversionListAndStringList<'a>),
+    // in theory, a one-code-point string is always the same as a char, but we might want to keep
+    // this variant for efficiency?
+    /// A single code point.
+    Char(char),
+    /// A string. It is guaranteed that when returned from a `VariableMap`, this variant contains never exactly one code point.
+    String(Cow<'a, str>),
+}
+
+/// The map used for parsing `UnicodeSets` with variable support. See [`parse_with_variables`].
+#[derive(Debug, Clone, Default)]
+pub struct VariableMap<'a>(BTreeMap<String, VariableValue<'a>>);
+
+impl<'a> VariableMap<'a> {
+    /// Creates a new empty map.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Removes a key from the map, returning the value at the key if the key
+    /// was previously in the map.
+    pub fn remove(&mut self, key: &str) -> Option<VariableValue<'a>> {
+        self.0.remove(key)
+    }
+
+    /// Get a reference to the value associated with this key, if it exists.
+    pub fn get(&self, key: &str) -> Option<&VariableValue<'a>> {
+        self.0.get(key)
+    }
+
+    /// Insert a `VariableValue` into the `VariableMap`.
+    ///
+    /// Returns `Err` with the old value, if it exists, and does not update the map.
+    pub fn insert(
+        &mut self,
+        key: String,
+        value: VariableValue<'a>,
+    ) -> Result<(), &VariableValue<'_>> {
+        // borrow-checker shenanigans, otherwise we could use if let
+        if self.0.contains_key(&key) {
+            // we just checked that this key exists
+            #[expect(clippy::indexing_slicing)]
+            return Err(&self.0[&key]);
+        }
+
+        if let VariableValue::String(s) = &value {
+            let mut chars = s.chars();
+            if let (Some(c), None) = (chars.next(), chars.next()) {
+                self.0.insert(key, VariableValue::Char(c));
+                return Ok(());
+            };
+        }
+
+        self.0.insert(key, value);
+        Ok(())
+    }
+
+    /// Insert a `char` into the `VariableMap`.    
+    ///
+    /// Returns `Err` with the old value, if it exists, and does not update the map.
+    pub fn insert_char(&mut self, key: String, c: char) -> Result<(), &VariableValue<'_>> {
+        // borrow-checker shenanigans, otherwise we could use if let
+        if self.0.contains_key(&key) {
+            // we just checked that this key exists
+            #[expect(clippy::indexing_slicing)]
+            return Err(&self.0[&key]);
+        }
+
+        self.0.insert(key, VariableValue::Char(c));
+        Ok(())
+    }
+
+    /// Insert a `String` of any length into the `VariableMap`.
+    ///
+    /// Returns `Err` with the old value, if it exists, and does not update the map.
+    pub fn insert_string(&mut self, key: String, s: String) -> Result<(), &VariableValue<'_>> {
+        // borrow-checker shenanigans, otherwise we could use if let
+        if self.0.contains_key(&key) {
+            // we just checked that this key exists
+            #[expect(clippy::indexing_slicing)]
+            return Err(&self.0[&key]);
+        }
+
+        let mut chars = s.chars();
+        let val = match (chars.next(), chars.next()) {
+            (Some(c), None) => VariableValue::Char(c),
+            _ => VariableValue::String(Cow::Owned(s)),
+        };
+
+        self.0.insert(key, val);
+        Ok(())
+    }
+
+    /// Insert a `&str` of any length into the `VariableMap`.
+    ///
+    /// Returns `Err` with the old value, if it exists, and does not update the map.
+    pub fn insert_str(&mut self, key: String, s: &'a str) -> Result<(), &VariableValue<'_>> {
+        // borrow-checker shenanigans, otherwise we could use if let
+        if self.0.contains_key(&key) {
+            // we just checked that this key exists
+            #[expect(clippy::indexing_slicing)]
+            return Err(&self.0[&key]);
+        }
+
+        let mut chars = s.chars();
+        let val = match (chars.next(), chars.next()) {
+            (Some(c), None) => VariableValue::Char(c),
+            _ => VariableValue::String(Cow::Borrowed(s)),
+        };
+
+        self.0.insert(key, val);
+     

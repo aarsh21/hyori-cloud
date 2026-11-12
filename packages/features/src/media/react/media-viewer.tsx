@@ -11,14 +11,30 @@ import {
   LightboxPending,
   LightboxVideo,
 } from "@hyori-cloud/ui/components/lightbox";
+import { Spinner } from "@hyori-cloud/ui/components/spinner";
+import { usePreloadImages } from "@hyori-cloud/ui/hooks/use-preload-images";
 import { useDownloadFile } from "#features/files/react/use-download-file.ts";
 import { useFileUrl } from "#features/files/react/use-file-url.ts";
-import { describeCloudError } from "#features/shared/cloud-error.ts";
+import { describeCloudError, endsItemAccess } from "#features/shared/cloud-error.ts";
 import type { CloudError } from "#features/shared/cloud-error.ts";
 import {
   AccessRecoveryButton,
   useAccessRecovery,
 } from "#features/shared/react/access-recovery.tsx";
+
+/** Photos arrive with a ready-to-use URL. Items from a file listing request one when opened. */
+type MediaItem = FileEntry & { readonly previewUrl?: string };
+
+// The viewer always shows the full original, never a thumbnail, so speculation has to be bounded.
+const PRELOAD_MAX_BYTES = 8 * 1024 * 1024;
+
+function preloadableUrl(item: MediaItem | undefined) {
+  if (item?.previewUrl === undefined) return [];
+
+  return item.mimeType.startsWith("image/") && item.size <= PRELOAD_MAX_BYTES
+    ? [item.previewUrl]
+    : [];
+}
 
 /** `items` are the media in view. Stepping updates only the selected ID the owner already holds. */
 export function MediaViewer({
@@ -29,7 +45,7 @@ export function MediaViewer({
   onSelect,
   actions,
 }: {
-  items: readonly FileEntry[];
+  items: readonly MediaItem[];
   itemId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +57,8 @@ export function MediaViewer({
   const previous = items[index - 1];
   const next = items[index + 1];
   const download = useDownloadFile();
+
+  usePreloadImages(open ? [...preloadableUrl(previous), ...preloadableUrl(next)] : []);
 
   if (item === undefined) return null;
 
@@ -64,7 +82,11 @@ export function MediaViewer({
               disabled={download.isPending}
               onClick={() => download.mutate({ id: item.id })}
             >
-              <Download aria-hidden />
+              {download.isPending ? (
+                <Spinner label="Preparing download" className="text-current" />
+              ) : (
+                <Download aria-hidden />
+              )}
             </LightboxAction>
           ) : null}
         </>
@@ -109,21 +131,45 @@ function DownloadFailure({
   );
 }
 
-function MediaStage({ item, active }: { item: FileEntry; active: boolean }) {
+/**
+ * A photo already knows its URL, so it opens with no request of its own. If that can't be shown,
+ * asking for the preview again tells apart lost access, which can be recovered, from a file this
+ * browser can't decode, which can't.
+ */
+function MediaStage({ item, active }: { item: MediaItem; active: boolean }) {
+  const requested = <RequestedMedia item={item} active={active} />;
+
+  if (item.previewUrl === undefined) return requested;
+
+  return item.mimeType.startsWith("video/") ? (
+    <LightboxVideo src={item.previewUrl} label={item.name} fallback={requested} />
+  ) : (
+    <LightboxImage src={item.previewUrl} alt={item.name} fallback={requested} />
+  );
+}
+
+function RequestedMedia({ item, active }: { item: MediaItem; active: boolean }) {
   const url = useFileUrl(item.id, active);
-  const recovery = useAccessRecovery(url.error);
+
+  const unavailable = (
+    <LightboxMessage
+      title={
+        item.access.canDownload
+          ? "This can’t be previewed here. You can still download it."
+          : "This can’t be previewed here."
+      }
+    />
+  );
+
+  // The server refuses types it won't show inline, so trying again wouldn't change the answer.
+  if (url.error?.code === "input.invalid") return unavailable;
+
+  // A URL from before access ended or the file left is no reason to keep showing it.
+  if (url.error !== null && endsItemAccess(url.error)) {
+    return <PreviewFailure error={url.error} onRetry={() => url.refetch()} />;
+  }
 
   if (url.data !== undefined) {
-    const unavailable = (
-      <LightboxMessage
-        title={
-          item.access.canDownload
-            ? "This can’t be previewed here. You can still download it."
-            : "This can’t be previewed here."
-        }
-      />
-    );
-
     return item.mimeType.startsWith("video/") ? (
       <LightboxVideo src={url.data.url} label={item.name} fallback={unavailable} />
     ) : (
@@ -131,22 +177,26 @@ function MediaStage({ item, active }: { item: FileEntry; active: boolean }) {
     );
   }
 
-  if (url.error !== null) {
-    return (
-      <LightboxMessage
-        title={(recovery ?? describeCloudError(url.error)).title}
-        action={
-          recovery === null ? (
-            <Button variant="outline" size="sm" onClick={() => url.refetch()}>
-              Try again
-            </Button>
-          ) : (
-            <AccessRecoveryButton recovery={recovery} size="sm" />
-          )
-        }
-      />
-    );
-  }
+  if (url.error !== null) return <PreviewFailure error={url.error} onRetry={() => url.refetch()} />;
 
   return <LightboxPending />;
+}
+
+function PreviewFailure({ error, onRetry }: { error: CloudError; onRetry: () => void }) {
+  const recovery = useAccessRecovery(error);
+
+  return (
+    <LightboxMessage
+      title={(recovery ?? describeCloudError(error)).title}
+      action={
+        recovery === null ? (
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        ) : (
+          <AccessRecoveryButton recovery={recovery} size="sm" onRecovered={onRetry} />
+        )
+      }
+    />
+  );
 }

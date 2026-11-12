@@ -21,7 +21,7 @@ function BreadcrumbLink({ className, ...props }: React.ComponentProps<typeof App
     <li className="flex min-w-0 shrink items-center gap-0.5">
       <AppLink
         className={cn(
-          "max-w-40 truncate rounded-sm px-1 py-0.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+          "max-w-40 truncate rounded-sm px-1 py-0.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring coarse:py-3",
           className,
         )}
         {...props}

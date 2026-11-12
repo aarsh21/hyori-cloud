@@ -21,7 +21,10 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
     title: "This is no longer here",
     detail: "It may have been moved, deleted, or unshared.",
   },
-  "resource.conflict": { title: "That couldn’t be applied" },
+  "resource.conflict": {
+    title: "That couldn’t be applied",
+    detail: "It conflicts with something that already exists or just changed.",
+  },
   "storage.quotaExceeded": {
     title: "Not enough storage",
     detail: "Free up space or ask your admin for a larger quota.",
@@ -47,19 +50,15 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
   },
 };
 
-// These codes carry a server message written for people about this specific input.
-const SPECIFIC_MESSAGES = new Set<CloudErrorCode>([
-  "input.invalid",
-  "resource.conflict",
-  "access.denied",
-]);
+/** This person can no longer see the item, so anything fetched earlier shouldn't stay on screen. */
+export function endsItemAccess(error: CloudError): boolean {
+  return (
+    error.code === "auth.required" ||
+    error.code === "access.denied" ||
+    error.code === "resource.notFound"
+  );
+}
 
 export function describeCloudError(error: CloudError): ErrorCopy {
-  const copy = COPY[error.code];
-
-  if (SPECIFIC_MESSAGES.has(error.code) && error.message !== "") {
-    return { title: copy.title, detail: error.message };
-  }
-
-  return copy;
+  return COPY[error.code];
 }

@@ -1,0 +1,33 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/geometry.rs",
+      "sha256": "2f2c37da6a856f1463c593bd2c01d07f237951556c3f72594cb05a2561afa7ed",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 The AccessKit Authors. All rights reserved."
+        },
+        {
+          "line": 7,
+          "text": "// Copyright 2018 The kurbo Authors."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "f77ed125614c6e735141bdc5fe8551cfc8dbc2d16ffccf4d52880c2c2bdfeffd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 The AccessKit Authors. All rights reserved."
+        },
+        {
+          "line": 7,
+          "text": "// Copyright 2018 The Chromium Authors. All rights reserved."
+        }
+      ]
+    }
+  ]
+}

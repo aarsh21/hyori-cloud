@@ -1,0 +1,115 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "0e64fb3dd5a00e3fd528de6442de3f2ca851bd718c45cca0871aaf4eedac9ee1",
+      "lines": [
+        {
+          "line": 8,
+          "text": "under the Apache License 2.0 or MIT dual license (see the `COPYRIGHT` file)."
+        },
+        {
+          "line": 10,
+          "text": "under the Apache License 2.0 or MIT dual license stated in the `COPYRIGHT`"
+        },
+        {
+          "line": 20,
+          "text": "## Copyright Notices"
+        },
+        {
+          "line": 22,
+          "text": "If you require the addition of your copyright notice, it's up to you to edit in"
+        },
+        {
+          "line": 23,
+          "text": "your notice as part of your Contribution. Not adding a copyright notice is"
+        },
+        {
+          "line": 24,
+          "text": "taken as a waiver of copyright notice."
+        }
+      ]
+    },
+    {
+      "path": "README.md",
+      "sha256": "15f59d31be06931f36a78d7b9155840d247d0e2ee131d2cd16d5540ccf092114",
+      "lines": [
+        {
+          "line": 5,
+          "text": "[![Apache 2 / MIT dual-licensed](https://img.shields.io/badge/license-Apache%202%20%2F%20MIT-blue.svg)](https://github.com/hsivonen/chardetng/blob/master/COPYRIGHT)"
+        },
+        {
+          "line": 12,
+          "text": "[COPYRIGHT](https://github.com/hsivonen/chardetng/blob/master/COPYRIGHT)."
+        },
+        {
+          "line": 166,
+          "text": "* Handle non-space space-like bytes following a windows-1252 copyright sign."
+        },
+        {
+          "line": 170,
+          "text": "* Detect windows-1252 copyright sign surrounded by spaces as windows-1252."
+        }
+      ]
+    },
+    {
+      "path": "src/data.rs",
+      "sha256": "2e58404ae42facd6a0887f81dc76709efcdc7cf4159e5a214f4f2ecd717c44d0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "/* Any copyright is dedicated to the Public Domain."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "25dd7515e501752ace2356b4ead3cc6c74840648481dcad6ab8e496950ca394e",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation. See the COPYRIGHT"
+        },
+        {
+          "line": 62,
+          "text": "/// worth detecting even though the copyright sign detection"
+        },
+        {
+          "line": 65,
+          "text": "const COPYRIGHT_BONUS: i64 = 222;"
+        },
+        {
+          "line": 364,
+          "text": "    Copyright,"
+        },
+        {
+          "line": 497,
+          "text": "                            self.ordinal_state = OrdinalState::Copyright;"
+        },
+        {
+          "line": 613,
+          "text": "                    OrdinalState::Copyright => {"
+        },
+        {
+          "line": 615,
+          "text": "                            score += COPYRIGHT_BONUS;"
+        },
+        {
+          "line": 3618,
+          "text": "    fn test_space_copyright_space() {"
+        }
+      ]
+    },
+    {
+      "path": "src/tld.rs",
+      "sha256": "bf7084a8d6aac020d5cd05ac13d675d54ce81d4a2fbba45b7dffc608afa22783",
+      "lines": [
+        {
+          "line": 1,
+          "text": "/* Any copyright is dedicated to the Public Domain."
+        }
+      ]
+    }
+  ]
+}

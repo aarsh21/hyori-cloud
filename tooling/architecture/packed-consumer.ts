@@ -34,7 +34,7 @@ const bun = process.execPath;
 const environment = { PATH: process.env.PATH ?? "", BUN_CONFIG_NO_CLEAR_TERMINAL: "1" };
 
 const ownedSources = new Map(
-  ["client-sdk", "api", "core", "lib"].map((name) => [
+  ["client-sdk", "api", "lib"].map((name) => [
     `@hyori-cloud/${name}`,
     path.join(root, "packages", name),
   ]),
@@ -113,6 +113,9 @@ function assertPhysicalTree(directory: string, forbidFrameworks: boolean) {
       const value: unknown = JSON.parse(readFileSync(target, "utf8"));
       const named = z.object({ name: z.string().optional() }).safeParse(value);
       const name = named.success ? named.data.name : undefined;
+
+      if (name === "@hyori-cloud/core")
+        throw new Error("Retired legacy core artifact is present in the physical consumer tree.");
 
       if (
         forbidFrameworks &&
@@ -352,32 +355,42 @@ try {
     /(?:Cannot find|not exported|could not resolve)/i,
     "private SDK source path blocked by the packed export map",
   );
-  const core = path.join(vanilla.directory, "node_modules/@hyori-cloud/core");
-  const removed = path.join(temporary, "removed-core");
-  renameSync(core, removed);
+
+  if (
+    archives.size !== 3 ||
+    existsSync(path.join(vanilla.directory, "node_modules/@hyori-cloud/core"))
+  )
+    throw new Error(
+      "Packed consumers must contain exactly three owned artifacts and no legacy core.",
+    );
+  console.log("PASS vanilla SDK runtime and types resolve without any legacy backend artifact");
+
+  const api = path.join(vanilla.directory, "node_modules/@hyori-cloud/api");
+  const removedApi = path.join(temporary, "removed-api");
+  renameSync(api, removedApi);
 
   try {
     reject(
       vanilla.runtime,
       vanilla.directory,
-      /@hyori-cloud\/core/,
-      "missing owned artifact breaks runtime resolution",
+      /@hyori-cloud\/api/,
+      "missing generated API artifact breaks runtime resolution",
     );
     reject(
       vanilla.compiler,
       vanilla.directory,
-      /Cannot find module '@hyori-cloud\/core\/rpc'/,
-      "missing owned artifact breaks type resolution",
+      /Cannot find module '@hyori-cloud\/api\/rpc'/,
+      "missing generated API artifact breaks type resolution",
     );
   } finally {
-    renameSync(removed, core);
+    renameSync(removedApi, api);
   }
 
   const react = prepareConsumer(path.join(temporary, "react"), true);
   pass(react.compiler, react.directory);
   console.log(pass(react.runtime, react.directory).trim());
   console.log(
-    "PASS offline packed-artifact acceptance: four real tarballs, no workspace mappings/symlinks, no package lifecycle scripts",
+    "PASS offline packed-artifact acceptance: three real tarballs, no workspace mappings/symlinks, no package lifecycle scripts",
   );
 } finally {
   rmSync(temporary, { recursive: true, force: true });

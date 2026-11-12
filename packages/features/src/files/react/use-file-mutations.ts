@@ -39,3 +39,21 @@ export function useRestoreVersion() {
 
   return useMutation(mutation.files.restoreVersion.mutationOptions());
 }
+
+export function useDeletePermanently() {
+  const { mutation } = useClientSDK();
+
+  return useMutation(mutation.files.deletePermanently.mutationOptions());
+}
+
+export function useEmptyTrash() {
+  const { mutation } = useClientSDK();
+
+  return useMutation(mutation.files.emptyTrash.mutationOptions());
+}
+
+export function useDeleteVersion() {
+  const { mutation } = useClientSDK();
+
+  return useMutation(mutation.files.deleteVersion.mutationOptions());
+}

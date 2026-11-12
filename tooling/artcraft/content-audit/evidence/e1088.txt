@@ -1,0 +1,1 @@
+{"asset":"wordcraft-fa59e09a3f921e03.ico","sha256":"53a23dcf66260f44d87d4d143d633395f3e967f391eda47e6e9cc3a52f820225","sourceMembers":["assets/app-icon/wordcraft.ico"]}

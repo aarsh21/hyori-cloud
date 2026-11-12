@@ -1,0 +1,127 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSE.txt",
+      "sha256": "946c9835d8034d24404f8cfec5f4654cee5dad17e944afc3d06d742cf2882831",
+      "lines": [
+        {
+          "line": 2,
+          "text": "Apache 2.0 License [2]. Copyright (c) 2014--2026, Kang Seonghoon and"
+        },
+        {
+          "line": 13,
+          "text": "Copyright (c) 2014, Kang Seonghoon."
+        },
+        {
+          "line": 22,
+          "text": "The above copyright notice and this permission notice shall be included in"
+        },
+        {
+          "line": 28,
+          "text": "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
+        },
+        {
+          "line": 49,
+          "text": "   \"Licensor\" shall mean the copyright owner or entity authorized by"
+        },
+        {
+          "line": 50,
+          "text": "   the copyright owner that is granting the License."
+        },
+        {
+          "line": 74,
+          "text": "   copyright notice that is included in or attached to the work"
+        },
+        {
+          "line": 88,
+          "text": "   submitted to Licensor for inclusion in the Work by the copyright owner"
+        },
+        {
+          "line": 90,
+          "text": "   the copyright owner. For the purposes of this definition, \"submitted\""
+        },
+        {
+          "line": 97,
+          "text": "   designated in writing by the copyright owner as \"Not a Contribution.\""
+        },
+        {
+          "line": 103,
+          "text": "2. Grant of Copyright License. Subject to the terms and conditions of"
+        },
+        {
+          "line": 106,
+          "text": "   copyright license to reproduce, prepare Derivative Works of,"
+        },
+        {
+          "line": 138,
+          "text": "       that You distribute, all copyright, patent, trademark, and"
+        },
+        {
+          "line": 160,
+          "text": "   You may add Your own copyright statement to Your modifications and"
+        },
+        {
+          "line": 223,
+          "text": "   same \"printed page\" as the copyright notice for easier"
+        },
+        {
+          "line": 226,
+          "text": "Copyright [yyyy] [name of copyright owner]"
+        }
+      ]
+    },
+    {
+      "path": "src/format/parse.rs",
+      "sha256": "0114cc8f7cee11af7fd091f874c609c71e2ba094e2d793459f440150bb3cb1ed",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Portions copyright (c) 2015, John Nagle."
+        }
+      ]
+    },
+    {
+      "path": "src/offset/local/unix.rs",
+      "sha256": "b9900a80a669f32b3f9112087c269b1bf877d5ed1d5a388702938e1caa864d8a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/offset/local/windows.rs",
+      "sha256": "e9909f06e84c6334433fe24e1db14ca61c116889df9db6903917a3083fdd4606",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/time_delta.rs",
+      "sha256": "647ea215f6c9c58060c3f82db09147d857a4075890e331e55e6256e02cdbd425",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    }
+  ]
+}

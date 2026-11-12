@@ -1,3 +1,5 @@
+import { readSingleKeyShortcuts } from "@hyori-cloud/ui/lib/single-key-shortcuts";
+
 /** Hands a capability URL to the browser's own download manager, which streams to disk. */
 export function startBrowserDownload(url: string, name: string) {
   const anchor = document.createElement("a");
@@ -11,13 +13,25 @@ export function startBrowserDownload(url: string, name: string) {
 }
 
 /** Client-side navigation leaves focus on a removed element; this gives keyboard users a next Tab. */
+/** Hands bytes already in memory to the browser's download manager. */
+export function saveBytesAsDownload(bytes: Uint8Array<ArrayBuffer>, name: string) {
+  const url = URL.createObjectURL(new Blob([bytes]));
+
+  startBrowserDownload(url, name);
+  // Long enough for the browser to have taken its own reference.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export function focusMainRegion() {
   document.querySelector<HTMLElement>('[data-slot="app-main"]')?.focus({ preventScroll: true });
 }
 
-/** True for a bare keypress meant for the app: not typing, not chorded, no modal or menu open. */
+/**
+ * True for a bare keypress meant for the app: not typing, not chorded, no modal or menu open. A
+ * stray key can trigger these, and speech input can type them, so they can be turned off.
+ */
 export function isAppShortcut(event: KeyboardEvent) {
-  if (event.metaKey || event.ctrlKey || event.altKey) return false;
+  if (!readSingleKeyShortcuts() || event.metaKey || event.ctrlKey || event.altKey) return false;
   const target = event.target;
 
   if (

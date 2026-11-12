@@ -5,7 +5,9 @@ import type { RPC } from "#client-sdk/product-types";
 import { createTransport } from "#client-sdk/transport";
 import type { TransportOptions } from "#client-sdk/transport";
 import { createUploads } from "#client-sdk/features/uploads/upload";
+import { createEditors } from "#client-sdk/features/editors/create-editors";
 import { SDKError } from "#client-sdk/errors";
+import { readBinaryRejection } from "#client-sdk/read-binary-rejection";
 
 export type ClientOptions = TransportOptions & {
   /** Non-secret identity/tenant cache partition; never supply a password or token. */
@@ -16,10 +18,12 @@ export function createClient(options: ClientOptions = {}) {
   const transport = createTransport(options);
   const catalog = deriveOperations(operations, transport.invoke, options.cacheScope ?? "session");
   const uploads = createUploads(catalog.rpc.uploads, transport.request);
+  const editors = createEditors(catalog.rpc.editors, uploads, transport.request);
 
   return {
     ...catalog,
     uploads,
+    editors,
     downloads: {
       /** Stream bytes to a host-owned sink; this helper never buffers an entire file. */
       open: async (
@@ -29,16 +33,25 @@ export function createClient(options: ClientOptions = {}) {
         const metadata = await catalog.rpc.files.download(input, options);
         const response = await transport.request(metadata.url, { signal: options?.signal });
 
-        if (!response.ok)
-          throw new SDKError("SDK_TRANSPORT", `Download failed (${response.status}).`);
+        if (!response.ok) throw await readBinaryRejection(response, options?.signal);
 
         if (!response.body)
           throw new SDKError("SDK_PROTOCOL", "The download has no readable body.");
+        const length = response.headers.get("content-length");
+
+        if (
+          length !== null &&
+          (!/^(0|[1-9]\d*)$/.test(length) || Number(length) !== metadata.size)
+        ) {
+          await response.body.cancel().catch(() => undefined);
+          throw new SDKError("SDK_PROTOCOL", "Download length does not match its descriptor.");
+        }
 
         return { metadata, stream: response.body };
       },
     },
     dispose: () => {
+      editors.dispose();
       uploads.dispose();
       transport.dispose();
     },

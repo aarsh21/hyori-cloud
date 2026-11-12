@@ -1,0 +1,45 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/flac/metadata.rs",
+      "sha256": "f814dbd7bbba8c17c4f28a0768880e9319a2b44dcb38a597e1f2361896ae4d84",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/flac/mod.rs",
+      "sha256": "e7646f4d9d99fe57e041493da8d1aa99985c81954fa914ba88f7abc609c8692d",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "3916e7f8a2106bfcbe7e863ef3d6918a4d53c172864508195d0ddbbb75dc675b",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    },
+    {
+      "path": "src/vorbis/mod.rs",
+      "sha256": "b4f71311a31b6478b7404d682a5df2e61006c274026108eddd45b9603a6dd4da",
+      "lines": [
+        {
+          "line": 2,
+          "text": "// Copyright (c) 2019-2022 The Project Symphonia Developers."
+        }
+      ]
+    }
+  ]
+}

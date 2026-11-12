@@ -1,0 +1,55 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/eq.rs",
+      "sha256": "63978ad73d7144c3371491fd459d7e2ce9bdb672d121d9cb900556c5efd4cf92",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014-2020 Optimal Computing (NZ) Ltd."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "0be2c16ab1ca344bf8448e983e91b3ae41507d2e90e390433832ea83fdafb404",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014-2020 Optimal Computing (NZ) Ltd."
+        }
+      ]
+    },
+    {
+      "path": "src/ratio.rs",
+      "sha256": "ec6c8338c1c45d49b9df2748069dba883105730a7bb6542dfeaac1b778c16feb",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014-2020 Optimal Computing (NZ) Ltd."
+        }
+      ]
+    },
+    {
+      "path": "src/ulps_eq.rs",
+      "sha256": "87ad38eb13c31304962b29511d6f8215ab0b9f3b2b51545844678f81f83fb688",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014-2020 Optimal Computing (NZ) Ltd."
+        }
+      ]
+    },
+    {
+      "path": "src/ulps.rs",
+      "sha256": "15528c3b0007b9f8b588f9113040973e819adf6245fa99da1497ec153e62c7a0",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2014-2020 Optimal Computing (NZ) Ltd."
+        }
+      ]
+    }
+  ]
+}

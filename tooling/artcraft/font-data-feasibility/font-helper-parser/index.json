@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "deployable": false,
+  "legalOpinion": false,
+  "records": [
+    {
+      "member": "read-fonts-0.41.0/src/ps/cff/font.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.41.0.crate#046a7d674daf459825b32f5062056d6882db0d2f5a479fbd76ccfc870ac18709",
+      "path": "0.txt",
+      "bytes": 44733,
+      "sha256": "07bd7cefb10ffca17916b2688237f3f62d0acc95a426fc6f0fd946b8bffe8e41"
+    },
+    {
+      "member": "read-fonts-0.41.0/src/lib.rs",
+      "source": "https://static.crates.io/crates/read-fonts/read-fonts-0.41.0.crate#046a7d674daf459825b32f5062056d6882db0d2f5a479fbd76ccfc870ac18709",
+      "path": "1.txt",
+      "bytes": 19072,
+      "sha256": "0432d1c87d3c267d9c88f5f00cacb134119e5b5515ee25d5b21f6d4cc6d2f375"
+    },
+    {
+      "member": "skrifa-0.44.0/src/lib.rs",
+      "source": "https://static.crates.io/crates/skrifa/skrifa-0.44.0.crate#819ab7d62b1d3e72d9d9dea5650bac30424f9111364bb94928dbf5ecad1baa68",
+      "path": "2.txt",
+      "bytes": 2035,
+      "sha256": "4ebea351f69dfb4d2b416f2a1a4eda0e677c1a096b38d40ad8ca792fe8aaef2a"
+    },
+    {
+      "member": "skrifa-0.44.0/Cargo.toml",
+      "source": "https://static.crates.io/crates/skrifa/skrifa-0.44.0.crate#819ab7d62b1d3e72d9d9dea5650bac30424f9111364bb94928dbf5ecad1baa68",
+      "path": "3.txt",
+      "bytes": 1750,
+      "sha256": "82e3c73ed2b2a9fe2b8584a3caea757d29c65da2cc0a60ef91267b1ea1764257"
+    },
+    {
+      "member": "crates/fonts/Cargo.toml",
+      "source": "pdfcraft@7d78f3e14474b978be014715e0cc64895d77025a",
+      "path": "4.txt",
+      "bytes": 542,
+      "sha256": "15b9e81dbd05494b67156fb5815f0bbf8e53509cb62a3054fe56e48e9af077d1"
+    }
+  ]
+}

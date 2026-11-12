@@ -1,0 +1,39 @@
+{
+  "offset": 2419336,
+  "bytes": 418802,
+  "sha256": "4646bd9ee021cbc65d94a8fbf3a6d8eb8e42ce17a8bed3203d4aa43bbaccc943",
+  "names": [
+    {
+      "id": 0,
+      "text": "Copyright 2013 Google Inc. All Rights Reserved."
+    },
+    {
+      "id": 1,
+      "text": "Noto Emoji"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "Monotype Imaging - Noto Emoji"
+    },
+    {
+      "id": 4,
+      "text": "Noto Emoji"
+    },
+    {
+      "id": 6,
+      "text": "NotoEmoji"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This Font Software is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the SIL Open Font License for the specific language, permissions and limitations governing your use of this Font Software."
+    },
+    {
+      "id": 14,
+      "text": "http://scripts.sil.org/OFL"
+    }
+  ]
+}

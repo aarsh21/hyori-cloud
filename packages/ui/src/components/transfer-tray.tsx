@@ -47,31 +47,41 @@ function TransferList({ className, ...props }: React.ComponentProps<"ul">) {
 function TransferItem({
   className,
   name,
+  tag,
   detail,
   tone = "default",
+  wrapDetail = tone === "destructive",
   progress,
   actions,
 }: {
   className?: string;
   name: string;
+  /** What kind of transfer this is, when that isn't an ordinary upload. */
+  tag?: React.ReactNode;
   detail: React.ReactNode;
   tone?: "default" | "destructive";
+  /** Progress stays on one line so it can't shift the row. A message has to be readable whole. */
+  wrapDetail?: boolean;
   progress?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
     <li
       data-slot="transfer-item"
-      className={cn("flex min-h-12 items-center gap-2 px-3.5 py-1.5", className)}
+      className={cn("flex min-h-12 shrink-0 items-center gap-2 px-3.5 py-1.5", className)}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="truncate text-[13px]" title={name}>
-          {name}
-        </p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="min-w-0 truncate text-[13px]" title={name}>
+            {name}
+          </p>
+          {tag}
+        </div>
         {progress}
         <p
           className={cn(
-            "truncate text-xs tabular-nums",
+            "text-xs tabular-nums",
+            wrapDetail ? "text-pretty wrap-anywhere" : "truncate",
             tone === "destructive" ? "text-destructive" : "text-muted-foreground",
           )}
         >

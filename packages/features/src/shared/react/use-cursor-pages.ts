@@ -8,6 +8,8 @@ type CursorPage = { readonly nextCursor: string | null };
  * Keys extend the SDK's operation key, so the centrally declared mutation invalidation reaches
  * these pages without any local key registry. Queries sharing a `retainScope` keep showing the
  * previous pages while the next input loads; other inputs never inherit each other's data.
+ * `refreshDelay` looks again while the pages say something is still changing. A failed refresh stops
+ * it, leaving the retry to the person looking at the failure.
  */
 export function useCursorPages<Input, Page extends CursorPage>(
   operation: { readonly getKey: (input: Input) => QueryKey },
@@ -17,6 +19,7 @@ export function useCursorPages<Input, Page extends CursorPage>(
   ) => Promise<Page>,
   input: Input,
   retainScope?: string,
+  refreshDelay?: (pages: readonly Page[]) => number | false,
 ) {
   return useInfiniteQuery<
     Page,
@@ -30,6 +33,10 @@ export function useCursorPages<Input, Page extends CursorPage>(
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     retry: false,
+    refetchInterval: ({ state: { data, error } }) =>
+      refreshDelay === undefined || data === undefined || error !== null
+        ? false
+        : refreshDelay(data.pages),
     meta: { retainScope },
     placeholderData: (previous, previousQuery) =>
       retainScope !== undefined && previousQuery?.meta?.retainScope === retainScope

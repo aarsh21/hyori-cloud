@@ -1,0 +1,27 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/name_id.rs",
+      "sha256": "d54c112264fd081f912ed79c3d65ba9a60f6d812fe007711a26de8e134b6c457",
+      "lines": [
+        {
+          "line": 25,
+          "text": "    /// Copyright notice."
+        },
+        {
+          "line": 26,
+          "text": "    pub const COPYRIGHT_NOTICE: Self = Self(0);"
+        },
+        {
+          "line": 66,
+          "text": "    /// Such information should be based on legal advice. This is distinctly separate from the copyright."
+        },
+        {
+          "line": 233,
+          "text": "            Self::COPYRIGHT_NOTICE => \"COPYRIGHT_NOTICE\","
+        }
+      ]
+    }
+  ]
+}

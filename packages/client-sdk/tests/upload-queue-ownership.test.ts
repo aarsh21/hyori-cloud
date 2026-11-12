@@ -59,7 +59,11 @@ test("a begin response received after disposal survives reconstruction and succe
   await until(() => stored.some((item) => item.uploadId === checkpoint.uploadId));
   expect(row.task.getSnapshot().status).toBe("paused");
   expect(stored).toContainEqual(successorCheckpoint);
-  expect(stored).toContainEqual(checkpoint);
+  expect(stored).toContainEqual({
+    ...checkpoint,
+    version: 2,
+    intent: { kind: "new", name: "hello.txt" },
+  });
   successor.add([], null);
   expect(stored).toHaveLength(2);
   successor.dispose();

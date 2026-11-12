@@ -65,7 +65,7 @@ describe("adding a person", () => {
     await waitFor(async () => expect((await recipientField()).value).toBe(""));
 
     api.handlers["shares.create"] = () => {
-      throw new ApiFailure("resource.conflict", "Already shared");
+      throw new ApiFailure("resource.conflict");
     };
 
     const field = await recipientField();
@@ -73,7 +73,7 @@ describe("adding a person", () => {
     fireEvent.change(field, { target: { value: "user_3_with_a_typo" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    expect(await screen.findByText("Already shared")).toBeTruthy();
+    expect(await screen.findByText("That couldn’t be applied")).toBeTruthy();
     expect((await recipientField()).value).toBe("user_3_with_a_typo");
     expect(await recipientField()).toBe(field);
   });
@@ -256,6 +256,7 @@ describe("revoking a link", () => {
     const confirmation = await screen.findByRole("alertdialog");
 
     expect(confirmation.textContent).toContain("People using this link lose access now");
+    expect(confirmation.textContent).toContain(`link to “${ROOT_FILE.name}”?`);
     expect(api.callsTo("shares.revoke")).toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));

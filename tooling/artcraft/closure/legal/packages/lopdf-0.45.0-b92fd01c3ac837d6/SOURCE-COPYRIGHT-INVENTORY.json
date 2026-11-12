@@ -1,0 +1,49 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "vendor/lopdf/src/encodings/glyphnames.rs",
+      "sha256": "96b882b9b0bb1ab8afd1209846e9ce540272ecb8f648e4b58cfb14d6ef57525e",
+      "lines": [
+        {
+          "line": 205,
+          "text": "    0x00a9 = [copyright];"
+        },
+        {
+          "line": 3237,
+          "text": "    0xf6d9 = [copyrightserif];"
+        },
+        {
+          "line": 3381,
+          "text": "    0xf8e9 = [copyrightsans];"
+        }
+      ]
+    },
+    {
+      "path": "vendor/lopdf/src/encodings/mappings.rs",
+      "sha256": "6dfd019c536641196cc746ef34ab8badde1dbeff26be69320236cad2539bbca4",
+      "lines": [
+        {
+          "line": 174,
+          "text": "    Some(Glyph::copyright),"
+        },
+        {
+          "line": 692,
+          "text": "    Some(Glyph::copyright),"
+        },
+        {
+          "line": 1514,
+          "text": "    Some(Glyph::copyrightserif),"
+        },
+        {
+          "line": 1530,
+          "text": "    Some(Glyph::copyrightsans),"
+        },
+        {
+          "line": 1733,
+          "text": "    Some(Glyph::copyright),"
+        }
+      ]
+    }
+  ]
+}

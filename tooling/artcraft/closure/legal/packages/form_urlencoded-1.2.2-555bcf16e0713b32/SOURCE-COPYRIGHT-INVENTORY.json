@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "766b5d679064e01f7e6cce6f127a23885f79806ce3bccc49e4fe41933b83fd8d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2013-2016 The rust-url developers."
+        }
+      ]
+    }
+  ]
+}

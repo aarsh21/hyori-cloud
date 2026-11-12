@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "5b4857503a2a50f2e88867c2f70c565002ec699262fb999843d32c2326f7257f",
+      "lines": [
+        {
+          "line": 40,
+          "text": "Copyright (c) 2014 Alex Crichton."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "f7171de13cd85967b2ff1dd189b19f224d28b9695e7591fb8d92621a9e2f439b",
+      "lines": [
+        {
+          "line": 318,
+          "text": "/// Copyright (c) 2014 Alex Crichton. Dual-licensed Apache 2.0 + MIT."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1262 @@
+{
+  "schemaVersion": 1,
+  "status": "partial-evidence-not-deployment-approval",
+  "editorCommits": {
+    "wordcraft": "5cd53f184aab11def13b7fced18727159b9bc96a",
+    "gridcraft": "30b210b4ef03b30616923465efa70766cefba379",
+    "deckcraft": "ee39ff67816d0039143ec7c98ea604cefe0cd2e5",
+    "pdfcraft": "7d78f3e14474b978be014715e0cc64895d77025a"
+  },
+  "eguiRevision": "6d518fc799681571963842f95b55a6b68431b15a",
+  "wordcraftPdfRevision": "92d392cff132eaf53e13afff77f38b5c11b73aa0",
+  "sources": [
+    {
+      "id": "wordcraft-lock",
+      "url": "https://raw.githubusercontent.com/storytold/wordcraft/5cd53f184aab11def13b7fced18727159b9bc96a/Cargo.lock",
+      "bytes": 180142,
+      "sha256": "bf95944918a91a759fdcef5435876c4ba63631ab4f3046111c24b1d28611025c",
+      "kind": "raw"
+    },
+    {
+      "id": "gridcraft-lock",
+      "url": "https://raw.githubusercontent.com/storytold/gridcraft/30b210b4ef03b30616923465efa70766cefba379/Cargo.lock",
+      "bytes": 163469,
+      "sha256": "5acb53393ee94e8b9646a35a06f1ff289a628e4c63086a0e821fc95aaf283354",
+      "kind": "raw"
+    },
+    {
+      "id": "deckcraft-lock",
+      "url": "https://raw.githubusercontent.com/storytold/deckcraft/ee39ff67816d0039143ec7c98ea604cefe0cd2e5/Cargo.lock",
+      "bytes": 158936,
+      "sha256": "91594bc6b91f1501b9bd1330e46cfaa262b8c757359880786dbe098e8fc1ace4",
+      "kind": "raw"
+    },
+    {
+      "id": "pdfcraft-lock",
+      "url": "https://raw.githubusercontent.com/storytold/pdfcraft/7d78f3e14474b978be014715e0cc64895d77025a/Cargo.lock",
+      "bytes": 205939,
+      "sha256": "74c44e8189b9b017cb9e975ef725263deb3cb951acf9b85adca6cabe392047dd",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-UFL.txt",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/UFL.txt",
+      "bytes": 4673,
+      "sha256": "2f0015108d68627bd788d313f529c21ff4da2c2c42a5e1f3883acc83480f9002",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-Hack-Regular.txt",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/Hack-Regular.txt",
+      "bytes": 3734,
+      "sha256": "47c0cccbeec7e8614548cc485588b28149e7874188df5f41b36efebcee285c87",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-OFL.txt",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/OFL.txt",
+      "bytes": 4301,
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-emoji-icon-font-mit-license.txt",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/emoji-icon-font-mit-license.txt",
+      "bytes": 1069,
+      "sha256": "b9d2c1d909aa149996fd4c91dcb92b2362a04431640c1d200959da94caf8cde1",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-Ubuntu-Light.ttf",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/Ubuntu-Light.ttf",
+      "bytes": 361676,
+      "sha256": "80307b8da7649aa4ee4d484b232140e3ce1ec0ca093073d3c53c8f5a5ced7a70",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-Hack-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/Hack-Regular.ttf",
+      "bytes": 309408,
+      "sha256": "15f55cc0c85a2988d2b4b3a8cdb5d77fdfbaf319e1bb5309d725db9818fb7125",
+      "kind": "raw"
+    },
+    {
+      "id": "egui-NotoEmoji-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/storytold/egui/6d518fc799681571963842f95b55a6b68431b15a/crates/epaint_default_fonts/fonts/NotoEmoji-Regular.ttf",
+      "bytes": 418804,
+      "sha256": "415dc6290378574135b64c808dc640c1df7531973290c4970c51fdeb849cb0c5",
+      "kind": "raw"
+    },
+    {
+      "id": "wordcraft-libs-ATTRIBUTION.md",
+      "url": "https://raw.githubusercontent.com/storytold/craft-libs/92d392cff132eaf53e13afff77f38b5c11b73aa0/ATTRIBUTION.md",
+      "bytes": 14842,
+      "sha256": "6ac085e7f5e1187e7b202929ba3e18c5b4537979686c6993ce3d2594e468287a",
+      "kind": "raw"
+    },
+    {
+      "id": "wordcraft-libs-licenses-pdf-writer-LICENSE-ICC.txt",
+      "url": "https://raw.githubusercontent.com/storytold/craft-libs/92d392cff132eaf53e13afff77f38b5c11b73aa0/licenses/pdf-writer/LICENSE-ICC.txt",
+      "bytes": 6552,
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+      "kind": "raw"
+    },
+    {
+      "id": "wordcraft-libs-licenses-pdf-writer-LICENSE_APACHE",
+      "url": "https://raw.githubusercontent.com/storytold/craft-libs/92d392cff132eaf53e13afff77f38b5c11b73aa0/licenses/pdf-writer/LICENSE_APACHE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "kind": "raw"
+    },
+    {
+      "id": "wordcraft-libs-licenses-pdf-writer-LICENSE_MIT",
+      "url": "https://raw.githubusercontent.com/storytold/craft-libs/92d392cff132eaf53e13afff77f38b5c11b73aa0/licenses/pdf-writer/LICENSE_MIT",
+      "bytes": 1071,
+      "sha256": "9d1eb142840c7acfd5511b4dd298cece3f0053f5809228906445cd8a3365592f",
+      "kind": "raw"
+    },
+    {
+      "id": "polish-hyphenation",
+      "url": "https://raw.githubusercontent.com/storytold/wordcraft/5cd53f184aab11def13b7fced18727159b9bc96a/assets/hyphenation/pl.pat",
+      "bytes": 34118,
+      "sha256": "83ddbbd21bc06a44bc4f4a4c49c38782e809cff5f026b764c044daa29e818843",
+      "kind": "raw"
+    },
+    {
+      "id": "hayro-icc-readme",
+      "url": "https://raw.githubusercontent.com/storytold/pdfcraft/7d78f3e14474b978be014715e0cc64895d77025a/vendor/hayro-interpret/assets/README.md",
+      "bytes": 467,
+      "sha256": "15f2b46ccef40443b9b815cefb17bdb55bcdd45a286b4caab2384485c54d656b",
+      "kind": "raw"
+    },
+    {
+      "id": "hayro-icc-profile",
+      "url": "https://raw.githubusercontent.com/storytold/pdfcraft/7d78f3e14474b978be014715e0cc64895d77025a/vendor/hayro-interpret/assets/CGATS001Compat-v2-micro.icc",
+      "bytes": 8464,
+      "sha256": "73e1ba37d2bad5bab2a964f40a9eed96209666efc067c3322626214bbef234a0",
+      "kind": "raw"
+    },
+    {
+      "id": "upstream-icc-profile",
+      "url": "https://raw.githubusercontent.com/saucecontrol/Compact-ICC-Profiles/bdd84663061bc4ae95ca70decff54f581e27f702/profiles/CGATS001Compat-v2-micro.icc",
+      "bytes": 8464,
+      "sha256": "73e1ba37d2bad5bab2a964f40a9eed96209666efc067c3322626214bbef234a0",
+      "kind": "raw"
+    },
+    {
+      "id": "hayro-icc-cc0",
+      "url": "https://raw.githubusercontent.com/saucecontrol/Compact-ICC-Profiles/bdd84663061bc4ae95ca70decff54f581e27f702/license",
+      "bytes": 6552,
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+      "kind": "raw"
+    },
+    {
+      "id": "upstream-icc-readme",
+      "url": "https://raw.githubusercontent.com/saucecontrol/Compact-ICC-Profiles/bdd84663061bc4ae95ca70decff54f581e27f702/readme.md",
+      "bytes": 16066,
+      "sha256": "1a844dff76783493d3b1b81e4ec8b43b79a3f17ff52e162c393df17fda554949",
+      "kind": "raw"
+    },
+    {
+      "id": "symphonia-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia/symphonia-0.5.5.crate",
+      "bytes": 12085,
+      "sha256": "5773a4c030a19d9bfaa090f49746ff35c75dfddfa700df7a5939d5e076a57039",
+      "kind": "crate",
+      "archiveRoot": "symphonia-0.5.5"
+    },
+    {
+      "id": "symphonia-bundle-flac-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-bundle-flac/symphonia-bundle-flac-0.5.5.crate",
+      "bytes": 24141,
+      "sha256": "c91565e180aea25d9b80a910c546802526ffd0072d0b8974e3ebe59b686c9976",
+      "kind": "crate",
+      "archiveRoot": "symphonia-bundle-flac-0.5.5"
+    },
+    {
+      "id": "symphonia-bundle-mp3-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-bundle-mp3/symphonia-bundle-mp3-0.5.5.crate",
+      "bytes": 61019,
+      "sha256": "4872dd6bb56bf5eac799e3e957aa1981086c3e613b27e0ac23b176054f7c57ed",
+      "kind": "crate",
+      "archiveRoot": "symphonia-bundle-mp3-0.5.5"
+    },
+    {
+      "id": "symphonia-codec-aac-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-codec-aac/symphonia-codec-aac-0.5.5.crate",
+      "bytes": 26471,
+      "sha256": "4c263845aa86881416849c1729a54c7f55164f8b96111dba59de46849e73a790",
+      "kind": "crate",
+      "archiveRoot": "symphonia-codec-aac-0.5.5"
+    },
+    {
+      "id": "symphonia-codec-adpcm-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-codec-adpcm/symphonia-codec-adpcm-0.5.5.crate",
+      "bytes": 5843,
+      "sha256": "2dddc50e2bbea4cfe027441eece77c46b9f319748605ab8f3443350129ddd07f",
+      "kind": "crate",
+      "archiveRoot": "symphonia-codec-adpcm-0.5.5"
+    },
+    {
+      "id": "symphonia-codec-alac-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-codec-alac/symphonia-codec-alac-0.5.5.crate",
+      "bytes": 9531,
+      "sha256": "8413fa754942ac16a73634c9dfd1500ed5c61430956b33728567f667fdd393ab",
+      "kind": "crate",
+      "archiveRoot": "symphonia-codec-alac-0.5.5"
+    },
+    {
+      "id": "symphonia-codec-pcm-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-codec-pcm/symphonia-codec-pcm-0.5.5.crate",
+      "bytes": 6795,
+      "sha256": "4e89d716c01541ad3ebe7c91ce4c8d38a7cf266a3f7b2f090b108fb0cb031d95",
+      "kind": "crate",
+      "archiveRoot": "symphonia-codec-pcm-0.5.5"
+    },
+    {
+      "id": "symphonia-codec-vorbis-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-codec-vorbis/symphonia-codec-vorbis-0.5.5.crate",
+      "bytes": 25527,
+      "sha256": "f025837c309cd69ffef572750b4a2257b59552c5399a5e49707cc5b1b85d1c73",
+      "kind": "crate",
+      "archiveRoot": "symphonia-codec-vorbis-0.5.5"
+    },
+    {
+      "id": "symphonia-core-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-core/symphonia-core-0.5.5.crate",
+      "bytes": 99682,
+      "sha256": "ea00cc4f79b7f6bb7ff87eddc065a1066f3a43fe1875979056672c9ef948c2af",
+      "kind": "crate",
+      "archiveRoot": "symphonia-core-0.5.5"
+    },
+    {
+      "id": "symphonia-format-caf-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-format-caf/symphonia-format-caf-0.5.5.crate",
+      "bytes": 9785,
+      "sha256": "b8faf379316b6b6e6bbc274d00e7a592e0d63ff1a7e182ce8ba25e24edd3d096",
+      "kind": "crate",
+      "archiveRoot": "symphonia-format-caf-0.5.5"
+    },
+    {
+      "id": "symphonia-format-isomp4-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-format-isomp4/symphonia-format-isomp4-0.5.5.crate",
+      "bytes": 37184,
+      "sha256": "243739585d11f81daf8dac8d9f3d18cc7898f6c09a259675fc364b382c30e0a5",
+      "kind": "crate",
+      "archiveRoot": "symphonia-format-isomp4-0.5.5"
+    },
+    {
+      "id": "symphonia-format-mkv-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-format-mkv/symphonia-format-mkv-0.5.5.crate",
+      "bytes": 18343,
+      "sha256": "122d786d2c43a49beb6f397551b4a050d8229eaa54c7ddf9ee4b98899b8742d0",
+      "kind": "crate",
+      "archiveRoot": "symphonia-format-mkv-0.5.5"
+    },
+    {
+      "id": "symphonia-format-ogg-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-format-ogg/symphonia-format-ogg-0.5.5.crate",
+      "bytes": 24285,
+      "sha256": "2b4955c67c1ed3aa8ae8428d04ca8397fbef6a19b2b051e73b5da8b1435639cb",
+      "kind": "crate",
+      "archiveRoot": "symphonia-format-ogg-0.5.5"
+    },
+    {
+      "id": "symphonia-format-riff-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-format-riff/symphonia-format-riff-0.5.5.crate",
+      "bytes": 17993,
+      "sha256": "c2d7c3df0e7d94efb68401d81906eae73c02b40d5ec1a141962c592d0f11a96f",
+      "kind": "crate",
+      "archiveRoot": "symphonia-format-riff-0.5.5"
+    },
+    {
+      "id": "symphonia-metadata-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-metadata/symphonia-metadata-0.5.5.crate",
+      "bytes": 24184,
+      "sha256": "36306ff42b9ffe6e5afc99d49e121e0bd62fe79b9db7b9681d48e29fa19e6b16",
+      "kind": "crate",
+      "archiveRoot": "symphonia-metadata-0.5.5"
+    },
+    {
+      "id": "symphonia-utils-xiph-0.5.5",
+      "url": "https://static.crates.io/crates/symphonia-utils-xiph/symphonia-utils-xiph-0.5.5.crate",
+      "bytes": 6617,
+      "sha256": "ee27c85ab799a338446b68eec77abf42e1a6f1bb490656e121c6e27bfbab9f16",
+      "kind": "crate",
+      "archiveRoot": "symphonia-utils-xiph-0.5.5"
+    },
+    {
+      "id": "symphonia-mpl",
+      "url": "https://raw.githubusercontent.com/pdeljanov/Symphonia/6d533f26150953a882a6a111ebd13f0abf7129d5/LICENSE",
+      "bytes": 16725,
+      "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30",
+      "kind": "raw"
+    }
+  ],
+  "files": [
+    {
+      "id": "wordcraft-lock",
+      "path": "evidence/wordcraft/Cargo.lock",
+      "source": "wordcraft-lock",
+      "transform": "identity",
+      "role": "evidence",
+      "bytes": 180142,
+      "sha256": "bf95944918a91a759fdcef5435876c4ba63631ab4f3046111c24b1d28611025c"
+    },
+    {
+      "id": "gridcraft-lock",
+      "path": "evidence/gridcraft/Cargo.lock",
+      "source": "gridcraft-lock",
+      "transform": "identity",
+      "role": "evidence",
+      "bytes": 163469,
+      "sha256": "5acb53393ee94e8b9646a35a06f1ff289a628e4c63086a0e821fc95aaf283354"
+    },
+    {
+      "id": "deckcraft-lock",
+      "path": "evidence/deckcraft/Cargo.lock",
+      "source": "deckcraft-lock",
+      "transform": "identity",
+      "role": "evidence",
+      "bytes": 158936,
+      "sha256": "91594bc6b91f1501b9bd1330e46cfaa262b8c757359880786dbe098e8fc1ace4"
+    },
+    {
+      "id": "pdfcraft-lock",
+      "path": "evidence/pdfcraft/Cargo.lock",
+      "source": "pdfcraft-lock",
+      "transform": "identity",
+      "role": "evidence",
+      "bytes": 205939,
+      "sha256": "74c44e8189b9b017cb9e975ef725263deb3cb951acf9b85adca6cabe392047dd"
+    },
+    {
+      "id": "egui-UFL.txt",
+      "path": "licenses/shared/egui/UFL.txt",
+      "source": "egui-UFL.txt",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 4673,
+      "sha256": "2f0015108d68627bd788d313f529c21ff4da2c2c42a5e1f3883acc83480f9002"
+    },
+    {
+      "id": "egui-Hack-Regular.txt",
+      "path": "licenses/shared/egui/Hack-Regular.txt",
+      "source": "egui-Hack-Regular.txt",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 3734,
+      "sha256": "47c0cccbeec7e8614548cc485588b28149e7874188df5f41b36efebcee285c87"
+    },
+    {
+      "id": "egui-OFL.txt",
+      "path": "licenses/shared/egui/OFL.txt",
+      "source": "egui-OFL.txt",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 4301,
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+    },
+    {
+      "id": "egui-emoji-icon-font-mit-license.txt",
+      "path": "licenses/shared/egui/emoji-icon-font-mit-license.txt",
+      "source": "egui-emoji-icon-font-mit-license.txt",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 1069,
+      "sha256": "b9d2c1d909aa149996fd4c91dcb92b2362a04431640c1d200959da94caf8cde1"
+    },
+    {
+      "id": "egui-Ubuntu-Light.ttf",
+      "path": "licenses/shared/egui/Ubuntu-Light.ttf.names.json",
+      "source": "egui-Ubuntu-Light.ttf",
+      "transform": "font-names",
+      "role": "legal",
+      "bytes": 223,
+      "sha256": "be99dc0e0aab09212733c9c15001d5ba45c5bf673b6475256c98a961ad11705d"
+    },
+    {
+      "id": "egui-Hack-Regular.ttf",
+      "path": "licenses/shared/egui/Hack-Regular.ttf.names.json",
+      "source": "egui-Hack-Regular.ttf",
+      "transform": "font-names",
+      "role": "legal",
+      "bytes": 4188,
+      "sha256": "ea44d6c0afd3199f12c915b0aa3c0f20cadacb64d67e536ef9fcc00237de4123"
+    },
+    {
+      "id": "egui-NotoEmoji-Regular.ttf",
+      "path": "licenses/shared/egui/NotoEmoji-Regular.ttf.names.json",
+      "source": "egui-NotoEmoji-Regular.ttf",
+      "transform": "font-names",
+      "role": "legal",
+      "bytes": 635,
+      "sha256": "c1352e8c29c359414ecfc73358972af88a2d220768bb444c0e9de5581b0b5bc0"
+    },
+    {
+      "id": "wordcraft-libs-ATTRIBUTION.md",
+      "path": "licenses/wordcraft/supplement/craft-libs/ATTRIBUTION.md",
+      "source": "wordcraft-libs-ATTRIBUTION.md",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 14842,
+      "sha256": "6ac085e7f5e1187e7b202929ba3e18c5b4537979686c6993ce3d2594e468287a"
+    },
+    {
+      "id": "wordcraft-libs-licenses-pdf-writer-LICENSE-ICC.txt",
+      "path": "licenses/wordcraft/supplement/craft-libs/licenses/pdf-writer/LICENSE-ICC.txt",
+      "source": "wordcraft-libs-licenses-pdf-writer-LICENSE-ICC.txt",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 6552,
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9"
+    },
+    {
+      "id": "wordcraft-libs-licenses-pdf-writer-LICENSE_APACHE",
+      "path": "licenses/wordcraft/supplement/craft-libs/licenses/pdf-writer/LICENSE_APACHE",
+      "source": "wordcraft-libs-licenses-pdf-writer-LICENSE_APACHE",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "id": "wordcraft-libs-licenses-pdf-writer-LICENSE_MIT",
+      "path": "licenses/wordcraft/supplement/craft-libs/licenses/pdf-writer/LICENSE_MIT",
+      "source": "wordcraft-libs-licenses-pdf-writer-LICENSE_MIT",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 1071,
+      "sha256": "9d1eb142840c7acfd5511b4dd298cece3f0053f5809228906445cd8a3365592f"
+    },
+    {
+      "id": "polish-hyphenation",
+      "path": "licenses/wordcraft/supplement/hyphenation/pl-header.txt",
+      "source": "polish-hyphenation",
+      "transform": "leading-comments",
+      "role": "legal",
+      "bytes": 3548,
+      "sha256": "79306ff1d6bf6f186b91238e422c9e5ebae0f841b050f166ec558b48555b3e86"
+    },
+    {
+      "id": "hayro-icc-readme",
+      "path": "licenses/pdfcraft/supplement/hayro-icc/README.md",
+      "source": "hayro-icc-readme",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 467,
+      "sha256": "15f2b46ccef40443b9b815cefb17bdb55bcdd45a286b4caab2384485c54d656b"
+    },
+    {
+      "id": "hayro-icc-cc0",
+      "path": "licenses/pdfcraft/supplement/hayro-icc/CC0-1.0.txt",
+      "source": "hayro-icc-cc0",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 6552,
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9"
+    },
+    {
+      "id": "upstream-icc-readme",
+      "path": "evidence/pdfcraft/icc-upstream-readme.md",
+      "source": "upstream-icc-readme",
+      "transform": "identity",
+      "role": "evidence",
+      "bytes": 16066,
+      "sha256": "1a844dff76783493d3b1b81e4ec8b43b79a3f17ff52e162c393df17fda554949"
+    },
+    {
+      "id": "symphonia-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia/.cargo_vcs_info.json",
+      "source": "symphonia-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 103,
+      "sha256": "d28041c120cddc92e161b4d42d5f0917890e414b69449f7b341a0fd5d6418b7e"
+    },
+    {
+      "id": "symphonia-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia/Cargo.toml",
+      "source": "symphonia-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 3546,
+      "sha256": "285c57698993739930f90be3e661cb4eff8caefdbe64604ae092a41c344557c2"
+    },
+    {
+      "id": "symphonia-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia/Cargo.toml.orig",
+      "source": "symphonia-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 3734,
+      "sha256": "4b70825a31e1532fc3498e7337ef784d71d509bd6fcc03934d642e033a00796e"
+    },
+    {
+      "id": "symphonia-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-COPYRIGHTS.txt",
+      "source": "symphonia-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 534,
+      "sha256": "ed5a8584f4c90081dc289372f7382a312ac97a4f0e68c885e4ab52c7accce823"
+    },
+    {
+      "id": "symphonia-bundle-flac-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-bundle-flac/.cargo_vcs_info.json",
+      "source": "symphonia-bundle-flac-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 115,
+      "sha256": "b4abc387a729dcd7c3a0433eb0e98e7f78240dee1dcbbea0ec343f068d60de23"
+    },
+    {
+      "id": "symphonia-bundle-flac-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-bundle-flac/Cargo.toml",
+      "source": "symphonia-bundle-flac-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1452,
+      "sha256": "e0e12b74852416311bb878d1d95604517a4a57009664b61b9b81b87164d54d51"
+    },
+    {
+      "id": "symphonia-bundle-flac-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-bundle-flac/Cargo.toml.orig",
+      "source": "symphonia-bundle-flac-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 836,
+      "sha256": "fc9148b26870234c5c8b66185bef751357054a6feeb413740ab10bbac0173d33"
+    },
+    {
+      "id": "symphonia-bundle-flac-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-bundle-flac-COPYRIGHTS.txt",
+      "source": "symphonia-bundle-flac-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 1823,
+      "sha256": "4a263341b0533bf1b76f04cf3f3431f262a8ab946a10a69efe90811ff55c27b7"
+    },
+    {
+      "id": "symphonia-bundle-mp3-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-bundle-mp3/.cargo_vcs_info.json",
+      "source": "symphonia-bundle-mp3-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 114,
+      "sha256": "98a530384d2a4708e4fecf9ec62e3c53d1537989fa8d4f2c40b36f3e5cc9db26"
+    },
+    {
+      "id": "symphonia-bundle-mp3-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-bundle-mp3/Cargo.toml",
+      "source": "symphonia-bundle-mp3-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1464,
+      "sha256": "b57cd3f24fa7dcc8a876d7f8f1abd96c94bf5bbb522274ed08a296eab64e22c9"
+    },
+    {
+      "id": "symphonia-bundle-mp3-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-bundle-mp3/Cargo.toml.orig",
+      "source": "symphonia-bundle-mp3-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 788,
+      "sha256": "6feaf01b6ea4eaebfa7c5e9ca5687765b5be84322ef8637801547e7b7bdce7ad"
+    },
+    {
+      "id": "symphonia-bundle-mp3-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-bundle-mp3-COPYRIGHTS.txt",
+      "source": "symphonia-bundle-mp3-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 5354,
+      "sha256": "8061c44590fbc712cb9f87c29a31d1bfe32c901b19257ba23943494c50598274"
+    },
+    {
+      "id": "symphonia-codec-aac-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-aac/.cargo_vcs_info.json",
+      "source": "symphonia-codec-aac-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 113,
+      "sha256": "a041c2dbb46d69a02c6b3bd949860ab48bbd1805bd6937ce0af6207d8338cdbd"
+    },
+    {
+      "id": "symphonia-codec-aac-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-aac/Cargo.toml",
+      "source": "symphonia-codec-aac-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1402,
+      "sha256": "aa636b847ad9ce226e1e7e8d52d7aeece411bb47d74109b2b0d4237ef507fe98"
+    },
+    {
+      "id": "symphonia-codec-aac-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-aac/Cargo.toml.orig",
+      "source": "symphonia-codec-aac-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 660,
+      "sha256": "4650d47d694111b92669c392fc0cf8dcece465068f610255d68e5221caf0c16b"
+    },
+    {
+      "id": "symphonia-codec-aac-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-codec-aac-COPYRIGHTS.txt",
+      "source": "symphonia-codec-aac-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 7105,
+      "sha256": "977d036945706549f2c3395cd13198f4a134ae6ae3a8cc30e601b05b608f018b"
+    },
+    {
+      "id": "symphonia-codec-adpcm-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-adpcm/.cargo_vcs_info.json",
+      "source": "symphonia-codec-adpcm-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 115,
+      "sha256": "e1e72e4bc3afd90bb9878b7ddf6d3abee65c8e5ae0a36d91550a5c7e5166a287"
+    },
+    {
+      "id": "symphonia-codec-adpcm-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-adpcm/Cargo.toml",
+      "source": "symphonia-codec-adpcm-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1305,
+      "sha256": "bb178bed8a1dea9014af6f3eb6abf66a817084eb2b2bff5e0d27d1570020eac2"
+    },
+    {
+      "id": "symphonia-codec-adpcm-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-adpcm/Cargo.toml.orig",
+      "source": "symphonia-codec-adpcm-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 638,
+      "sha256": "7bb6899b8f42eec693574061da854a6ed542f00bbe1d80d2b1e4a47204f16be4"
+    },
+    {
+      "id": "symphonia-codec-adpcm-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-codec-adpcm-COPYRIGHTS.txt",
+      "source": "symphonia-codec-adpcm-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 1277,
+      "sha256": "848272a73cf3fe3c124c4d4450ad9e62c3915c1c142dac9ebf78534c87161eca"
+    },
+    {
+      "id": "symphonia-codec-alac-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-alac/.cargo_vcs_info.json",
+      "source": "symphonia-codec-alac-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 114,
+      "sha256": "3a6cc43449c31a1392b8d532afd90a8407dc23531375eb4656b3bedad51ee46e"
+    },
+    {
+      "id": "symphonia-codec-alac-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-alac/Cargo.toml",
+      "source": "symphonia-codec-alac-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1243,
+      "sha256": "908fafcfd48e8ef7a51b51387c9613934554e0755c89837ce5b4634fce21e67c"
+    },
+    {
+      "id": "symphonia-codec-alac-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-alac/Cargo.toml.orig",
+      "source": "symphonia-codec-alac-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 588,
+      "sha256": "d0d38bd8c2d8c3919706bbce0d6e6b4325a2fac9a49d01af47da4c0b0f6c0ea9"
+    },
+    {
+      "id": "symphonia-codec-alac-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-codec-alac-COPYRIGHTS.txt",
+      "source": "symphonia-codec-alac-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 300,
+      "sha256": "5720d5b7fc12b7dfd8f01030d282cca042c373def2f1954f2030ded2f3116ab0"
+    },
+    {
+      "id": "symphonia-codec-pcm-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-pcm/.cargo_vcs_info.json",
+      "source": "symphonia-codec-pcm-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 113,
+      "sha256": "cf603b5767321f1d71e1220841e7e812d139152322d6e61cf62f09d436ad992d"
+    },
+    {
+      "id": "symphonia-codec-pcm-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-pcm/Cargo.toml",
+      "source": "symphonia-codec-pcm-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1245,
+      "sha256": "885d76a6704a4a70a9c387836656d2f03939e2516e9c8e64f60651edb28fcc0b"
+    },
+    {
+      "id": "symphonia-codec-pcm-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-pcm/Cargo.toml.orig",
+      "source": "symphonia-codec-pcm-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 591,
+      "sha256": "1decf0af8942655916bff6bbafb38bf90f7c568c67d6815feb0ce5245578d7f0"
+    },
+    {
+      "id": "symphonia-codec-pcm-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-codec-pcm-COPYRIGHTS.txt",
+      "source": "symphonia-codec-pcm-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 300,
+      "sha256": "5720d5b7fc12b7dfd8f01030d282cca042c373def2f1954f2030ded2f3116ab0"
+    },
+    {
+      "id": "symphonia-codec-vorbis-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-vorbis/.cargo_vcs_info.json",
+      "source": "symphonia-codec-vorbis-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 116,
+      "sha256": "9bcd2b733a037fe67ddcc1143fd6fb78daeda847e39107729ead304f76399b2e"
+    },
+    {
+      "id": "symphonia-codec-vorbis-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-vorbis/Cargo.toml",
+      "source": "symphonia-codec-vorbis-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1306,
+      "sha256": "68dc19ab73aef0f2e24afb941607edc68edf4cd4f37fece39fc7674aef5a68ac"
+    },
+    {
+      "id": "symphonia-codec-vorbis-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-codec-vorbis/Cargo.toml.orig",
+      "source": "symphonia-codec-vorbis-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 673,
+      "sha256": "7a201cbaec89619ffbd51d05c6f8c0405c900f05544dcec71fc976ef8ce6ace1"
+    },
+    {
+      "id": "symphonia-codec-vorbis-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-codec-vorbis-COPYRIGHTS.txt",
+      "source": "symphonia-codec-vorbis-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 2328,
+      "sha256": "269c2345e96f61f101e2612fd2c0f6963b943e711187db3e01437f1e9663ff84"
+    },
+    {
+      "id": "symphonia-core-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-core/.cargo_vcs_info.json",
+      "source": "symphonia-core-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 108,
+      "sha256": "b6342c9d7a6abedfb23c93ad3b1a8ce0a43785820a74df9ecb85a74398b53a50"
+    },
+    {
+      "id": "symphonia-core-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-core/Cargo.toml",
+      "source": "symphonia-core-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1655,
+      "sha256": "3c55fd09f59c46b1dcadfd9da99afc64459b21190dbe8dc20bc1843a54e069a2"
+    },
+    {
+      "id": "symphonia-core-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-core/Cargo.toml.orig",
+      "source": "symphonia-core-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 933,
+      "sha256": "71257fae3cfb0301afe43ad4a01ad53c8e603c802153728ad2073844a1323e6b"
+    },
+    {
+      "id": "symphonia-core-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-core-COPYRIGHTS.txt",
+      "source": "symphonia-core-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 11329,
+      "sha256": "15f0e61701284417eadff315a2e78fe94beacf5d1a2682bcb8ec9d97e97907c1"
+    },
+    {
+      "id": "symphonia-format-caf-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-caf/.cargo_vcs_info.json",
+      "source": "symphonia-format-caf-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 114,
+      "sha256": "104dab3c54e3aef671addd0f360b7b5a7c8246767b81402e01d3f3b3d58b78ba"
+    },
+    {
+      "id": "symphonia-format-caf-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-caf/Cargo.toml",
+      "source": "symphonia-format-caf-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1344,
+      "sha256": "337d5a215ce8f5a8fbb3da4b8cba0366e39ce0c79360db884740eb00063f8297"
+    },
+    {
+      "id": "symphonia-format-caf-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-caf/Cargo.toml.orig",
+      "source": "symphonia-format-caf-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 701,
+      "sha256": "c9f2085fe73b6d0fbd2df79a2354387b93906256fc4db4453fc438612b9b1493"
+    },
+    {
+      "id": "symphonia-format-caf-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-format-caf-COPYRIGHTS.txt",
+      "source": "symphonia-format-caf-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 909,
+      "sha256": "b0efe6136c33ba5747ebf9f1290a145da34fd28db494608999febf8db1744e18"
+    },
+    {
+      "id": "symphonia-format-isomp4-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-isomp4/.cargo_vcs_info.json",
+      "source": "symphonia-format-isomp4-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 117,
+      "sha256": "9bc405e88890a835e4bec40d5808dee5452751d796b176ad6ca247f6d7171b38"
+    },
+    {
+      "id": "symphonia-format-isomp4-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-isomp4/Cargo.toml",
+      "source": "symphonia-format-isomp4-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1417,
+      "sha256": "8c6bf61c6504d8cb9fde98c3adc214a1526cdfeba8cbba1a880b746135033c82"
+    },
+    {
+      "id": "symphonia-format-isomp4-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-isomp4/Cargo.toml.orig",
+      "source": "symphonia-format-isomp4-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 777,
+      "sha256": "5c6a911d07a8d0303bd318f15719256ede1faffa3e82f2cc2eeb6d3c373b6646"
+    },
+    {
+      "id": "symphonia-format-isomp4-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-format-isomp4-COPYRIGHTS.txt",
+      "source": "symphonia-format-isomp4-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 13568,
+      "sha256": "46262c9fc917ab516216e23f951296f2342a90ef133d350cad807a85955af84b"
+    },
+    {
+      "id": "symphonia-format-mkv-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-mkv/.cargo_vcs_info.json",
+      "source": "symphonia-format-mkv-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 114,
+      "sha256": "4221c8749dd15f09e7cb39c1c723fe9d0e740a818ac998112af830874059d29d"
+    },
+    {
+      "id": "symphonia-format-mkv-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-mkv/Cargo.toml",
+      "source": "symphonia-format-mkv-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1415,
+      "sha256": "725579d040c2a0d2a4c0496e3328bfbfd6c6726df5be015bca26c09874b21dd5"
+    },
+    {
+      "id": "symphonia-format-mkv-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-mkv/Cargo.toml.orig",
+      "source": "symphonia-format-mkv-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 778,
+      "sha256": "90b0c4d2bde14ae39826c1ed1170c35270684b4b335304df2b77fa0528bb93ac"
+    },
+    {
+      "id": "symphonia-format-mkv-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-format-mkv-COPYRIGHTS.txt",
+      "source": "symphonia-format-mkv-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 2129,
+      "sha256": "8ab60fa5da60ea3b2d88c9ad7338220a4895dd3abe82a5b0257bf4582f628c6d"
+    },
+    {
+      "id": "symphonia-format-ogg-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-ogg/.cargo_vcs_info.json",
+      "source": "symphonia-format-ogg-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 114,
+      "sha256": "7695651763b77e1ca87f0ff645d047485e3555bfa706ea2399cfcd22ddc3a5cc"
+    },
+    {
+      "id": "symphonia-format-ogg-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-ogg/Cargo.toml",
+      "source": "symphonia-format-ogg-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1436,
+      "sha256": "1c3a53b2847b885d31103c148b20f90904f734d8104c89af91eabfb455caad2c"
+    },
+    {
+      "id": "symphonia-format-ogg-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-ogg/Cargo.toml.orig",
+      "source": "symphonia-format-ogg-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 821,
+      "sha256": "16f03a061cbda0800b0a26a2966a99bed1ae08efe2001626c15e8a04f64b922f"
+    },
+    {
+      "id": "symphonia-format-ogg-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-format-ogg-COPYRIGHTS.txt",
+      "source": "symphonia-format-ogg-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 3066,
+      "sha256": "a0bc80cf37715a2602c0b3cae0eadc40d671898c668bd3f20ebef419e2a2aad4"
+    },
+    {
+      "id": "symphonia-format-riff-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-riff/.cargo_vcs_info.json",
+      "source": "symphonia-format-riff-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 115,
+      "sha256": "f0cbb62e0173cc0cb6051169ac939dc7840696b1a142d50ebfa0dc41b51a81e6"
+    },
+    {
+      "id": "symphonia-format-riff-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-riff/Cargo.toml",
+      "source": "symphonia-format-riff-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1472,
+      "sha256": "1f2201173493afd34d67c336bf36f8a438004bb141bd4576ca2491c0626e6610"
+    },
+    {
+      "id": "symphonia-format-riff-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-format-riff/Cargo.toml.orig",
+      "source": "symphonia-format-riff-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 789,
+      "sha256": "e938331d1178b7ca22fc894e9265ca14652bb5c392c07dc2edcf5ac47e55e05b"
+    },
+    {
+      "id": "symphonia-format-riff-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-format-riff-COPYRIGHTS.txt",
+      "source": "symphonia-format-riff-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 2004,
+      "sha256": "6ca3adf698ea0f2c163a729a1f31146a2c605a3f67a39f24e4f39285da34376b"
+    },
+    {
+      "id": "symphonia-metadata-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-metadata/.cargo_vcs_info.json",
+      "source": "symphonia-metadata-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 112,
+      "sha256": "faea11a7f89a1a0bdb497e6d2a6a704d4be8bde5422c81dfe58ae0e2687f1aa3"
+    },
+    {
+      "id": "symphonia-metadata-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-metadata/Cargo.toml",
+      "source": "symphonia-metadata-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1353,
+      "sha256": "7692e410100ee8eae8654782e1408532c24889bc041154dd8871ec8fc600a587"
+    },
+    {
+      "id": "symphonia-metadata-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-metadata/Cargo.toml.orig",
+      "source": "symphonia-metadata-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 648,
+      "sha256": "fa1a5d332bae78422f4f1c1e10e686bf9e6b5903fc7f9bb1878f806e509425bf"
+    },
+    {
+      "id": "symphonia-metadata-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-metadata-COPYRIGHTS.txt",
+      "source": "symphonia-metadata-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 2989,
+      "sha256": "78f1d2ea8650906400cb7eba6c5b322cfdcb750d6fbc35b4c72d5195b3bf3ffa"
+    },
+    {
+      "id": "symphonia-utils-xiph-0.5.5-.cargo_vcs_info.json",
+      "path": "evidence/deckcraft/symphonia/symphonia-utils-xiph/.cargo_vcs_info.json",
+      "source": "symphonia-utils-xiph-0.5.5",
+      "transform": "identity",
+      "member": ".cargo_vcs_info.json",
+      "role": "evidence",
+      "bytes": 114,
+      "sha256": "60c76fee875969f0a471189b44621e3d3cc2a75abe3c78ae1464b204a62cd1cc"
+    },
+    {
+      "id": "symphonia-utils-xiph-0.5.5-Cargo.toml",
+      "path": "evidence/deckcraft/symphonia/symphonia-utils-xiph/Cargo.toml",
+      "source": "symphonia-utils-xiph-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml",
+      "role": "evidence",
+      "bytes": 1266,
+      "sha256": "68298d857ee9601a7aa6c2f735d886631d09ad25aeacb8a5fb1d161de5e9e6d0"
+    },
+    {
+      "id": "symphonia-utils-xiph-0.5.5-Cargo.toml.orig",
+      "path": "evidence/deckcraft/symphonia/symphonia-utils-xiph/Cargo.toml.orig",
+      "source": "symphonia-utils-xiph-0.5.5",
+      "transform": "identity",
+      "member": "Cargo.toml.orig",
+      "role": "evidence",
+      "bytes": 657,
+      "sha256": "c126be82e3b34d18980f514dfb46770ca9c613b984839f45a9bde9a4754a3eed"
+    },
+    {
+      "id": "symphonia-utils-xiph-0.5.5-copyrights",
+      "path": "licenses/deckcraft/supplement/symphonia/symphonia-utils-xiph-COPYRIGHTS.txt",
+      "source": "symphonia-utils-xiph-0.5.5",
+      "transform": "symphonia-headers",
+      "role": "legal",
+      "bytes": 1336,
+      "sha256": "760bffd00f91e71380f9c95fdc8a06b5c4a1786b5b66ec26a2309231691755a9"
+    },
+    {
+      "id": "symphonia-mpl",
+      "path": "licenses/deckcraft/supplement/symphonia/MPL-2.0.txt",
+      "source": "symphonia-mpl",
+      "transform": "identity",
+      "role": "legal",
+      "bytes": 16725,
+      "sha256": "c76f740d1521b9bed9ca7a04ad526c310493c62621b1341d623b431736533b30"
+    }
+  ],
+  "symphonia": [
+    {
+      "name": "symphonia",
+      "version": "0.5.5",
+      "source": "symphonia-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-bundle-flac",
+      "version": "0.5.5",
+      "source": "symphonia-bundle-flac-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-bundle-flac",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-bundle-mp3",
+      "version": "0.5.5",
+      "source": "symphonia-bundle-mp3-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-bundle-mp3",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-codec-aac",
+      "version": "0.5.5",
+      "source": "symphonia-codec-aac-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-codec-aac",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-codec-adpcm",
+      "version": "0.5.5",
+      "source": "symphonia-codec-adpcm-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-codec-adpcm",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-codec-alac",
+      "version": "0.5.5",
+      "source": "symphonia-codec-alac-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-codec-alac",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-codec-pcm",
+      "version": "0.5.5",
+      "source": "symphonia-codec-pcm-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-codec-pcm",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-codec-vorbis",
+      "version": "0.5.5",
+      "source": "symphonia-codec-vorbis-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-codec-vorbis",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-core",
+      "version": "0.5.5",
+      "source": "symphonia-core-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-core",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-format-caf",
+      "version": "0.5.5",
+      "source": "symphonia-format-caf-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-format-caf",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-format-isomp4",
+      "version": "0.5.5",
+      "source": "symphonia-format-isomp4-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-format-isomp4",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-format-mkv",
+      "version": "0.5.5",
+      "source": "symphonia-format-mkv-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-format-mkv",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-format-ogg",
+      "version": "0.5.5",
+      "source": "symphonia-format-ogg-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-format-ogg",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-format-riff",
+      "version": "0.5.5",
+      "source": "symphonia-format-riff-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-format-riff",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-metadata",
+      "version": "0.5.5",
+      "source": "symphonia-metadata-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-metadata",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    },
+    {
+      "name": "symphonia-utils-xiph",
+      "version": "0.5.5",
+      "source": "symphonia-utils-xiph-0.5.5",
+      "vcsRevision": "6d533f26150953a882a6a111ebd13f0abf7129d5",
+      "pathInVcs": "symphonia-utils-xiph",
+      "license": "MPL-2.0",
+      "scope": "locked-candidate-not-target-closure"
+    }
+  ],
+  "verified": {
+    "sharedEguiFontNotices": true,
+    "wordcraftPdfProvenance": true,
+    "polishHyphenationNotice": true,
+    "hayroIccProvenance": true,
+    "symphoniaLockedSourceReferences": true
+  },
+  "remaining": [
+    "Exact wasm32 production dependency and enabled-feature closure for all four release binaries",
+    "Complete dependency notice evidence matched to that closure",
+    "Browser WASM execution and format fidelity",
+    "DeckCraft host bridge, patched build and protected-marks removal"
+  ],
+  "deployable": false
+}

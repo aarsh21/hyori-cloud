@@ -1,0 +1,318 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+//! This module defines all available properties.
+//!
+//! Properties may be empty marker types and implement [`BinaryProperty`], or enumerations[^1]
+//! and implement [`EnumeratedProperty`].
+//!
+//! [`BinaryProperty`]s are queried through a [`CodePointSetData`](crate::CodePointSetData),
+//! while [`EnumeratedProperty`]s are queried through [`CodePointMapData`](crate::CodePointMapData).
+//!
+//! In addition, some [`EnumeratedProperty`]s also implement [`ParseableEnumeratedProperty`] or
+//! [`NamedEnumeratedProperty`]. For these properties, [`PropertyParser`](crate::PropertyParser),
+//! [`PropertyNamesLong`](crate::PropertyNamesLong), and [`PropertyNamesShort`](crate::PropertyNamesShort)
+//! can be constructed.
+//!
+//! [^1]: either Rust `enum`s, or Rust `struct`s with associated constants (open enums)
+
+pub use crate::names::{NamedEnumeratedProperty, ParseableEnumeratedProperty};
+
+pub use crate::bidi::{BidiMirroringGlyph, BidiPairedBracketType};
+pub use crate::code_point_map::EnumeratedProperty;
+
+macro_rules! make_enumerated_property {
+    (
+        name: $name:literal;
+        short_name: $short_name:literal;
+        ident: $value_ty:path;
+        data_marker: $data_marker:ty;
+        singleton: $singleton:ident;
+        $(ule_ty: $ule_ty:ty;)?
+    ) => {
+        impl crate::private::Sealed for $value_ty {}
+
+        impl EnumeratedProperty for $value_ty {
+            type DataMarker = $data_marker;
+            #[cfg(feature = "compiled_data")]
+            const SINGLETON: &'static crate::provider::PropertyCodePointMap<'static, Self> =
+                crate::provider::Baked::$singleton;
+            const NAME: &'static [u8] = $name.as_bytes();
+            const SHORT_NAME: &'static [u8] = $short_name.as_bytes();
+        }
+
+        $(
+            impl zerovec::ule::AsULE for $value_ty {
+                type ULE = $ule_ty;
+
+                fn to_unaligned(self) -> Self::ULE {
+                    self.0.to_unaligned()
+                }
+                fn from_unaligned(unaligned: Self::ULE) -> Self {
+                    Self(zerovec::ule::AsULE::from_unaligned(unaligned))
+                }
+            }
+        )?
+    };
+}
+
+/// Enumerated property `Bidi_Class`
+///
+/// These are the categories required by the Unicode Bidirectional Algorithm.
+/// For the property values, see [Bidirectional Class Values](https://unicode.org/reports/tr44/#Bidi_Class_Values).
+/// For more information, see [Unicode Standard Annex #9](https://unicode.org/reports/tr41/tr41-28.html#UAX9).
+///
+/// # Example
+///
+/// ```
+/// use icu::properties::{CodePointMapData, props::BidiClass};
+///
+/// assert_eq!(
+///     CodePointMapData::<BidiClass>::new().get('y'),
+///     BidiClass::LeftToRight
+/// ); // U+0079
+/// assert_eq!(
+///     CodePointMapData::<BidiClass>::new().get('ع'),
+///     BidiClass::ArabicLetter
+/// ); // U+0639
+/// ```
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::exhaustive_structs)] // newtype
+#[repr(transparent)]
+pub struct BidiClass(pub(crate) u8);
+
+impl BidiClass {
+    /// Returns an ICU4C `UBidiClass` value.
+    #[deprecated(
+        since = "2.3.0",
+        note = "please comment on https://github.com/unicode-org/icu4x/issues/6067 if you need this"
+    )]
+    pub const fn to_icu4c_value(self) -> u8 {
+        self.0
+    }
+    /// Constructor from an ICU4C `UBidiClass` value.
+    #[deprecated(
+        since = "2.3.0",
+        note = "please comment on https://github.com/unicode-org/icu4x/issues/6067 if you need this"
+    )]
+    pub const fn from_icu4c_value(value: u8) -> Self {
+        Self(value)
+    }
+}
+
+impl Default for BidiClass {
+    fn default() -> Self {
+        Self::LeftToRight
+    }
+}
+
+make_enumerated_property! {
+    name: "Bidi_Class";
+    short_name: "bc";
+    ident: BidiClass;
+    data_marker: crate::provider::PropertyEnumBidiClassV1;
+    singleton: SINGLETON_PROPERTY_ENUM_BIDI_CLASS_V1;
+    ule_ty: u8;
+}
+
+/// Enumerated property `Numeric_Type`.
+///
+/// See Section 4.6, Numeric Value in The Unicode Standard for the summary of
+/// each property value.
+///
+/// # Example
+///
+/// ```
+/// use icu::properties::{CodePointMapData, props::NumericType};
+///
+/// assert_eq!(
+///     CodePointMapData::<NumericType>::new().get('0'),
+///     NumericType::Decimal,
+/// ); // U+0030
+/// assert_eq!(
+///     CodePointMapData::<NumericType>::new().get('½'),
+///     NumericType::Numeric,
+/// ); // U+00BD
+/// ```
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::exhaustive_structs)] // newtype
+#[repr(transparent)]
+pub struct NumericType(pub(crate) u8);
+
+impl NumericType {
+    /// Returns an ICU4C `UNumericType` value.
+    #[deprecated(
+        since = "2.3.0",
+        note = "please comment on https://github.com/unicode-org/icu4x/issues/6067 if you need this"
+    )]
+    pub const fn to_icu4c_value(self) -> u8 {
+        self.0
+    }
+    /// Constructor from an ICU4C `UNumericType` value.
+    #[deprecated(
+        since = "2.3.0",
+        note = "please comment on https://github.com/unicode-org/icu4x/issues/6067 if you need this"
+    )]
+    pub const fn from_icu4c_value(value: u8) -> Self {
+        Self(value)
+    }
+}
+
+impl Default for NumericType {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+make_enumerated_property! {
+    name: "Numeric_Type";
+    short_name: "nt";
+    ident: NumericType;
+    data_marker: crate::provider::PropertyEnumNumericTypeV1;
+    singleton: SINGLETON_PROPERTY_ENUM_NUMERIC_TYPE_V1;
+    ule_ty: u8;
+}
+
+/// Enumerated property `General_Category`.
+///
+/// `General_Category` specifies the most general classification of a code point, usually
+/// determined based on the primary characteristic of the assigned character. For example, is the
+/// character a letter, a mark, a number, punctuation, or a symbol, and if so, of what type?
+///
+/// `GeneralCategory` only supports specific subcategories (eg `UppercaseLetter`).
+/// It does not support grouped categories (eg `Letter`). For grouped categories, use [`GeneralCategoryGroup`].
+///
+/// # Example
+///
+/// ```
+/// use icu::properties::{CodePointMapData, props::GeneralCategory};
+///
+/// assert_eq!(
+///     CodePointMapData::<GeneralCategory>::new().get('木'),
+///     GeneralCategory::OtherLetter
+/// ); // U+6728
+/// assert_eq!(
+///     CodePointMapData::<GeneralCategory>::new().get('🎃'),
+///     GeneralCategory::OtherSymbol
+/// ); // U+1F383 JACK-O-LANTERN
+/// ```
+pub use crate::enum_values::GeneralCategory;
+
+#[allow(clippy::derivable_impls)] // declaration is codegen'd
+impl Default for GeneralCategory {
+    fn default() -> Self {
+        Self::Unassigned
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Default)]
+/// Error value for `impl TryFrom<u8> for GeneralCategory`.
+#[non_exhaustive]
+pub struct GeneralCategoryOutOfBoundsError;
+
+impl TryFrom<u8> for GeneralCategory {
+    type Error = GeneralCategoryOutOfBoundsError;
+    /// Construct this [`GeneralCategory`] from an integer, returning
+    /// an error if it is out of bounds
+    fn try_from(val: u8) -> Result<Self, GeneralCategoryOutOfBoundsError> {
+        GeneralCategory::new_from_u8(val).ok_or(GeneralCategoryOutOfBoundsError)
+    }
+}
+
+make_enumerated_property! {
+    name: "General_Category";
+    short_name: "gc";
+    ident: GeneralCategory;
+    data_marker: crate::provider::PropertyEnumGeneralCategoryV1;
+    singleton: SINGLETON_PROPERTY_ENUM_GENERAL_CATEGORY_V1;
+}
+
+/// Groupings of multiple `General_Category` property values.
+///
+/// Instances of `GeneralCategoryGroup` represent the defined multi-category
+/// values that are useful for users in certain contexts, such as regex. In
+/// other words, unlike [`GeneralCategory`], this supports groups of general
+/// categories: for example, `Letter` /// is the union of `UppercaseLetter`,
+/// `LowercaseLetter`, etc.
+///
+/// See <https://www.unicode.org/reports/tr44/> .
+///
+/// The discriminants correspond to the `U_GC_XX_MASK` constants in ICU4C.
+/// Unlike [`GeneralCategory`], this supports groups of general categories: for example, `Letter`
+/// is the union of `UppercaseLetter`, `LowercaseLetter`, etc.
+///
+/// See `UCharCategory` and `U_GET_GC_MASK` in ICU4C.
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+#[allow(clippy::exhaustive_structs)] // newtype
+#[repr(transparent)]
+pub struct GeneralCategoryGroup(pub(crate) u32);
+
+impl crate::private::Sealed for GeneralCategoryGroup {}
+
+use GeneralCategory as GC;
+use GeneralCategoryGroup as GCG;
+
+#[allow(non_upper_case_globals, missing_docs)]
+impl GeneralCategoryGroup {
+    /// An uppercase letter
+    pub const UppercaseLetter: GeneralCategoryGroup = GCG(1 << (GC::UppercaseLetter as u32));
+    pub const Lu: GeneralCategoryGroup = Self::UppercaseLetter;
+    /// A lowercase letter
+    pub const Ll: Self = Self::LowercaseLetter;
+    pub const LowercaseLetter: GeneralCategoryGroup = GCG(1 << (GC::LowercaseLetter as u32));
+    /// A digraphic letter, with first part uppercase
+    pub const TitlecaseLetter: GeneralCategoryGroup = GCG(1 << (GC::TitlecaseLetter as u32));
+    pub const Lt: Self = Self::TitlecaseLetter;
+    /// A modifier letter
+    pub const ModifierLetter: GeneralCategoryGroup = GCG(1 << (GC::ModifierLetter as u32));
+    pub const Lm: Self = Self::ModifierLetter;
+    /// Other letters, including syllables and ideographs
+    pub const OtherLetter: GeneralCategoryGroup = GCG(1 << (GC::OtherLetter as u32));
+    pub const Lo: Self = Self::OtherLetter;
+    /// The union of `UppercaseLetter`, `LowercaseLetter`, and `TitlecaseLetter`
+    pub const CasedLetter: GeneralCategoryGroup = GCG((1 << (GC::UppercaseLetter as u32))
+        | (1 << (GC::LowercaseLetter as u32))
+        | (1 << (GC::TitlecaseLetter as u32)));
+    pub const LC: Self = Self::CasedLetter;
+    /// The union of all letter categories
+    pub const Letter: GeneralCategoryGroup = GCG((1 << (GC::UppercaseLetter as u32))
+        | (1 << (GC::LowercaseLetter as u32))
+        | (1 << (GC::TitlecaseLetter as u32))
+        | (1 << (GC::ModifierLetter as u32))
+        | (1 << (GC::OtherLetter as u32)));
+    pub const L: Self = Self::Letter;
+
+    /// A nonspacing combining mark (zero advance width)
+    pub const NonspacingMark: GeneralCategoryGroup = GCG(1 << (GC::NonspacingMark as u32));
+    pub const Mn: Self = Self::NonspacingMark;
+    /// An enclosing combining mark
+    pub const EnclosingMark: GeneralCategoryGroup = GCG(1 << (GC::EnclosingMark as u32));
+    pub const Me: Self = Self::EnclosingMark;
+    /// A spacing combining mark (positive advance width)
+    pub const SpacingMark: GeneralCategoryGroup = GCG(1 << (GC::SpacingMark as u32));
+    pub const Mc: Self = Self::SpacingMark;
+    /// The union of all mark categories
+    pub const Mark: GeneralCategoryGroup = GCG((1 << (GC::NonspacingMark as u32))
+        | (1 << (GC::EnclosingMark as u32))
+        | (1 << (GC::SpacingMark as u32)));
+    pub const M: Self = Self::Mark;
+
+    /// A decimal digit
+    pub const DecimalNumber: GeneralCategoryGroup = GCG(1 << (GC::DecimalNumber as u32));
+    pub const Nd: Self = Self::DecimalNumber;
+    /// A letterlike numeric character
+    pub const LetterNumber: GeneralCategoryGroup = GCG(1 << (GC::LetterNumber as u32));
+    pub const Nl: Self = Self::LetterNumber;
+    /// A numeric character of other type
+    pub const OtherNumber: GeneralCategoryGroup = GCG(1 << (GC::OtherNumber as u32));
+    pub const No: Self = Self::OtherNumber;
+    /// The union of all number categories
+    pub const Number: GeneralCategoryGroup = GCG((1 << (GC::DecimalNumber as u32))
+        | (1 << (GC::LetterNumber as u32))
+        | (1 << (GC::OtherNumber as u32)));
+    pub const N: Self = Self::Number;
+
+    ///

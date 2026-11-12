@@ -1,0 +1,352 @@
+//! Loading, scaling and hinting of glyph outlines.
+//!
+//! This module provides support for retrieving (optionally scaled and hinted)
+//! glyph outlines in the form of vector paths.
+//!
+//! # Drawing a glyph
+//!
+//! Generating SVG [path commands](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d#path_commands)
+//! for a character (this assumes a local variable `font` of type [`FontRef`]):
+//!
+//! ```rust
+//! use skrifa::{
+//!     instance::{LocationRef, Size},
+//!     outline::{DrawSettings, OutlinePen},
+//!     FontRef, MetadataProvider,
+//! };
+//!
+//! # fn wrapper(font: FontRef) {
+//! // First, grab the set of outline glyphs from the font.
+//! let outlines = font.outline_glyphs();
+//!
+//! // Find the glyph identifier for our character.
+//! let glyph_id = font.charmap().map('Q').unwrap();
+//!
+//! // Grab the outline glyph.
+//! let glyph = outlines.get(glyph_id).unwrap();
+//!
+//! // Define how we want the glyph to be drawn. This creates
+//! // settings for an instance without hinting at a size of
+//! // 16px with no variations applied.
+//! let settings = DrawSettings::unhinted(Size::new(16.0), LocationRef::default());
+//!
+//! // Alternatively, we can apply variations like so:
+//! let var_location = font.axes().location(&[("wght", 650.0), ("wdth", 100.0)]);
+//! let settings = DrawSettings::unhinted(Size::new(16.0), &var_location);
+//!
+//! // At this point, we need a "sink" to receive the resulting path. This
+//! // is done by creating an implementation of the OutlinePen trait.
+//!
+//! // Let's make one that generates SVG path data.
+//! #[derive(Default)]
+//! struct SvgPath(String);
+//!
+//! // Implement the OutlinePen trait for this type. This emits the appropriate
+//! // SVG path commands for each element type.
+//! impl OutlinePen for SvgPath {
+//!     fn move_to(&mut self, x: f32, y: f32) {
+//!         self.0.push_str(&format!("M{x:.1},{y:.1} "));
+//!     }
+//!
+//!     fn line_to(&mut self, x: f32, y: f32) {
+//!         self.0.push_str(&format!("L{x:.1},{y:.1} "));
+//!     }
+//!
+//!     fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+//!         self.0
+//!             .push_str(&format!("Q{cx0:.1},{cy0:.1} {x:.1},{y:.1} "));
+//!     }
+//!
+//!     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
+//!         self.0.push_str(&format!(
+//!             "C{cx0:.1},{cy0:.1} {cx1:.1},{cy1:.1} {x:.1},{y:.1} "
+//!         ));
+//!     }
+//!
+//!     fn close(&mut self) {
+//!         self.0.push_str("Z ");
+//!     }
+//! }
+//! // Now, construct an instance of our pen.
+//! let mut svg_path = SvgPath::default();
+//!
+//! // And draw the glyph!
+//! glyph.draw(settings, &mut svg_path).unwrap();
+//!
+//! // See what we've drawn.
+//! println!("{}", svg_path.0);
+//! # }
+//! ```
+
+pub mod autohint;
+mod cff;
+mod glyf;
+mod hint;
+mod hint_reliant;
+mod memory;
+mod metrics;
+mod path;
+mod unscaled;
+mod varc;
+
+#[cfg(test)]
+mod testing;
+
+pub mod error;
+pub mod pen;
+
+pub use autohint::GlyphStyles;
+pub use hint::{
+    Engine, HintingInstance, HintingMode, HintingOptions, LcdLayout, SmoothMode, Target,
+};
+use metrics::GlyphHMetrics;
+use raw::FontRef;
+#[doc(inline)]
+pub use {error::DrawError, pen::OutlinePen};
+
+use self::glyf::{FreeTypeScaler, HarfBuzzScaler};
+use super::{
+    instance::{LocationRef, NormalizedCoord, Size},
+    GLYF_COMPOSITE_RECURSION_LIMIT,
+};
+use core::fmt::Debug;
+use pen::PathStyle;
+use read_fonts::{types::GlyphId, TableProvider};
+
+#[cfg(feature = "libm")]
+#[allow(unused_imports)]
+use core_maths::CoreFloat;
+
+/// Source format for an outline glyph.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum OutlineGlyphFormat {
+    /// TrueType outlines sourced from the `glyf` table.
+    Glyf,
+    /// PostScript outlines sourced from the `CFF` table.
+    Cff,
+    /// PostScript outlines sourced from the `CFF2` table.
+    Cff2,
+    /// Variable composites sourced from the `VARC` table.
+    Varc,
+}
+
+/// Specifies the hinting strategy for memory size calculations.
+#[derive(Copy, Clone, PartialEq, Eq, Default, Debug)]
+pub enum Hinting {
+    /// Hinting is disabled.
+    #[default]
+    None,
+    /// Application of hints that are embedded in the font.
+    ///
+    /// For TrueType, these are bytecode instructions associated with each
+    /// glyph outline. For PostScript (CFF/CFF2), these are stem hints
+    /// encoded in the character string.
+    Embedded,
+}
+
+/// Information and adjusted metrics generated while drawing an outline glyph.
+///
+/// When applying hints to a TrueType glyph, the outline may be adjusted in
+/// the horizontal direction, affecting the left side bearing and advance width
+/// of the glyph. This captures those metrics.
+#[derive(Copy, Clone, Default, Debug)]
+pub struct AdjustedMetrics {
+    /// True if the underlying glyph contains flags indicating the
+    /// presence of overlapping contours or components.
+    pub has_overlaps: bool,
+    /// If present, an adjusted left side bearing value generated by the
+    /// scaler.
+    ///
+    /// This is equivalent to the `horiBearingX` value in
+    /// [`FT_Glyph_Metrics`](https://freetype.org/freetype2/docs/reference/ft2-glyph_retrieval.html#ft_glyph_metrics).
+    pub lsb: Option<f32>,
+    /// If present, an adjusted advance width value generated by the
+    /// scaler.
+    ///
+    /// Note that, like FreeType, this value is always rounded when hinting
+    /// is requested even if the font does not contain any hinting
+    /// instructions. This might be relevant for CFF where the hinter never
+    /// adjusts outlines in the horizontal direction, in which case,
+    /// using the linear advance width from [`GlyphMetrics`](crate::metrics::GlyphMetrics)
+    /// may be desirable.
+    ///
+    /// This is equivalent to the `advance.x` value in
+    /// [`FT_GlyphSlotRec`](https://freetype.org/freetype2/docs/reference/ft2-glyph_retrieval.html#ft_glyphslotrec).
+    pub advance_width: Option<f32>,
+}
+
+/// Options that define how a [glyph](OutlineGlyph) is drawn to a
+/// [pen](OutlinePen).
+pub struct DrawSettings<'a> {
+    instance: DrawInstance<'a>,
+    memory: Option<&'a mut [u8]>,
+    path_style: PathStyle,
+}
+
+impl<'a> DrawSettings<'a> {
+    /// Creates settings for an unhinted draw operation with the given size and
+    /// location in variation space.
+    pub fn unhinted(size: Size, location: impl Into<LocationRef<'a>>) -> Self {
+        Self {
+            instance: DrawInstance::Unhinted(size, location.into()),
+            memory: None,
+            path_style: PathStyle::default(),
+        }
+    }
+
+    /// Creates settings for a hinted draw operation using hinting data
+    /// contained in the font.
+    ///
+    /// If `is_pedantic` is true then any error that occurs during hinting will
+    /// cause drawing to fail. This is equivalent to the `FT_LOAD_PEDANTIC` flag
+    /// in FreeType.
+    ///
+    /// The font size, location in variation space and hinting mode are
+    /// defined by the current configuration of the given hinting instance.
+    pub fn hinted(instance: &'a HintingInstance, is_pedantic: bool) -> Self {
+        Self {
+            instance: DrawInstance::Hinted {
+                instance,
+                is_pedantic,
+            },
+            memory: None,
+            path_style: PathStyle::default(),
+        }
+    }
+
+    /// Builder method to associate a user memory buffer to be used for
+    /// temporary allocations during drawing.
+    ///
+    /// The required size of this buffer can be computed using the
+    /// [`OutlineGlyph::draw_memory_size`] method.
+    ///
+    /// If not provided, any necessary memory will be allocated internally.
+    pub fn with_memory(mut self, memory: Option<&'a mut [u8]>) -> Self {
+        self.memory = memory;
+        self
+    }
+
+    /// Builder method to control nuances of [`glyf`](https://learn.microsoft.com/en-us/typography/opentype/spec/glyf) pointstream interpretation.
+    ///
+    /// Meant for use when trying to match legacy code behavior in Rust.
+    pub fn with_path_style(mut self, path_style: PathStyle) -> Self {
+        self.path_style = path_style;
+        self
+    }
+}
+
+enum DrawInstance<'a> {
+    Unhinted(Size, LocationRef<'a>),
+    Hinted {
+        instance: &'a HintingInstance,
+        is_pedantic: bool,
+    },
+}
+
+impl<'a, L> From<(Size, L)> for DrawSettings<'a>
+where
+    L: Into<LocationRef<'a>>,
+{
+    fn from(value: (Size, L)) -> Self {
+        DrawSettings::unhinted(value.0, value.1.into())
+    }
+}
+
+impl From<Size> for DrawSettings<'_> {
+    fn from(value: Size) -> Self {
+        DrawSettings::unhinted(value, LocationRef::default())
+    }
+}
+
+impl<'a> From<&'a HintingInstance> for DrawSettings<'a> {
+    fn from(value: &'a HintingInstance) -> Self {
+        DrawSettings::hinted(value, false)
+    }
+}
+
+/// A scalable glyph outline.
+///
+/// This can be sourced from the [`glyf`](https://learn.microsoft.com/en-us/typography/opentype/spec/glyf),
+/// [`CFF`](https://learn.microsoft.com/en-us/typography/opentype/spec/cff) or
+/// [`CFF2`](https://learn.microsoft.com/en-us/typography/opentype/spec/cff2)
+/// tables. Use the [`format`](OutlineGlyph::format) method to determine which
+/// was chosen for this glyph.
+#[derive(Clone)]
+pub struct OutlineGlyph<'a> {
+    kind: OutlineKind<'a>,
+}
+
+impl<'a> OutlineGlyph<'a> {
+    /// Returns the underlying source format for this outline.
+    pub fn format(&self) -> OutlineGlyphFormat {
+        match &self.kind {
+            OutlineKind::Glyf(..) => OutlineGlyphFormat::Glyf,
+            OutlineKind::Cff(cff, ..) => {
+                if cff.is_cff2() {
+                    OutlineGlyphFormat::Cff2
+                } else {
+                    OutlineGlyphFormat::Cff
+                }
+            }
+            OutlineKind::Varc(..) => OutlineGlyphFormat::Varc,
+        }
+    }
+
+    /// Returns the glyph identifier for this outline.
+    pub fn glyph_id(&self) -> GlyphId {
+        match &self.kind {
+            OutlineKind::Glyf(_, glyph) => glyph.glyph_id,
+            OutlineKind::Cff(_, gid, _) => *gid,
+            OutlineKind::Varc(_, outline) => outline.glyph_id,
+        }
+    }
+
+    /// Returns a value indicating if the outline may contain overlapping
+    /// contours or components.
+    ///
+    /// For CFF outlines, returns `None` since this information is unavailable.
+    pub fn has_overlaps(&self) -> Option<bool> {
+        match &self.kind {
+            OutlineKind::Glyf(_, outline) => Some(outline.has_overlaps),
+            _ => None,
+        }
+    }
+
+    /// Returns a value indicating whether the outline has hinting
+    /// instructions.
+    ///
+    /// For CFF outlines, returns `None` since this is unknown prior
+    /// to loading the outline.
+    pub fn has_hinting(&self) -> Option<bool> {
+        match &self.kind {
+            OutlineKind::Glyf(_, outline) => Some(outline.has_hinting),
+            OutlineKind::Varc(..) => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Returns the size (in bytes) of the temporary memory required to draw
+    /// this outline.
+    ///
+    /// This is used to compute the size of the memory buffer required for the
+    /// [`DrawSettings::with_memory`] method.
+    ///
+    /// The `hinting` parameter determines which hinting method, if any, will
+    /// be used for drawing which has an effect on memory requirements.
+    ///
+    /// The appropriate hinting types are as follows:
+    ///
+    /// | For draw settings                  | Use hinting           |
+    /// |------------------------------------|-----------------------|
+    /// | [`DrawSettings::unhinted`]         | [`Hinting::None`]     |
+    /// | [`DrawSettings::hinted`]           | [`Hinting::Embedded`] |
+    pub fn draw_memory_size(&self, hinting: Hinting) -> usize {
+        match &self.kind {
+            OutlineKind::Glyf(_, outline) => outline.required_buffer_size(hinting),
+            OutlineKind::Varc(_, outline) => outline.required_buffer_size(),
+            _ => 0,
+        }
+    }
+
+    /// Draws the outline glyph with the given settings and emits the resulting
+    /// path commands to the specifi

@@ -1,0 +1,19 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "vendor/hayro-syntax/src/transform.rs",
+      "sha256": "40cf670b296220e7a7737dacc80eff888d42275d026fe17269a2458866a60fc8",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the Kurbo Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

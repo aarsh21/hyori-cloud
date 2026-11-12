@@ -12,7 +12,7 @@ function FocusLayout({
     <main
       data-slot="focus-layout"
       className={cn(
-        "flex min-h-svh flex-col items-center bg-background px-5 pt-[max(12svh,3rem)] pb-10",
+        "flex min-h-svh flex-col items-center bg-background px-5 pt-[max(12svh,3rem)] pb-[max(2.5rem,env(safe-area-inset-bottom))]",
         className,
       )}
       {...props}

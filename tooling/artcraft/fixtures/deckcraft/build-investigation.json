@@ -1,0 +1,33 @@
+{
+  "app": "deckcraft",
+  "tag": "v0.14.1",
+  "status": "blocked-no-host-bridge",
+  "sourceArchiveSha256": "6e03f2e9532c0102ec01d8be8bba556a0191ee11d5ca64412a5b48457afddfb7",
+  "browserArchiveSha256": "929f0e44eb99c62271320a68a50c95c8266bb03db5e2205c4eb72c33b1936c97",
+  "observedEnvironment": {
+    "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+    "installedTargets": ["x86_64-unknown-linux-gnu"],
+    "trunkInstalled": false,
+    "wasmBindgenCliInstalled": false,
+    "sourceBuildExecuted": false,
+    "patchedBuildExists": false,
+    "browserWasmExecuted": false
+  },
+  "sourceEvidence": [
+    { "path": "apps/deckcraft-web/src/main.rs", "lines": "9-17", "finding": "Only browser picker/download behavior and webgl/blank/show flags are described." },
+    { "path": "apps/deckcraft-web/src/web.rs", "lines": "42-55, 119-150, 158-180", "finding": "WebShell constructs Services directly; write/download callbacks trigger local browser downloads. There is no message listener, ready event, open envelope, or persistence bridge." },
+    { "path": "apps/deckcraft-web/Cargo.toml", "lines": "27-30", "finding": "wasm-bindgen/js-sys are present; MessageEvent/EventTarget web-sys features must be reviewed/added for a host bridge." },
+    { "path": "apps/deckcraft-web/Trunk.toml", "lines": "1-6", "finding": "Relative public URLs and hashed output are configured; no Trunk hooks in this configuration." },
+    { "path": "crates/ui-egui/src/app/files.rs", "lines": "542-557", "finding": "Owned synchronous open seam is SlideApp::open_or_insert_bytes; asynchronous ingress also exists through begin_external_file and InboxEvent::File." },
+    { "path": "crates/engine/src/lib.rs", "lines": "271, 566", "finding": "DocState::is_dirty and Session::documents expose a dirty-state observation seam." },
+    { "path": "crates/fonts/build.rs", "lines": "46-77", "finding": "Build generates Rust font registration from explicit optional font inputs. An absent font checkout yields an empty optional set, not release font parity." }
+  ],
+  "boundedNextStep": [
+    "Own a checksum-pinned patch against this tag, not against a mutable main branch or the precompiled ZIP.",
+    "Add opt-in host=parent handling with exact parent window/origin checks, ready/failed, bounded open bytes, output save classification and dirty reporting; keep the existing non-host picker/download path intact.",
+    "Wire browser Services::write and Services::download and the WebShell open/dirty seams. Establish Save As/export semantics from the actual call sites rather than inventing a saveAs flag.",
+    "Review dependent Cargo build.rs files and pinned git dependencies before authorizing build execution. Install/pin the wasm32 target, Trunk and matching wasm-bindgen toolchain; reproduce the release font input if fidelity is claimed.",
+    "Build from an owned workspace outside the download directory, verify source/patch/output checksums and preserve dependency notices. Do not execute downloaded build scripts merely because they are present.",
+    "Only widen the SDK BridgedArtCraftApp schema after the patched build passes real iframe open/edit/save/reopen and failure/conflict tests. A launcher or manual re-upload does not satisfy this blocker."
+  ]
+}

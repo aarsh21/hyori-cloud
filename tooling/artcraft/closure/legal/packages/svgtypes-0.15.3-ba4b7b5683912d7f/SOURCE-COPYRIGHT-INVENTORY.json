@@ -1,0 +1,299 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/angle.rs",
+      "sha256": "4da08373194352c5be2411e3178448405bef91d6c73a6f84db3337ec265a1853",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/aspect_ratio.rs",
+      "sha256": "cc35eedf21520a9e21f506ef3bb8f0403dd0ecb66ab8e8b9efafbc41bbacca90",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/color.rs",
+      "sha256": "22ea25560f22f54df2eaf055e1945f637c66c1eadf67660de8ebbc4f8106287a",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/colors.rs",
+      "sha256": "a5dfc9be0b1a8855cfa8d8137e20efe0810c389e8d2030d60059b5b1a7ddac97",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/directional_position.rs",
+      "sha256": "ecb326d92c1ca43704fd0ace3cbb7988e9e6f8c53f034b08eb6fd97e873c6d76",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/enable_background.rs",
+      "sha256": "4ca93d51add326b94adf704c8fd338c1a99348dea20a8b658ab0fffa32c6acb1",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/error.rs",
+      "sha256": "5ef9bf08d8fa0a2516a91db45db054c82b102d9d276d93ca7589039419c4d58d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/filter_functions.rs",
+      "sha256": "1d3764f233e5bba0f5fa18f09985f1df5b56cd29e1ec0e5c2e889749e78b7554",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/font.rs",
+      "sha256": "20f8a5b0edcc0c32d6e34a2a488e40fd1e9242ea650cb8f18b62a932c75ed20b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2024 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/funciri.rs",
+      "sha256": "7d2c5dfad4048be6ca1c2dfd13a8d1d52b0caf48f795ecd420227b13cdc92df5",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/length.rs",
+      "sha256": "b0b856afad08b37655f04979b4acaf6f7bf1720ba59b8a1e0dcef2a1db466322",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "b23cf8ff390328088bffccb940289214727752e7846c74fe7f2a1d32a2826414",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/number.rs",
+      "sha256": "a1ef232bc355c4418755a49d97a4d5639ca87c023cb50dce82c02c353e210b7f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/paint_order.rs",
+      "sha256": "b15efa7cea91da08bbd7facb6484282aae6a91a12731d9b35836a4c2897ff0fc",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2022 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/paint.rs",
+      "sha256": "94b7ce8e346f480a7a725ebb70f61b91bc32d12507e921713d9e47ad6de424f8",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/path.rs",
+      "sha256": "66ef74346876b861853d8ca98f662c2e22ae22a93e24a57ce63bb70429a4996d",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/points.rs",
+      "sha256": "891dd67739a89dbb9e235c4eb94114cdc1fc603cf351eb79ff6c0450dae906e6",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/stream.rs",
+      "sha256": "293f54f110cfb0308edd764b55efff8e63e3fde0ae285a698a1a800e2f93d7bd",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/transform_origin.rs",
+      "sha256": "e08b985f7899221b0b42fa1db7d7872c43e6cc8f33a06d205758fea38b0c01aa",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2023 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/transform.rs",
+      "sha256": "c8da41632fdf7986e99685bf17f644534998eecdcd314d14ce64eaa5d34e5688",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2021 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    },
+    {
+      "path": "src/viewbox.rs",
+      "sha256": "c56b6084569f869b49e7dcd8f63d347f4730003c8587b9edc6d19bab3f1fd30b",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018 the SVG Types Authors"
+        },
+        {
+          "line": 2,
+          "text": "// SPDX-License-Identifier: Apache-2.0 OR MIT"
+        }
+      ]
+    }
+  ]
+}

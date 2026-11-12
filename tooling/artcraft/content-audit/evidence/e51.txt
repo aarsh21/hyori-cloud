@@ -1,0 +1,31 @@
+{
+  "offset": 1773316,
+  "bytes": 361676,
+  "sha256": "80307b8da7649aa4ee4d484b232140e3ce1ec0ca093073d3c53c8f5a5ced7a70",
+  "names": [
+    {
+      "id": 0,
+      "text": "Copyright 2011 Canonical Ltd.  Licensed under the Ubuntu Font Licence 1.0"
+    },
+    {
+      "id": 1,
+      "text": "Ubuntu Light"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "0.83;DAMA;Ubuntu-Light"
+    },
+    {
+      "id": 4,
+      "text": "Ubuntu Light"
+    },
+    {
+      "id": 6,
+      "text": "Ubuntu-Light"
+    }
+  ]
+}

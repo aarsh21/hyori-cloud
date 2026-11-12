@@ -1,0 +1,28 @@
+Generate the lockfile for a package
+
+Usage: cargo generate-lockfile [OPTIONS]
+
+Options:
+  -v, --verbose...               Use verbose output (-vv very verbose/build.rs output)
+  -q, --quiet                    Do not print cargo log messages
+      --color <WHEN>             Coloring [possible values: auto, always, never]
+      --config <KEY=VALUE|PATH>  Override a configuration value
+  -Z <FLAG>                      Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for
+                                 details
+  -h, --help                     Print help
+
+Manifest Options:
+  -m, --manifest-path <PATH>
+          Path to Cargo.toml
+      --ignore-rust-version
+          Ignore `rust-version` specification in packages
+      --publish-time <yyyy-mm-ddThh:mm:ssZ>
+          Latest publish time allowed for registry packages (unstable)
+      --locked
+          Assert that `Cargo.lock` will remain unchanged
+      --offline
+          Run without accessing the network
+      --frozen
+          Equivalent to specifying both --locked and --offline
+
+Run `cargo help generate-lockfile` for more detailed information.

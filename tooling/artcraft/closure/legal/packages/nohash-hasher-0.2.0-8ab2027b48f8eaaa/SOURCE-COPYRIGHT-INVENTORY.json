@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "9dc267d4c90c83b86b47da5e58961e7ea6d4c2b659448a383293bfbc08961fa9",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2018-2020 Parity Technologies (UK) Ltd."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "failures": [
+    {
+      "id": "rust-release-COPYRIGHT-library.html",
+      "url": "https://doc.rust-lang.org/1.99.1/COPYRIGHT-library.html",
+      "error": "Error: Build input HTTP 404: https://doc.rust-lang.org/1.99.1/COPYRIGHT-library.html"
+    },
+    {
+      "id": "rust-release-licenses_Unicode-3.0.txt",
+      "url": "https://doc.rust-lang.org/1.99.1/licenses/Unicode-3.0.txt",
+      "error": "Error: Build input HTTP 404: https://doc.rust-lang.org/1.99.1/licenses/Unicode-3.0.txt"
+    },
+    {
+      "id": "rust-release-licenses_LLVM-exception.txt",
+      "url": "https://doc.rust-lang.org/1.99.1/licenses/LLVM-exception.txt",
+      "error": "Error: Build input HTTP 404: https://doc.rust-lang.org/1.99.1/licenses/LLVM-exception.txt"
+    },
+    {
+      "id": "wasm-bindgen-Cargo.lock",
+      "url": "https://raw.githubusercontent.com/wasm-bindgen/wasm-bindgen/165586f854c852bcbc4d14d8a75a0a0e0d0abc12/Cargo.lock",
+      "error": "Error: Build input HTTP 404: https://raw.githubusercontent.com/wasm-bindgen/wasm-bindgen/165586f854c852bcbc4d14d8a75a0a0e0d0abc12/Cargo.lock"
+    },
+    {
+      "id": "trunk-src_pipelines_rust_bindgen.rs",
+      "url": "https://raw.githubusercontent.com/trunk-rs/trunk/8ec159c52dcaf661e6950bb71d7f62ab24558164/src/pipelines/rust/bindgen.rs",
+      "error": "Error: Build input HTTP 404: https://raw.githubusercontent.com/trunk-rs/trunk/8ec159c52dcaf661e6950bb71d7f62ab24558164/src/pipelines/rust/bindgen.rs"
+    },
+    {
+      "id": "wordcraft-craft-i18n-NOTICE",
+      "url": "https://raw.githubusercontent.com/storytold/craft-i18n/9205108cfdced5177706264038848b68b2422d2b/NOTICE",
+      "error": "Error: Build input HTTP 404: https://raw.githubusercontent.com/storytold/craft-i18n/9205108cfdced5177706264038848b68b2422d2b/NOTICE"
+    },
+    {
+      "id": "gridcraft-i18n-pin",
+      "url": "tagged editor craft-i18n.rev",
+      "error": "Error: Invalid catalog pin"
+    },
+    {
+      "id": "deckcraft-i18n-pin",
+      "url": "tagged editor craft-i18n.rev",
+      "error": "Error: Invalid catalog pin"
+    },
+    {
+      "id": "pdfcraft-i18n-pin",
+      "url": "tagged editor craft-i18n.rev",
+      "error": "Error: Invalid catalog pin"
+    },
+    {
+      "id": "rust-library_compiler-builtins_REUSE.toml",
+      "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/REUSE.toml",
+      "error": "Error: Build input HTTP 404: https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/REUSE.toml"
+    },
+    {
+      "id": "rust-library_compiler-builtins_compiler-builtins_LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/compiler-builtins/LICENSE.txt",
+      "error": "Error: Build input HTTP 404: https://raw.githubusercontent.com/rust-lang/rust/58cf8f9c35b355199727627d07ae34a4e2846d67/library/compiler-builtins/compiler-builtins/LICENSE.txt"
+    }
+  ],
+  "meaning": "Missing optional probe paths are not automatically legal blockers; required evidence fails generation. Source provenance/rights gaps are explicit material dispositions."
+}

@@ -1,0 +1,39 @@
+{
+  "offset": 16284379,
+  "bytes": 270222,
+  "sha256": "86d88ac55eb81afe99b2f3ec8fbc16600efbec8ac90c9ad4dce50aa9055890f7",
+  "names": [
+    {
+      "id": 0,
+      "text": "Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)"
+    },
+    {
+      "id": 1,
+      "text": "JetBrains Mono"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "2.305;JB;JetBrainsMono-Regular"
+    },
+    {
+      "id": 4,
+      "text": "JetBrains Mono Regular"
+    },
+    {
+      "id": 6,
+      "text": "JetBrainsMono-Regular"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org"
+    },
+    {
+      "id": 14,
+      "text": "https://openfontlicense.org"
+    }
+  ]
+}

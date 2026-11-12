@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/engine/src/cmd/text.rs",
+      "sha256": "45f1aeddea29cdaa795bf74fa603882e147a6ee8ef2c9a647d73d5fd5d49f777",
+      "lines": [
+        {
+          "line": 54,
+          "text": "        CommandSpec::new(\"text.copyright\", \"Copyright Sign\", \"Insert › Symbols\", |s, _| ins_char(s, '©')).key(non_mac(\"Mod+Alt+C\")),"
+        }
+      ]
+    },
+    {
+      "path": "crates/engine/src/tests.rs",
+      "sha256": "1b75e193b11257e84a4945b0f43584e51428bcce7b3e673d096394a1b664c819",
+      "lines": [
+        {
+          "line": 195,
+          "text": "        assert_eq!(id(\"Mod+Alt+C\"), Some(\"text.copyright\"));"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "binary": "/home/aarsh/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+    "args": [
+      "metadata",
+      "--manifest-path",
+      "<gridcraft-source>/apps/gridcraft-web/Cargo.toml",
+      "--locked",
+      "--filter-platform",
+      "wasm32-unknown-unknown",
+      "--format-version",
+      "1"
+    ],
+    "status": 0,
+    "stderr": "warning: patch `egui_demo_lib v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_extras v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_inspection v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_system_font_provider v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nhelp: Check that the patched package version and available features are compatible\n      with the dependency requirements. If the patch has a different version from\n      what is locked in the Cargo.lock file, run `cargo update` to use the new\n      version. This may also occur with an optional dependency that is not enabled.\n",
+    "error": null
+  },
+  {
+    "binary": "/home/aarsh/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+    "args": [
+      "tree",
+      "--manifest-path",
+      "<gridcraft-source>/apps/gridcraft-web/Cargo.toml",
+      "--locked",
+      "--target",
+      "wasm32-unknown-unknown",
+      "-p",
+      "gridcraft-web",
+      "--prefix",
+      "depth",
+      "--format",
+      "{p}\\t{f}\\t{l}",
+      "--charset",
+      "ascii",
+      "--edges",
+      "normal,no-proc-macro"
+    ],
+    "status": 0,
+    "stderr": "warning: patch `egui_demo_lib v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_extras v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_inspection v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_system_font_provider v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nhelp: Check that the patched package version and available features are compatible\n      with the dependency requirements. If the patch has a different version from\n      what is locked in the Cargo.lock file, run `cargo update` to use the new\n      version. This may also occur with an optional dependency that is not enabled.\n",
+    "error": null
+  },
+  {
+    "binary": "/home/aarsh/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+    "args": [
+      "tree",
+      "--manifest-path",
+      "<gridcraft-source>/apps/gridcraft-web/Cargo.toml",
+      "--locked",
+      "--target",
+      "wasm32-unknown-unknown",
+      "-p",
+      "gridcraft-web",
+      "--prefix",
+      "depth",
+      "--format",
+      "{p}\\t{f}\\t{l}",
+      "--charset",
+      "ascii",
+      "--edges",
+      "normal,build"
+    ],
+    "status": 0,
+    "stderr": "warning: patch `egui_demo_lib v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_extras v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_inspection v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nwarning: patch `egui_system_font_provider v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph\nhelp: Check that the patched package version and available features are compatible\n      with the dependency requirements. If the patch has a different version from\n      what is locked in the Cargo.lock file, run `cargo update` to use the new\n      version. This may also occur with an optional dependency that is not enabled.\n",
+    "error": null
+  }
+]

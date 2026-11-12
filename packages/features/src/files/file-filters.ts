@@ -31,8 +31,8 @@ const GB = 1024 ** 3;
 export const SIZE_OPTIONS = [
   { value: "any", label: "Any size" },
   { value: "small", label: "Under 10 MB" },
-  { value: "medium", label: "10 MB – 100 MB" },
-  { value: "large", label: "100 MB – 1 GB" },
+  { value: "medium", label: "10 MB to 100 MB" },
+  { value: "large", label: "100 MB to 1 GB" },
   { value: "huge", label: "Over 1 GB" },
 ] as const;
 

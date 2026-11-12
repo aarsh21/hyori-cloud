@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "ea27b433d28b9f0bc411147079740bd28c45bcf80c0f70698a3cf6432ba3046b",
+      "lines": [
+        {
+          "line": 16,
+          "text": "[COPYRIGHT](https://github.com/hsivonen/write16/blob/master/COPYRIGHT)."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "f3d73b15e078ea40171c8636bfb83f42a8598405d2767a2183e0bc2be91ae1e1",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright Mozilla Foundation"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+[
+  {
+    "type": "deckcraft:ready",
+    "supportedInputFormats": [
+      ".deckcraft",
+      ".pptx"
+    ],
+    "maxBytes": 67108864,
+    "acknowledgements": true,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:opened",
+    "openId": "synthetic-open-1",
+    "name": "Synthetic.deckcraft",
+    "documentId": "6765513636052992",
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:dirty",
+    "dirty": false,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:dirty",
+    "dirty": true,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:save",
+    "saveId": "synthetic-open-1:1",
+    "bytes": 4764,
+    "openId": "synthetic-open-1",
+    "name": "Synthetic.deckcraft",
+    "saveAs": false,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:dirty",
+    "dirty": true,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:saved",
+    "dirty": true,
+    "saveId": "synthetic-open-1:1",
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:save",
+    "saveId": "synthetic-open-1:2",
+    "bytes": 4796,
+    "openId": "synthetic-open-1",
+    "name": "Synthetic.deckcraft",
+    "saveAs": false,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:saved",
+    "dirty": false,
+    "saveId": "synthetic-open-1:2",
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:dirty",
+    "dirty": false,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:ready",
+    "supportedInputFormats": [
+      ".deckcraft",
+      ".pptx"
+    ],
+    "maxBytes": 67108864,
+    "acknowledgements": true,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:opened",
+    "openId": "synthetic-open-2",
+    "name": "Synthetic.deckcraft",
+    "documentId": "497955219963904",
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:dirty",
+    "dirty": false,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:save",
+    "saveId": "synthetic-open-2:1",
+    "bytes": 4796,
+    "openId": "synthetic-open-2",
+    "name": "Synthetic.deckcraft",
+    "saveAs": false,
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  },
+  {
+    "type": "deckcraft:saved",
+    "dirty": false,
+    "saveId": "synthetic-open-2:1",
+    "protocol": 1,
+    "version": "0.14.1-hyori-host.1"
+  }
+]

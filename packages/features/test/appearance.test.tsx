@@ -14,7 +14,7 @@ import {
 } from "#features-test/mounted.tsx";
 
 async function selectDark() {
-  fireEvent.click(screen.getByRole("button", { name: "Appearance" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Appearance" }));
   fireEvent.click(await screen.findByRole("menuitemradio", { name: "Dark" }));
   await waitFor(() => expect(document.documentElement.classList.contains("dark")).toBe(true));
   expect(localStorage.getItem("hyori-appearance")).toBe("dark");
@@ -71,7 +71,7 @@ for (const kind of ["file", "folder"] as const) {
     mount(<CloudScreen path="/share/example" onNavigate={() => {}} />, api);
     await selectDark();
     expect(api.calls).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
     const password = await screen.findByLabelText("Password");
     expect(screen.getByRole("button", { name: "Appearance" })).toBeTruthy();
     fireEvent.change(password, { target: { value: "example-password" } });

@@ -126,7 +126,8 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
             aria-expanded={open}
             aria-keyshortcuts="Control+B Meta+B"
             className={cn(
-              "fixed top-5 left-3 z-20 hidden after:absolute after:-inset-2 coarse:size-7 md:inline-flex",
+              // The sidebar being open shows for itself, so its toggle doesn't stay filled like an open menu.
+              "fixed top-5 left-[calc(0.75rem+env(safe-area-inset-left))] z-20 hidden not-hover:aria-expanded:bg-transparent not-hover:aria-expanded:text-muted-foreground after:absolute after:-inset-[9px] coarse:size-7 md:inline-flex",
               className,
             )}
             onClick={(event) => {
@@ -231,7 +232,7 @@ function SidebarMenuButton({
     props: mergeProps<"button">(
       {
         className: cn(
-          "flex h-[30px] w-full items-center gap-2.5 rounded-md px-2 text-sm text-sidebar-foreground outline-none select-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground coarse:h-10 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.75]",
+          "flex h-[30px] w-full items-center gap-2.5 rounded-md px-2 text-sm text-sidebar-foreground outline-none select-none hover:bg-sidebar-accent active:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground coarse:h-11 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.75]",
           className,
         ),
       },

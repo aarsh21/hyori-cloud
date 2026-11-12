@@ -1,0 +1,23 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "LICENSE-MIT.md",
+      "sha256": "5b2c207dcf571267ebe0bbdd5bf321f561ddc22ff597e7b363e96f4539507a29",
+      "lines": [
+        {
+          "line": 3,
+          "text": "Copyright (c) 2016 Johann Tuffe\r"
+        },
+        {
+          "line": 13,
+          "text": "The above copyright notice and this permission notice shall be included in\r"
+        },
+        {
+          "line": 20,
+          "text": "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r"
+        }
+      ]
+    }
+  ]
+}

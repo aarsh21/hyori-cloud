@@ -12,14 +12,15 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./rpc": "./src/rpc.ts"
+    "./rpc": "./src/rpc.ts",
+    "./server": "./src/server.ts",
+    "./node": "./src/node.ts"
   },
   "scripts": {
     "test": "bun test",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@hyori-cloud/core": "workspace:*",
     "@hyori-cloud/lib": "workspace:*"
   },
   "devDependencies": {

@@ -1,0 +1,283 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+use crate::codepointtrie::error::Error;
+use crate::codepointtrie::impl_const::*;
+
+#[cfg(feature = "alloc")]
+use crate::codepointinvlist::CodePointInversionList;
+use core::char::CharTryFromError;
+use core::convert::Infallible;
+use core::convert::TryFrom;
+use core::fmt::Display;
+#[cfg(feature = "alloc")]
+use core::iter::FromIterator;
+use core::num::TryFromIntError;
+use core::ops::RangeInclusive;
+use yoke::Yokeable;
+use zerofrom::ZeroFrom;
+use zerovec::ZeroSlice;
+use zerovec::ZeroVec;
+use zerovec::ule::AsULE;
+#[cfg(feature = "alloc")]
+use zerovec::ule::UleError;
+
+/// The type of trie represents whether the trie has an optimization that
+/// would make it smaller or faster.
+///
+/// Regarding performance, a trie being a small or fast type affects the number of array lookups
+/// needed for code points in the range `[0x1000, 0x10000)`. In this range, `Small` tries use 4 array lookups,
+/// while `Fast` tries use 2 array lookups.
+/// Code points before the interval (in `[0, 0x1000)`) will always use 2 array lookups.
+/// Code points after the interval (in `[0x10000, 0x10FFFF]`) will always use 4 array lookups.
+///
+/// Regarding size, `Fast` type tries are larger than `Small` type tries because the minimum size of
+/// the index array is larger. The minimum size is the "fast max" limit, which is the limit of the range
+/// of code points with 2 array lookups.
+///
+/// See the document [Unicode Properties and Code Point Tries in ICU4X](https://github.com/unicode-org/icu4x/blob/main/documents/design/properties_code_point_trie.md).
+///
+/// Also see [`UCPTrieType`](https://unicode-org.github.io/icu-docs/apidoc/dev/icu4c/ucptrie_8h.html) in ICU4C.
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "databake", derive(databake::Bake))]
+#[cfg_attr(feature = "databake", databake(path = icu_collections::codepointtrie))]
+#[allow(clippy::exhaustive_enums)] // based on a stable serialized form
+pub enum TrieType {
+    /// Represents the "fast" type code point tries for the
+    /// [`TrieType`] trait. The "fast max" limit is set to `0xffff`.
+    Fast = 0,
+    /// Represents the "small" type code point tries for the
+    /// [`TrieType`] trait. The "fast max" limit is set to `0x0fff`.
+    Small = 1,
+}
+
+// TrieValue trait
+
+// AsULE is AsUnalignedLittleEndian, i.e. "allowed in a zerovec"
+
+/// A trait representing the values stored in the data array of a [`CodePointTrie`].
+/// This trait is used as a type parameter in constructing a `CodePointTrie`.
+///
+/// This trait can be implemented on anything that can be represented as a u32s worth of data.
+pub trait TrieValue: Copy + Eq + PartialEq + AsULE + 'static {
+    /// Last-resort fallback value to return if we cannot read data from the trie.
+    ///
+    /// In most cases, the error value is read from the last element of the `data` array,
+    /// this value is used for empty codepointtrie arrays
+    /// Error type when converting from a u32 to this `TrieValue`.
+    type TryFromU32Error: Display;
+    /// A parsing function that is primarily motivated by deserialization contexts.
+    /// When the serialization type width is smaller than 32 bits, then it is expected
+    /// that the call site will widen the value to a `u32` first.
+    fn try_from_u32(i: u32) -> Result<Self, Self::TryFromU32Error>;
+
+    /// A method for converting back to a `u32` that can roundtrip through
+    /// [`Self::try_from_u32()`]. The default implementation of this trait
+    /// method panics in debug mode and returns 0 in release mode.
+    ///
+    /// This method is allowed to have GIGO behavior when fed a value that has
+    /// no corresponding `u32` (since such values cannot be stored in the trie)
+    fn to_u32(self) -> u32;
+}
+
+macro_rules! impl_primitive_trie_value {
+    ($primitive:ty, $error:ty) => {
+        impl TrieValue for $primitive {
+            type TryFromU32Error = $error;
+            fn try_from_u32(i: u32) -> Result<Self, Self::TryFromU32Error> {
+                Self::try_from(i)
+            }
+
+            #[allow(trivial_numeric_casts)]
+            fn to_u32(self) -> u32 {
+                // bitcast when the same size, zero-extend/sign-extend
+                // when not the same size
+                self as u32
+            }
+        }
+    };
+}
+
+impl_primitive_trie_value!(u8, TryFromIntError);
+impl_primitive_trie_value!(u16, TryFromIntError);
+impl_primitive_trie_value!(u32, Infallible);
+impl_primitive_trie_value!(i8, TryFromIntError);
+impl_primitive_trie_value!(i16, TryFromIntError);
+impl_primitive_trie_value!(i32, TryFromIntError);
+impl_primitive_trie_value!(char, CharTryFromError);
+
+/// Helper function used by [`get_range`]. Converts occurrences of trie's null
+/// value into the provided `null_value`.
+///
+/// Note: the ICU version of this helper function uses a `ValueFilter` function
+/// to apply a transform on a non-null value. But currently, this implementation
+/// stops short of that functionality, and instead leaves the non-null trie value
+/// untouched. This is equivalent to having a `ValueFilter` function that is the
+/// identity function.
+fn maybe_filter_value<T: TrieValue>(value: T, trie_null_value: T, null_value: T) -> T {
+    if value == trie_null_value {
+        null_value
+    } else {
+        value
+    }
+}
+
+/// This struct represents a de-serialized [`CodePointTrie`] that was exported from
+/// ICU binary data.
+///
+/// For more information:
+/// - [ICU Site design doc](https://unicode-org.github.io/icu/design/struct/utrie)
+/// - [ICU User Guide section on Properties lookup](https://unicode-org.github.io/icu/userguide/strings/properties.html#lookup)
+// serde impls in crate::serde
+#[derive(Debug, Eq, PartialEq, Yokeable, ZeroFrom)]
+pub struct CodePointTrie<'trie, T: TrieValue> {
+    /// # Safety Invariant
+    ///
+    /// The value of `header.trie_type` must not change after construction.
+    pub(crate) header: CodePointTrieHeader,
+    /// # Safety Invariant
+    ///
+    /// If `header.trie_type == TrieType::Fast`, `index.len()` must be greater
+    /// than `FAST_TYPE_FAST_INDEXING_MAX`. Otherwise, `index.len()`
+    /// must be greater than `SMALL_TYPE_FAST_INDEXING_MAX`. Furthermore,
+    /// this field must not change after construction. (Strictly: It must
+    /// not become shorter than the length requirement stated above and the
+    /// values within the prefix up to the length requirement must not change.)
+    pub(crate) index: ZeroVec<'trie, u16>,
+    /// # Safety Invariant
+    ///
+    /// If `header.trie_type == TrieType::Fast`, `data.len()` must be greater
+    /// than `FAST_TYPE_DATA_MASK` plus the largest value in
+    /// `index[0..FAST_TYPE_FAST_INDEXING_MAX + 1]`. Otherwise, `data.len()`
+    /// must be greater than `FAST_TYPE_DATA_MASK` plus the largest value in
+    /// `index[0..SMALL_TYPE_FAST_INDEXING_MAX + 1]`. Furthermore, this field
+    /// must not change after construction. (Strictly: The stated length
+    /// requirement must continue to hold.)
+    pub(crate) data: ZeroVec<'trie, T>,
+    // serde impl skips this field
+    #[zerofrom(clone)] // TrieValue is Copy, this allows us to avoid
+    // a T: ZeroFrom bound
+    pub(crate) error_value: T,
+}
+
+/// This struct contains the fixed-length header fields of a [`CodePointTrie`].
+///
+/// # Safety Invariant
+///
+/// The `trie_type` field must not change after construction.
+///
+/// (In practice, all the fields here remain unchanged during the lifetime
+/// of the trie.)
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "databake", derive(databake::Bake))]
+#[cfg_attr(feature = "databake", databake(path = icu_collections::codepointtrie))]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Yokeable, ZeroFrom)]
+#[allow(clippy::exhaustive_structs)] // based on a stable serialized form
+pub struct CodePointTrieHeader {
+    /// The code point of the start of the last range of the trie. A
+    /// range is defined as a partition of the code point space such that the
+    /// value in this trie associated with all code points of the same range is
+    /// the same.
+    ///
+    /// For the property value data for many Unicode properties,
+    /// often times, `high_start` is `U+10000` or lower. In such cases, not
+    /// reserving space in the `index` array for duplicate values is a large
+    /// savings. The "highValue" associated with the `high_start` range is
+    /// stored at the second-to-last position of the `data` array.
+    /// (See `impl_const::HIGH_VALUE_NEG_DATA_OFFSET`.)
+    pub high_start: u32,
+    /// A version of the `high_start` value that is right-shifted 12 spaces,
+    /// but is rounded up to a multiple `0x1000` for easy testing from UTF-8
+    /// lead bytes.
+    pub shifted12_high_start: u16,
+    /// Offset for the null block in the "index-3" table of the `index` array.
+    /// Set to an impossibly high value (e.g., `0xffff`) if there is no
+    /// dedicated index-3 null block.
+    pub index3_null_offset: u16,
+    /// Internal data null block offset, not shifted.
+    /// Set to an impossibly high value (e.g., `0xfffff`) if there is no
+    /// dedicated data null block.
+    pub data_null_offset: u32,
+    /// The value stored in the trie that represents a null value being
+    /// associated to a code point.
+    pub null_value: u32,
+    /// The enum value representing the type of trie, where trie type is as it
+    /// is defined in ICU (ex: Fast, Small).
+    ///
+    /// # Safety Invariant
+    ///
+    /// Must not change after construction.
+    pub trie_type: TrieType,
+}
+
+impl TryFrom<u8> for TrieType {
+    type Error = Error;
+
+    fn try_from(trie_type_int: u8) -> Result<TrieType, Error> {
+        match trie_type_int {
+            0 => Ok(TrieType::Fast),
+            1 => Ok(TrieType::Small),
+            _ => Err(Error::FromDeserialized {
+                reason: "Cannot parse value for trie_type",
+            }),
+        }
+    }
+}
+
+// Helper macro that turns arithmetic into wrapping-in-release, checked-in-debug arithmetic
+//
+// This is rustc's default behavior anyway, however some projects like Android deliberately
+// enable overflow checks. CodePointTrie::get() is intended to be used in Android bionic which
+// cares about codesize and we don't want the pile of panicking infrastructure brought in by overflow
+// checks, so we force wrapping in release.
+// See #6052
+macro_rules! w(
+    // Note: these matchers are not perfect since you cannot have an operator after an expr matcher
+    // Use variables if you need complex first operands.
+    ($a:tt + $b:expr) => {
+        {
+            #[allow(unused_parens)]
+            let a = $a;
+            let b = $b;
+            debug_assert!(a.checked_add(b).is_some());
+            $a.wrapping_add($b)
+        }
+    };
+    ($a:tt - $b:expr) => {
+
+        {
+            #[allow(unused_parens)]
+            let a = $a;
+            let b = $b;
+            debug_assert!(a.checked_sub(b).is_some());
+            $a.wrapping_sub($b)
+        }
+    };
+    ($a:tt * $b:expr) => {
+        {
+            #[allow(unused_parens)]
+            let a = $a;
+            let b = $b;
+            debug_assert!(a.checked_mul(b).is_some());
+            $a.wrapping_mul($b)
+        }
+    };
+);
+
+impl<'trie, T: TrieValue> CodePointTrie<'trie, T> {
+    #[doc(hidden)] // databake internal
+    /// # Safety
+    ///
+    /// `header.trie_type`, `index`, and `data` must
+    /// satisfy the invariants for the fields of the
+    /// same names on `CodePointTrie`.
+    pub const unsafe fn from_parts_unstable_unchecked_v1(
+        header: CodePointTrieHeader,
+        index: ZeroVec<'trie, u16>,
+        data: ZeroVec<'trie, T>,
+        error_value: T,
+    ) -> Self {
+        // Field invariants upheld: The caller is responsible.
+        // In practice, this means that datagen in

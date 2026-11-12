@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "kind": "all-four-runtime-compression-only-handoff",
+  "bundleRoot": "tooling/artcraft/.generated/runtime-all4-transport-v2",
+  "manifest": "runtime-bundle-manifest.json",
+  "runtimeManifestSchemaVersion": 2,
+  "manifestBytes": 1223846,
+  "manifestSha256": "8427b8b393061473dcb70807f9758ecd0735115366e98871630a231bd172513d",
+  "baseAuthority": "tooling/artcraft/runtime-all4-v2.json",
+  "baseBundleRoot": "tooling/artcraft/.generated/runtime-all4-v2",
+  "baseManifestSha256": "bb6d2eb3f4e81976429c4e0c65de57452898398dd962af7e81083478daa28ea0",
+  "baseAssetFiles": 3964,
+  "baseAssetBytes": 212379781,
+  "assetFiles": 3972,
+  "assetBytes": 269286927,
+  "transportSidecarFiles": 8,
+  "transportSidecarBytes": 56907146,
+  "transportCoverage": "Exactly one top-level hashed JS and one top-level hashed WASM per existing app; sidecars are global assets only, never editor.files or canonical payload identity.",
+  "encoder": "gzip-level6-mtime0-os255-v1",
+  "fileMode": "0444",
+  "directoryMode": "0555",
+  "mountPath": "/artcraft",
+  "requiresReadOnlyMount": true,
+  "compressionOnly": true,
+  "originalBytesAndNoticesUnchanged": true,
+  "deckAuthority": "tooling/artcraft/runtime-deckcraft-v2.json",
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0",
+      "role": "current",
+      "assetUrl": "/artcraft/wordcraft/0.14.0/index.html?host=parent"
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0",
+      "role": "current",
+      "assetUrl": "/artcraft/gridcraft/0.15.0/index.html?host=parent"
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0",
+      "role": "current",
+      "assetUrl": "/artcraft/pdfcraft/0.17.0/index.html?host=parent"
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.14.1-hyori-host.2",
+      "role": "current",
+      "assetUrl": "/artcraft/deckcraft/0.14.1-hyori-host.2/index.html?host=parent"
+    }
+  ],
+  "deploymentScope": "verified-static-assets-only-not-product-launch-or-legal-clearance",
+  "legalOpinion": false,
+  "fullNoticeAuditComplete": false,
+  "compilerGeneratedNoticeAuditComplete": false,
+  "productIntegrationVerified": false,
+  "allFourLaunchReady": false,
+  "verification": {
+    "date": "2026-11-05",
+    "composer": "scripts/artcraft/content-runtime-transport.ts",
+    "tests": [
+      "scripts/artcraft/content-runtime-transport.test.ts",
+      "scripts/artcraft/transport-sidecars.test.ts"
+    ],
+    "passedTests": 7,
+    "assertions": 8030,
+    "actualComposition": "passed; no source-root writes or hard links",
+    "baseReverificationAfterAdversarialTests": "passed against unchanged bb6 authority",
+    "independentRustFullInventory": "passed: cargo test --locked -p hyori-server --test editor_assets actual_official_bundle_passes_the_runtime_inventory_verifier -- --ignored --exact",
+    "independentRustManifestSha256": "8427b8b393061473dcb70807f9758ecd0735115366e98871630a231bd172513d",
+    "productAndPerformanceLimit": "No native protocol-2 artifact, new marks approval, browser-product completion, image build, LAN deployment, or measured transfer/latency result is established by this static-bundle verification."
+  }
+}

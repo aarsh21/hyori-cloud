@@ -1,0 +1,10 @@
+{
+  "initialAttachmentTimedOut": true,
+  "containerExitStatus": 0,
+  "containerName": "hyori-deckcraft-f3b70f26-a59b-4489-9ade-cab42f7c6eb5",
+  "observation": "The initial docker-run attachment was stopped after its 600000 ms background limit; docker inspect showed the same isolated container still running. A new docker wait returned container exit status 0. All six driver command result files report status 0.",
+  "initialFailures": [
+    "Attempt 1 metadata and attempt 2 cargo build exited 101 offline because accesskit_atspi_common 0.21.0 was absent. The filtered metadata package list was insufficient for locked workspace resolution. Preparation was corrected to include all 575 checksum-verified locked registry archives; compilation remained offline and locked.",
+    "Browser attempt 1 failed with Execution context was destroyed. The CDP driver was corrected to wait for the matching page loader. Browser attempts 2 and 3 passed; attempt 3 additionally reopened the saved native document in a fresh real-WASM frame."
+  ]
+}

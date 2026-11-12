@@ -1,0 +1,100 @@
+warning: patch `epaint_default_fonts v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling autocfg v1.5.1
+   Compiling smallvec v1.16.2
+   Compiling num-traits v0.2.19
+   Compiling syn v3.0.6
+   Compiling arrayvec v0.7.8
+   Compiling polycool v0.4.0
+   Compiling thiserror v2.0.21
+   Compiling libc v0.2.190
+   Compiling once_cell v1.21.4
+   Compiling euclid v0.22.14
+   Compiling bytemuck_derive v1.12.1
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck v1.25.2
+   Compiling font-types v0.12.6
+   Compiling color v0.3.3
+   Compiling kurbo v0.13.1
+   Compiling linebender_resource_handle v0.1.1
+   Compiling version_check v0.9.5
+   Compiling zerocopy v0.8.61
+   Compiling parking_lot_core v0.9.12
+   Compiling cfg-if v1.0.5
+   Compiling peniko v0.6.1
+   Compiling ahash v0.8.12
+   Compiling read-fonts v0.41.0
+   Compiling guillotiere v0.7.0
+   Compiling unicode-general-category v1.1.0
+   Compiling foldhash v0.2.0
+   Compiling log v0.4.34
+   Compiling fearless_simd v0.4.1
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling vello_common v0.2.0
+   Compiling hashbrown v0.17.1
+   Compiling emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+   Compiling bitflags v2.13.2
+   Compiling harfrust v0.12.0
+   Compiling ecolor v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+   Compiling parking_lot v0.12.5
+   Compiling vello_cpu v0.2.0
+   Compiling skrifa v0.44.0
+   Compiling unicode-bidi v0.3.18
+   Compiling nohash-hasher v0.2.0
+   Compiling uuid v1.27.0
+   Compiling self_cell v1.3.0
+   Compiling profiling v1.0.18
+   Compiling either v1.19.0
+   Compiling unicode-segmentation v1.13.3
+   Compiling unicode-properties v0.1.4
+   Compiling epaint v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+   Compiling itertools v0.15.0
+   Compiling accesskit v0.25.1
+   Compiling egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+   Compiling hyori-native-clock-probe v0.0.0 (/work/probe)
+warning: field `guard` is never read
+  --> src/native-types.rs:24:5
+   |
+19 | pub struct NativeHostSnapshot {
+   |            ------------------ field in this struct
+...
+24 |     guard: Box<dyn Fn(&NativeHostApp) -> bool>,
+   |     ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `NativeHostClock` is never constructed
+ --> src/clock.rs:6:12
+  |
+6 | pub struct NativeHostClock {
+  |            ^^^^^^^^^^^^^^^
+
+warning: methods `active`, `note_input`, `invalidate`, and `observe` are never used
+  --> src/clock.rs:14:8
+   |
+13 | impl NativeHostClock {
+   | -------------------- methods in this implementation
+14 |     fn active(&self) -> Result<(), NativeHostFailure> {
+   |        ^^^^^^
+...
+24 |     pub fn note_input(&mut self, raw: &egui::RawInput, pending_input: bool) -> Result<(), NativeHostFailure> {
+   |            ^^^^^^^^^^
+...
+39 |     pub fn invalidate(&mut self) -> Result<(), NativeHostFailure> {
+   |            ^^^^^^^^^^
+...
+52 |     pub fn observe(&mut self, model: Option<NativeHostIdentity>, pending_input: bool, host_dirty: bool) -> Result<u64, NativeHostFai...
+   |            ^^^^^^^
+
+warning: `hyori-native-clock-probe` (lib) generated 3 warnings
+warning: `hyori-native-clock-probe` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.85s
+     Running unittests src/lib.rs (/work/target/debug/deps/hyori_native_clock_probe-6d862bf2255329da)
+   Doc-tests hyori_native_clock_probe

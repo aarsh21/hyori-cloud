@@ -64,7 +64,7 @@ Light comes from the source's Porcelain scheme, with muted text darkened slightl
 - Surfaces are opaque by default. Translucency with blur up to 12px is limited to floating chrome and overlays, must preserve text contrast, and never sits over a scrolling list or grid. Glows and gradients stay out of product UI.
 - Radius steps: 4–6px on chips and rows, 8px on buttons and inputs, 12–16px on panels and dialogs, full on avatars and status dots.
 - Spacing sits on a 4px base. Panels are tight: compact rows, small gaps, generous space only between regions. Pointer rows may run 28–36px; on `coarse` pointers, targets reach 44px.
-- Show `Kbd` hints only for shortcuts that exist, using the shared component.
+- Show `Kbd` hints only for enabled shortcuts that exist, using the shared component. Bare single-key shortcuts have a locally remembered off switch; navigation remains usable with standard keyboard controls.
 - The sidebar is `packages/ui`'s adapted shadcn sidebar. Its toggle is one fixed element that keeps the same position open and collapsed, and collapsing is immediate. Phones use the bottom navigation instead.
 
 ## Motion

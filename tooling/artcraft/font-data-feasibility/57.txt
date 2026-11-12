@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "deployable": false,
+  "legalOpinion": false,
+  "revision": "f9db3d8c59a8453601ad81514f9c295d6ec050e1",
+  "records": [
+    {
+      "name": "Helvetica",
+      "path": "Helvetica.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica.afm",
+      "bytes": 74292,
+      "sha256": "db772f2830fb6d000907791d8d26a12524d96943a9a739e520ee855c6b25c96f"
+    },
+    {
+      "name": "Helvetica-Bold",
+      "path": "Helvetica-Bold.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica-Bold.afm",
+      "bytes": 69269,
+      "sha256": "8b697881c8ee617a177f6f2e2bbc88570b9fd2b9f0e89ecfc0f5507878f988fc"
+    },
+    {
+      "name": "Helvetica-Oblique",
+      "path": "Helvetica-Oblique.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica-Oblique.afm",
+      "bytes": 74392,
+      "sha256": "8556038366f9da4aad6d5782ce68afdb96d6d7261da64652f8b5e519110dd91b"
+    },
+    {
+      "name": "Helvetica-BoldOblique",
+      "path": "Helvetica-BoldOblique.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica-BoldOblique.afm",
+      "bytes": 69365,
+      "sha256": "526e4eeaa2b5d435cbb7cba3ff42285a473ce132aa1caddb39b48a52cc10aaf6"
+    },
+    {
+      "name": "Times-Roman",
+      "path": "Times-Roman.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-Roman.afm",
+      "bytes": 60460,
+      "sha256": "86136b527a5acee0c3283d56a6b68fc6a3d60982eb3bb0fb6cc54e83ecc8d77a"
+    },
+    {
+      "name": "Times-Bold",
+      "path": "Times-Bold.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-Bold.afm",
+      "bytes": 64251,
+      "sha256": "7104e6af62c53f029013fb0641a81e31c98589c8f27b5ea6289b25b092c74321"
+    },
+    {
+      "name": "Times-Italic",
+      "path": "Times-Italic.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-Italic.afm",
+      "bytes": 66328,
+      "sha256": "6cae69b92329193fd85082f0c89ad7a318df8fb5c939d7efe5343f88ab09473c"
+    },
+    {
+      "name": "Times-BoldItalic",
+      "path": "Times-BoldItalic.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Times-BoldItalic.afm",
+      "bytes": 59642,
+      "sha256": "a7358e772726e91aa87015a001563926ad33dc5a7b2eea9680b34cc78aba385c"
+    },
+    {
+      "name": "Courier",
+      "path": "Courier.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier.afm",
+      "bytes": 15335,
+      "sha256": "31d72adad79910126b22a5579ec9e179eee86674ecebe3fcff6f76916193af0e"
+    },
+    {
+      "name": "Courier-Bold",
+      "path": "Courier-Bold.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier-Bold.afm",
+      "bytes": 15333,
+      "sha256": "b080c323e07cd956770b4988fe61c5213099ecf567dfb00860cbf50ab1d7e2c1"
+    },
+    {
+      "name": "Courier-Oblique",
+      "path": "Courier-Oblique.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier-Oblique.afm",
+      "bytes": 15441,
+      "sha256": "bd1426e63d6c4d4378862713d4f71567d3fd0d34d41e11337cf5ea514cd56611"
+    },
+    {
+      "name": "Courier-BoldOblique",
+      "path": "Courier-BoldOblique.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Courier-BoldOblique.afm",
+      "bytes": 15399,
+      "sha256": "ce0eb54286c3dd853d5017c25e6be684135a14a9e8fb18fcb18d1bd91a607cbc"
+    },
+    {
+      "name": "Symbol",
+      "path": "Symbol.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Symbol.afm",
+      "bytes": 9740,
+      "sha256": "3f951aa17af8cb4aa1e1288c6b9baa8a30d3e990ebdbe8cf9a3d5acabcb9f771"
+    },
+    {
+      "name": "ZapfDingbats",
+      "path": "ZapfDingbats.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/ZapfDingbats.afm",
+      "bytes": 9527,
+      "sha256": "66e3a6b7d19c2a87e374eabc92a84f86d00884ec242f6ad3253999c408c56a40"
+    }
+  ]
+}

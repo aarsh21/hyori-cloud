@@ -1,0 +1,33 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "benches/bench.rs",
+      "sha256": "3562afdee8f08d27a0281b7037c016d9fab6c7d7992578f4ec170c60e106751f",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2024 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "59902a9ce1a0781d7a5ab5069d8632b2551503385df03af7814fa8ee32066296",
+      "lines": [
+        {
+          "line": 1,
+          "text": "// Copyright 2012-2014 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 3,
+          "text": "// http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    }
+  ]
+}

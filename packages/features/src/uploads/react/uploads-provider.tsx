@@ -1,7 +1,7 @@
 import type { UploadQueue } from "@hyori-cloud/client-sdk";
 import { createQueryUploadQueue, useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { useQueryClient } from "@hyori-cloud/lib/query";
-import { createContext, use, useState } from "@hyori-cloud/lib/react";
+import { createContext, useContext, useState } from "@hyori-cloud/lib/react";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { useDisposeOnUnmount } from "@hyori-cloud/ui/hooks/use-dispose-on-unmount";
 import { createBrowserListStore } from "@hyori-cloud/ui/lib/browser-list-store";
@@ -36,7 +36,7 @@ export function UploadsProvider({
 }
 
 export function useUploadQueue(): UploadQueue {
-  const queue = use(UploadsContext);
+  const queue = useContext(UploadsContext);
 
   if (queue === null) throw new Error("useUploadQueue requires UploadsProvider.");
 

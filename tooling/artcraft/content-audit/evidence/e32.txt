@@ -1,0 +1,39 @@
+{
+  "offset": 6649288,
+  "bytes": 315812,
+  "sha256": "192afd78f0f54a3c69eaf02d43f4d9a821e9d6110e41d3d25d61a7385cd580e4",
+  "names": [
+    {
+      "id": 0,
+      "text": "© 2023 Adobe (http://www.adobe.com/), with Reserved Font Name ‘Source’"
+    },
+    {
+      "id": 1,
+      "text": "Source Sans 3"
+    },
+    {
+      "id": 2,
+      "text": "Italic"
+    },
+    {
+      "id": 3,
+      "text": "3.052;ADBO;SourceSans3-It;ADOBE"
+    },
+    {
+      "id": 4,
+      "text": "Source Sans 3 Italic"
+    },
+    {
+      "id": 6,
+      "text": "SourceSans3-It"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL. This Font Software is distributed on an ‘AS IS’ BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the SIL Open Font License for the specific language, permissions and limitations governing your use of this Font Software."
+    },
+    {
+      "id": 14,
+      "text": "http://scripts.sil.org/OFL"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ export type {
 
 export type {
   ResumeUpload,
+  ReplaceUpload,
   StartUpload,
   UploadFile,
   UploadOptions,
@@ -40,7 +41,36 @@ export {
 
 export { UploadSnapshot } from "#client-sdk/features/uploads/upload-state";
 
+export {
+  UploadIntent,
+  UploadFailure,
+  getUploadFailure,
+} from "#client-sdk/features/uploads/upload-intent";
+
 export { createUploadQueue } from "#client-sdk/features/uploads/upload-queue";
+
+export { createEditorSession } from "#client-sdk/features/editors/create-editor-session";
+
+export type { EditorBackendOptions } from "#client-sdk/features/editors/create-editors";
+
+export { EditorDocument, EditorAutosave } from "#client-sdk/features/editors/editor-contract";
+
+export type {
+  ArtCraftApp,
+  BridgedArtCraftApp,
+  EditorBackendPort,
+  EditorHostMessage,
+  EditorMessageEvent,
+  EditorMessagePort,
+  EditorOutput,
+  EditorSaveResult,
+  EditorSession,
+  EditorSessionOptions,
+  EditorSnapshot,
+  EditorStatus,
+  EditorStopReason,
+  EditorVisibilityPort,
+} from "#client-sdk/features/editors/editor-contract";
 
 export type {
   CheckpointStore,

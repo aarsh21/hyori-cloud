@@ -7,6 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@hyori-cloud/ui/components/dropdown-menu";
+import { ShortcutPreferenceMenuItems } from "@hyori-cloud/ui/components/shortcut-preference-menu-items";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { useNavigateTo } from "#features/cloud/react/cloud-navigation.tsx";
 import { formatUsage } from "#features/shared/format.ts";
@@ -48,6 +49,7 @@ export function AccountMenuItems({
       ) : null}
       <DropdownMenuSeparator />
       <AppearanceMenuItems />
+      <ShortcutPreferenceMenuItems />
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={onSignOut} disabled={signingOut}>
         <LogOut />

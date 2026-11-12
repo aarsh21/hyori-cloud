@@ -1,0 +1,302 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+// #![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+#![warn(missing_docs)]
+
+//! Custom derives for `Yokeable` from the `yoke` crate.
+
+mod lifetimes;
+mod visitor;
+
+use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
+use syn::ext::IdentExt as _;
+use syn::spanned::Spanned;
+use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, Ident, WherePredicate};
+use synstructure::Structure;
+
+use self::lifetimes::{custom_lt, ignored_lifetime_ident, replace_lifetime, static_lt};
+use self::visitor::{
+    check_parameter_for_bound_lts, check_type_for_parameters, check_where_clause_for_bound_lts,
+    CheckResult,
+};
+
+/// Custom derive for `yoke::Yokeable`.
+///
+/// If your struct contains `zerovec::ZeroMap`, then the compiler will not
+/// be able to guarantee the lifetime covariance due to the generic types on
+/// the `ZeroMap` itself. You must add the following attribute in order for
+/// the custom derive to work with `ZeroMap`.
+///
+/// ```rust,ignore
+/// #[derive(Yokeable)]
+/// #[yoke(prove_covariance_manually)]
+/// ```
+///
+/// Beyond this case, if the derive fails to compile due to lifetime issues, it likely
+/// means that the lifetime is not covariant and `Yokeable` is not safe to implement.
+#[proc_macro_derive(Yokeable, attributes(yoke))]
+pub fn yokeable_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(yokeable_derive_impl(&input))
+}
+
+/// A small amount of metadata about a field of the yokeable type
+struct FieldParamUsage {
+    uses_lt: bool,
+    uses_ty: bool,
+}
+
+impl From<CheckResult> for FieldParamUsage {
+    fn from(value: CheckResult) -> Self {
+        Self {
+            uses_lt: value.uses_lifetime_param,
+            uses_ty: value.uses_type_params,
+        }
+    }
+}
+
+fn yokeable_derive_impl(input: &DeriveInput) -> TokenStream2 {
+    let name = &input.ident;
+    let tybounds = input
+        .generics
+        .params
+        .iter()
+        .filter_map(|param| {
+            match param {
+                GenericParam::Lifetime(_) => None,
+                GenericParam::Type(ty) => {
+                    // Strip out param defaults, we don't need them in the impl
+                    let mut ty = ty.clone();
+                    ty.default = None;
+                    Some(GenericParam::Type(ty))
+                }
+                // TODO: support const-generics in a future PR
+                // GenericParam::Const(const_param) => {
+                //     // Strip out param defaults, we don't need them in the impl
+                //     let mut const_param = const_param.clone();
+                //     const_param.eq_token = None;
+                //     const_param.default = None;
+                //     Some(GenericParam::Const(const_param))
+                // }
+                GenericParam::Const(_) => None,
+            }
+        })
+        .collect::<Vec<_>>();
+    let typarams = tybounds
+        .iter()
+        .map(|param| match param {
+            // We filtered out lifetime parameters
+            GenericParam::Lifetime(_) => unreachable!(),
+            GenericParam::Type(ty) => ty.ident.clone(),
+            // TODO: support const-generics in a future PR
+            // GenericParam::Const(const_param) => const_param.ident.clone(),
+            GenericParam::Const(_) => unreachable!(),
+        })
+        .collect::<Vec<_>>();
+    let wherebounds = input
+        .generics
+        .where_clause
+        .iter()
+        .flat_map(|wc| wc.predicates.iter())
+        // If some future version of Rust adds more than just lifetime and type where-bound
+        // predicates, we may want to match more predicates.
+        .filter(|p| matches!(p, WherePredicate::Type(_)))
+        .collect::<Vec<_>>();
+    // We require all type parameters be 'static, otherwise
+    // the Yokeable impl becomes really unwieldy to generate safely.
+    let static_bounds: Vec<WherePredicate> = tybounds
+        .iter()
+        .filter_map(|param| {
+            if let GenericParam::Type(ty) = param {
+                let ty = &ty.ident;
+                Some(parse_quote!(#ty: 'static))
+            } else {
+                None
+            }
+        })
+        .collect();
+    // Above idents are *not* `unraw`d, because they may be emitted by the derive
+    // (so they might actually need to be raw).
+
+    // Either the `unraw`d first lifetime parameter of the yokeable, or some ignored ident.
+    // This parameter affects `uses_lifetime_param` values of `CheckResult`s and `uses_lt`
+    // values of `FieldParamUsage`, but those values only impact the generated code if there
+    // is at least one lifetime parameter; therefore, the random ident doesn't matter.
+    let lt_param = input
+        .generics
+        .lifetimes()
+        .next()
+        .map_or_else(ignored_lifetime_ident, |lt| lt.lifetime.ident.unraw());
+    let typarams_env = tybounds
+        .iter()
+        .filter_map(|param| {
+            if let GenericParam::Type(ty) = param {
+                Some(ty.ident.unraw())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut underscores_for_lt = 0;
+
+    // We need to do this analysis even before the case where there are zero lifetime parameters
+    // in order to choose a `'__[underscores]__yoke` lifetime.
+    // We need to check:
+    // - trait bounds on generic type parameters
+    // - default types for generic type parameters
+    // - type bounds on const generic parameters
+    // - where-bounds
+    // - field types
+    // Checking lifetime parameters and default values for const generic parameters isn't
+    // particularly useful, but does no harm, so the simplest approach to knock out the first three
+    // is to just check every parameter.
+    for param in &input.generics.params {
+        underscores_for_lt = underscores_for_lt.max(check_parameter_for_bound_lts(param));
+    }
+    if let Some(where_clause) = &input.generics.where_clause {
+        underscores_for_lt = underscores_for_lt.max(check_where_clause_for_bound_lts(where_clause));
+    }
+
+    let structure = {
+        let mut structure = Structure::new(input);
+        structure.bind_with(|_| synstructure::BindStyle::Move);
+        structure
+    };
+
+    // Information from `synstructure::Structure`, whose ordering of fields is deterministic.
+    // Note that it's crucial that we don't filter out any variants or fields from the `Structure`.
+    let mut field_info: Vec<FieldParamUsage> = Vec::new();
+    // This code creating `field_info` should not be carelessly modified, else it could cause
+    // a panic in a below `expect`.
+    for variant_info in structure.variants() {
+        for field_binding_info in variant_info.bindings() {
+            let field = field_binding_info.ast();
+            // Note: `lt_param` and everything in `typarams_env` were `unraw`d
+            let check_result = check_type_for_parameters(&lt_param, &typarams_env, &field.ty);
+
+            underscores_for_lt = underscores_for_lt.max(check_result.min_underscores_for_yoke_lt);
+            field_info.push(check_result.into());
+        }
+    }
+    let field_info = field_info;
+
+    // All usages of the `check_*` functions are above this point,
+    // in order to ensure that `yoke_lt` is correct.
+    let (yoke_lt, bound_lt) = {
+        let underscores = "_".repeat(underscores_for_lt);
+        (
+            format!("'{underscores}yoke"),
+            format!("'_{underscores}yoke"),
+        )
+    };
+    // This is used where the `Yokeable<'a>` trait uses `'a` by default
+    let yoke_lt = custom_lt(&yoke_lt);
+    // This is used where the `Yokeable<'a>` trait uses `'b` by default
+    let bound_lt = custom_lt(&bound_lt);
+
+    let mut lts = input.generics.lifetimes();
+
+    if lts.next().is_none() {
+        // There are 0 lifetime parameters.
+
+        return quote! {
+            // This is safe because there are no lifetime parameters, and `type Output = Self`.
+            unsafe impl<#yoke_lt, #(#tybounds),*> yoke::Yokeable<#yoke_lt>
+            for #name<#(#typarams),*>
+            where
+                #(#static_bounds,)*
+                #(#wherebounds,)*
+                Self: Sized
+            {
+                type Output = Self;
+                #[inline]
+                fn transform(&self) -> &Self::Output {
+                    self
+                }
+                #[inline]
+                fn transform_owned(self) -> Self::Output {
+                    self
+                }
+                #[inline]
+                unsafe fn make(this: Self::Output) -> Self {
+                    this
+                }
+                #[inline]
+                fn transform_mut<F>(&#yoke_lt mut self, f: F)
+                where
+                    F: 'static + for<#bound_lt> FnOnce(&#bound_lt mut Self::Output) {
+                    f(self)
+                }
+            }
+        };
+    };
+
+    if lts.next().is_some() {
+        // We already extracted one lifetime into `source_lt`, so this means there are
+        // multiple lifetimes.
+        return syn::Error::new(
+            input.generics.span(),
+            "derive(Yokeable) cannot have multiple lifetime parameters",
+        )
+        .to_compile_error();
+    }
+
+    let manual_covariance = input.attrs.iter().any(|a| {
+        if a.path().is_ident("yoke") {
+            if let Ok(i) = a.parse_args::<Ident>() {
+                if i == "prove_covariance_manually" {
+                    return true;
+                }
+            }
+        }
+        false
+    });
+
+    if !manual_covariance {
+        // This is safe because as long as `transform()` compiles,
+        // we can be sure that `'a` is a covariant lifetime on `Self`.
+        // (Using `'a` as shorthand for `#yoke_lt`.)
+        //
+        // In particular, the operand of `&raw const` is not a location where implicit
+        // type coercion can occur, so the type of `&raw const self` is `*const &'a Self`.
+        // The RHS of a `let` with an explicit type annotation allows type coercion, so
+        // `transform` checks that `*const &'a Self` can coerce to `*const &'a Self::Output`.
+        // Most of the possible type coercions
+        // (listed at https://doc.rust-lang.org/reference/type-coercions.html)
+        // do not apply, other than subtyping coercions and transitive coercions (which do
+        // not add anything beyond subtyping coercions). In particular, there's nothing
+        // like a `DerefRaw` on `*const T`, and `&T` does not implement `Unsize`, so
+        // there cannot be an unsizing coercion from `*const &'a Self` to
+        // `*const &'a Self::Output`. Therefore, `transform` compiles if and only if
+        // a subtyping coercion is possible; this requires that `Self` must be a subtype
+        // of `Self::Output`, just as `&'static T` is a subtype of `&'a T` (for `T: 'static`).
+        // This ensures covariance.
+        //
+        // This will not work for structs involving ZeroMap since
+        // the compiler does not know that ZeroMap is covariant.
+        //
+        // This custom derive can be improved to handle this case when necessary,
+        // with `prove_covariance_manually`.
+        return quote! {
+            unsafe impl<#yoke_lt, #(#tybounds),*> yoke::Yokeable<#yoke_lt>
+            for #name<'static, #(#typarams),*>
+            where
+                #(#static_bounds,)*
+                #(#wherebounds,)*
+                // Adding `Self: Sized` here doesn't work.
+                // `for<#bound_lt> #name<#bound_lt, #(#typarams),*>: Sized`
+       

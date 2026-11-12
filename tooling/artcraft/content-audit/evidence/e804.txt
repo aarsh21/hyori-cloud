@@ -1,0 +1,275 @@
+use alloc::{
+    borrow::Cow,
+    boxed::Box,
+    string::{String, ToString as _},
+    sync::{Arc, Weak},
+    vec::Vec,
+};
+use core::{
+    fmt,
+    mem::{self, ManuallyDrop},
+    num::NonZeroU32,
+    sync::atomic::{AtomicBool, Ordering},
+};
+use hal::ShouldBeNonZeroExt;
+
+use arrayvec::ArrayVec;
+use bitflags::Flags;
+use smallvec::SmallVec;
+use wgt::{
+    math::align_to, DeviceLostReason, TextureFormat, TextureSampleType, TextureSelector,
+    TextureViewDimension,
+};
+
+#[cfg(feature = "trace")]
+use crate::device::trace;
+use crate::{
+    api_log,
+    binding_model::{
+        self, BindGroup, BindGroupLateBufferBindingInfo, BindGroupLayout,
+        BindGroupLayoutEntryError, BindGroupLayoutState, CreateBindGroupError,
+        CreateBindGroupLayoutError,
+    },
+    command, conv,
+    device::{
+        bgl, create_validator, features_to_naga_capabilities, life::WaitIdleError, map_buffer,
+        AttachmentData, DeviceLostInvocation, HostMap, MissingDownlevelFlags, MissingFeatures,
+        RenderPassContext,
+    },
+    hal_label,
+    init_tracker::{
+        BufferInitTracker, BufferInitTrackerAction, MemoryInitKind, TextureInitRange,
+        TextureInitTrackerAction,
+    },
+    instance::{Adapter, RequestDeviceError},
+    lock::{rank, Mutex, RwLock},
+    pipeline::{self, ColorStateError},
+    pool::ResourcePool,
+    present,
+    resource::{
+        self, Buffer, ExternalTexture, Fallible, Labeled, ParentDevice, QuerySet,
+        RawResourceAccess, ResourceState, Sampler, StagingBuffer, Texture, TextureView,
+        TextureViewNotRenderableReason, Tlas, TrackingData,
+    },
+    resource_log,
+    snatch::{SnatchGuard, SnatchLock, Snatchable},
+    timestamp_normalization::TIMESTAMP_NORMALIZATION_BUFFER_USES,
+    track::{BindGroupStates, DeviceTracker, TrackerIndexAllocators, UsageScope, UsageScopePool},
+    validation::{self, check_color_attachment_count, PassthroughInterface, ShaderMetaData},
+    weak_vec::WeakVec,
+    FastHashMap, LabelHelpers, OnceCellOrLock,
+};
+
+use super::{
+    queue::Queue, surface_config::validate_surface_configuration, DeviceDescriptor, DeviceError,
+    DeviceLostClosure, UserClosures, ENTRYPOINT_FAILURE_ERROR, ZERO_BUFFER_SIZE,
+};
+
+#[cfg(supports_64bit_atomics)]
+use core::sync::atomic::AtomicU64;
+#[cfg(not(supports_64bit_atomics))]
+use portable_atomic::AtomicU64;
+
+pub(crate) struct CommandIndices {
+    /// The index of the last command submission that was attempted.
+    ///
+    /// Note that `fence` may never be signalled with this value, if the command
+    /// submission failed. If you need to wait for everything running on a
+    /// `Queue` to complete, wait for [`last_successful_submission_index`].
+    ///
+    /// [`last_successful_submission_index`]: Device::last_successful_submission_index
+    pub(crate) active_submission_index: hal::FenceValue,
+    pub(crate) next_acceleration_structure_build_command_index: u64,
+}
+
+/// Parameters provided to shaders via a uniform buffer of the type
+/// [`NagaExternalTextureParams`], describing an [`ExternalTexture`] resource
+/// binding.
+///
+/// [`NagaExternalTextureParams`]: naga::SpecialTypes::external_texture_params
+/// [`ExternalTexture`]: binding_model::BindingResource::ExternalTexture
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct ExternalTextureParams {
+    /// 4x4 column-major matrix with which to convert sampled YCbCr values
+    /// to RGBA.
+    ///
+    /// This is ignored when `num_planes` is 1.
+    pub yuv_conversion_matrix: [f32; 16],
+
+    /// 3x3 column-major matrix to transform linear RGB values in the source
+    /// color space to linear RGB values in the destination color space. In
+    /// combination with [`Self::src_transfer_function`] and
+    /// [`Self::dst_transfer_function`] this can be used to ensure that
+    /// [`ImageSample`] and [`ImageLoad`] operations return values in the
+    /// desired destination color space rather than the source color space of
+    /// the underlying planes.
+    ///
+    /// Includes a padding element after each column.
+    ///
+    /// [`ImageSample`]: naga::ir::Expression::ImageSample
+    /// [`ImageLoad`]: naga::ir::Expression::ImageLoad
+    pub gamut_conversion_matrix: [f32; 12],
+
+    /// Transfer function for the source color space. The *inverse* of this
+    /// will be applied to decode non-linear RGB to linear RGB in the source
+    /// color space.
+    pub src_transfer_function: wgt::ExternalTextureTransferFunction,
+
+    /// Transfer function for the destination color space. This will be applied
+    /// to encode linear RGB to non-linear RGB in the destination color space.
+    pub dst_transfer_function: wgt::ExternalTextureTransferFunction,
+
+    /// Transform to apply to [`ImageSample`] coordinates.
+    ///
+    /// This is a 3x2 column-major matrix representing an affine transform from
+    /// normalized texture coordinates to the normalized coordinates that should
+    /// be sampled from the external texture's underlying plane(s).
+    ///
+    /// This transform may scale, translate, flip, and rotate in 90-degree
+    /// increments, but the result of transforming the rectangle (0,0)..(1,1)
+    /// must be an axis-aligned rectangle that falls within the bounds of
+    /// (0,0)..(1,1).
+    ///
+    /// [`ImageSample`]: naga::ir::Expression::ImageSample
+    pub sample_transform: [f32; 6],
+
+    /// Transform to apply to [`ImageLoad`] coordinates.
+    ///
+    /// This is a 3x2 column-major matrix representing an affine transform from
+    /// non-normalized texel coordinates to the non-normalized coordinates of
+    /// the texel that should be loaded from the external texture's underlying
+    /// plane 0. For planes 1 and 2, if present, plane 0's coordinates are
+    /// scaled according to the textures' relative sizes.
+    ///
+    /// This transform may scale, translate, flip, and rotate in 90-degree
+    /// increments, but the result of transforming the rectangle (0,0)..[`size`]
+    /// must be an axis-aligned rectangle that falls within the bounds of
+    /// (0,0)..[`size`].
+    ///
+    /// [`ImageLoad`]: naga::ir::Expression::ImageLoad
+    /// [`size`]: Self::size
+    pub load_transform: [f32; 6],
+
+    /// Size of the external texture.
+    ///
+    /// This is the value that should be returned by size queries in shader
+    /// code; it does not necessarily match the dimensions of the underlying
+    /// texture(s). As a special case, if this is `[0, 0]`, the actual size of
+    /// plane 0 should be used instead.
+    ///
+    /// This must be consistent with [`sample_transform`]: it should be the size
+    /// in texels of the rectangle covered by the square (0,0)..(1,1) after
+    /// [`sample_transform`] has been applied to it.
+    ///
+    /// [`sample_transform`]: Self::sample_transform
+    pub size: [u32; 2],
+
+    /// Number of planes. 1 indicates a single RGBA plane. 2 indicates a Y
+    /// plane and an interleaved CbCr plane. 3 indicates separate Y, Cb, and Cr
+    /// planes.
+    pub num_planes: u32,
+    // Ensure the size of this struct matches the type generated by Naga.
+    pub _padding: [u8; 4],
+}
+
+impl ExternalTextureParams {
+    pub fn from_desc<L>(desc: &wgt::ExternalTextureDescriptor<L>) -> Self {
+        let gamut_conversion_matrix = [
+            desc.gamut_conversion_matrix[0],
+            desc.gamut_conversion_matrix[1],
+            desc.gamut_conversion_matrix[2],
+            0.0, // padding
+            desc.gamut_conversion_matrix[3],
+            desc.gamut_conversion_matrix[4],
+            desc.gamut_conversion_matrix[5],
+            0.0, // padding
+            desc.gamut_conversion_matrix[6],
+            desc.gamut_conversion_matrix[7],
+            desc.gamut_conversion_matrix[8],
+            0.0, // padding
+        ];
+
+        Self {
+            yuv_conversion_matrix: desc.yuv_conversion_matrix,
+            gamut_conversion_matrix,
+            src_transfer_function: desc.src_transfer_function,
+            dst_transfer_function: desc.dst_transfer_function,
+            size: [desc.width, desc.height],
+            sample_transform: desc.sample_transform,
+            load_transform: desc.load_transform,
+            num_planes: desc.num_planes() as u32,
+            _padding: Default::default(),
+        }
+    }
+}
+
+/// Structure describing a logical device. Some members are internally mutable,
+/// stored behind mutexes.
+pub struct Device {
+    raw: Box<dyn hal::DynDevice>,
+    pub(crate) adapter: Arc<Adapter>,
+    pub(crate) queue: OnceCellOrLock<Weak<Queue>>,
+    pub(crate) zero_buffer: ManuallyDrop<Box<dyn hal::DynBuffer>>,
+    pub(crate) empty_bgl: ManuallyDrop<Box<dyn hal::DynBindGroupLayout>>,
+    /// The `label` from the descriptor used to create the resource.
+    label: String,
+
+    pub(crate) command_allocator: command::CommandAllocator,
+
+    pub(crate) command_indices: RwLock<CommandIndices>,
+
+    /// The index of the last successful submission to this device's
+    /// [`hal::Queue`].
+    ///
+    /// Unlike [`active_submission_index`], which is incremented each time
+    /// submission is attempted, this is updated only when submission succeeds,
+    /// so waiting for this value won't hang waiting for work that was never
+    /// submitted.
+    ///
+    /// [`active_submission_index`]: CommandIndices::active_submission_index
+    pub(crate) last_successful_submission_index: hal::AtomicFenceValue,
+
+    pub(crate) fence: ManuallyDrop<Box<dyn hal::DynFence>>,
+    pub(crate) snatchable_lock: SnatchLock,
+
+    /// Is this device valid? Valid is closely associated with "lose the device",
+    /// which can be triggered by various methods, including at the end of device
+    /// destroy, and by any GPU errors that cause us to no longer trust the state
+    /// of the device. Ideally we would like to fold valid into the storage of
+    /// the device itself (for example as an Error enum), but unfortunately we
+    /// need to continue to be able to retrieve the device in poll_devices to
+    /// determine if it can be dropped. If our internal accesses of devices were
+    /// done through ref-counted references and external accesses checked for
+    /// Error enums, we wouldn't need this. For now, we need it. All the call
+    /// sites where we check it are areas that should be revisited if we start
+    /// using ref-counted references for internal access.
+    pub(crate) valid: AtomicBool,
+
+    /// Closure to be called on "lose the device". This is invoked directly by
+    /// device.lose or by the UserCallbacks returned from maintain when the device
+    /// has been destroyed and its queues are empty.
+    pub(crate) device_lost_closure: Mutex<Option<DeviceLostClosure>>,
+
+    /// Stores the state of buffers and textures.
+    pub(crate) trackers: Mutex<DeviceTracker>,
+    pub(crate) tracker_indices: TrackerIndexAllocators,
+    /// Pool of bind group layouts, allowing deduplication.
+    pub(crate) bgl_pool: ResourcePool<bgl::EntryMap, BindGroupLayout>,
+    pub(crate) alignments: hal::Alignments,
+    pub(crate) limits: wgt::Limits,
+    pub(crate) features: wgt::Features,
+    pub(crate) downlevel: wgt::DownlevelCapabilities,
+    /// Buffer uses listed here, are expected to be ordered by the underlying hardware.
+    /// If a usage is ordered, then if the buffer state doesn't change between draw calls,
+    /// there are no barriers needed for synchronization.
+    /// See the implementations of [`hal::Adapter::get_ordered_buffer_usages`] for hardware specific info
+    pub(crate) ordered_buffer_usages: wgt::BufferUses,
+    /// Texture uses listed here, are expected to be ordered by the underlying hardware.
+    /// If a usage is ordered, then if the buffer state doesn't change between draw calls,
+    /// there are no barriers needed for synchronization.
+    /// See the implementations of [`hal::Adapter::get_ordered_texture_usages`] for hardware specific info
+    pub(crate) ordered_texture_usages: wgt::TextureUses,
+    pub(crate) instance_flags: wgt::InstanceFlags,
+    pub(crate) deferred_destroy: Mutex<Vec<DeferredDestroy>>,
+    pub(crate) usage_

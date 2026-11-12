@@ -9,7 +9,7 @@ function AppShell({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="app-shell"
       className={cn(
-        "flex h-svh flex-col overflow-hidden bg-sidebar text-foreground md:flex-row",
+        "flex h-svh flex-col overflow-hidden bg-sidebar pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-foreground max-md:pt-[env(safe-area-inset-top)] md:flex-row",
         className,
       )}
       {...props}
@@ -69,7 +69,7 @@ function AppBottomNavItem({
       data-slot="app-bottom-nav-item"
       aria-current={current ? "page" : undefined}
       className={cn(
-        "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground outline-none select-none focus-visible:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground [&_svg]:size-5 [&_svg]:stroke-[1.75]",
+        "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground outline-none select-none focus-visible:bg-sidebar-accent active:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground [&_svg]:size-5 [&_svg]:stroke-[1.75]",
         className,
       )}
       {...props}

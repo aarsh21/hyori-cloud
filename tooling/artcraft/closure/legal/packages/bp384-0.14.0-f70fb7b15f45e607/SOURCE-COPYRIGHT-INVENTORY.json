@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/arithmetic/field.rs",
+      "sha256": "adf400f221f0f9ac7524fb6223884ebb09ffa1d3c1f0894f4701378c0cd3640f",
+      "lines": [
+        {
+          "line": 7,
+          "text": "//! Copyright (c) 2015-2020 the fiat-crypto authors"
+        }
+      ]
+    },
+    {
+      "path": "src/arithmetic/scalar.rs",
+      "sha256": "70f58b4c544f4eade5d9d0e11a743738ed974fce07020cea37bfdb7896f0264e",
+      "lines": [
+        {
+          "line": 7,
+          "text": "//! Copyright (c) 2015-2020 the fiat-crypto authors"
+        }
+      ]
+    }
+  ]
+}

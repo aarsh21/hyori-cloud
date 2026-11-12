@@ -1,0 +1,321 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+use smallvec::SmallVec;
+
+use core::cmp;
+use core::cmp::Ordering;
+use core::fmt;
+use core::ops::RangeInclusive;
+use core::str::FromStr;
+
+use crate::{uint_iterator::IntIterator, IncrementLike, NoIncrement};
+#[cfg(feature = "ryu")]
+use crate::{FloatPrecision, LimitError};
+use crate::{ParseError, RoundingIncrement, UnsignedRoundingMode};
+
+// UnsignedDecimal assumes usize (digits.len()) is at least as big as a u16
+#[cfg(not(any(
+    target_pointer_width = "16",
+    target_pointer_width = "32",
+    target_pointer_width = "64"
+)))]
+compile_error!("The fixed_decimal crate only works if usizes are at least the size of a u16");
+
+/// A struct containing decimal digits with efficient iteration and manipulation by magnitude
+/// (power of 10).
+///
+/// Supports a mantissa of non-zero digits and a number of leading and trailing
+/// zeros; used for formatting and plural selection.
+///
+/// # Data Types
+///
+/// The following types can be converted to a [`UnsignedDecimal`]:
+///
+/// - Integers, unsigned
+/// - Strings representing an arbitrary-precision decimal
+/// - Floating point values (using the `ryu` feature)
+///
+/// To create a [`UnsignedDecimal`] with fraction digits, either create it from an integer and then
+/// call [`UnsignedDecimal::multiplied_pow10`], create it from a string, or (when the `ryu` feature is
+/// enabled) create it from a floating point value using [`UnsignedDecimal::try_from_f64`].
+///
+/// # Magnitude and Position
+///
+/// Each digit in a `FixedDecimal` is indexed by a *magnitude*, or the digit's power of 10.
+/// Illustration for the number "12.34":
+///
+/// | Magnitude | Digit | Description      |
+/// |-----------|-------|------------------|
+/// | 1         | 1     | Tens place       |
+/// | 0         | 2     | Ones place       |
+/// | -1        | 3     | Tenths place     |
+/// | -2        | 4     | Hundredths place |
+///
+/// Some functions deal with a *position* for the purpose of padding, truncating, or rounding a
+/// number. In these cases, the position sits between the corresponding magnitude of that position
+/// and the next lower significant digit.
+/// Illustration:
+///
+/// ```text
+/// Position:   2   0  -2
+/// Number:     |1|2.3|4|
+/// Position:     1  -1
+/// ```
+///
+/// Expected output of various operations, all with input "12.34":
+///
+/// | Operation                | Position  | Expected Result |
+/// |--------------------------|-----------|-----------------|
+/// | Truncate to tens         |         1 |   10            |
+/// | Truncate to tenths       |        -1 |   12.3          |
+/// | Pad to ten thousands     |         4 | 0012.34         |
+/// | Pad to ten thousandths   |        -4 |   12.3400       |
+///
+/// # Examples
+///
+/// ```
+/// use fixed_decimal::UnsignedDecimal;
+///
+/// let mut dec = UnsignedDecimal::from(250u32);
+/// assert_eq!("250", dec.to_string());
+///
+/// dec.multiply_pow10(-2);
+/// assert_eq!("2.50", dec.to_string());
+/// ```````
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnsignedDecimal {
+    /// List of digits; digits\[0\] is the most significant.
+    ///
+    /// Invariants:
+    /// - Must not include leading or trailing zeros
+    /// - Length must not exceed `magnitude - lower_magnitude + 1`
+    // TODO: Consider using a nibble array
+    digits: SmallVec<[u8; 8]>,
+
+    /// Power of 10 of digits\[0\].
+    ///
+    /// Invariants:
+    /// - `<= upper_magnitude`
+    /// - `>= lower_magnitude`
+    magnitude: i16,
+
+    /// Power of 10 of the most significant digit, which may be zero.
+    ///
+    /// Invariants:
+    /// - >= 0
+    /// - >= magnitude
+    upper_magnitude: i16,
+
+    /// Power of 10 of the least significant digit, which may be zero.
+    ///
+    /// Invariants:
+    /// - <= 0
+    /// - <= magnitude
+    lower_magnitude: i16,
+}
+
+impl UnsignedDecimal {
+    /// The number 1.
+    pub const ONE: Self = Self {
+        // SAFETY: The requested length (1) is less than or equal to the array capacity (8).
+        digits: unsafe { SmallVec::from_const_with_len_unchecked([1; 8], 1) },
+        magnitude: 0,
+        upper_magnitude: 0,
+        lower_magnitude: 0,
+    };
+}
+
+impl Default for UnsignedDecimal {
+    /// Returns a [`UnsignedDecimal`] representing zero.
+    fn default() -> Self {
+        Self {
+            digits: SmallVec::new(),
+            magnitude: 0,
+            upper_magnitude: 0,
+            lower_magnitude: 0,
+        }
+    }
+}
+
+macro_rules! impl_from_unsigned_integer_type {
+    ($utype: ident) => {
+        impl From<$utype> for UnsignedDecimal {
+            fn from(value: $utype) -> Self {
+                let int_iterator: IntIterator<$utype> = value.into();
+                Self::from_ascending(int_iterator).expect("All built-in integer types should fit")
+            }
+        }
+    };
+}
+
+impl_from_unsigned_integer_type!(usize);
+impl_from_unsigned_integer_type!(u128);
+impl_from_unsigned_integer_type!(u64);
+impl_from_unsigned_integer_type!(u32);
+impl_from_unsigned_integer_type!(u16);
+impl_from_unsigned_integer_type!(u8);
+
+impl UnsignedDecimal {
+    /// Initialize a [`UnsignedDecimal`] with an iterator of digits in ascending
+    /// order of magnitude, starting with the digit at magnitude 0.
+    ///
+    /// This method is not public; use `TryFrom::<isize>` instead.
+    pub(crate) fn from_ascending<T>(digits_iter: T) -> Result<Self, ParseError>
+    where
+        T: Iterator<Item = u8>,
+    {
+        // TODO: make X a usize generic to customize the size of this array
+        // https://github.com/rust-lang/rust/issues/44580
+        // NOTE: 39 is the size required for u128: ceil(log10(u128::MAX)) == 39.
+        const X: usize = 39;
+        // A temporary structure to allow the digits in the iterator to be reversed.
+        // The digits are inserted started from the end, and then a slice is copied
+        // into its final destination (result.digits).
+        let mut mem: [u8; X] = [0u8; X];
+        let mut trailing_zeros: usize = 0;
+        let mut i: usize = 0;
+        for (x, d) in digits_iter.enumerate() {
+            // Take only up to i16::MAX values so that we have enough capacity
+            if x > i16::MAX as usize {
+                return Err(ParseError::Limit);
+            }
+            // TODO: Should we check here that `d` is between 0 and 9?
+            // That should always be the case if IntIterator is used.
+            if i != 0 || d != 0 {
+                i += 1;
+                match X.checked_sub(i) {
+                    #[expect(clippy::indexing_slicing)] // X - i < X
+                    Some(v) => mem[v] = d,
+                    // This error should be obsolete after X is made generic
+                    None => return Err(ParseError::Limit),
+                }
+            } else {
+                trailing_zeros += 1;
+            }
+        }
+        let mut result: Self = Default::default();
+        if i != 0 {
+            let magnitude = trailing_zeros + i - 1;
+            debug_assert!(magnitude <= i16::MAX as usize);
+            result.magnitude = magnitude as i16;
+            result.upper_magnitude = result.magnitude;
+            debug_assert!(i <= X);
+            #[expect(clippy::indexing_slicing)] // X - i < X
+            result.digits.extend_from_slice(&mem[(X - i)..]);
+        }
+        #[cfg(debug_assertions)]
+        result.check_invariants();
+        Ok(result)
+    }
+
+    /// Gets the digit at the specified order of magnitude. Returns 0 if the magnitude is out of
+    /// range of the currently visible digits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fixed_decimal::UnsignedDecimal;
+    ///
+    /// let dec = UnsignedDecimal::from(945u32);
+    /// assert_eq!(0, dec.digit_at(-1));
+    /// assert_eq!(5, dec.digit_at(0));
+    /// assert_eq!(4, dec.digit_at(1));
+    /// assert_eq!(9, dec.digit_at(2));
+    /// assert_eq!(0, dec.digit_at(3));
+    /// ```
+    pub fn digit_at(&self, magnitude: i16) -> u8 {
+        if magnitude > self.magnitude {
+            0 // Leading zero
+        } else {
+            // The following line can't fail: magnitude <= self.magnitude, by
+            // the if statement above, and u16::MAX == i16::MAX - i16::MIN, and
+            // usize is asserted to be at least as big as u16.
+            let j = crate::ops::i16_abs_sub(self.magnitude, magnitude) as usize;
+            match self.digits.get(j) {
+                Some(v) => *v,
+                None => 0, // Trailing zero
+            }
+        }
+    }
+
+    /// Gets the digit at the specified order of next upper magnitude (magnitude + 1).
+    /// Returns 0 if the next upper magnitude is out of range of currently visible digits or
+    /// the magnitude is equal to `i16::MAX`.
+    fn digit_at_previous_position(&self, magnitude: i16) -> u8 {
+        if magnitude == i16::MAX {
+            0
+        } else {
+            self.digit_at(magnitude + 1)
+        }
+    }
+
+    /// Gets the digit at the specified order of next lower magnitude (magnitude - 1).
+    /// Returns 0 if the next lower magnitude is out of range of currently visible digits or the
+    /// magnitude is equal to `i16::MIN`.
+    fn digit_at_next_position(&self, magnitude: i16) -> u8 {
+        if magnitude == i16::MIN {
+            0
+        } else {
+            self.digit_at(magnitude - 1)
+        }
+    }
+
+    /// Returns the relative ordering of the digits after `magnitude` with respect to 5.
+    fn half_at_next_magnitude(&self, magnitude: i16) -> Ordering {
+        #[cfg(debug_assertions)] // Depends on having no trailing zeroes.
+        self.check_invariants();
+
+        match self.digit_at_next_position(magnitude).cmp(&5) {
+            // If the next digit is equal to 5, we can know if we're at exactly 5
+            // by comparing the next magnitude with the last nonzero magnitude of
+            // the number.
+            Ordering::Equal => match (magnitude - 1).cmp(&self.nonzero_magnitude_end()) {
+                Ordering::Greater => {
+                    // `magnitude - 1` has non-zero digits at its right,
+                    // meaning the number overall must be greater than 5.
+                    Ordering::Greater
+                }
+                Ordering::Equal => {
+                    // `magnitude - 1` is the last digit of the number,
+                    // meaning the number is exactly 5.
+                    Ordering::Equal
+                }
+                Ordering::Less => {
+                    debug_assert!(false, "digit `magnitude - 1` should not be zero");
+                    Ordering::Less
+                }
+            },
+            // If the next digit is either greater or less than 5,
+            // we know that the digits cannot sum to exactly 5.
+            ord => ord,
+        }
+    }
+
+    /// Returns the relative ordering of the digits from `magnitude` onwards
+    /// with respect to the half increment of `increment`.
+    fn half_increment_at_magnitude<R: IncrementLike>(
+        &self,
+        magnitude: i16,
+        increment: R,
+    ) -> Ordering {
+        #[cfg(debug_assertions)] // Depends on having no trailing zeroes.
+        self.check_invariants();
+
+        match Some(increment) {
+            x if x == R::MULTIPLES_OF_1 => self.half_at_next_magnitude(magnitude),
+            x if x == R::MULTIPLES_OF_2 => {
+                let current_digit = self.digit_at(magnitude);
+
+                // Equivalent to "if current_digit is odd".
+                if current_digit & 0x01 == 1 {
+                    match magnitude.cmp(&self.nonzero_magnitude_end()) {
+                        Ordering::Greater => {
+                            // `magnitude` has non-zero digits at its right,
+                            // meaning the number overall must be greater than
+                            // the half increment.
+                            Ordering::Greater
+                        }
+                        Ordering::Equal => {
+                

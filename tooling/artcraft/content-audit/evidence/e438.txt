@@ -1,0 +1,331 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+#![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+#![warn(missing_docs)]
+
+//! Determine the plural category appropriate for a given number in a given language.
+//!
+//! This module is published as its own crate ([`icu_plurals`](https://docs.rs/icu_plurals/latest/icu_plurals/))
+//! and as part of the [`icu`](https://docs.rs/icu/latest/icu/) crate. See the latter for more details on the ICU4X project.
+//!
+//! For example in English, when constructing a message
+//! such as `{ num } items`, the user has to prepare
+//! two variants of the message:
+//!
+//! * `1 item`
+//! * `0 items`, `2 items`, `5 items`, `0.5 items` etc.
+//!
+//! The former variant is used when the placeholder variable has value `1`,
+//! while the latter is used for all other values of the variable.
+//!
+//! Unicode defines [Language Plural Rules] as a mechanism to codify those
+//! variants and provides data and algorithms to calculate
+//! appropriate [`PluralCategory`].
+//!
+//! # Examples
+//!
+//! ```
+//! use icu::locale::locale;
+//! use icu::plurals::{PluralCategory, PluralRules};
+//!
+//! let pr = PluralRules::try_new(locale!("en").into(), Default::default())
+//!     .expect("locale should be present");
+//!
+//! assert_eq!(pr.category_for(5_usize), PluralCategory::Other);
+//! ```
+//!
+//! ## Plural Rules
+//!
+//! The crate provides the main struct [`PluralRules`] which handles selection
+//! of the correct [`PluralCategory`] for a given language and [`PluralRuleType`].
+//!
+//! ## Plural Category
+//!
+//! Every number in every language belongs to a certain [`PluralCategory`].
+//! For example, the Polish language uses four:
+//!
+//! * [`One`](PluralCategory::One): `1 miesiąc`
+//! * [`Few`](PluralCategory::Few): `2 miesiące`
+//! * [`Many`](PluralCategory::Many): `5 miesięcy`
+//! * [`Other`](PluralCategory::Other): `1.5 miesiąca`
+//!
+//! ## `PluralRuleType`
+//!
+//! Plural rules depend on the use case. This crate supports two types of plural rules:
+//!
+//! * [`Cardinal`](PluralRuleType::Cardinal): `3 doors`, `1 month`, `10 dollars`
+//! * [`Ordinal`](PluralRuleType::Ordinal): `1st place`, `10th day`, `11th floor`
+//!
+//! [Language Plural Rules]: https://unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules
+
+extern crate alloc;
+
+mod operands;
+mod options;
+pub mod provider;
+
+// Need to expose it for datagen, but we don't
+// have a reason to make it fully public, so hiding docs for now.
+#[cfg(feature = "unstable")]
+mod raw_operands;
+
+#[cfg(feature = "unstable")]
+pub use raw_operands::RawPluralOperands;
+
+use core::cmp::{Ord, PartialOrd};
+use core::convert::Infallible;
+use icu_locale_core::preferences::define_preferences;
+use icu_provider::marker::ErasedMarker;
+use icu_provider::prelude::*;
+pub use operands::PluralOperands;
+pub use options::*;
+use provider::PluralRulesData;
+use provider::PluralsCardinalV1;
+use provider::PluralsOrdinalV1;
+use provider::rules::runtime::test_rule;
+
+#[cfg(feature = "unstable")]
+use provider::PluralsRangesV1;
+#[cfg(feature = "unstable")]
+use provider::UnvalidatedPluralRange;
+
+/// The plural categories are used to format messages with numeric placeholders, expressed as decimal numbers.
+///
+/// The fundamental rule for determining plural categories is the existence of minimal pairs: whenever two different
+/// numbers may require different versions of the same message, then the numbers have different plural categories.
+///
+/// All languages supported by `ICU4X` can match any number to one of the categories.
+///
+/// # Examples
+///
+/// ```
+/// use icu::locale::locale;
+/// use icu::plurals::{PluralCategory, PluralRules};
+///
+/// let pr = PluralRules::try_new(locale!("en").into(), Default::default())
+///     .expect("locale should be present");
+///
+/// assert_eq!(pr.category_for(5_usize), PluralCategory::Other);
+/// ```
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+#[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
+#[cfg_attr(feature = "datagen", databake(path = icu_plurals))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[repr(u8)]
+#[zerovec::make_ule(PluralCategoryULE)]
+#[allow(clippy::exhaustive_enums)] // this type is mostly stable. new categories may potentially be added in the future,
+// but at a cadence slower than the ICU4X release cycle
+pub enum PluralCategory {
+    /// CLDR "zero" plural category. Used in Arabic and Latvian, among others.
+    ///
+    /// Examples of numbers having this category:
+    ///
+    /// - 0 in Arabic (ar), Latvian (lv)
+    /// - 10~20, 30, 40, 50, ... in Latvian (lv)
+    Zero = 0,
+    /// CLDR "one" plural category. Signifies the singular form in many languages.
+    ///
+    /// Examples of numbers having this category:
+    ///
+    /// - 0 in French (fr), Portuguese (pt), ...
+    /// - 1 in English (en) and most other languages
+    /// - 2.1 in Filipino (fil), Croatian (hr), Latvian (lv), Serbian (sr)
+    /// - 2, 3, 5, 7, 8, ... in Filipino (fil)
+    One = 1,
+    /// CLDR "two" plural category. Used in Arabic, Hebrew, and Slovenian, among others.
+    ///
+    /// Examples of numbers having this category:
+    ///
+    /// - 2 in Arabic (ar), Hebrew (iw), Slovenian (sl)
+    /// - 2.0 in Arabic (ar)
+    Two = 2,
+    /// CLDR "few" plural category. Used in Romanian, Polish, Russian, and others.
+    ///
+    /// Examples of numbers having this category:
+    ///
+    /// - 0 in Romanian (ro)
+    /// - 1.2 in Croatian (hr), Romanian (ro), Slovenian (sl), Serbian (sr)
+    /// - 2 in Polish (pl), Russian (ru), Czech (cs), ...
+    /// - 5 in Arabic (ar), Lithuanian (lt), Romanian (ro)
+    Few = 3,
+    /// CLDR "many" plural category. Used in Polish, Russian, Ukrainian, and others.
+    ///
+    /// Examples of numbers having this category:
+    ///
+    /// - 0 in Polish (pl)
+    /// - 1.0 in Czech (cs), Slovak (sk)
+    /// - 1.1 in Czech (cs), Lithuanian (lt), Slovak (sk)
+    /// - 15 in Arabic (ar), Polish (pl), Russian (ru), Ukrainian (uk)
+    Many = 4,
+    /// CLDR "other" plural category, used as a catch-all. Each language supports it, and it
+    /// is also used as a fail safe result for in case no better match can be identified.
+    ///
+    /// In some languages, such as Japanese, Chinese, Korean, and Thai, this is the only
+    /// plural category.
+    ///
+    /// Examples of numbers having this category:
+    ///
+    /// - 0 in English (en), German (de), Spanish (es), ...
+    /// - 1 in Japanese (ja), Korean (ko), Chinese (zh), Thai (th), ...
+    /// - 2 in English (en), German (de), Spanish (es), ...
+    Other = 5,
+}
+
+impl PluralCategory {
+    /// Returns an ordered iterator over variants of [`Plural Categories`].
+    ///
+    /// Categories are returned in alphabetical order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use icu::plurals::PluralCategory;
+    ///
+    /// let mut categories = PluralCategory::all();
+    ///
+    /// assert_eq!(categories.next(), Some(PluralCategory::Few));
+    /// assert_eq!(categories.next(), Some(PluralCategory::Many));
+    /// assert_eq!(categories.next(), Some(PluralCategory::One));
+    /// assert_eq!(categories.next(), Some(PluralCategory::Other));
+    /// assert_eq!(categories.next(), Some(PluralCategory::Two));
+    /// assert_eq!(categories.next(), Some(PluralCategory::Zero));
+    /// assert_eq!(categories.next(), None);
+    /// ```
+    ///
+    /// [`Plural Categories`]: PluralCategory
+    pub fn all() -> impl ExactSizeIterator<Item = Self> {
+        [
+            Self::Few,
+            Self::Many,
+            Self::One,
+            Self::Other,
+            Self::Two,
+            Self::Zero,
+        ]
+        .iter()
+        .copied()
+    }
+
+    /// Returns the [`PluralCategory`] corresponding to given TR35 string.
+    pub fn get_for_cldr_string(category: &str) -> Option<PluralCategory> {
+        Self::get_for_cldr_bytes(category.as_bytes())
+    }
+    /// Returns the [`PluralCategory`] corresponding to given TR35 string as bytes
+    pub fn get_for_cldr_bytes(category: &[u8]) -> Option<PluralCategory> {
+        match category {
+            b"zero" => Some(PluralCategory::Zero),
+            b"one" => Some(PluralCategory::One),
+            b"two" => Some(PluralCategory::Two),
+            b"few" => Some(PluralCategory::Few),
+            b"many" => Some(PluralCategory::Many),
+            b"other" => Some(PluralCategory::Other),
+            _ => None,
+        }
+    }
+}
+
+define_preferences!(
+    /// The preferences for plural rules.
+    [Copy]
+    PluralRulesPreferences,
+    {}
+);
+
+/// A struct which provides an ability to retrieve an appropriate
+/// [`Plural Category`] for a given number.
+///
+/// # Examples
+///
+/// ```
+/// use icu::locale::locale;
+/// use icu::plurals::{PluralCategory, PluralRules};
+///
+/// let pr = PluralRules::try_new(locale!("en").into(), Default::default())
+///     .expect("locale should be present");
+///
+/// assert_eq!(pr.category_for(5_usize), PluralCategory::Other);
+/// ```
+///
+/// [`ICU4X`]: ../icu/index.html
+/// [`Plural Type`]: PluralRuleType
+/// [`Plural Category`]: PluralCategory
+#[derive(Debug)]
+pub struct PluralRules(DataPayload<ErasedMarker<PluralRulesData<'static>>>);
+
+impl AsRef<PluralRules> for PluralRules {
+    fn as_ref(&self) -> &PluralRules {
+        self
+    }
+}
+
+impl PluralRules {
+    icu_provider::gen_buffer_data_constructors!(
+        (prefs: PluralRulesPreferences, options: PluralRulesOptions) -> error: DataError,
+        /// Constructs a new `PluralRules` for a given locale and type using compiled data.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use icu::locale::locale;
+        /// use icu::plurals::PluralRules;
+        ///
+        /// let _ = PluralRules::try_new(
+        ///     locale!("en").into(),
+        ///     Default::default(),
+        /// ).expect("locale should be present");
+        /// ```
+        ///
+        /// [`data provider`]: icu_provider
+    );
+
+    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::try_new)]
+    pub fn try_new_unstable(
+        provider: &(impl DataProvider<PluralsCardinalV1> + DataProvider<PluralsOrdinalV1> + ?Sized),
+        prefs: PluralRulesPreferences,
+        options: PluralRulesOptions,
+    ) -> Result<Self, DataError> {
+        match options.rule_type.unwrap_or_default() {
+            PluralRuleType::Cardinal => Self::try_new_cardinal_unstable(provider, prefs),
+            PluralRuleType::Ordinal => Self::try_new_ordinal_unstable(provider, prefs),
+        }
+    }
+
+    icu_provider::gen_buffer_data_constructors!(
+        (prefs: PluralRulesPreferences) -> error: DataError,
+        /// Constructs a new `PluralRules` for a given locale for cardinal numbers using compiled data.
+        ///
+        /// Cardinal plural forms express quantities of units such as time, currency or distance,
+        /// used in conjunction with a number expressed in decimal digits (i.e. "2", not "two").
+        ///
+        /// For example, English has two forms for cardinals:
+        ///
+        /// * [`One`]: `1 day`
+        /// * [`Other`]: `0 days`, `2 days`, `10 days`, `0.3 days`
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use icu::locale::locale;
+        /// use icu::plurals::{PluralCategory, PluralRules};
+        ///
+        /// let rules = PluralRules::try_new_cardinal(locale!("ru").into()).expect("locale should be present");
+        ///
+        /// assert_eq!(rules.category_for(2_usize), PluralCategory::Few);
+        /// ```
+        ///
+        /// [`One`]: PluralCategory::One
+        /// [`Other`]: PluralCategory::Other
+        functions: [
+            try_new_cardinal,

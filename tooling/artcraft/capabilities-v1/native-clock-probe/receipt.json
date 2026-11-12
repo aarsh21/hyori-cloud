@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "kind": "native-clock-restricted-unit-probe",
+  "sourcePlanSha256": "1e4f8b2f8c23a836ad001db41ad5f6d550b8458e8a078aa7b8761d208aa17099",
+  "inputFilesVerified": 1109,
+  "commands": [
+    {
+      "id": "rustc",
+      "status": 0,
+      "elapsedMs": 139
+    },
+    {
+      "id": "cargo-test-help",
+      "status": 0,
+      "elapsedMs": 29
+    },
+    {
+      "id": "cargo-lock-help",
+      "status": 0,
+      "elapsedMs": 4
+    },
+    {
+      "id": "generate-lock",
+      "status": 0,
+      "elapsedMs": 420
+    },
+    {
+      "id": "native-clock-tests",
+      "status": 0,
+      "elapsedMs": 31912
+    },
+    {
+      "id": "metadata",
+      "status": 0,
+      "elapsedMs": 180
+    },
+    {
+      "id": "features",
+      "status": 0,
+      "elapsedMs": 108
+    }
+  ],
+  "eguiPackages": [
+    {
+      "name": "ecolor",
+      "version": "0.37.0",
+      "source": "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+    },
+    {
+      "name": "egui",
+      "version": "0.37.0",
+      "source": "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+    },
+    {
+      "name": "emath",
+      "version": "0.37.0",
+      "source": "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+    },
+    {
+      "name": "epaint",
+      "version": "0.37.0",
+      "source": "git+https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc799681571963842f95b55a6b68431b15a"
+    }
+  ],
+  "testsPassed": 5,
+  "testsFailed": 0,
+  "exactCurrentClockSource": true,
+  "fullEngineBuild": false,
+  "fourNativeAdaptersCompiled": false,
+  "realBrowserNativeProtocol2Acceptance": false,
+  "productLaunchAcceptance": false,
+  "warnings": [
+    "Unused epaint_default_fonts patch with this probe's default-features=false selection",
+    "Unused generic snapshot/clock items in the minimal harness; exact compiler stderr retained"
+  ],
+  "files": [
+    {
+      "path": "probe-inputs.json",
+      "bytes": 239540,
+      "sha256": "1e4f8b2f8c23a836ad001db41ad5f6d550b8458e8a078aa7b8761d208aa17099"
+    },
+    {
+      "path": "driver.js",
+      "bytes": 3040,
+      "sha256": "adc71077d092cd17d7e60d27a84bcad2569d9f9eeccd83deb43bd02672208e95"
+    },
+    {
+      "path": "rustc.command.json",
+      "bytes": 754,
+      "sha256": "d2bc34e0babf8d3289dd4fd0aee6f62c678d68263c6dbb4b640a6efec622312c"
+    },
+    {
+      "path": "rustc.stdout",
+      "bytes": 196,
+      "sha256": "f22d5e4e9ced367e774ce5bc140d9e6b1235c1882fec80d011044851f3ae6369"
+    },
+    {
+      "path": "rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rustc.result.json",
+      "bytes": 37,
+      "sha256": "43ca0ba57bbb77cf6e7e2f4293dfff17ca3581284f21d6b29fc7040073f43a13"
+    },
+    {
+      "path": "cargo-test-help.command.json",
+      "bytes": 746,
+      "sha256": "902546ee478e6de2a35988ed07a164652ff390878a171007e16a0d62c9c4e024"
+    },
+    {
+      "path": "cargo-test-help.stdout",
+      "bytes": 3422,
+      "sha256": "a750301c3a378d70ec9a29386e125e7c5c981387462805442e04b51dcda57502"
+    },
+    {
+      "path": "cargo-test-help.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cargo-test-help.result.json",
+      "bytes": 36,
+      "sha256": "a15137ebc019eea74adfd442cecf2f6066a466a1e3bb6080c496db4a3e15f334"
+    },
+    {
+      "path": "cargo-lock-help.command.json",
+      "bytes": 759,
+      "sha256": "bc58d1f6f8d10d1376bad2f6442acdd51eb3369477393328e5e314a95dc4577d"
+    },
+    {
+      "path": "cargo-lock-help.stdout",
+      "bytes": 1122,
+      "sha256": "3f1ed1d62e180bc2eaab71f1370a347bb622789541698b01271aca9e96f62768"
+    },
+    {
+      "path": "cargo-lock-help.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cargo-lock-help.result.json",
+      "bytes": 35,
+      "sha256": "0ae4c65dba0c020d8530c5abc6984a6615a2883aba59c8e316c973c3f029c308"
+    },
+    {
+      "path": "generate-lock.command.json",
+      "bytes": 815,
+      "sha256": "c503b79ce8dc84b8256070c6caef2f664c564ee33bdf41c3fc353d25b37abefc"
+    },
+    {
+      "path": "generate-lock.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "generate-lock.stderr",
+      "bytes": 568,
+      "sha256": "29d60cfdde78beb0ccf02aedd978814a825d37bc32272e22e080078267e12f39"
+    },
+    {
+      "path": "generate-lock.result.json",
+      "bytes": 37,
+      "sha256": "b978f752ce4a29e8fd9df54d0e674de63f2d3b7a1c28c87d8ea55b84391d00a1"
+    },
+    {
+      "path": "native-clock-tests.command.json",
+      "bytes": 841,
+      "sha256": "cd71439b440878938498cd9512147a82340d8bf8cd5a51707d6c218ed5040169"
+    },
+    {
+      "path": "native-clock-tests.stdout",
+      "bytes": 628,
+      "sha256": "db3162651b4f979eda512569e8169febe6f9c55c4bdbc2cbe968999f3c8eb846"
+    },
+    {
+      "path": "native-clock-tests.stderr",
+      "bytes": 4169,
+      "sha256": "f505a810d9769ba9e4910ae4a0a560eb11788a4d7c5cda9998c9c107a8db756b"
+    },
+    {
+      "path": "native-clock-tests.result.json",
+      "bytes": 39,
+      "sha256": "8775ce482e14621ca66d9bb6ac72b31ea0aa59f6256b9c4af61f20acf8ecb58d"
+    },
+    {
+      "path": "metadata.command.json",
+      "bytes": 855,
+      "sha256": "6f4fb54bcc95af9492d888b467fef5a9c04fea4247c42b0c4a1505f9cc0c5344"
+    },
+    {
+      "path": "metadata.stdout",
+      "bytes": 281998,
+      "sha256": "1b6e13ce562b199d47f731d190c7ece359da5a733ed990cd331a55dfe3a89967"
+    },
+    {
+      "path": "metadata.stderr",
+      "bytes": 500,
+      "sha256": "871957bbfd5d11111cd0796179713980d063b287478f862d125ada2121aa497c"
+    },
+    {
+      "path": "metadata.result.json",
+      "bytes": 37,
+      "sha256": "cf0564ea4997363fbaa4ae7f223c52e71831f289104f3eb632160cbb226df21c"
+    },
+    {
+      "path": "features.command.json",
+      "bytes": 849,
+      "sha256": "a58779b82a23640d218a4bd4f89d4afd396eab785553c263558ffc9ba50bec40"
+    },
+    {
+      "path": "features.stdout",
+      "bytes": 13266,
+      "sha256": "76eb57370e74a9e95a222bac34340320ea5584173ebd0b155ac5756a9d927924"
+    },
+    {
+      "path": "features.stderr",
+      "bytes": 500,
+      "sha256": "871957bbfd5d11111cd0796179713980d063b287478f862d125ada2121aa497c"
+    },
+    {
+      "path": "features.result.json",
+      "bytes": 37,
+      "sha256": "4d723f1a535be85cc59d3dd7246decff375f5e834406834133893610cab232f0"
+    },
+    {
+      "path": "container.stdout",
+      "bytes": 145,
+      "sha256": "7a0c50913957a4f56afa10ac58d3247e0afa59de94634767fa466553fb16eef8"
+    },
+    {
+      "path": "container.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "container-result.json",
+      "bytes": 114,
+      "sha256": "a2e07f3994be2c003e37077d1aba21c9bac3c9281ab18581697062bc7da3a5fb"
+    },
+    {
+      "path": "driver-complete.json",
+      "bytes": 78,
+      "sha256": "c92564d035abc8b9194744521e209214ecee275d3a544bed05faec78de7d1b73"
+    },
+    {
+      "path": "Cargo.lock",
+      "bytes": 14218,
+      "sha256": "a1696b19bcb3d9d31e49b9cae7ddf8bd0c588f648f6aabe9df6d49047cb5f59a"
+    },
+    {
+      "path": "Cargo.toml",
+      "bytes": 712,
+      "sha256": "79a066b332a255ea91a26ca5c39b5c61195cec0f5f0145497e8d8f735683043f"
+    },
+    {
+      "path": "src-lib.rs",
+      "bytes": 108,
+      "sha256": "177619bba64481f06cdb75082ce26ca7e55574feb133e01be32e7b0c230cb5b6"
+    },
+    {
+      "path": "src-native-types.rs",
+      "bytes": 1992,
+      "sha256": "9746b27a977fa982073b723ab07a19d5d25ab7f85ca286b1a5a6d65e9ca21f87"
+    },
+    {
+      "path": "src-clock.rs",
+      "bytes": 5791,
+      "sha256": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    }
+  ]
+}

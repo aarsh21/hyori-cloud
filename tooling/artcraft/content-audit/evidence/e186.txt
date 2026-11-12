@@ -1,0 +1,264 @@
+//! The tabs and search, the filters, the sample toolbar and the list of family cards.
+
+use std::sync::Arc;
+
+use craft_ui::direction;
+use egui::{CornerRadius, FontFamily, FontId, Id, Rect, Role, Sense, StrokeKind, Ui, UiBuilder, WidgetInfo, pos2, vec2};
+
+use crate::index::{Category, Index, script_name, source_label};
+use crate::panel::app::{Detail, FontsPanel, Origin, Pending, Preset, Show, Tab, category_label, family_key, regular, source_name, style_count};
+use crate::panel::faces::{Owner, Shown};
+use crate::panel::i18n::{self, fmt, tl, tn};
+use crate::panel::jobs::Kind;
+use crate::panel::widgets::{self, Cell, Glyph, Skin};
+use crate::{FaceInfo, Source};
+
+/// Space round a card's contents.
+const CARD_PAD: f32 = 20.0;
+const CARD_TOP: f32 = 14.0;
+const CARD_GAP: f32 = 8.0;
+const CARD_BOTTOM: f32 = 18.0;
+
+/// What a card shows: `key` sets it apart from a family of the same name from another source.
+struct Card<'a> {
+    key: &'a str,
+    name: &'a str,
+    meta: &'a str,
+    sample: &'a str,
+    curated: bool,
+    index_position: Option<usize>,
+}
+
+/// What a card shows at its reading end.
+enum CardState {
+    Running(Kind, Option<f32>),
+    Failed(Kind, String, Option<Pending>),
+    Installed,
+    Removable(Vec<FaceInfo>),
+    System,
+    Offer { preview: bool },
+}
+
+impl FontsPanel {
+    pub(crate) fn top_bar(&mut self, ui: &mut Ui) {
+        let s = self.skin.clone();
+        ui.allocate_ui_with_layout(vec2(ui.available_width(), s.h()), direction::row(ui), |ui| {
+            ui.spacing_mut().item_spacing.x = 12.0;
+            let mut tab = self.tab;
+            let browse = self.catalogue.as_ref().map_or(0, |c| c.index.families().len());
+            let options = [
+                Cell { value: Tab::Catalogue, label: tl!("Browse"), count: Some(browse) },
+                Cell { value: Tab::Installed, label: tl!("Installed"), count: Some(self.installed.len()) },
+            ];
+            if widgets::cells_row(ui, &s, &mut tab, &options) {
+                self.set_tab(tab);
+            }
+            let (text, hint) = match self.tab {
+                Tab::Catalogue => (&mut self.query.text, tl!("Search fonts by name")),
+                Tab::Installed => (&mut self.installed_text, tl!("Search installed fonts")),
+            };
+            let field = widgets::field(ui, &s, text, hint, tl!("Search"), ui.available_width(), true);
+            if std::mem::take(&mut self.focus_search) {
+                field.request_focus();
+            }
+            if field.changed() {
+                self.focus_row = None;
+            }
+        });
+    }
+
+    pub(crate) fn sidebar(&mut self, ui: &mut Ui) {
+        let s = self.skin.clone();
+        egui::ScrollArea::vertical().id_salt("craft-fonts.filters").auto_shrink([false, false]).show(ui, |ui| {
+            ui.with_layout(direction::column(ui), |ui| {
+                ui.spacing_mut().item_spacing.y = 8.0;
+                match self.tab {
+                    Tab::Catalogue => self.catalogue_filters(ui, &s),
+                    Tab::Installed => self.installed_filters(ui, &s),
+                }
+                if self.downloads_switch {
+                    ui.add_space(14.0);
+                    ui.painter().hline(ui.max_rect().x_range(), ui.cursor().top(), s.hairline());
+                    ui.add_space(14.0);
+                    widgets::label(ui, &s, tl!("Downloads"), s.p.faint);
+                    let now = ui.input(|i| i.time);
+                    let mut allowed = self.allowed(now);
+                    if ui.checkbox(&mut allowed, tl!("Allow downloads")).changed() {
+                        let _ = self.set_downloads_allowed(allowed);
+                    }
+                    let note = tl!("From each font's source, only when you install or preview a font.");
+                    ui.add(egui::Label::new(egui::RichText::new(note).size(12.0).color(s.p.muted)).wrap());
+                }
+            });
+        });
+    }
+
+    fn catalogue_filters(&mut self, ui: &mut Ui, s: &Skin) {
+        let Ok(c) = &self.catalogue else { return };
+        let index = Arc::clone(&c.index);
+        let width = ui.available_width();
+        widgets::label(ui, s, tl!("Category"), s.p.faint);
+        let mut options = vec![Cell { value: None, label: tl!("All categories"), count: Some(self.category_counts[0]) }];
+        for (n, c) in Category::ALL.iter().enumerate() {
+            options.push(Cell { value: Some(*c), label: crate::panel::app::category_name(*c), count: self.category_counts.get(n + 1).copied() });
+        }
+        if widgets::cells_column(ui, s, &mut self.query.category, &options) {
+            self.focus_row = None;
+        }
+
+        ui.add_space(12.0);
+        widgets::label(ui, s, tl!("Language"), s.p.faint);
+        let language_label = |i: usize| {
+            index.languages().get(i).map_or_else(String::new, |l| match l.autonym.as_deref() {
+                Some(autonym) if autonym != l.name => format!("{} · {autonym}", l.name),
+                _ => l.name.clone(),
+            })
+        };
+        let selected = self.query.language.map_or_else(|| tl!("Any language").to_owned(), language_label);
+        let before = self.query.language;
+        let search = &c.search;
+        let language_text = &mut self.language_text;
+        let query = &mut self.query;
+        let row = ui.spacing().interact_size.y;
+        let header = |ui: &mut Ui| {
+            let field =
+                widgets::field(ui, s, language_text, tl!("Name in English or in the language"), tl!("Find a language"), ui.available_width(), true);
+            if field.gained_focus() || ui.memory(|m| m.focused().is_none()) {
+                field.request_focus();
+            }
+            ui.add_space(4.0);
+            search.languages(language_text)
+        };
+        let rows = |ui: &mut Ui, range: std::ops::Range<usize>, matches: Vec<usize>| {
+            for n in range {
+                if n == 0 {
+                    ui.selectable_value(&mut query.language, None, tl!("Any language"));
+                } else if let Some(&i) = matches.get(n - 1) {
+                    ui.selectable_value(&mut query.language, Some(i), language_label(i));
+                }
+            }
+        };
+        let inner = widgets::select_box("craft-fonts.language", &selected, width).show_rows_with_header(ui, header, row, |m| m.len() + 1, rows);
+        widgets::name(ui, &inner.response, tl!("Language"));
+        if self.query.language != before {
+            self.focus_row = None;
+        }
+
+        ui.add_space(12.0);
+        widgets::label(ui, s, tl!("Script"), s.p.faint);
+        let any = tl!("Any script");
+        let selected = self.query.script.as_deref().and_then(|id| script_name(&index, id)).unwrap_or(any).to_owned();
+        let query = &mut self.query;
+        widgets::select(ui, "craft-fonts.script", tl!("Script"), &selected, width, |ui| {
+            ui.selectable_value(&mut query.script, None, any);
+            for &i in c.search.scripts() {
+                if let Some(script) = index.scripts().get(i) {
+                    ui.selectable_value(&mut query.script, Some(script.id.clone()), &script.name);
+                }
+            }
+        });
+
+        if index.sources().len() > 1 {
+            ui.add_space(12.0);
+            widgets::label(ui, s, tl!("Source"), s.p.faint);
+            let all: usize = self.source_counts.iter().sum();
+            let mut options = vec![Cell { value: None, label: tl!("All sources"), count: Some(all) }];
+            for (n, source) in index.sources().iter().enumerate() {
+                options.push(Cell { value: Some(source.id.clone()), label: &source.name, count: self.source_counts.get(n).copied() });
+            }
+            let mut chosen = self.source.clone();
+            if widgets::cells_column(ui, s, &mut chosen, &options) {
+                self.source = chosen;
+                self.focus_row = None;
+            }
+        }
+
+        ui.add_space(12.0);
+        widgets::label(ui, s, tl!("Show"), s.p.faint);
+        let options = [
+            Cell { value: Show::All, label: tl!("All fonts"), count: Some(self.show_counts[0]) },
+            Cell { value: Show::Installed, label: tl!("Installed"), count: Some(self.show_counts[1]) },
+            Cell { value: Show::NotInstalled, label: tl!("Not installed"), count: Some(self.show_counts[2]) },
+        ];
+        widgets::cells_column(ui, s, &mut self.show, &options);
+
+        let filtered = self.query.category.is_some()
+            || self.query.language.is_some()
+            || self.query.script.is_some()
+            || self.show != Show::All
+            || self.source.is_some();
+        if filtered {
+            ui.add_space(6.0);
+            if widgets::link(ui, s, tl!("Clear filters")).clicked() {
+                self.clear_filters();
+            }
+        }
+    }
+
+    fn clear_filters(&mut self) {
+        self.query.category = None;
+        self.query.language = None;
+        self.query.script = None;
+        self.source = None;
+        self.show = Show::All;
+        self.focus_row = None;
+    }
+
+    fn installed_filters(&mut self, ui: &mut Ui, s: &Skin) {
+        widgets::label(ui, s, tl!("Source"), s.p.faint);
+        let store = self.installed.iter().filter(|f| f.source == Source::Store).count();
+        let options = [
+            Cell { value: Origin::All, label: tl!("All sources"), count: Some(self.installed.len()) },
+            Cell { value: Origin::Store, label: tl!("Font store"), count: Some(store) },
+            Cell { value: Origin::System, label: tl!("System"), count: Some(self.installed.len() - store) },
+        ];
+        widgets::cells_column(ui, s, &mut self.origin, &options);
+        ui.add_space(8.0);
+        let note = tl!("Every Craft app uses the fonts in the font store. System fonts are added and removed with your system's own font tools.");
+        ui.add(egui::Label::new(egui::RichText::new(note).size(12.0).color(s.p.muted)).wrap());
+    }
+
+    pub(crate) fn main(&mut self, ui: &mut Ui) {
+        let s = self.skin.clone();
+        self.toolbar(ui, &s);
+        ui.add_space(12.0);
+        if let Some(notice) = self.notice.clone() {
+            widgets::note(ui, &s, |ui| {
+                ui.add(egui::Label::new(egui::RichText::new(notice).color(s.p.bad)).wrap());
+            });
+            ui.add_space(10.0);
+        }
+        match self.tab {
+            Tab::Catalogue => {
+                self.download_note(ui, &s);
+                self.catalogue_list(ui, &s);
+            }
+            Tab::Installed => self.installed_list(ui, &s),
+        }
+    }
+
+    fn toolbar(&mut self, ui: &mut Ui, s: &Skin) {
+        ui.allocate_ui_with_layout(vec2(ui.available_width(), s.h()), direction::row(ui), |ui| {
+            ui.spacing_mut().item_spacing.x = 10.0;
+            let preset = self.settings.preset;
+            let preset_name = |p: Preset| match p {
+                Preset::Sentence => tl!("Sentence"),
+                Preset::Alphabet => tl!("Alphabet"),
+                Preset::Numerals => tl!("Numerals"),
+            };
+            let settings = &mut self.settings;
+            widgets::select(ui, "craft-fonts.preset", tl!("Sample"), preset_name(preset), 128.0, |ui| {
+                for p in [Preset::Sentence, Preset::Alphabet, Preset::Numerals] {
+                    if ui.selectable_label(preset == p && settings.sample.is_empty(), preset_name(p)).clicked() {
+                        settings.preset = p;
+                        settings.sample.clear();
+                    }
+                }
+            });
+            // The size control at the reading end, the sample text filling the room between.
+            let size_w = 176.0;
+            let hint = self.sample_for(["Latn"]);
+            let field_w = (ui.available_width() - size_w - 10.0).max(120.0);
+            widgets::field(ui, s, &mut self.settings.sample, &hint, tl!("Sample text"), field_w, false);
+            ui.allocate_ui_with_layout(vec2(size_w, s.h()), direction::row(ui), |ui| {
+                ui.spacing_mut(

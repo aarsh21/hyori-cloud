@@ -1,0 +1,237 @@
+//! The details sheet: a family's every style in its own face, its facts and languages, and
+//! installing or removing it whole or a style at a time.
+
+use std::sync::Arc;
+
+use craft_ui::direction;
+use egui::{
+    Align, Color32, Context, CornerRadius, FontFamily, FontId, Id, Layout, Margin, Order, Rect, RichText, Sense, Stroke, StrokeKind, Ui, UiBuilder,
+    vec2,
+};
+
+use crate::index::{Family, FontFile, Index, script_name, source_label};
+use crate::panel::app::{Detail, FontsPanel, Pending, category_label, family_key, regular, source_name, style_count, style_name};
+use crate::panel::faces::Owner;
+use crate::panel::i18n::{self, fmt, tl, tn};
+use crate::panel::jobs::Kind;
+use crate::panel::widgets::{self, Glyph, Skin};
+use crate::{FaceInfo, Source};
+
+/// From this width the sheet reads in two columns.
+const COLUMNS_FROM: f32 = 760.0;
+
+/// What a style row offers at its end.
+enum RowAction {
+    None,
+    Install(String),
+    Remove(Box<FaceInfo>),
+    Running(Option<f32>),
+}
+
+struct StyleRow {
+    label: String,
+    face: Option<(Owner, FaceInfo)>,
+    action: RowAction,
+}
+
+fn weight_name(weight: u16) -> &'static str {
+    match weight {
+        0..=149 => tl!("Thin"),
+        150..=249 => tl!("ExtraLight"),
+        250..=349 => tl!("Light"),
+        350..=449 => tl!("Regular"),
+        450..=549 => tl!("Medium"),
+        550..=649 => tl!("SemiBold"),
+        650..=749 => tl!("Bold"),
+        750..=849 => tl!("ExtraBold"),
+        _ => tl!("Black"),
+    }
+}
+
+/// "Bold Italic", or "Variable 100–900" for a variable file.
+fn file_label(file: &FontFile) -> String {
+    let base = match file.axes.iter().find(|a| a.tag == "wght") {
+        Some(a) => fmt("Variable {from}–{to}", &[("from", &(a.min.round() as u32).to_string()), ("to", &(a.max.round() as u32).to_string())]),
+        None => weight_name(file.weight).to_owned(),
+    };
+    match (file.is_italic(), file.weight) {
+        (true, 350..=449) if file.axes.is_empty() => tl!("Italic").to_owned(),
+        (true, _) => format!("{base} {}", tl!("Italic")),
+        (false, _) => base,
+    }
+}
+
+fn licence_name(id: &str) -> &str {
+    match id {
+        "OFL" => tl!("SIL Open Font License"),
+        "APACHE2" => tl!("Apache License 2.0"),
+        "UFL" => tl!("Ubuntu Font Licence"),
+        other => other,
+    }
+}
+
+fn file_name(face: &FaceInfo) -> Option<String> {
+    face.path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned())
+}
+
+/// The index file a face comes from: by PostScript name, else by weight and slant.
+fn file_of<'a>(family: &'a Family, face: &FaceInfo) -> Option<&'a FontFile> {
+    let by_name = file_name(face).and_then(|n| family.files.iter().find(|f| f.file_name() == n));
+    let by_postscript = || face.postscript_name.as_ref().and_then(|ps| family.files.iter().find(|f| f.postscript.contains(ps)));
+    by_name.or_else(by_postscript).or_else(|| family.files.iter().find(|f| f.has_weight(face.weight.round() as u16, face.italic)))
+}
+
+impl FontsPanel {
+    pub(crate) fn details(&mut self, ctx: &Context, area: Rect) {
+        let open = self.detail.is_some();
+        let k = ctx.animate_bool_with_time(Id::unique("craft-fonts.sheet"), open, ctx.global_style().animation_time * 1.5);
+        let Some(detail) = self.detail.clone() else { return };
+        let s = self.skin.clone();
+        let dark = ctx.theme() == egui::Theme::Dark;
+        let width = (area.width() - 48.0).clamp(300.0, 1040.0).min(area.width());
+        let height = (area.height() - 32.0).max(200.0).min(area.height());
+        let sheet = Rect::from_center_size(area.center() + vec2(0.0, (1.0 - k) * 16.0), vec2(width, height));
+        let mut close = false;
+        egui::Area::new(Id::unique("craft-fonts.details")).order(Order::Foreground).fixed_pos(area.min).constrain(false).show(ctx, |ui| {
+            let (rect, scrim) = ui.allocate_exact_size(area.size(), Sense::click());
+            let alpha = if dark { 165.0 } else { 100.0 } * k;
+            ui.painter().rect_filled(rect, CornerRadius::ZERO, Color32::from_black_alpha(alpha.round() as u8));
+            close |= scrim.clicked();
+            // Clicks on the sheet's own empty space stay on the sheet.
+            let _ = ui.interact(sheet, Id::unique("craft-fonts.sheet-bg"), Sense::click());
+            let painter = ui.painter();
+            painter.add(
+                egui::epaint::Shadow { offset: [0, 8], blur: 24, spread: 0, color: Color32::from_black_alpha(if dark { 140 } else { 36 }) }
+                    .as_shape(sheet, s.look.corner),
+            );
+            painter.rect(sheet, s.look.corner, s.p.bg, Stroke::new(1.0, s.p.line_strong), StrokeKind::Inside);
+            let mut child = ui.new_child(UiBuilder::new().max_rect(sheet).layout(direction::column(ui)));
+            child.set_opacity(k.clamp(0.0, 1.0));
+            child.set_clip_rect(sheet);
+            egui::ScrollArea::vertical().id_salt(("craft-fonts.sheet-scroll", format!("{detail:?}"))).auto_shrink([false, false]).show(
+                &mut child,
+                |ui| {
+                    egui::Frame::new().inner_margin(Margin::same(24)).show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        ui.with_layout(direction::column(ui), |ui| {
+                            ui.spacing_mut().item_spacing.y = 8.0;
+                            close |= match &detail {
+                                Detail::Family(i) => self.family_sheet(ui, &s, *i),
+                                Detail::Installed(name, source) => self.installed_sheet(ui, &s, name, *source),
+                            };
+                        });
+                    });
+                },
+            );
+        });
+        if close {
+            self.detail = None;
+        }
+    }
+
+    /// The eyebrow, the close button and the title; returns whether Close was clicked.
+    fn sheet_header(&mut self, ui: &mut Ui, s: &Skin, eyebrow: &str, title: &str, byline: Option<String>, face: Option<(Owner, FaceInfo)>) -> bool {
+        let mut close = false;
+        // "Aa" in the face, large, at the header's reading end under the close button.
+        if let Some((owner, face)) = face {
+            let catalog = match owner {
+                Owner::Installed => Arc::clone(&self.catalog),
+                Owner::Preview => Arc::clone(&self.previews),
+            };
+            if let crate::panel::faces::Shown::Ready(family) = self.faces.family(ui.ctx(), &catalog, owner, &face) {
+                let top = ui.cursor().top();
+                let end = direction::end_x(ui, ui.max_rect()) - direction::forward(ui) * (s.h() + 24.0);
+                let anchor = if direction::is_rtl(ui) { egui::Align2::LEFT_TOP } else { egui::Align2::RIGHT_TOP };
+                ui.painter().text(egui::pos2(end, top - 14.0), anchor, "Aa", FontId::new(96.0, family), s.p.ink_strong);
+            }
+        }
+        ui.allocate_ui_with_layout(vec2(ui.available_width(), s.h()), direction::row(ui), |ui| {
+            widgets::label(ui, s, eyebrow, s.p.faint);
+            ui.with_layout(direction::trailing(ui), |ui| {
+                close = widgets::glyph_button(ui, s, Glyph::Close, tl!("Close"), s.h()).clicked();
+            });
+        });
+        let title = RichText::new(title).size(30.0).family(s.look.display.clone()).color(s.p.ink_strong).extra_letter_spacing(-0.4);
+        ui.add(egui::Label::new(title).wrap());
+        if let Some(by) = byline {
+            ui.label(RichText::new(by).color(s.p.muted));
+        }
+        ui.add_space(6.0);
+        close
+    }
+
+    fn family_sheet(&mut self, ui: &mut Ui, s: &Skin, i: usize) -> bool {
+        let ctx = ui.ctx().clone();
+        let Some(index) = self.index() else { return true };
+        let Some(family) = index.families().get(i).cloned() else { return true };
+        let key = family_key(&family.source, &family.family);
+        let installed: Vec<FaceInfo> = self.installed_by_name.get(&family.family.to_lowercase()).cloned().unwrap_or_default();
+        let store: Vec<FaceInfo> = installed.iter().filter(|f| f.source == Source::Store).cloned().collect();
+        let on_system = !installed.is_empty() && store.is_empty();
+        let previewed = self.previewed.get(&key).cloned();
+        let job = self.jobs.of(&family.source, &family.family).map(|j| (j.kind, j.file.clone(), j.fraction()));
+        let (source, curated) = source_label(&index, &family);
+        let eyebrow = [source.to_owned(), category_label(&family)].join(" · ");
+        let by = (!family.designer.is_empty()).then(|| fmt("Designed by {designer}", &[("designer", &family.designer)]));
+        let hero = regular(&installed).cloned().map(|f| (Owner::Installed, f));
+        let hero = hero.or_else(|| previewed.as_deref().and_then(regular).cloned().map(|f| (Owner::Preview, f)));
+        let close = self.sheet_header(ui, s, &eyebrow, &family.family, by, hero);
+
+        // Install or remove the whole family.
+        let size = i18n::size(family.size());
+        let all_installed =
+            !installed.is_empty() && (on_system || family.files.iter().all(|f| store.iter().any(|x| file_name(x).as_deref() == Some(f.file_name()))));
+        ui.allocate_ui_with_layout(vec2(ui.available_width(), s.h()), direction::row(ui), |ui| {
+            ui.spacing_mut().item_spacing.x = 10.0;
+            match &job {
+                Some((kind, None, fraction)) => {
+                    let what = match kind {
+                        Kind::Install => tl!("Installing"),
+                        Kind::Remove => tl!("Removing"),
+                        Kind::Preview => tl!("Downloading"),
+                    };
+                    self.progress(ui, s, what, *fraction, 220.0);
+                }
+                _ => {
+                    if all_installed {
+                        widgets::badge(ui, s, if on_system { tl!("Installed on this system") } else { tl!("Installed") }, s.p.good, true);
+                    } else if widgets::button(ui, s, tl!("Install all"), widgets::Kind::Primary, s.h(), 0.0).clicked() {
+                        self.ask(&ctx, Pending::Install(i));
+                    }
+                    if !store.is_empty() && widgets::button(ui, s, tl!("Remove all"), widgets::Kind::Danger, s.h(), 0.0).clicked() {
+                        self.remove(&ctx, &family.family, &store, true);
+                    }
+                    if installed.is_empty()
+                        && previewed.is_none()
+                        && widgets::button(ui, s, tl!("Preview"), widgets::Kind::Secondary, s.h(), 0.0).clicked()
+                    {
+                        self.ask(&ctx, Pending::Preview(i));
+                    }
+                    widgets::label(ui, s, &fmt("{size} download", &[("size", &size)]), s.p.faint);
+                }
+            }
+        });
+        if installed.is_empty() && previewed.is_none() {
+            let note = fmt("Preview downloads this font ({size}) for this session without installing it.", &[("size", &size)]);
+            ui.label(RichText::new(note).size(12.5).color(s.p.muted));
+        }
+        if !curated {
+            ui.add_space(4.0);
+            let added = index.source_of(&family).and_then(|f| f.user_url.clone()).unwrap_or_default();
+            widgets::note(ui, s, |ui| {
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    ui.label(RichText::new(tl!("Not curated")).color(s.p.warn));
+                    let text = fmt(
+                        "This family comes from a source you added ({url}). Craft doesn't review its fonts or their licences.",
+                        &[("url", &added)],
+                    );
+                    ui.add(egui::Label::new(RichText::new(text).size(12.5).color(s.p.muted)).wrap());
+                });
+            });
+        }
+        if let Some(failure) = self.failed.get(&key).cloned() {
+            ui.add_space(4.0);
+            let what = match failure.kind {
+                Kind::Install => tl!("Couldn't install"),
+  

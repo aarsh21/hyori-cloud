@@ -1,0 +1,145 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/epaint_default_fonts/fonts/emoji-icon-font-mit-license.txt",
+      "sha256": "b9d2c1d909aa149996fd4c91dcb92b2362a04431640c1d200959da94caf8cde1",
+      "lines": [
+        {
+          "line": 3,
+          "text": "Copyright (c) 2014 John Slegers"
+        },
+        {
+          "line": 7,
+          "text": "The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software."
+        },
+        {
+          "line": 9,
+          "text": "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+        }
+      ]
+    },
+    {
+      "path": "crates/epaint_default_fonts/fonts/Hack-Regular.txt",
+      "sha256": "47c0cccbeec7e8614548cc485588b28149e7874188df5f41b36efebcee285c87",
+      "lines": [
+        {
+          "line": 1,
+          "text": "The work in the Hack project is Copyright 2018 Source Foundry Authors and licensed under the MIT License"
+        },
+        {
+          "line": 5,
+          "text": "Bitstream Vera Sans Mono Copyright 2003 Bitstream Inc. and licensed under the Bitstream Vera License with Reserved Font Names \"Bitstream\" and \"Vera\""
+        },
+        {
+          "line": 8,
+          "text": "Copyright (c) 2018 Source Foundry Authors"
+        },
+        {
+          "line": 12,
+          "text": "The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software."
+        },
+        {
+          "line": 14,
+          "text": "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+        },
+        {
+          "line": 17,
+          "text": "Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream Vera is a trademark of Bitstream, Inc."
+        },
+        {
+          "line": 21,
+          "text": "The above copyright and trademark notices and this permission notice shall be included in all copies of one or more of the Font Software typefaces."
+        },
+        {
+          "line": 29,
+          "text": "THE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL BITSTREAM OR THE GNOME FOUNDATION BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE."
+        }
+      ]
+    },
+    {
+      "path": "crates/epaint_default_fonts/fonts/OFL.txt",
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "lines": [
+        {
+          "line": 28,
+          "text": "\"Font Software\" refers to the set of files released by the Copyright"
+        },
+        {
+          "line": 33,
+          "text": "copyright statement(s)."
+        },
+        {
+          "line": 36,
+          "text": "components as distributed by the Copyright Holder(s)."
+        },
+        {
+          "line": 57,
+          "text": "contains the above copyright notice and this license. These can be"
+        },
+        {
+          "line": 64,
+          "text": "corresponding Copyright Holder. This restriction only applies to the"
+        },
+        {
+          "line": 67,
+          "text": "4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font"
+        },
+        {
+          "line": 70,
+          "text": "Copyright Holder(s) and the Author(s) or with their explicit written"
+        },
+        {
+          "line": 87,
+          "text": "OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE"
+        },
+        {
+          "line": 88,
+          "text": "COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,"
+        }
+      ]
+    },
+    {
+      "path": "crates/epaint_default_fonts/fonts/UFL.txt",
+      "sha256": "2f0015108d68627bd788d313f529c21ff4da2c2c42a5e1f3883acc83480f9002",
+      "lines": [
+        {
+          "line": 17,
+          "text": "\"Font Software\" refers to the set of files released by the Copyright"
+        },
+        {
+          "line": 29,
+          "text": "\"Copyright Holder(s)\" refers to all individuals and companies who have a"
+        },
+        {
+          "line": 30,
+          "text": "copyright ownership of the Font Software."
+        },
+        {
+          "line": 38,
+          "text": "infringement under applicable copyright law, except executing it on a"
+        },
+        {
+          "line": 52,
+          "text": "1) Each copy of the Font Software must contain the above copyright"
+        },
+        {
+          "line": 69,
+          "text": "3) The name(s) of the Copyright Holder(s) and any contributor to the"
+        },
+        {
+          "line": 72,
+          "text": "acknowledge the contribution(s) of the Copyright Holder(s) or (iii) with"
+        },
+        {
+          "line": 91,
+          "text": "COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE"
+        },
+        {
+          "line": 92,
+          "text": "COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,"
+        }
+      ]
+    }
+  ]
+}

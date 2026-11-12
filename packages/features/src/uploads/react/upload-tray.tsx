@@ -25,11 +25,16 @@ function summaryTitle({ total, active, failed, complete }: UploadSummary) {
 }
 
 /** Only rows subscribe to their task's progress, so one transfer never rerenders the tray. */
-export function UploadTray() {
+export function UploadTray({
+  defaultCollapsed = false,
+}: {
+  /** Over a screen that needs the room, such as an open document, the tray starts as its header. */
+  defaultCollapsed?: boolean;
+}) {
   const queue = useUploadQueue();
   const entries = useUploadEntries(queue);
   const summary = useUploadSummary(queue);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   if (entries.length === 0) return null;
 
@@ -47,6 +52,8 @@ export function UploadTray() {
           variant="ghost"
           aria-label={collapsed ? "Show uploads" : "Hide uploads"}
           aria-expanded={!collapsed}
+          // The open tray shows for itself, so its toggle doesn't stay filled like an open menu.
+          className="not-hover:aria-expanded:bg-transparent not-hover:aria-expanded:text-muted-foreground"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronLeft className="rotate-90" /> : <ChevronDown />}
@@ -66,9 +73,9 @@ export function UploadTray() {
 function UploadRow({ entry }: { entry: UploadEntry }) {
   switch (entry.state) {
     case "waiting":
-      return <WaitingUploadRow id={entry.id} name={entry.file.name} />;
+      return <WaitingUploadRow id={entry.id} intent={entry.intent} />;
     case "started":
-      return <StartedUploadRow id={entry.id} name={entry.name} task={entry.task} />;
+      return <StartedUploadRow id={entry.id} task={entry.task} retryQueued={entry.retryQueued} />;
     case "interrupted":
       return <InterruptedUploadRow entry={entry} />;
   }

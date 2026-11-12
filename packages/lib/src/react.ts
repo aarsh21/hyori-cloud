@@ -7,6 +7,7 @@ export {
   createElement,
   forwardRef,
   isValidElement,
+  lazy,
   memo,
   startTransition,
   use,

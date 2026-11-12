@@ -1,0 +1,25 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "a097c46f254121cb860554e83ea6b5b5f110890260c56feb44b2c870e774715e",
+      "lines": [
+        {
+          "line": 107,
+          "text": "### Copyright"
+        }
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "fb3b7eac9010fbf45df18cb5b3b3552b3cf2104d96a0f6bf07b3771189dc37b7",
+      "lines": [
+        {
+          "line": 99,
+          "text": "//! ## Copyright"
+        }
+      ]
+    }
+  ]
+}

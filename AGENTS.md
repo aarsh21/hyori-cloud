@@ -2,7 +2,7 @@
 
 ## Product direction
 
-Build a Nextcloud alternative with React and TanStack Start, SurrealDB as the application backend and database, and RustFS for file/object storage. Use shadcn/ui and Tailwind CSS for the interface. Use `README.md` and `packages/api/README.md` for implementation coverage and known limits; approved product scope is not evidence of completion.
+Build a Nextcloud alternative with React and TanStack Start, a Rust application backend with PostgreSQL and Better Auth Rust, and RustFS for file/object storage. The Rust/PostgreSQL rewrite is authorized; replace the legacy backend without deleting existing deployment data or silently dropping product capabilities. Use shadcn/ui and Tailwind CSS for the interface. Use `README.md` and `packages/api/README.md` for implementation coverage and known limits; approved product scope is not evidence of completion.
 
 ## Design is a core requirement
 
@@ -35,11 +35,15 @@ Optimize both measured and perceived speed. A polished interface must remain res
 - Profile affected user journeys when changing a hot path. Report measured results and remaining bottlenecks rather than calling unmeasured code fast.
 - Preserve authorization, data integrity, and durability while optimizing.
 
+## Rust implementation
+
+For Rust implementation or review, load `rust-best-practices` and read its affected references in parallel. The installed source is `.claude/skills/rust-best-practices/SKILL.md`; provenance and license are recorded in `.agents/skills/UPSTREAM.md`. Product invariants and the repository's architecture rules take precedence over generic examples. Verify compiler and thread-safety claims against the actual toolchain.
+
 ## Architecture: Fernando Rojo's product engineering
 
 Architecture decisions must follow Fernando Rojo's product-engineering approach. For architecture, API/SDK design, or React feature boundaries, load `fernando-product-engineering` and follow its adoption contract and affected references before implementation. Report an unavailable skill rather than silently skipping its requirements.
 
-- **Consumer-first contracts:** Design the public API/SDK call site before the UI. Define runtime schemas once in the owning feature; derive types, RPC, SDK, and Query consumption rather than maintaining parallel contracts.
+- **Consumer-first contracts:** Design the public API/SDK call site before the UI. Rust feature APIs own wire schemas and operation metadata; derive TypeScript runtime codecs, types, RPC, SDK, and Query consumption mechanically. Run `contracts:check` when changing that boundary. The Rust rewrite supersedes Effect-specific no-codegen/backend recipes, not the skill's ownership and consumption requirements.
 - **Server-owned behavior:** Keep authorization, domain rules, and orchestration behind documented product operations. UI and SDK consumers must not reconstruct backend workflows.
 - **Owned boundaries:** Inject narrow capabilities at their composition owner, encapsulate vendor dependencies, and consume packages through deliberate public exports. Keep vanilla core/SDK code separate from React and host adapters.
 - **Composable React:** Apps own bootstrap and shared infrastructure; features compose owned state, hooks, and design-system components. Follow the skill's cache, provider, effect, and state-rendering requirements.

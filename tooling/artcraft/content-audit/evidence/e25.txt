@@ -1,0 +1,39 @@
+{
+  "offset": 5123220,
+  "bytes": 231986,
+  "sha256": "333a7a6fbb4f1af95b43091f16fd6d3b06a423574608536d61c0ed8d3c3c4f01",
+  "names": [
+    {
+      "id": 0,
+      "text": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/georgian)"
+    },
+    {
+      "id": 1,
+      "text": "Noto Sans Georgian"
+    },
+    {
+      "id": 2,
+      "text": "Regular"
+    },
+    {
+      "id": 3,
+      "text": "2.005;GOOG;NotoSansGeorgian-Regular"
+    },
+    {
+      "id": 4,
+      "text": "Noto Sans Georgian Regular"
+    },
+    {
+      "id": 6,
+      "text": "NotoSansGeorgian-Regular"
+    },
+    {
+      "id": 13,
+      "text": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org"
+    },
+    {
+      "id": 14,
+      "text": "https://openfontlicense.org"
+    }
+  ]
+}

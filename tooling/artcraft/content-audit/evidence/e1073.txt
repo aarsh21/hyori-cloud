@@ -1,0 +1,374 @@
+// This file is part of ICU4X. For terms of use, please see the file
+// called LICENSE at the top level of the ICU4X source tree
+// (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+#[cfg(feature = "databake")]
+mod databake;
+
+#[cfg(feature = "serde")]
+mod serde;
+
+mod slice;
+
+pub use slice::ZeroSlice;
+pub use slice::ZeroSliceIter;
+
+use crate::ule::*;
+#[cfg(feature = "alloc")]
+use alloc::borrow::Cow;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+use core::cmp::{Ord, Ordering, PartialOrd};
+use core::fmt;
+#[cfg(feature = "alloc")]
+use core::iter::FromIterator;
+use core::marker::PhantomData;
+use core::num::NonZeroUsize;
+use core::ops::Deref;
+use core::ptr::NonNull;
+
+/// A zero-copy, byte-aligned vector for fixed-width types.
+///
+/// `ZeroVec<T>` is designed as a drop-in replacement for `Vec<T>` in situations where it is
+/// desirable to borrow data from an unaligned byte slice, such as zero-copy deserialization.
+///
+/// `T` must implement [`AsULE`], which is auto-implemented for a number of built-in types,
+/// including all fixed-width multibyte integers. For variable-width types like [`str`],
+/// see [`VarZeroVec`](crate::VarZeroVec). [`zerovec::make_ule`](crate::make_ule) may
+/// be used to automatically implement [`AsULE`] for a type and generate the underlying [`ULE`] type.
+///
+/// Typically, the zero-copy equivalent of a `Vec<T>` will simply be `ZeroVec<'a, T>`.
+///
+/// Most of the methods on `ZeroVec<'a, T>` come from its [`Deref`] implementation to [`ZeroSlice<T>`](ZeroSlice).
+///
+/// For creating zero-copy vectors of fixed-size types, see [`VarZeroVec`](crate::VarZeroVec).
+///
+/// `ZeroVec<T>` behaves much like [`Cow`](alloc::borrow::Cow), where it can be constructed from
+/// owned data (and then mutated!) but can also borrow from some buffer.
+///
+/// # Example
+///
+/// ```
+/// use zerovec::ZeroVec;
+///
+/// // The little-endian bytes correspond to the numbers on the following line.
+/// let nums: &[u16] = &[211, 281, 421, 461];
+///
+/// #[derive(serde::Serialize, serde::Deserialize)]
+/// struct Data<'a> {
+///     #[serde(borrow)]
+///     nums: ZeroVec<'a, u16>,
+/// }
+///
+/// // The owned version will allocate
+/// let data = Data {
+///     nums: ZeroVec::alloc_from_slice(nums),
+/// };
+/// let bincode_bytes =
+///     bincode::serialize(&data).expect("Serialization should be successful");
+///
+/// // Will deserialize without allocations
+/// let deserialized: Data = bincode::deserialize(&bincode_bytes)
+///     .expect("Deserialization should be successful");
+///
+/// // This deserializes without allocation!
+/// assert!(!deserialized.nums.is_owned());
+/// assert_eq!(deserialized.nums.get(2), Some(421));
+/// assert_eq!(deserialized.nums, nums);
+/// ```
+///
+/// [`ule`]: crate::ule
+///
+/// # How it Works
+///
+/// `ZeroVec<T>` represents a slice of `T` as a slice of `T::ULE`. The difference between `T` and
+/// `T::ULE` is that `T::ULE` must be encoded in little-endian with 1-byte alignment. When accessing
+/// items from `ZeroVec<T>`, we fetch the `T::ULE`, convert it on the fly to `T`, and return `T` by
+/// value.
+///
+/// Benchmarks can be found in the project repository, with some results found in the [crate-level documentation](crate).
+///
+/// See [the design doc](https://github.com/unicode-org/icu4x/blob/main/utils/zerovec/design_doc.md) for more details.
+pub struct ZeroVec<'a, T>
+where
+    T: AsULE,
+{
+    vector: EyepatchHackVector<T::ULE>,
+
+    /// Marker type, signalling variance and dropck behavior
+    /// by containing all potential types this type represents
+    marker1: PhantomData<T::ULE>,
+    marker2: PhantomData<&'a T::ULE>,
+}
+
+// Send inherits as long as all fields are Send, but also references are Send only
+// when their contents are Sync (this is the core purpose of Sync), so
+// we need a Send+Sync bound since this struct can logically be a vector or a slice.
+unsafe impl<'a, T: AsULE> Send for ZeroVec<'a, T> where T::ULE: Send + Sync {}
+// Sync typically inherits as long as all fields are Sync
+unsafe impl<'a, T: AsULE> Sync for ZeroVec<'a, T> where T::ULE: Sync {}
+
+impl<'a, T: AsULE> Deref for ZeroVec<'a, T> {
+    type Target = ZeroSlice<T>;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+// Represents an unsafe potentially-owned vector/slice type, without a lifetime
+// working around dropck limitations.
+//
+// Must either be constructed by deconstructing a Vec<U>, or from &[U] with capacity set to
+// zero. Should not outlive its source &[U] in the borrowed case; this type does not in
+// and of itself uphold this guarantee, but the .as_slice() method assumes it.
+//
+// After https://github.com/rust-lang/rust/issues/34761 stabilizes,
+// we should remove this type and use #[may_dangle]
+struct EyepatchHackVector<U> {
+    /// Pointer to data
+    /// This pointer is *always* valid, the reason it is represented as a raw pointer
+    /// is that it may logically represent an `&[T::ULE]` or the ptr,len of a `Vec<T::ULE>`
+    buf: NonNull<[U]>,
+    #[cfg(feature = "alloc")]
+    /// Borrowed if zero. Capacity of buffer above if not
+    capacity: usize,
+}
+
+impl<U> EyepatchHackVector<U> {
+    // Return a slice to the inner data for an arbitrary caller-specified lifetime
+    #[inline]
+    unsafe fn as_arbitrary_slice<'a>(&self) -> &'a [U] {
+        self.buf.as_ref()
+    }
+    // Return a slice to the inner data
+    #[inline]
+    const fn as_slice<'a>(&'a self) -> &'a [U] {
+        // Note: self.buf.as_ref() is not const until 1.73
+        unsafe { &*(self.buf.as_ptr() as *const [U]) }
+    }
+
+    /// Return this type as a vector
+    ///
+    /// Data MUST be known to be owned beforehand
+    ///
+    /// Because this borrows self, this is effectively creating two owners to the same
+    /// data, make sure that `self` is cleaned up after this
+    ///
+    /// (this does not simply take `self` since then it wouldn't be usable from the Drop impl)
+    #[cfg(feature = "alloc")]
+    unsafe fn get_vec(&self) -> Vec<U> {
+        debug_assert!(self.capacity != 0);
+        let slice: &[U] = self.as_slice();
+        let len = slice.len();
+        // Safety: we are assuming owned, and in owned cases
+        // this always represents a valid vector
+        Vec::from_raw_parts(self.buf.as_ptr() as *mut U, len, self.capacity)
+    }
+
+    fn truncate(&mut self, max: usize) {
+        // We must take care not to materialize an `&mut` here, otherwise we will
+        // have overlapping references
+        let buf_ptr: *mut [U] = self.buf.as_ptr();
+        // SAFETY:
+        // - The elements in buf are `ULE`, so they don't need to be dropped even if we own them.
+        // - self.buf is a valid, nonnull slice pointer, since it comes from a NonNull and the struct
+        //   invariant requires validity.
+        // - Because of the `min`, we are guaranteed to be constructing a slice of the same length or
+        //   smaller, from the same pointer, so it will be valid as well, and similarly non-null.
+        self.buf = unsafe {
+            NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
+                // Remove the DST
+                buf_ptr.cast::<U>(),
+                core::cmp::min(max, self.buf.as_ref().len()),
+            ))
+        };
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<U> Drop for EyepatchHackVector<U> {
+    #[inline]
+    fn drop(&mut self) {
+        if self.capacity != 0 {
+            unsafe {
+                // we don't need to clean up self here since we're already in a Drop impl
+                let _ = self.get_vec();
+            }
+        }
+    }
+}
+
+impl<'a, T: AsULE> Clone for ZeroVec<'a, T> {
+    fn clone(&self) -> Self {
+        #[cfg(feature = "alloc")]
+        if self.is_owned() {
+            return ZeroVec::new_owned(self.as_ule_slice().into());
+        }
+        Self {
+            vector: EyepatchHackVector {
+                buf: self.vector.buf,
+                #[cfg(feature = "alloc")]
+                capacity: 0,
+            },
+            marker1: PhantomData,
+            marker2: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: AsULE> AsRef<ZeroSlice<T>> for ZeroVec<'a, T> {
+    fn as_ref(&self) -> &ZeroSlice<T> {
+        self.as_slice()
+    }
+}
+
+impl<T> fmt::Debug for ZeroVec<'_, T>
+where
+    T: AsULE + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ZeroVec([")?;
+        let mut first = true;
+        for el in self.iter() {
+            if !first {
+                write!(f, ", ")?;
+            }
+            write!(f, "{el:?}")?;
+            first = false;
+        }
+        write!(f, "])")
+    }
+}
+
+impl<T> Eq for ZeroVec<'_, T> where T: AsULE + Eq {}
+
+impl<'a, 'b, T> PartialEq<ZeroVec<'b, T>> for ZeroVec<'a, T>
+where
+    T: AsULE,
+{
+    #[inline]
+    fn eq(&self, other: &ZeroVec<'b, T>) -> bool {
+        self.as_slice().eq(other)
+    }
+}
+
+impl<T> PartialEq<[T]> for ZeroVec<'_, T>
+where
+    T: AsULE + PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &[T]) -> bool {
+        self.as_slice().eq(other)
+    }
+}
+
+impl<T> PartialEq<&[T]> for ZeroVec<'_, T>
+where
+    T: AsULE + PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &&[T]) -> bool {
+        self.as_slice().eq(other)
+    }
+}
+
+impl<T, const N: usize> PartialEq<[T; N]> for ZeroVec<'_, T>
+where
+    T: AsULE + PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &[T; N]) -> bool {
+        self.as_slice().eq(other)
+    }
+}
+
+impl<'a, T: AsULE> Default for ZeroVec<'a, T> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a, T: AsULE + PartialOrd> PartialOrd for ZeroVec<'a, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.as_slice().partial_cmp(other)
+    }
+}
+
+impl<'a, T: AsULE + Ord> Ord for ZeroVec<'a, T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_slice().cmp(other)
+    }
+}
+
+impl<'a, T: AsULE> core::hash::Hash for ZeroVec<'a, T> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.as_slice().hash(state);
+    }
+}
+
+impl<'a, T: AsULE> AsRef<[T::ULE]> for ZeroVec<'a, T> {
+    fn as_ref(&self) -> &[T::ULE] {
+        self.as_ule_slice()
+    }
+}
+
+impl<'a, T: AsULE> From<&'a [T::ULE]> for ZeroVec<'a, T> {
+    fn from(other: &'a [T::ULE]) -> Self {
+        ZeroVec::new_borrowed(other)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'a, T: AsULE> From<Vec<T::ULE>> for ZeroVec<'a, T> {
+    fn from(other: Vec<T::ULE>) -> Self {
+        ZeroVec::new_owned(other)
+    }
+}
+
+impl<'a, T: AsULE> ZeroVec<'a, T> {
+    /// Creates a new, borrowed, empty `ZeroVec<T>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use zerovec::ZeroVec;
+    ///
+    /// let zv: ZeroVec<u16> = ZeroVec::new();
+    /// assert!(zv.is_empty());
+    /// ```
+    #[inline]
+    pub const fn new() -> Self {
+        Self::new_borrowed(&[])
+    }
+
+    /// Same as `ZeroSlice::len`, which is available through `Deref` and not `const`.
+    pub const fn const_len(&self) -> usize {
+        self.vector.as_slice().len()
+    }
+
+    /// Creates a new owned [`ZeroVec`] using an existing
+    /// allocated backing buffer
+    ///
+    /// If you have a slice of `&[T]`s, prefer using
+    /// [`Self::alloc_from_slice()`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    #[inline]
+    #[cfg(feature = "alloc")]
+    pub fn new_owned(vec: Vec<T::ULE>) -> Self {
+        // Deconstruct the vector into parts
+        // This is the only part of the code that goes from Vec
+        // to ZeroVec, all other such operations should use this function
+        let capacity = vec.capacity();
+        let len = vec.len();
+        let ptr = core::mem::ManuallyDrop::new(vec).as_mut_ptr();
+        // Safety: `ptr` comes from Vec::as_mut_ptr, which says:
+        // "Returns an unsafe mutable pointer to the vector’s buffer,
+        // or a dangling raw pointer valid for zero sized reads"
+        let ptr = unsafe { NonNull::new_unchecked(ptr) };
+        let buf = NonNull::slice_from_raw_parts(ptr, len);
+        Self {
+            vector: EyepatchHackVector { buf, capacity },
+            marker1: Phant

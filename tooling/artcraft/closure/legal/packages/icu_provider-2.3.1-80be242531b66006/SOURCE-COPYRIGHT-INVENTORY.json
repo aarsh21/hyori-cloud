@@ -1,0 +1,19 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/marker.rs",
+      "sha256": "aa9a396e0daa9b7bb537ecb30a2f5a2a8dc82c645140fac02f26e04cb64a0e1f",
+      "lines": [
+        {
+          "line": 254,
+          "text": "    // Copyright 2015 The Rust Project Developers. See the COPYRIGHT"
+        },
+        {
+          "line": 256,
+          "text": "    // http://rust-lang.org/COPYRIGHT."
+        }
+      ]
+    }
+  ]
+}

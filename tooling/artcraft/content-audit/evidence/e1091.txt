@@ -1,0 +1,1 @@
+{"asset":"gridcraft-45f84b7721cb79a9.ico","sha256":"f5693fcf3f71695d5ab332d24377c80e0315f952c24ae1eb3b4203bad9ea7f07","sourceMembers":["assets/app-icon/gridcraft.ico"]}

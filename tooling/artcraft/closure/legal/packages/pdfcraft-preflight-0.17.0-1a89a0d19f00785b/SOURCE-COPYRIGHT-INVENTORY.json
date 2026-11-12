@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "crates/preflight/src/icc.rs",
+      "sha256": "965d4714d20b113a759035d2e496939fe7b9bac2e37ba08c0cea231501a689f7",
+      "lines": [
+        {
+          "line": 52,
+          "text": "        (b\"cprt\", text(\"No copyright, use freely\")),"
+        }
+      ]
+    }
+  ]
+}

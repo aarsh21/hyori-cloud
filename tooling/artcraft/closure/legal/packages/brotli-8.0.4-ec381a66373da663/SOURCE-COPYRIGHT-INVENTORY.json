@@ -1,0 +1,15 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "src/enc/entropy_encode.rs",
+      "sha256": "1427f28f081792415f7ab352ece9d0820d7ab07e2318c0d4d190cd96131e32ab",
+      "lines": [
+        {
+          "line": 1,
+          "text": "/* Copyright 2010 Google Inc. All Rights Reserved."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,268 @@
+// Copyright Mozilla Foundation. See the COPYRIGHT
+// file at the top-level directory of this distribution.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+use super::*;
+use crate::ascii::ascii_to_basic_latin;
+use crate::ascii::basic_latin_to_ascii;
+use crate::ascii::validate_ascii;
+use crate::handles::*;
+use crate::mem::convert_utf16_to_utf8_partial;
+use crate::variant::*;
+
+cfg_if! {
+    if #[cfg(feature = "simd-accel")] {
+        use ::core::intrinsics::unlikely;
+        use ::core::intrinsics::likely;
+    } else {
+        #[inline(always)]
+        fn unlikely(b: bool) -> bool {
+            b
+        }
+        #[inline(always)]
+        fn likely(b: bool) -> bool {
+            b
+        }
+    }
+}
+
+#[repr(align(64))] // Align to cache lines
+pub struct Utf8Data {
+    pub table: [u8; 384],
+}
+
+// BEGIN GENERATED CODE. PLEASE DO NOT EDIT.
+// Instead, please regenerate using generate-encoding-data.py
+
+pub static UTF8_DATA: Utf8Data = Utf8Data {
+    table: [
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 84, 148, 148, 148,
+        148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 148, 164, 164, 164, 164, 164,
+        164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164, 164,
+        164, 164, 164, 164, 164, 164, 164, 164, 164, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252, 252,
+        252, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+        4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 32, 8, 8, 64, 8, 8, 8, 128, 4,
+        4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    ],
+};
+
+// END GENERATED CODE
+
+// The UTF-8 validation code provided by this crate is faster than the UTF-8 validation code
+// provided by the standard library. When SIMD is used, the simdutf8 crate is much faster
+// than the code here. However, when SIMD isn't used, simdutf8 delegates to the standard
+// library and not here. To use the code here when SSE 4.2 isn't available for simdutf8
+// to use, let's implement custom dispatch here. As a bonus, the `core_detect` crate
+// works without `std`.
+
+cfg_if! {
+    if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, NEON availability on aarch64, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::aarch64::neon::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "avx2")] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, AVX2 availability, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "sse4.2")] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                if core_detect::is_x86_feature_detected!("avx2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, AVX2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else {
+                    // SAFETY: The cfg check above ensures that the precondition, SSE 4.2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::sse42::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                }
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(target_feature = "sse")] { // "sse" stands in for cpuid availability
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                if core_detect::is_x86_feature_detected!("avx2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, AVX2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::avx2::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else if core_detect::is_x86_feature_detected!("sse4.2") {
+                    // SAFETY: The dynamic check above ensures that the precondition, SSE 4.2 availability, is satisfied.
+                    Some(match unsafe { simdutf8::compat::imp::x86::sse42::validate_utf8(src) } {
+                        Ok(_) => src.len(),
+                        Err(e) => e.valid_up_to(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    } else if #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))] {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(src: &[u8]) -> Option<usize> {
+            if src.len() >= 64 {
+                // SAFETY: The cfg check above ensures that the precondition, simd128 availability on wasm32, is satisfied.
+                Some(match unsafe { simdutf8::compat::imp::wasm32::simd128::validate_utf8(src) } {
+                    Ok(_) => src.len(),
+                    Err(e) => e.valid_up_to(),
+                })
+            } else {
+                None
+            }
+        }
+    } else {
+        #[inline(always)]
+        fn fast_utf8_valid_up_to(_src: &[u8]) -> Option<usize> {
+            None
+        }
+    }
+}
+
+pub fn utf8_valid_up_to(src: &[u8]) -> usize {
+    if let Some(up_to) = fast_utf8_valid_up_to(src) {
+        return up_to;
+    }
+
+    let mut read = 0;
+    'outer: loop {
+        let mut byte = {
+            let src_remaining = &src[read..];
+            match validate_ascii(src_remaining) {
+                None => {
+                    return src.len();
+                }
+                Some((non_ascii, consumed)) => {
+                    read += consumed;
+                    non_ascii
+                }
+            }
+        };
+        // Check for the longest sequence to avoid checking twice for the
+        // multi-byte sequences. This can't overflow with 64-bit address space,
+        // because full 64 bits aren't in use. In the 32-bit PAE case, for this
+        // to overflow would mean that the source slice would be so large that
+        // the address space of the process would not have space for any code.
+        // Therefore, the slice cannot be so long that this would overflow.
+        if likely(read + 4 <= src.len()) {
+            'inner: loop {
+                // At this point, `byte` is not included in `read`, because we
+                // don't yet know that a) the UTF-8 sequence is valid and b) that there
+                // is output space if it is an astral sequence.
+                // Inspecting the lead byte directly is faster than what the
+                // std lib does!
+                if likely(in_inclusive_range8(byte, 0xC2, 0xDF)) {
+                    // Two-byte
+                    let second = unsafe { *(src.get_unchecked(read + 1)) };
+                    if !in_inclusive_range8(second, 0x80, 0xBF) {
+                        break 'outer;
+                    }
+                    read += 2;
+
+                    // Next lead (manually inlined)
+                    if likely(read + 4 <= src.len()) {
+                        byte = unsafe { *(src.get_unchecked(read)) };
+                        if byte < 0x80 {
+                            read += 1;
+                            continue 'outer;
+                        }
+                        continue 'inner;
+                    }
+                    break 'inner;
+                }
+                if likely(byte < 0xF0) {
+                    'three: loop {
+                        // Three-byte
+                        let second = unsafe { *(src.get_unchecked(read + 1)) };
+                        let third = unsafe { *(src.get_unchecked(read + 2)) };
+                        if ((UTF8_DATA.table[usize::from(second)]
+                            & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) })
+                            | (third >> 6))
+                            != 2
+                        {
+                            break 'outer;
+                        }
+                        read += 3;
+
+                        // Next lead (manually inlined)
+                        if likely(read + 4 <= src.len()) {
+                            byte = unsafe { *(src.get_unchecked(read)) };
+                            if in_inclusive_range8(byte, 0xE0, 0xEF) {
+                                continue 'three;
+                            }
+                            if likely(byte < 0x80) {
+                                read += 1;
+                                continue 'outer;
+                            }
+                            continue 'inner;
+                        }
+                        break 'inner;
+                    }
+                }
+                // Four-byte
+                let second = unsafe { *(src.get_unchecked(read + 1)) };
+                let third = unsafe { *(src.get_unchecked(read + 2)) };
+                let fourth = unsafe { *(src.get_unchecked(read + 3)) };
+                if (u16::from(
+                    UTF8_DATA.table[usize::from(second)]
+                        & unsafe { *(UTF8_DATA.table.get_unchecked(byte as usize + 0x80)) },
+                ) | u16::from(third >> 6)
+                    | (u16::from(fourth & 0xC0) << 2))
+                    != 0x202
+                {
+                    break 'outer;
+                }
+                read += 4;
+
+                // Next lead
+                if likely(read + 4 <= src.len()) {
+                    byte = unsafe { *(src.get_unchecked(read)) };
+                    if byte < 0x80 {
+                        read += 1;
+                        continue 'outer;
+     

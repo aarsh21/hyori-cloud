@@ -1,6 +1,6 @@
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { useQueryClient } from "@hyori-cloud/lib/query";
-import { createContext, use } from "@hyori-cloud/lib/react";
+import { createContext, useContext } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
 import type { CloudError } from "#features/shared/cloud-error.ts";
@@ -27,7 +27,7 @@ export const AccessRecoveryProvider = AccessRecoveryContext;
  * would keep failing. Only AuthBoundary observes `auth.status`, which is what makes sign-in appear.
  */
 export function useAccessRecoveryPolicy(): AccessRecoveryPolicy {
-  const policy = use(AccessRecoveryContext);
+  const policy = useContext(AccessRecoveryContext);
   const { query } = useClientSDK();
   const queryClient = useQueryClient();
 
@@ -58,7 +58,7 @@ export function AccessRecoveryButton({
   onRecovered,
 }: {
   recovery: AccessRecovery;
-  size?: "default" | "sm" | "xs";
+  size?: "lg" | "default" | "sm" | "xs";
   onRecovered?: () => void;
 }) {
   return (

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-embedded-fonts",
+  "app": "deckcraft",
+  "purpose": "Inter is DeckCraft's default theme and interface font. Upstream's web release embeds no craft-fonts face, so every new presentation showed \"Inter isn't installed on this computer\" and drew in a fallback face.",
+  "source": {
+    "repository": "https://github.com/storytold/craft-fonts",
+    "commit": "37827adc41fd165f9a9234ac40f94dbad353aa69",
+    "pinnedBy": "DeckCraft 0.14.1 .github/workflows/release.yml (craft-fonts-ref)",
+    "rawBase": "https://raw.githubusercontent.com/storytold/craft-fonts/37827adc41fd165f9a9234ac40f94dbad353aa69/"
+  },
+  "upstream": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip (extras/ttf)",
+  "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+  "license": "OFL-1.1",
+  "licenseFile": "fonts/inter/OFL.txt",
+  "faces": [
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "path": "fonts/inter/Inter-Regular.ttf",
+      "bytes": 411640,
+      "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
+    },
+    {
+      "family": "Inter",
+      "style": "Bold",
+      "path": "fonts/inter/Inter-Bold.ttf",
+      "bytes": 420428,
+      "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f"
+    }
+  ],
+  "licenseSha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+}

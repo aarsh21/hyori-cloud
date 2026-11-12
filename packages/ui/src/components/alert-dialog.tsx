@@ -15,7 +15,7 @@ function AlertDialogContent({ className, children, ...props }: AlertDialogPrimit
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-xl bg-popover p-5 text-popover-foreground shadow-(--shadow-dialog) outline-none transition-[scale,opacity] duration-180 ease-(--ease-out) data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:duration-120 data-starting-style:scale-[0.97] data-starting-style:opacity-0",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[85svh] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-(--shadow-dialog) outline-none transition-[scale,opacity] duration-180 ease-(--ease-out) data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:duration-120 data-starting-style:scale-[0.97] data-starting-style:opacity-0",
           className,
         )}
         {...props}
@@ -30,7 +30,10 @@ function AlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Pr
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
-      className={cn("text-[15px] font-semibold tracking-[-0.008em] text-balance", className)}
+      className={cn(
+        "text-[15px] font-semibold tracking-[-0.008em] text-balance wrap-anywhere",
+        className,
+      )}
       {...props}
     />
   );
@@ -40,7 +43,10 @@ function AlertDialogDescription({ className, ...props }: AlertDialogPrimitive.De
   return (
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
-      className={cn("text-[13px]/relaxed text-pretty text-muted-foreground", className)}
+      className={cn(
+        "text-[13px]/relaxed text-pretty wrap-anywhere text-muted-foreground",
+        className,
+      )}
       {...props}
     />
   );

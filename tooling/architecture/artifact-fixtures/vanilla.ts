@@ -1,4 +1,27 @@
 import { createClient, SDKError, type InputOf, type OutputOf } from "@hyori-cloud/client-sdk";
+import { createBrowserEditorMessages } from "@hyori-cloud/client-sdk/browser";
+import {
+  decodeNativeHostCommand,
+  decodeNativeHostEvent,
+} from "@hyori-cloud/client-sdk/editor-runtime";
+import type { NativeHostCommand } from "@hyori-cloud/client-sdk/editor-runtime";
+
+const nativeCommand: NativeHostCommand = {
+  type: "wordcraft:request-save",
+  protocol: 2,
+  version: "fixture.3",
+  openId: "open",
+  documentId: "1",
+  requestId: "request",
+  reason: "automatic",
+};
+
+if (
+  decodeNativeHostCommand(nativeCommand)?.type !== "wordcraft:request-save" ||
+  decodeNativeHostCommand({ ...nativeCommand, unexpected: true }) !== null ||
+  decodeNativeHostEvent(nativeCommand) !== null
+)
+  throw new Error("Packed native IPC export lost its strict command/event boundary.");
 
 let requests = 0;
 
@@ -8,11 +31,20 @@ const sdkClient = createClient({
     if (String(url) !== "https://artifact.invalid/api/rpc" || init?.method !== "POST")
       throw new Error("The packed client did not use its configured transport.");
 
-    if (String(init.body) !== JSON.stringify({ operation: "auth.status", input: {} }))
-      throw new Error("The packed client did not derive the expected operation.");
     requests += 1;
 
-    return Response.json({ ok: true, value: { initialized: true, user: null } });
+    if (String(init.body) === JSON.stringify({ operation: "auth.status", input: {} }))
+      return Response.json({ ok: true, value: { initialized: true, user: null } });
+
+    if (String(init.body) === JSON.stringify({ operation: "editors.available", input: {} }))
+      return Response.json({
+        ok: true,
+        value: {
+          apps: [{ app: "wordcraft", version: "0.14.0", inputExtensions: [".docx"] }],
+        },
+      });
+
+    throw new Error("The packed client did not derive the expected operation.");
   },
 });
 
@@ -30,14 +62,67 @@ export function consumeInferredTypes(
   return { name, invalid, options: sdkClient.query.files.list.getOptions(input) };
 }
 
+const editorBackend = sdkClient.editors.backend({ id: "file_artifact" });
+
+export function consumeEditorResult(result: OutputOf<typeof editorBackend.save>) {
+  if (result.status !== "saved") return result.status;
+  const fileId: string = result.file.id;
+  // @ts-expect-error The portable binding retains the authoritative saved-file type.
+  const invalid: number = result.file.id;
+
+  return { fileId, invalid };
+}
+
+let listeners = 0;
+let posts = 0;
+const origin = "https://artifact.invalid";
+
+const messages = createBrowserEditorMessages({
+  origin,
+  host: {
+    location: { origin },
+    addEventListener() {
+      listeners += 1;
+    },
+    removeEventListener() {
+      listeners -= 1;
+    },
+  },
+  editorWindow: {
+    postMessage() {
+      posts += 1;
+    },
+  },
+});
+
+const unsubscribe = messages.subscribe(() => undefined);
+
+messages.post({ type: "fixture", name: "fixture.docx", bytes: new Uint8Array([1]) }, origin);
+
+unsubscribe();
+
+if (listeners !== 0 || posts !== 1) throw new Error("Packed browser capability lifetime failed.");
+
 const status = await sdkClient.rpc.auth.status({});
 
 const queryStatus = await sdkClient.query.auth.status
   .getOptions({})
   .queryFn({ signal: new AbortController().signal });
 
-if (!status.initialized || status.user !== null || !queryStatus.initialized || requests !== 2)
+if (!status.initialized || status.user !== null || !queryStatus.initialized)
   throw new Error("The packed vanilla client did not decode its real operation response.");
+
+const availability = await sdkClient.query.editors.available
+  .getOptions({})
+  .queryFn({ signal: new AbortController().signal });
+
+if (
+  availability.apps[0]?.app !== "wordcraft" ||
+  availability.apps[0]?.version !== "0.14.0" ||
+  !availability.apps[0]?.inputExtensions.includes(".docx") ||
+  requests !== 3
+)
+  throw new Error("The packed client lost the generated editor availability query.");
 
 sdkClient.dispose();
 

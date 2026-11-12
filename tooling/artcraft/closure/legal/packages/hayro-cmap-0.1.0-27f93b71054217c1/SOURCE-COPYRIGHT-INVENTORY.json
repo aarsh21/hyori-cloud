@@ -1,0 +1,31 @@
+{
+  "scope": "textual-copyright-and-SPDX-discovery-not-a-complete-source-or-embedded-asset-audit",
+  "files": [
+    {
+      "path": "vendor/hayro-cmap/assets/LICENSE.txt",
+      "sha256": "742665db9c8e1bc72603c6d319ca3e90b83bd6d95202f0cd4ef11068a07a9c29",
+      "lines": [
+        {
+          "line": 1,
+          "text": "Copyright 1990-2023 Adobe. All rights reserved."
+        },
+        {
+          "line": 7,
+          "text": "Redistributions of source code must retain the above copyright notice,"
+        },
+        {
+          "line": 10,
+          "text": "Redistributions in binary form must reproduce the above copyright"
+        },
+        {
+          "line": 18,
+          "text": "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS"
+        },
+        {
+          "line": 21,
+          "text": "A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT"
+        }
+      ]
+    }
+  ]
+}

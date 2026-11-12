@@ -1,0 +1,465 @@
+{
+  "schemaVersion": 1,
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0",
+      "url": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip",
+      "archiveRoot": "wordcraft-web-0.14.0",
+      "bytes": 18611600,
+      "sha256": "afbb7fb0d7c0d98e76bf0f25de82eade7783abb8bb1139c02447474b051e0d99",
+      "sourceUrl": "https://codeload.github.com/storytold/wordcraft/tar.gz/refs/tags/v0.14.0",
+      "sourceSha256": "d35c399acbd438c3c536e31a78f35d3fc7074afcc992e8c7e092fc41fb866aa6",
+      "license": "MIT OR Apache-2.0",
+      "bridge": "upstream-host-parent",
+      "legal": [
+        {
+          "path": "licenses/wordcraft/release/OFL-shippori-mincho.txt",
+          "sha256": "41fba056279be5f45ff9a99e44b7b53897b42732f5806d8e666e0ab49ac6bd38",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-shippori-mincho.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/LICENSE-MIT",
+          "sha256": "fc257de83c44ae49e4aad1cf777b886794be3ac9c8d00c010ef55935d5bbeba5",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#LICENSE-MIT"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-hebrew.txt",
+          "sha256": "9b9fe028b5ba74d231659a1bbaf0ed09b11e759d1ca6a070999e16d151616b47",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-hebrew.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-biz-ud-mincho.txt",
+          "sha256": "ef0ed524b3bd012f37015e986809eed6f67905456ebfc1ebd7fcc2765282ee01",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-biz-ud-mincho.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/LICENSE-APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-georgian.txt",
+          "sha256": "8c02263c5d73d40544f9ed91e30c4e947407057a3cc430d7b786189aeceff6df",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-georgian.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-biz-ud-pgothic.txt",
+          "sha256": "e753d7155d53c747d037a445e584c8ecfca6dd79846db610417e282a736b28bc",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-biz-ud-pgothic.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-symbols-2.txt",
+          "sha256": "b118dd41337806a5d4797052c77caf3bd096aed783e5eb21b4d11154351e1ac0",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-symbols-2.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-symbols.txt",
+          "sha256": "b118dd41337806a5d4797052c77caf3bd096aed783e5eb21b4d11154351e1ac0",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-symbols.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-cjk-sc.txt",
+          "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-cjk-sc.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-arabic.txt",
+          "sha256": "07fc70bfeb985cc1a87a8587d0a0c80bab11c86c9dc3fd95b6f0cb332f983e96",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-arabic.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-devanagari.txt",
+          "sha256": "a216f6f8d85c7228093e0ee5e258d9d377e6671f68acb4db1930b29583d0f331",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-devanagari.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/NOTICE",
+          "sha256": "8943b156492b6f0caa7c59a53f97d7cc6a7b79ea3e54147b491e0821538606da",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#NOTICE"
+        },
+        {
+          "path": "licenses/wordcraft/release/ATTRIBUTION.md",
+          "sha256": "4fc0ff4d918dd9c811d6d678c183b284981ad26db09c5aebc279d04e954401a2",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#ATTRIBUTION.md"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-noto-sans-thai.txt",
+          "sha256": "2e98fd23a52d253db8612cd5942c8f2ff4111b21d2367050fdca91d8ccc374a0",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-noto-sans-thai.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-lxgw-wenkai-lite.txt",
+          "sha256": "0333a85fe077b6849f8e417acc44e8bd879442ceb681e271acf93e2d57fd4e2e",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-lxgw-wenkai-lite.txt"
+        },
+        {
+          "path": "licenses/wordcraft/release/OFL-nanum-gothic.txt",
+          "sha256": "eeacf16032901d0ed0456876ec77b8f0fda6b3fecec7d972f8543eb602e6c30f",
+          "source": "https://github.com/storytold/wordcraft/releases/download/v0.14.0/wordcraft-web-0.14.0.zip#OFL-nanum-gothic.txt"
+        },
+        {
+          "path": "licenses/wordcraft/source/ATTRIBUTION.md",
+          "sha256": "4fc0ff4d918dd9c811d6d678c183b284981ad26db09c5aebc279d04e954401a2",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/ATTRIBUTION.md"
+        },
+        {
+          "path": "licenses/wordcraft/source/assets/fonts/OFL-Inter.txt",
+          "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/assets/fonts/OFL-Inter.txt"
+        },
+        {
+          "path": "licenses/wordcraft/source/assets/fonts/OFL-JetBrainsMono.txt",
+          "sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/assets/fonts/OFL-JetBrainsMono.txt"
+        },
+        {
+          "path": "licenses/wordcraft/source/assets/fonts/OFL-SourceSans3.txt",
+          "sha256": "56af9b9c6715597e458284a474dc118a50a4150e9d547c70f7b4a33c3e6a9328",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/assets/fonts/OFL-SourceSans3.txt"
+        },
+        {
+          "path": "licenses/wordcraft/source/assets/fonts/OFL-SourceSerif4.txt",
+          "sha256": "c21d7293d87b6d7ab1d0229a2f55b77f33a7613a6a4e66f6693d68d7d8d09464",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/assets/fonts/OFL-SourceSerif4.txt"
+        },
+        {
+          "path": "licenses/wordcraft/source/docs/brand/LICENSE-brand.txt",
+          "sha256": "ed4475eacf972c9584aa335001c59dfa646eb222549b928ffd6aefd4c805b41a",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/docs/brand/LICENSE-brand.txt"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "fixtures/wordcraft/host.rs",
+          "sha256": "ba54004a5dc7cbe38f0008631ba67a5c95a97def3696eecb886af87500d7a535",
+          "source": "https://raw.githubusercontent.com/storytold/wordcraft/v0.14.0/apps/wordcraft-web/src/host.rs"
+        }
+      ]
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0",
+      "url": "https://github.com/storytold/gridcraft/releases/download/v0.15.0/gridcraft-web-0.15.0.zip",
+      "archiveRoot": "gridcraft-web-0.15.0",
+      "bytes": 8509119,
+      "sha256": "be8c8ce414a7c0621fab10f907be5c14ac2ad26e9db39da18e8a0c6f1dd3a99e",
+      "sourceUrl": "https://codeload.github.com/storytold/gridcraft/tar.gz/refs/tags/v0.15.0",
+      "sourceSha256": "6bc25221fccaeddd11bb98d31909880719ee9f06ef149520204a368e138c916b",
+      "license": "MIT OR Apache-2.0",
+      "bridge": "upstream-host-parent",
+      "legal": [
+        {
+          "path": "licenses/gridcraft/release/LICENSE-MIT",
+          "sha256": "a87109bbb1ad43ca3920a5d7ff3806863b7e8470a73f4ded97a1447ac93333f5",
+          "source": "https://github.com/storytold/gridcraft/releases/download/v0.15.0/gridcraft-web-0.15.0.zip#LICENSE-MIT"
+        },
+        {
+          "path": "licenses/gridcraft/release/LICENSE-APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "source": "https://github.com/storytold/gridcraft/releases/download/v0.15.0/gridcraft-web-0.15.0.zip#LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/gridcraft/release/NOTICE",
+          "sha256": "40e4a2a066feaa602d582093fb8d0aaa34b3a3f86ee880d6f34b53fd85026fc9",
+          "source": "https://github.com/storytold/gridcraft/releases/download/v0.15.0/gridcraft-web-0.15.0.zip#NOTICE"
+        },
+        {
+          "path": "licenses/gridcraft/release/ATTRIBUTION.md",
+          "sha256": "ea8cf21f6bb4c69fd2c67af5b9029304075d310fdef8351a6760301a5153309d",
+          "source": "https://github.com/storytold/gridcraft/releases/download/v0.15.0/gridcraft-web-0.15.0.zip#ATTRIBUTION.md"
+        },
+        {
+          "path": "licenses/gridcraft/source/ATTRIBUTION.md",
+          "sha256": "ea8cf21f6bb4c69fd2c67af5b9029304075d310fdef8351a6760301a5153309d",
+          "source": "https://raw.githubusercontent.com/storytold/gridcraft/v0.15.0/ATTRIBUTION.md"
+        },
+        {
+          "path": "licenses/gridcraft/source/assets/app-icon/LICENSE.txt",
+          "sha256": "9596de48b5e42fbf727c924bb3863f0e28fcd9e38c47cca284e1174bd06481ce",
+          "source": "https://raw.githubusercontent.com/storytold/gridcraft/v0.15.0/assets/app-icon/LICENSE.txt"
+        },
+        {
+          "path": "licenses/gridcraft/source/docs/brand/LICENSE-brand.txt",
+          "sha256": "d60f1608b31dde193c34e4afb5d922d2c700ead06c4bb3735959334a09b1ff2c",
+          "source": "https://raw.githubusercontent.com/storytold/gridcraft/v0.15.0/docs/brand/LICENSE-brand.txt"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "fixtures/gridcraft/host.rs",
+          "sha256": "861714b6e9e3509790ab0614e68dbb93f027d0482106b4f8f013d96077446537",
+          "source": "https://raw.githubusercontent.com/storytold/gridcraft/v0.15.0/apps/gridcraft-web/src/host.rs"
+        }
+      ]
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.14.1",
+      "url": "https://github.com/storytold/deckcraft/releases/download/v0.14.1/deckcraft-web-0.14.1.zip",
+      "archiveRoot": "deckcraft-web-0.14.1",
+      "bytes": 11611436,
+      "sha256": "929f0e44eb99c62271320a68a50c95c8266bb03db5e2205c4eb72c33b1936c97",
+      "sourceUrl": "https://codeload.github.com/storytold/deckcraft/tar.gz/refs/tags/v0.14.1",
+      "sourceSha256": "6e03f2e9532c0102ec01d8be8bba556a0191ee11d5ca64412a5b48457afddfb7",
+      "license": "MIT OR Apache-2.0",
+      "bridge": "blocked-no-host-bridge",
+      "legal": [
+        {
+          "path": "licenses/deckcraft/release/LICENSE-MIT",
+          "sha256": "90e96fef569474cd526350e716e4b05dd32f179ca96d39d61e6b928485e35406",
+          "source": "https://github.com/storytold/deckcraft/releases/download/v0.14.1/deckcraft-web-0.14.1.zip#LICENSE-MIT"
+        },
+        {
+          "path": "licenses/deckcraft/release/LICENSE-APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "source": "https://github.com/storytold/deckcraft/releases/download/v0.14.1/deckcraft-web-0.14.1.zip#LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/deckcraft/release/NOTICE",
+          "sha256": "2ce764ed5d83f2453a7dba485092c0c41b465fe795b31c2c59bc5279332bc4f3",
+          "source": "https://github.com/storytold/deckcraft/releases/download/v0.14.1/deckcraft-web-0.14.1.zip#NOTICE"
+        },
+        {
+          "path": "licenses/deckcraft/source/ATTRIBUTION.md",
+          "sha256": "3e0b490182f29522d002af0b4f0f46ab44ab8863bfe5e4e50c65a84d2d18c076",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/ATTRIBUTION.md"
+        },
+        {
+          "path": "licenses/deckcraft/source/docs/brand/LICENSE-brand.txt",
+          "sha256": "c5ad8e77d0dd8939161b4c4eca7aaba2437d6340c29e7809fa4679f0f2a82f62",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/docs/brand/LICENSE-brand.txt"
+        },
+        {
+          "path": "licenses/deckcraft/source/licenses/pdf-writer/LICENSE-ICC.txt",
+          "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/licenses/pdf-writer/LICENSE-ICC.txt"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "fixtures/deckcraft/main.rs",
+          "sha256": "191cf6b07d914fcbcd15bcca55bb5e9606779b24ace7d5622c2a1dc8422f3223",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/apps/deckcraft-web/src/main.rs"
+        },
+        {
+          "path": "fixtures/deckcraft/web.rs",
+          "sha256": "20826f67b279adf4ec3c730d1be063d8a00e2223bcc23d8cad3b6b342105349b",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/apps/deckcraft-web/src/web.rs"
+        },
+        {
+          "path": "fixtures/deckcraft/Cargo.toml",
+          "sha256": "78b7d0a367b47ca10ff03c12632ede6974890157c1df8b631944232f62a9731d",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/apps/deckcraft-web/Cargo.toml"
+        },
+        {
+          "path": "fixtures/deckcraft/Trunk.toml",
+          "sha256": "a996cb61144f4f961e8a44d8df04ef329620c12928aea4a4f328d1fcaf055ec8",
+          "source": "https://raw.githubusercontent.com/storytold/deckcraft/v0.14.1/apps/deckcraft-web/Trunk.toml"
+        }
+      ]
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0",
+      "url": "https://github.com/storytold/pdfcraft/releases/download/v0.17.0/pdfcraft-web-0.17.0.zip",
+      "archiveRoot": "pdfcraft-web-0.17.0",
+      "bytes": 17417347,
+      "sha256": "393420ab35e25afc174cb6d1791098bb714099aca91cf6598b4553e57c48a835",
+      "sourceUrl": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0",
+      "sourceSha256": "51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+      "license": "MIT OR Apache-2.0",
+      "bridge": "upstream-host-parent",
+      "legal": [
+        {
+          "path": "licenses/pdfcraft/release/LICENSE-MIT",
+          "sha256": "cd7032ea33b71427f188e34ffb4aee9d6868a57fd196037c5c8b2be03a2a0352",
+          "source": "https://github.com/storytold/pdfcraft/releases/download/v0.17.0/pdfcraft-web-0.17.0.zip#LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/release/LICENSE-APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "source": "https://github.com/storytold/pdfcraft/releases/download/v0.17.0/pdfcraft-web-0.17.0.zip#LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/release/NOTICE",
+          "sha256": "9f854f730719af962cd840529324d089e05e68a30bd245c50e33f96e009b4314",
+          "source": "https://github.com/storytold/pdfcraft/releases/download/v0.17.0/pdfcraft-web-0.17.0.zip#NOTICE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/ATTRIBUTION.md",
+          "sha256": "8ece0d5145eb7720bc562db8d209efe641862c088e9c764833721305be7a98c1",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/ATTRIBUTION.md"
+        },
+        {
+          "path": "licenses/pdfcraft/source/assets/app-icon/LICENSE-document.txt",
+          "sha256": "64a3137e3d5cc41e5b78d2ad8dd9ddddd6588283f9f7b3128aa6a8a50852fb9a",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/assets/app-icon/LICENSE-document.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/assets/app-icon/LICENSE.txt",
+          "sha256": "b768acafe6cbad8247eedf86b5b5381feefcd4ee0f8c7808b86811bc687cf37b",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/assets/app-icon/LICENSE.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/assets/fonts/OFL-DancingScript.txt",
+          "sha256": "6f090277c00af96651ce6dbcc38ff1591047a3bffef486e80b6a32e8276a8201",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/assets/fonts/OFL-DancingScript.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/assets/fonts/OFL-Inter.txt",
+          "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/assets/fonts/OFL-Inter.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/assets/fonts/OFL-JetBrainsMono.txt",
+          "sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/assets/fonts/OFL-JetBrainsMono.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/assets/icons/LICENSE-lucide.txt",
+          "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/assets/icons/LICENSE-lucide.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/docs/brand/LICENSE-brand.txt",
+          "sha256": "0f33f48e7a96cd359d4e4e5b11424b13cebeb59cc70c77928186695e4173585c",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/docs/brand/LICENSE-brand.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/egui-wgpu/LICENSE-APACHE",
+          "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/egui-wgpu/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/egui-wgpu/LICENSE-MIT",
+          "sha256": "95ca92f5f8ea5231f1580b3a2a799e8260af3114b900e1def5355a7f44bcf60c",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/egui-wgpu/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro/LICENSE-APACHE",
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro/LICENSE-MIT",
+          "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-cmap/LICENSE-APACHE",
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-cmap/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-cmap/LICENSE-MIT",
+          "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-cmap/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-cmap/assets/LICENSE.txt",
+          "sha256": "742665db9c8e1bc72603c6d319ca3e90b83bd6d95202f0cd4ef11068a07a9c29",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-cmap/assets/LICENSE.txt"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-interpret/LICENSE-APACHE",
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-interpret/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-interpret/LICENSE-MIT",
+          "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-interpret/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-interpret/assets/LICENSE_FOXIT",
+          "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-interpret/assets/LICENSE_FOXIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-jbig2/LICENSE-APACHE",
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-jbig2/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-jbig2/LICENSE-MIT",
+          "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-jbig2/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-postscript/LICENSE-APACHE",
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-postscript/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-postscript/LICENSE-MIT",
+          "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-postscript/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-syntax/LICENSE-APACHE",
+          "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-syntax/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/hayro-syntax/LICENSE-MIT",
+          "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/hayro-syntax/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/lopdf/LICENSE",
+          "sha256": "2fb01e6708ea9d53e8b7e74bd82af23bce5256f19f4de93915027a53173c50d8",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/lopdf/LICENSE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/vello_common/LICENSE-APACHE",
+          "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/vello_common/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/vello_common/LICENSE-MIT",
+          "sha256": "adf157330f722fe7cfd5964a2a6974eff851b718228c6735724a11706e6f4dec",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/vello_common/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/vello_cpu/LICENSE-APACHE",
+          "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/vello_cpu/LICENSE-APACHE"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/vello_cpu/LICENSE-MIT",
+          "sha256": "adf157330f722fe7cfd5964a2a6974eff851b718228c6735724a11706e6f4dec",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/vello_cpu/LICENSE-MIT"
+        },
+        {
+          "path": "licenses/pdfcraft/source/vendor/winit/LICENSE",
+          "sha256": "6dc0e068dcf3a5bc8e054205b85b7720e1d49265bbc64bf515d2cf79197df69a",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/vendor/winit/LICENSE"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "fixtures/pdfcraft/main.rs",
+          "sha256": "57b0116b7a8db753d3026c15b592cd9815f7e3d06f4080530cb0201ddf060b67",
+          "source": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.17.0/apps/pdfcraft-web/src/main.rs"
+        }
+      ]
+    }
+  ],
+  "closureEvidence": {
+    "path": "closure/manifest.json",
+    "sha256": "09768f5ba1d660dd7ade29ffe6cc043d2cb35edd30bcc5f49b546b43ba301e1c"
+  },
+  "limits": {
+    "maxEntries": 10000,
+    "maxExpandedBytes": 268435456,
+    "maxEntryBytes": 134217728
+  },
+  "evidence": {
+    "archivesAcquiredAndVerified": true,
+    "wasmExecuted": false,
+    "formatFidelityVerified": false,
+    "deckcraftBlocker": "Tagged main.rs lines 9-17 and web.rs lines 119-150 only expose picker/inbox/download; no message bridge. No wasm32 target or Trunk in this environment. No patched build claimed.",
+    "licensing": "Core MIT/Apache and NOTICE compared with tagged sources. Release and source supplemental notices retained. A dependency/font notice audit remains required before deployment; release packages omit some licenses referenced in NOTICE. Trademarks are not licensed by the core code license."
+  }
+}

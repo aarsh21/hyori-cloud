@@ -1,0 +1,75 @@
+# Active Rust web host and legacy backend retirement
+
+Status: source/runtime cutover on 2026-11-05. This is **not** a migration, production-readiness or full-v1 claim. Existing deployment data/services were not deleted, reset, stopped or automatically imported. Derived media, browser editors, final real-browser acceptance, final gateway/LAN deployment and representative performance work remain separately owned.
+
+## Active public consumption and owners
+
+```ts
+// Node/Nitro HTTP host, server-only:
+import { createNodeBackendProxy } from "@hyori-cloud/api/node";
+const proxy = createNodeBackendProxy({ origin: publicOrigin, backendUrl: privateRustOrigin });
+
+// Independent consumer, unchanged:
+import { createClient } from "@hyori-cloud/client-sdk";
+const sdk = createClient({ baseUrl: `${publicOrigin}/api/rpc`, fetch: credentialAwareFetch });
+const folder = await sdk.rpc.files.createFolder({ parentId: null, name: "Pictures" });
+const file = await sdk.uploads.start({ parentId: folder.id, file: localFile }).result;
+const { stream } = await sdk.downloads.open({ id: file.id });
+sdk.dispose();
+```
+
+Rust feature declarations remain authoritative; `contracts:check` rejects generated codec/operation drift. `@hyori-cloud/api/rpc` remains the client runtime/type boundary. The API root contains only generic proxy exports and the generated `Api` type; the Node adapter is a separate explicit entry, not a static Node import in the client-safe graph. No handwritten operation catalog was added and no SDK algorithm or UI implementation was changed by this cutover.
+
+The app configuration owner is `apps/web/src/server/api.ts` → `createWebBackendHandler`. It resolves `APP_ENV`, exact public `APP_ORIGIN`, and private `HYORI_BACKEND_URL` once. Production requires HTTPS. The incoming **Host** must match the configured public authority before a TLS-terminated private HTTP URL is mapped to the public origin. Forwarded headers are not trusted and do not authorize a request. Existing Origin/fetch-site/cookie-write protections remain in the shared proxy and Rust.
+
+The Node transport is necessary because installed Node Fetch rewrites explicit Host to the private destination, whereas Bun Fetch preserved it in the original proxy tests. `@hyori-cloud/api/node` composes the existing `createBackendProxy` security/protocol implementation with Node HTTP(S) transport, preserving default certificate validation, independent cookies, ranges, stream backpressure and request/response cancellation. There is no automatic retry or legacy fallback. Rust alone owns maintenance/lifecycle.
+
+Varlock's private backend key is **sensitive and dynamic**; nonsensitive dynamic values become public hydration keys even without `@public`. The frontend artifact needs the nonsecret schema, bundled Varlock CLI package and React CJS runtime support alongside Nitro output. Schema codegen uses `auto=false`: explicit install/codegen commands produce types, and runtime loading never attempts source writes on a read-only filesystem. It never needs a real env file, setup token, auth secret, database URL or object-store credential. The Docker runner copies only that bounded runtime set, not the workspace, and runs as `node`.
+
+## Accounted-for retirement graph
+
+Before removal, all `@hyori-cloud/core`, `createHandler`, Surreal and legacy crypto/storage consumers were inventoried. Only inspected, unchanged, tracked code/config files were removed; the deletion script rejected modified/untracked targets. No data directories or untracked code were recursively deleted.
+
+- `packages/core/{package.json,tsconfig.json,src/**,test/**}`: six legacy feature schema/RPC/service/persistence trees, binding/runtime/server/maintenance composition, and their implementation-specific tests. No active consumer remains. Rust-derived TypeScript schemas already live in `packages/api/src/generated`.
+- `packages/api/src/index.ts`: replaced the legacy handler implementation with deliberate proxy/generated-type exports. Removed its legacy-only attachment encoder and tests, and `test/integration.test.ts` for the old server.
+- `packages/lib/src/{surreal,storage,crypto}.ts` and their public exports: all consumers belonged to the removed server/tests. Removed the direct `@aws-sdk/client-s3` dependency and the API's core workspace dependency. Effect codecs/RPC/platform, React/Query, browser and design-system facades remain.
+- `scripts/test-services.ts`, `service-sdk-probe.ts`, `configure-local.ts`: retired the old live harness/probe and credential-generating Surreal setup script. No replacement script invents deployment secrets. Root `test:services` is an explicit alias for real Rust service acceptance plus **all four** public SDK harnesses.
+- Root unit tests no longer select a removed core folder or silently skipped Surreal suite. CI keeps the Rust/contract/four-SDK gates in the existing Rust job and release-image/actual-host acceptance in the image job, not a duplicate expensive legacy gate in `verify`.
+- Packed acceptance now requires exactly **three** actual SDK/API/lib tarballs and rejects any legacy core artifact in either physical tree. Missing **generated API** still must break both runtime and type resolution. Optional React-peer/private-export/offline/physical-resolution checks remain.
+
+Remaining strings mentioning the old backend are historical documentation or negative retirement/provenance fixtures, not runtime consumers. The metadata benchmark owner separately adapts current source provenance after core removal; old image measurements and artifact hashes must remain historical and must not be relabeled as measurements of current code.
+
+## Explicit retired-test coverage map
+
+The replacement is feature-equivalent policy/lifecycle coverage, not an assertion that PostgreSQL needs Surreal-specific implementation tests. The owner previously passed all 24 real service tests and four SDK harnesses before retirement. This host slice separately verifies the actual Nitro path; it does not rerun that entire expensive Rust suite during each host edit.
+
+| Retired source/test                                                                                        | Active coverage and meaning                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/test/policy.test.ts`: roles, admin privacy, inherited grants, owner-only deletion, expiry/revocation | `apps/server/tests/files_shares.rs::files_shares_postgres_http_parity`, `trash_versions_hierarchy_and_name_races`; `uploads.rs::upload_download_replay_versions_ranges_quota_and_shared_authority`; `admin.rs::admin_scope_pagination_quota_confirmation_and_storage_absence`.               |
+| Same file: unique operation tags/runtime codecs                                                            | `apps/server/tests/contracts.rs::complete_deterministic_catalog`, `bounds_nullable_and_optional_are_runtime_enforced`; generator regression tests, `contracts:check`, SDK compile/Query/evolution gates.                                                                                     |
+| Same file: legacy scrypt salts/password verification                                                       | Legacy JS KDF implementation is removed, not retained as a fake parity test. Actual Better Auth credential/login/logout/setup/invite policy is exercised by `postgres.rs::auth_postgres_http_lifecycle`, `auth_bounds.rs`, and real auth SDK/image/host harnesses.                           |
+| `normalized-name.test.ts`                                                                                  | `files_shares.rs::trash_versions_hierarchy_and_name_races`, authoritative contract bounds, real upload/Photos contract validation. JS surrogate repair is not a Rust compatibility/importer: malformed Unicode cannot become a Rust string; no legacy data import is provided.               |
+| `persistence-boundary.test.ts`                                                                             | Surreal row-decoder behavior is obsolete. Rust typed feature DTOs/row projections, `contracts.rs`, `architecture.rs`, and real PostgreSQL auth/files/Photos/admin fixtures own the new persistence/wire boundary.                                                                            |
+| `read-consistency.test.ts`                                                                                 | `files_shares.rs::snapshot_does_not_mix_revoked_grants_with_moved_private_metadata`, upload authorization/fencing fixtures and PostgreSQL transactions replace the old global-revision CAS retry mechanism.                                                                                  |
+| `public-grants.test.ts`                                                                                    | `credential_boundary.rs` independent-cookie/duplicate-name/byte-bound tests; `support/grant_continuity.rs::anonymous_uploads_survive_same_link_resolution_without_broadening_initiator_authority`; real sharing/upload SDK fixtures.                                                         |
+| `sources-and-scoping.test.ts`                                                                              | `photos.rs::personal_sources_albums_scope_reconciliation_and_capacity_are_transactional`; Files/Sharing parent/shared search scoping fixtures; `test:rust-photos-sdk`.                                                                                                                       |
+| `purge-identity.test.ts`                                                                                   | `admin.rs::purge_owned_hierarchy_versions_photos_and_credentials_preserves_contributions` and `deleted_account_tombstones_reconcile_late_begin_and_fence_publishing_workers`; `test:rust-admin-sdk`. Nonregistrable deleted identities replace collision-prone historical email tombstones.  |
+| `multipart-reconciliation.test.ts`                                                                         | `uploads.rs::ambiguous_completion_revocation_abort_fencing_and_late_exact_key_reconciliation`; `crates/storage/tests/rustfs.rs::exact_key_cleanup_drains_bounded_first_pages_and_never_aborts_prefix_neighbours`; storage fault fixtures and upload/image SDK restart/checkpoint acceptance. |
+| API attachment encoder/tests                                                                               | Rust download disposition/security tests in uploads/Photos real HTTP fixtures; actual host validates exact range headers and bytes. The JS legacy-lone-surrogate repair helper has no active consumer and no migration claim.                                                                |
+| API live `integration.test.ts`                                                                             | `postgres.rs`, `files_shares.rs`, `uploads.rs`, `photos.rs`, `admin.rs`, pinned RustFS crate tests and the four real SDK harnesses preserve auth, isolation, stored bytes, roles, versions/trash, quota, Photos and purge.                                                                   |
+| `scripts/test-services.ts` + SDK probe                                                                     | `test:services` alias runs `test:rust-services`, `test:rust-sdk`, `test:rust-upload-sdk`, `test:rust-photos-sdk`, `test:rust-admin-sdk`; `test:rust-image` owns release/runtime restart checks; `test:rust-web-host` additionally owns actual built Nitro HTTP/TLS composition.              |
+
+`packages/api/test/retirement.test.ts` guards the actual no-core/no-server-credentials/no-Surreal stack and required CI/alias structure. `backend-proxy.test.ts`, native `node-backend-proxy.test.ts`, and the app `backend-handler.test.ts` separate generic protocol, actual Node transport, and app authority/configuration ownership. Fake/echo HTTP fixtures are adapter evidence, not real Rust authorization evidence.
+
+## Deployment/data-preservation contract
+
+The example Compose project is **hyori-cloud-rust**, separate from any legacy `hyori-cloud` project. It uses new `rust-postgres-data`, `rust-storage-data` and `rust-storage-logs` volumes. PostgreSQL, RustFS and backend have **no published host ports**; only web is bound to loopback behind an operator-managed HTTPS gateway. A startup preflight rejects example credential placeholders before initializing fresh service storage. The backend DB URL is explicit so URL encoding of the matching PostgreSQL password is never guessed.
+
+Create a new ignored `.env.deployment` from `.env.deployment.example` and supply operator-authorized independent secrets privately. Do not overwrite an existing environment. Root Docker commands use that new file. Code changes/builds do not create deployment credentials or perform deployment/migration. Do not run with the old project name/volumes, `--remove-orphans`, `down -v`, storage pruning or data reset. Existing containers, volumes, DB and files remain untouched; a migration/export/import decision and independent metadata/object backups are separate work. Fresh Rust setup does not imply old accounts/files will appear.
+
+## Acceptance boundaries
+
+- **Functional host:** `test:rust-web-host <immutable-image>` uses unique disposable services, real built Nitro, local-only verified TLS termination, public SDK multipart bytes/ranges, Photos/original, admin quota, cookie/authority/CSRF, error/misconfiguration cases and private-URL HTML/client-asset exclusion. It cleans up only its own children/containers/volumes/network. No browser-fixture API bypass is involved.
+- **Frontend packaging:** `test:web-image <image>` verifies standalone SSR, UID1000, read-only/capability-dropped root, no actual env files/source writes, only the bounded Varlock/React runtime closure, private-URL HTML exclusion and explicit unavailable-backend503. It starts only one unique disposable container. CI builds and tests this separately from the real-Rust Nitro lifecycle.
+- **Architecture:** generated contract, package/source boundary, inferred SDK/Query/evolution, physical packed-artifact and types/lint gates remain separate. Their failures must not be hidden by the functional test result.
+- **Not established here:** full real-browser interactions or visual quality, a future media-worker image/sidecar, editor fidelity, production gateway provisioning, LAN exposure, migration, backup recovery or capacity/performance targets. Prior metadata measurements must retain their original source/image provenance.

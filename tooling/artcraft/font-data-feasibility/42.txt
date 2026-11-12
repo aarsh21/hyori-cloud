@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "deployable": false,
+  "legalOpinion": false,
+  "records": [
+    {
+      "id": "chromium/pdfium:commit-observation",
+      "path": "0.txt",
+      "url": "https://api.github.com/repos/chromium/pdfium/commits/HEAD",
+      "bytes": 14524,
+      "sha256": "39e9219f35502f22d98776404153bd83a1bf547cf7db2dba08e1d8c384d2e882"
+    },
+    {
+      "id": "chromium/pdfium:LICENSE",
+      "path": "1.txt",
+      "url": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "id": "chromium/pdfium:AUTHORS",
+      "path": "2.txt",
+      "url": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/AUTHORS",
+      "bytes": 2403,
+      "sha256": "b061b2c78cb90179f1ab1f939f3f75cabb0d6f9d071c34327c361c08bc532ee8"
+    },
+    {
+      "id": "chromium/pdfium:core/fpdfapi/font/cpdf_fontencoding.cpp",
+      "path": "3.txt",
+      "url": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/core/fpdfapi/font/cpdf_fontencoding.cpp",
+      "bytes": 76726,
+      "sha256": "297fa9008bd56a9d98cc80f1a5b50efd4d21173580bb61c2116a199b7ec167e9"
+    },
+    {
+      "id": "chromium/pdfium:core/fpdfapi/font/cpdf_fontencoding.h",
+      "path": "4.txt",
+      "url": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/core/fpdfapi/font/cpdf_fontencoding.h",
+      "bytes": 1808,
+      "sha256": "7f92c3c0534c253162083e064340c9bbc9ad26b20bca5e3c51ff0c4df39475fc"
+    },
+    {
+      "id": "chromium/pdfium:core/fxge/fx_font.cpp",
+      "path": "5.txt",
+      "url": "https://raw.githubusercontent.com/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/core/fxge/fx_font.cpp",
+      "bytes": 5410,
+      "sha256": "aab63336d4f8bb049cb0e0b5f97a223db85a46f2112a575c55285e21ccf23a24"
+    },
+    {
+      "id": "matplotlib/matplotlib:commit-observation",
+      "path": "6.txt",
+      "url": "https://api.github.com/repos/matplotlib/matplotlib/commits/HEAD",
+      "bytes": 6007,
+      "sha256": "b1849eccc162178f7e6bdbb0546a1c9e1a26ee3fb1a271d4b826daf03a71ef33"
+    },
+    {
+      "id": "matplotlib/matplotlib:lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
+      "path": "7.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
+      "bytes": 828,
+      "sha256": "311bfca694884d86006fb96de443b0f4359635921b95fc6c161bb94d013b7292"
+    },
+    {
+      "id": "matplotlib/matplotlib:lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica.afm",
+      "path": "8.txt",
+      "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f9db3d8c59a8453601ad81514f9c295d6ec050e1/lib/matplotlib/mpl-data/fonts/pdfcorefonts/Helvetica.afm",
+      "bytes": 74292,
+      "sha256": "db772f2830fb6d000907791d8d26a12524d96943a9a739e520ee855c6b25c96f"
+    },
+    {
+      "id": "adobe-agl-glyphlist",
+      "path": "9.txt",
+      "url": "https://raw.githubusercontent.com/adobe-type-tools/agl-aglfn/4036a9ca80a62f64f9de4f7321a9a045ad0ecfd6/glyphlist.txt",
+      "bytes": 78060,
+      "sha256": "a3b2f61ced9f3644cc0d4ecde5c59df34ca286c689d9484a43a710a81c466789"
+    }
+  ],
+  "failures": []
+}

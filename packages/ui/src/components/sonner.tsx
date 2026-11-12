@@ -33,9 +33,19 @@ const Toaster = ({ ...props }: ToasterProps) => {
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       style={TOAST_VARIABLES}
+      // Toasts clear the phone navigation instead of covering it.
+      mobileOffset={{ bottom: "calc(4.25rem + env(safe-area-inset-bottom))" }}
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          title: "wrap-anywhere",
+          description: "wrap-anywhere",
+          success: "[&_[data-icon]]:text-success",
+          warning: "[&_[data-icon]]:text-warning",
+          error: "[&_[data-icon]]:text-destructive",
+          // Sonner's own button rules are more specific than a utility class.
+          actionButton: "coarse:h-11! coarse:px-3!",
+          cancelButton: "coarse:h-11! coarse:px-3!",
         },
       }}
       {...props}

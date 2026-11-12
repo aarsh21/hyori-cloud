@@ -7,6 +7,10 @@ import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
 import * as React from "react";
 
 const SWIPE_THRESHOLD_PX = 48;
+const FLICK_MINIMUM_PX = 16;
+const FLICK_PX_PER_MS = 0.11;
+
+type SwipeStart = { readonly x: number; readonly y: number; readonly at: number };
 
 /**
  * Full-screen viewer. Opening fades; moving between items is instant, because stepping through
@@ -29,7 +33,7 @@ function Lightbox({
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const swipeStart = React.useRef<number | null>(null);
+  const swipeStart = React.useRef<SwipeStart | null>(null);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -56,7 +60,7 @@ function Lightbox({
             }
           }}
         >
-          <div className="flex h-13 shrink-0 items-center gap-2 px-3 pt-[env(safe-area-inset-top)]">
+          <div className="flex h-[calc(3.25rem+env(safe-area-inset-top))] shrink-0 items-center gap-2 pt-[env(safe-area-inset-top)] pr-[max(0.75rem,env(safe-area-inset-right))] pl-[max(0.75rem,env(safe-area-inset-left))]">
             <DialogPrimitive.Close aria-label="Close viewer" className={lightboxControlClasses}>
               <XIcon aria-hidden />
             </DialogPrimitive.Close>
@@ -69,16 +73,36 @@ function Lightbox({
             role="none"
             className="relative grid min-h-0 flex-1 touch-pan-y place-items-center select-none"
             onPointerDown={(event) => {
-              swipeStart.current = event.pointerType === "mouse" ? null : event.clientX;
+              // A drag along a video's scrubber or across a control isn't a swipe between items.
+              const started =
+                event.target instanceof Element && event.target.closest("video,button,a") === null;
+
+              swipeStart.current =
+                event.pointerType !== "mouse" && event.isPrimary && started
+                  ? { x: event.clientX, y: event.clientY, at: event.timeStamp }
+                  : null;
+            }}
+            onPointerCancel={() => {
+              swipeStart.current = null;
             }}
             onPointerUp={(event) => {
-              if (swipeStart.current === null) return;
-              const distance = event.clientX - swipeStart.current;
+              const start = swipeStart.current;
+
+              if (start === null || !event.isPrimary) return;
               swipeStart.current = null;
+              const distance = event.clientX - start.x;
+              const reach = Math.abs(distance);
+              const elapsed = Math.max(event.timeStamp - start.at, 1);
 
-              if (distance > SWIPE_THRESHOLD_PX) onPrevious?.();
+              // Mostly vertical movement is the page's pan. A quick flick needs less distance.
+              if (reach <= Math.abs(event.clientY - start.y)) return;
 
-              if (distance < -SWIPE_THRESHOLD_PX) onNext?.();
+              const flicked = reach >= FLICK_MINIMUM_PX && reach / elapsed > FLICK_PX_PER_MS;
+
+              if (reach < SWIPE_THRESHOLD_PX && !flicked) return;
+
+              if (distance > 0) onPrevious?.();
+              else onNext?.();
             }}
           >
             {children}
@@ -87,7 +111,7 @@ function Lightbox({
                 type="button"
                 aria-label="Previous"
                 onClick={onPrevious}
-                className={cn(lightboxControlClasses, "absolute left-3 size-10 bg-black/30")}
+                className={cn(lightboxControlClasses, lightboxStageControlClasses, "left-3")}
               >
                 <ChevronLeftIcon aria-hidden />
               </button>
@@ -97,7 +121,7 @@ function Lightbox({
                 type="button"
                 aria-label="Next"
                 onClick={onNext}
-                className={cn(lightboxControlClasses, "absolute right-3 size-10 bg-black/30")}
+                className={cn(lightboxControlClasses, lightboxStageControlClasses, "right-3")}
               >
                 <ChevronRightIcon aria-hidden />
               </button>
@@ -110,7 +134,11 @@ function Lightbox({
 }
 
 const lightboxControlClasses =
-  "grid size-8 shrink-0 place-items-center rounded-md text-white/80 outline-none transition-colors duration-100 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 coarse:size-10 [&_svg]:size-[18px] [&_svg]:stroke-[1.75]";
+  "grid size-8 shrink-0 place-items-center rounded-md text-white/85 outline-none transition-colors duration-100 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white coarse:size-11 [&_svg]:size-[18px] [&_svg]:stroke-[1.75]";
+
+// These sit over the photo, so their own fill has to hold 3:1 against even a white one.
+const lightboxStageControlClasses =
+  "absolute size-10 bg-black/60 text-white ring-1 ring-white/25 hover:bg-black/75 coarse:size-11";
 
 /** Browsers can't decode every image type, so a failed load shows `fallback` for that source. */
 function LightboxImage({
@@ -172,7 +200,7 @@ function LightboxPending() {
 function LightboxMessage({ title, action }: { title: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div role="alert" className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
-      <p className="text-[13px] text-white/80">{title}</p>
+      <p className="text-[13px] text-white/85">{title}</p>
       {action}
     </div>
   );
@@ -183,7 +211,7 @@ function LightboxNotice({ title, action }: { title: React.ReactNode; action?: Re
   return (
     <div
       role="alert"
-      className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg bg-black/70 px-3 py-2 text-[13px] text-white/90"
+      className="absolute inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] mx-auto flex w-fit max-w-full items-center gap-3 rounded-lg bg-black/80 px-3 py-2 text-[13px] text-white ring-1 ring-white/15"
     >
       <p className="min-w-0 text-pretty">{title}</p>
       {action}

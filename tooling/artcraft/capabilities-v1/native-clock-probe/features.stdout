@@ -1,0 +1,216 @@
+hyori-native-clock-probe v0.0.0 (/work/probe)
+└── egui v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+    ├── emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+    ├── epaint v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+    │   ├── ecolor v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+    │   │   └── emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+    │   ├── emath v0.37.0 (https://github.com/storytold/egui.git?rev=6d518fc799681571963842f95b55a6b68431b15a#6d518fc7)
+    │   ├── profiling v1.0.18
+    │   ├── ahash feature "no-rng"
+    │   │   └── ahash v0.8.12
+    │   │       ├── cfg-if feature "default"
+    │   │       │   └── cfg-if v1.0.5
+    │   │       ├── once_cell feature "alloc"
+    │   │       │   ├── once_cell v1.21.4
+    │   │       │   └── once_cell feature "race"
+    │   │       │       └── once_cell v1.21.4
+    │   │       └── zerocopy feature "simd"
+    │   │           └── zerocopy v0.8.61
+    │   │       [build-dependencies]
+    │   │       └── version_check feature "default"
+    │   │           └── version_check v0.9.5
+    │   ├── ahash feature "std"
+    │   │   └── ahash v0.8.12 (*)
+    │   ├── font-types feature "std"
+    │   │   └── font-types v0.12.6
+    │   │       ├── bytemuck feature "default"
+    │   │       │   └── bytemuck v1.25.2
+    │   │       │       └── bytemuck_derive feature "default"
+    │   │       │           └── bytemuck_derive v1.12.1 (proc-macro)
+    │   │       │               ├── proc-macro2 feature "default"
+    │   │       │               │   ├── proc-macro2 v1.0.107
+    │   │       │               │   │   └── unicode-ident feature "default"
+    │   │       │               │   │       └── unicode-ident v1.0.26
+    │   │       │               │   └── proc-macro2 feature "proc-macro"
+    │   │       │               │       └── proc-macro2 v1.0.107 (*)
+    │   │       │               ├── quote feature "default"
+    │   │       │               │   ├── quote v1.0.47
+    │   │       │               │   │   └── proc-macro2 v1.0.107 (*)
+    │   │       │               │   └── quote feature "proc-macro"
+    │   │       │               │       ├── quote v1.0.47 (*)
+    │   │       │               │       └── proc-macro2 feature "proc-macro" (*)
+    │   │       │               └── syn feature "default"
+    │   │       │                   ├── syn v3.0.6
+    │   │       │                   │   ├── proc-macro2 v1.0.107 (*)
+    │   │       │                   │   ├── quote v1.0.47 (*)
+    │   │       │                   │   └── unicode-ident feature "default" (*)
+    │   │       │                   ├── syn feature "clone-impls"
+    │   │       │                   │   └── syn v3.0.6 (*)
+    │   │       │                   ├── syn feature "derive"
+    │   │       │                   │   └── syn v3.0.6 (*)
+    │   │       │                   ├── syn feature "parsing"
+    │   │       │                   │   └── syn v3.0.6 (*)
+    │   │       │                   ├── syn feature "printing"
+    │   │       │                   │   └── syn v3.0.6 (*)
+    │   │       │                   └── syn feature "proc-macro"
+    │   │       │                       ├── syn v3.0.6 (*)
+    │   │       │                       ├── proc-macro2 feature "proc-macro" (*)
+    │   │       │                       └── quote feature "proc-macro" (*)
+    │   │       ├── bytemuck feature "derive"
+    │   │       │   ├── bytemuck v1.25.2 (*)
+    │   │       │   └── bytemuck feature "bytemuck_derive"
+    │   │       │       └── bytemuck v1.25.2 (*)
+    │   │       └── bytemuck feature "min_const_generics"
+    │   │           └── bytemuck v1.25.2 (*)
+    │   ├── harfrust feature "default"
+    │   │   ├── harfrust v0.12.0
+    │   │   │   ├── bitflags feature "default"
+    │   │   │   │   └── bitflags v2.13.2
+    │   │   │   ├── bytemuck feature "default" (*)
+    │   │   │   ├── bytemuck feature "extern_crate_alloc"
+    │   │   │   │   └── bytemuck v1.25.2 (*)
+    │   │   │   ├── read-fonts feature "experimental_font_api"
+    │   │   │   │   └── read-fonts v0.41.0
+    │   │   │   │       ├── once_cell feature "alloc" (*)
+    │   │   │   │       ├── once_cell feature "race" (*)
+    │   │   │   │       ├── font-types feature "bytemuck"
+    │   │   │   │       │   └── font-types v0.12.6 (*)
+    │   │   │   │       ├── font-types feature "default"
+    │   │   │   │       │   └── font-types v0.12.6 (*)
+    │   │   │   │       └── bytemuck feature "default" (*)
+    │   │   │   └── smallvec feature "default"
+    │   │   │       └── smallvec v1.16.2
+    │   │   └── harfrust feature "std"
+    │   │       ├── harfrust v0.12.0 (*)
+    │   │       └── read-fonts feature "std"
+    │   │           ├── read-fonts v0.41.0 (*)
+    │   │           └── font-types feature "std" (*)
+    │   ├── smallvec feature "default" (*)
+    │   ├── log feature "default"
+    │   │   └── log v0.4.34
+    │   ├── log feature "std"
+    │   │   ├── log v0.4.34
+    │   │   └── log feature "alloc"
+    │   │       └── log v0.4.34
+    │   ├── nohash-hasher feature "default"
+    │   │   ├── nohash-hasher v0.2.0
+    │   │   └── nohash-hasher feature "std"
+    │   │       └── nohash-hasher v0.2.0
+    │   ├── parking_lot feature "default"
+    │   │   └── parking_lot v0.12.5
+    │   │       ├── lock_api feature "default"
+    │   │       │   ├── lock_api v0.4.14
+    │   │       │   │   └── scopeguard v1.2.0
+    │   │       │   └── lock_api feature "atomic_usize"
+    │   │       │       └── lock_api v0.4.14 (*)
+    │   │       └── parking_lot_core feature "default"
+    │   │           └── parking_lot_core v0.9.12
+    │   │               ├── cfg-if feature "default" (*)
+    │   │               ├── smallvec feature "default" (*)
+    │   │               └── libc feature "default"
+    │   │                   ├── libc v0.2.190
+    │   │                   └── libc feature "std"
+    │   │                       └── libc v0.2.190
+    │   ├── self_cell feature "default"
+    │   │   └── self_cell v1.3.0
+    │   ├── skrifa feature "autohint_shaping"
+    │   │   └── skrifa v0.44.0
+    │   │       ├── read-fonts v0.41.0 (*)
+    │   │       └── bytemuck feature "default" (*)
+    │   ├── skrifa feature "std"
+    │   │   ├── skrifa v0.44.0 (*)
+    │   │   └── read-fonts feature "std" (*)
+    │   ├── unicode-bidi feature "hardcoded-data"
+    │   │   └── unicode-bidi v0.3.18
+    │   ├── unicode-bidi feature "std"
+    │   │   └── unicode-bidi v0.3.18
+    │   ├── unicode-general-category feature "default"
+    │   │   └── unicode-general-category v1.1.0
+    │   ├── unicode-properties feature "emoji"
+    │   │   └── unicode-properties v0.1.4
+    │   ├── unicode-segmentation feature "default"
+    │   │   └── unicode-segmentation v1.13.3
+    │   ├── vello_cpu feature "f32_pipeline"
+    │   │   └── vello_cpu v0.2.0
+    │   │       ├── vello_common v0.2.0
+    │   │       │   ├── fearless_simd v0.4.1
+    │   │       │   ├── guillotiere v0.7.0
+    │   │       │   │   └── euclid v0.22.14
+    │   │       │   │       └── num-traits v0.2.19
+    │   │       │   │           [build-dependencies]
+    │   │       │   │           └── autocfg feature "default"
+    │   │       │   │               └── autocfg v1.5.1
+    │   │       │   ├── thiserror v2.0.21
+    │   │       │   │   └── thiserror-impl feature "default"
+    │   │       │   │       └── thiserror-impl v2.0.21 (proc-macro)
+    │   │       │   │           ├── proc-macro2 feature "default" (*)
+    │   │       │   │           ├── quote feature "default" (*)
+    │   │       │   │           └── syn feature "default" (*)
+    │   │       │   ├── bytemuck feature "default" (*)
+    │   │       │   ├── bytemuck feature "derive" (*)
+    │   │       │   ├── smallvec feature "default" (*)
+    │   │       │   ├── log feature "default" (*)
+    │   │       │   └── peniko feature "bytemuck"
+    │   │       │       ├── peniko v0.6.1
+    │   │       │       │   ├── bytemuck v1.25.2 (*)
+    │   │       │       │   ├── color v0.3.3
+    │   │       │       │   │   └── bytemuck v1.25.2 (*)
+    │   │       │       │   ├── kurbo v0.13.1
+    │   │       │       │   │   ├── arrayvec v0.7.8
+    │   │       │       │   │   ├── polycool v0.4.0
+    │   │       │       │   │   │   └── arrayvec v0.7.8
+    │   │       │       │   │   ├── smallvec feature "const_new"
+    │   │       │       │   │   │   ├── smallvec v1.16.2
+    │   │       │       │   │   │   └── smallvec feature "const_generics"
+    │   │       │       │   │   │       └── smallvec v1.16.2
+    │   │       │       │   │   └── smallvec feature "default" (*)
+    │   │       │       │   ├── linebender_resource_handle v0.1.1
+    │   │       │       │   └── smallvec feature "default" (*)
+    │   │       │       └── color feature "bytemuck"
+    │   │       │           └── color v0.3.3 (*)
+    │   │       ├── bytemuck feature "default" (*)
+    │   │       ├── bytemuck feature "derive" (*)
+    │   │       └── hashbrown feature "default-hasher"
+    │   │           └── hashbrown v0.17.1
+    │   │               └── foldhash v0.2.0
+    │   ├── vello_cpu feature "std"
+    │   │   ├── vello_cpu v0.2.0 (*)
+    │   │   └── vello_common feature "std"
+    │   │       ├── vello_common v0.2.0 (*)
+    │   │       ├── fearless_simd feature "std"
+    │   │       │   └── fearless_simd v0.4.1
+    │   │       └── peniko feature "std"
+    │   │           ├── peniko v0.6.1 (*)
+    │   │           ├── color feature "std"
+    │   │           │   └── color v0.3.3 (*)
+    │   │           ├── kurbo feature "std"
+    │   │           │   ├── kurbo v0.13.1 (*)
+    │   │           │   └── polycool feature "std"
+    │   │           │       └── polycool v0.4.0 (*)
+    │   │           └── linebender_resource_handle feature "std"
+    │   │               └── linebender_resource_handle v0.1.1
+    │   └── vello_cpu feature "u8_pipeline"
+    │       └── vello_cpu v0.2.0 (*)
+    ├── profiling v1.0.18
+    ├── accesskit feature "default"
+    │   └── accesskit v0.25.1
+    │       └── uuid v1.27.0
+    ├── ahash feature "no-rng" (*)
+    ├── ahash feature "std" (*)
+    ├── bitflags feature "default" (*)
+    ├── smallvec feature "default" (*)
+    ├── log feature "default" (*)
+    ├── log feature "std" (*)
+    ├── nohash-hasher feature "default" (*)
+    ├── unicode-segmentation feature "default" (*)
+    └── itertools feature "default"
+        ├── itertools v0.15.0
+        │   └── either v1.19.0
+        └── itertools feature "use_std"
+            ├── itertools v0.15.0 (*)
+            ├── itertools feature "use_alloc"
+            │   └── itertools v0.15.0 (*)
+            └── either feature "use_std"
+                ├── either v1.19.0
+                └── either feature "std"
+                    └── either v1.19.0

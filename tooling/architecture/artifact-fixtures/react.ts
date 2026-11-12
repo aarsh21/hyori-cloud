@@ -1,9 +1,11 @@
-import { createClient } from "@hyori-cloud/client-sdk";
+import { createClient, type EditorSession, type OutputOf } from "@hyori-cloud/client-sdk";
 import {
   ClientSDKProvider,
   createQuery,
+  createQueryEditorBackend,
   setMutationDefaults,
   useClientSDK,
+  useEditorSession,
   type ResourceOf,
 } from "@hyori-cloud/client-sdk/react";
 import { createQueryClient, useQuery } from "@hyori-cloud/lib/query";
@@ -18,6 +20,20 @@ const queryClient = createQueryClient();
 setMutationDefaults(queryClient);
 
 const query = createQuery(sdkClient);
+const editorBackend = createQueryEditorBackend(sdkClient, queryClient, { id: "file_artifact" });
+
+export function useArtifactEditor(session: EditorSession) {
+  return useEditorSession(session);
+}
+
+export function consumeEditorResult(result: OutputOf<typeof editorBackend.save>) {
+  if (result.status !== "saved") return result.status;
+  const fileId: string = result.file.id;
+  // @ts-expect-error Query cache integration must not erase saved-file inference.
+  const invalid: number = result.file.id;
+
+  return { fileId, invalid };
+}
 
 export function useArtifactStatus(): ResourceOf<typeof query.auth.status> {
   return useQuery(useClientSDK().query.auth.status.getOptions({}));

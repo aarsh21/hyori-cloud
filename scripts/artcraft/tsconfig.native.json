@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./native-*.ts",
+    "./*-native-hookup*.ts",
+    "./engine-capability*.ts",
+    "./engine-load-cost.ts",
+    "./transport-sidecars*.ts",
+    "../../tooling/artcraft/patches/native-host-v3/*.ts"
+  ]
+}

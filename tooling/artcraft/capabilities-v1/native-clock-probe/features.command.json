@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/usr/local/rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+    "tree",
+    "--manifest-path",
+    "/work/probe/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--edges",
+    "features"
+  ],
+  "cwd": "/driver",
+  "environment": {
+    "PATH": "/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin",
+    "HOME": "/work/home",
+    "TMPDIR": "/work/tmp",
+    "CARGO_HOME": "/work/cargo",
+    "CARGO_TARGET_DIR": "/work/target",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_NET_OFFLINE": "true",
+    "RUSTUP_HOME": "/usr/local/rustup",
+    "RUSTUP_TOOLCHAIN": "1.99.1-x86_64-unknown-linux-gnu",
+    "RUSTC": "/usr/local/rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/rustc",
+    "RUSTC_WRAPPER": "",
+    "RUSTC_WORKSPACE_WRAPPER": "",
+    "SOURCE_DATE_EPOCH": "1793836800",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  }
+}
