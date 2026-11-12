@@ -50,6 +50,7 @@ impl Postgres {
                 storage: None,
                 media_worker_socket: None,
                 editor_assets: None,
+                trusted_proxies: vec![],
             },
         };
         let output = Command::new("docker")
@@ -115,8 +116,14 @@ impl TestServer {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let app = router(state.clone());
+        // As in production, so limits see the TCP peer (loopback here, an unlisted proxy).
         let handle = tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await
+            .unwrap();
         });
         Self {
             state,
@@ -126,6 +133,16 @@ impl TestServer {
         }
     }
     pub async fn rpc(&self, operation: &str, input: Value, cookie: Option<&str>) -> Reply {
+        self.rpc_from(None, operation, input, cookie).await
+    }
+    /// An RPC carrying the client-address header a proxy would add, when `client` is given.
+    pub async fn rpc_from(
+        &self,
+        client: Option<&str>,
+        operation: &str,
+        input: Value,
+        cookie: Option<&str>,
+    ) -> Reply {
         let mut request = self
             .client
             .post(format!("{}/api/rpc", self.url))
@@ -134,6 +151,9 @@ impl TestServer {
             .json(&json!({"operation": operation, "input": input}));
         if let Some(cookie) = cookie {
             request = request.header("cookie", cookie);
+        }
+        if let Some(client) = client {
+            request = request.header(hyori_server::rpc::CLIENT_ADDRESS_HEADER, client);
         }
         let response = request.send().await.unwrap();
         assert_eq!(response.headers()["cache-control"], "no-store");

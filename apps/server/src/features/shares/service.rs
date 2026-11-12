@@ -146,10 +146,9 @@ impl SharesService {
         self.resolve_token(input.token, None).await
     }
     pub async fn unlock(&self, input: UnlockShare) -> Result<RpcResult<ResolvedShare>, ApiError> {
-        self.state
-            .auth
-            .rate_limit(&self.state.db, &format!("share:{}", digest(&input.token)))
-            .await?;
+        let scope = format!("share:{}", digest(&input.token));
+        let limits = crate::auth::secret_limits(&scope, self.context.client);
+        self.state.auth.rate_limits(&self.state.db, &limits).await?;
         self.resolve_token(input.token, Some(input.password)).await
     }
     async fn resolve_token(
