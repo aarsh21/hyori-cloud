@@ -13,11 +13,17 @@ declare const HYORI_NATIVE_PERFORMANCE_TARGET: NativePerformanceTarget;
 function observeNativePerformance(target: NativePerformanceTarget) {
   const setupStart = performance.now();
 
-  if (window.location.origin !== target.origin || window.__hyoriNativePerformance !== undefined)
-    return;
-
   const framePath = `/artcraft/${target.app}/${target.version}/index.html`;
   const host = window === window.top;
+
+  // A protocol 3 frame is sandboxed without allow-same-origin, so its origin is "null".
+  if (
+    (host
+      ? window.location.origin !== target.origin
+      : window.location.origin !== "null" && window.location.origin !== target.origin) ||
+    window.__hyoriNativePerformance !== undefined
+  )
+    return;
 
   if (!host && (window.parent !== window.top || window.location.pathname !== framePath)) return;
 
@@ -40,7 +46,7 @@ function observeNativePerformance(target: NativePerformanceTarget) {
   });
 
   window.addEventListener("message", (event: MessageEvent<unknown>) => {
-    if (event.origin !== target.origin) return;
+    if (event.origin !== (host ? "null" : target.origin) && event.origin !== target.origin) return;
 
     if (host) {
       const ownsSource = Array.from(document.querySelectorAll("iframe")).some((frame) => {
