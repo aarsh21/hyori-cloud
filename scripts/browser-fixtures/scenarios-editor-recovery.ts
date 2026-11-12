@@ -950,6 +950,23 @@ async function sessionLimit(run: CoreRun, cases: EditorCases) {
   await context.close();
 }
 
+/** Closes a page, then waits until the gateway has answered every API request since `since`. */
+async function closeAndSettle(page: Page, front: CoreRun["front"], since: number) {
+  await page.close();
+
+  for (const deadline = Date.now() + 30_000; ;) {
+    const inFlight = front.trace.filter(
+      ({ at, path, outcome }) => at >= since && path.startsWith("/api/") && outcome === "pending",
+    );
+
+    if (inFlight.length === 0) return;
+
+    if (Date.now() > deadline)
+      throw new Error(`Still in flight: ${inFlight.map(({ path }) => path).join(", ")}`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 /** One editor off, by the same row an operator would change. Restored whatever happens here. */
 async function killSwitch(run: CoreRun, cases: EditorCases) {
   if (!inBundle(run, "gridcraft")) return;
@@ -970,6 +987,7 @@ async function killSwitch(run: CoreRun, cases: EditorCases) {
   await editDocument(page, cases.grid, top, MINE);
 
   const completed = operationCount(front, "editors.completeSave", 200);
+  const switchedOff = Date.now();
 
   try {
     setEnabled(false);
@@ -1017,7 +1035,11 @@ async function killSwitch(run: CoreRun, cases: EditorCases) {
 
     await fresh.close();
   } finally {
-    setEnabled(true);
+    // The open session's refused save is retryable: it replays the same snapshot a bounded number
+    // of times, and a replay after the editor is back saves the edit, as intended. That isn't what
+    // the next check is about, so the session closes and every request it sent is answered while
+    // the editor is still off. Then nothing of it can reach the server once it's back on.
+    await closeAndSettle(page, front, switchedOff).finally(() => setEnabled(true));
   }
 
   // Through someone else: the owner may have reached their own session limit by now, checked next.
