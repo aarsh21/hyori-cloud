@@ -443,13 +443,14 @@ try {
     async () => (await owner.sdk.rpc.media.get({ id: outage.id })).status === "failed",
     "worker outage did not exhaust the bounded automatic budget",
   );
+  // Retry while the worker is still away: a returning worker requeues outage failures by itself,
+  // so only here is the explicit request the sole cause of the job leaving `failed`.
+  assert.equal((await owner.sdk.rpc.media.retry({ id: outage.id })).status, "queued");
   backend!.kill("SIGTERM");
   assert.equal(await backend!.exited, 0);
   docker(["start", workerName]);
   await waitFor(socketReady, "worker did not restart");
   await start();
-  assert.equal((await owner.sdk.rpc.media.get({ id: outage.id })).status, "failed");
-  await owner.sdk.rpc.media.retry({ id: outage.id });
   await waitFor(
     async () => (await owner.sdk.rpc.media.get({ id: outage.id })).status === "ready",
     "explicit retry did not recover after restart",
@@ -482,7 +483,7 @@ try {
   assert.equal((await admin.sdk.rpc.auth.status({})).user?.usedBytes, 101);
   assert.notEqual((await owner.get(old.url!)).status, 200);
   console.log(
-    "Real Rust -> public vanilla SDK -> isolated Unix media worker: eight decoded thumbnail/poster formats, original viewer preservation, canonical restore reuse, unchanged original quota, private/shared/revoked access, malformed rejection, bounded outage failure and explicit retry after restart, and account-purge contribution preservation passed. No browser fidelity or performance claim.",
+    "Real Rust -> public vanilla SDK -> isolated Unix media worker: eight decoded thumbnail/poster formats, original viewer preservation, canonical restore reuse, unchanged original quota, private/shared/revoked access, malformed rejection, bounded outage failure, explicit retry during the outage and recovery after restart, and account-purge contribution preservation passed. No browser fidelity or performance claim.",
   );
 } finally {
   for (const sdk of clients) sdk.dispose();
