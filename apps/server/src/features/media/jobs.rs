@@ -101,10 +101,10 @@ async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
             Ok(())
         })}).await?;
     }
-    if let Some(worker) = &state.media_worker {
-        if let Some(revision) = worker.decoder_revision().await {
-            super::upgrades::requeue_page(state, &after, &last, &revision).await?;
-        }
+    if let Some(worker) = &state.media_worker
+        && let Some(revision) = worker.decoder_revision().await
+    {
+        super::upgrades::requeue_page(state, &after, &last, &revision).await?;
     }
     *cursor = if seen < DISCOVERY_PAGE {
         String::new()
