@@ -29,7 +29,12 @@ fn listing_statement(
     let trash = input.view == Some(FilesView::Trash);
     let shared = input.view == Some(FilesView::Shared);
     let search = input.search.as_deref().unwrap_or_default().to_lowercase();
-    let cursor = policy::cursor(input.cursor.as_ref().and_then(|c| c.0.as_deref()))?;
+    let raw_cursor = input.cursor.as_ref().and_then(|c| c.0.as_deref());
+    let cursor = if input.sort.is_none() {
+        policy::cursor(raw_cursor)?
+    } else {
+        ""
+    };
     let after = input.after.as_ref().map(|t| t.parse()).transpose()?;
     let before = input.before.as_ref().map(|t| t.parse()).transpose()?;
     let kind = input.r#type.as_deref().unwrap_or_default();
@@ -43,13 +48,22 @@ fn listing_statement(
         format!("${}", values.len())
     };
     let actor = bind(user_id.into());
-    let cursor = bind(cursor.into());
+    let order = input
+        .sort
+        .as_ref()
+        .map(super::sorting::ordering)
+        .unwrap_or_else(|| "i.id".into());
+    let cursor = if let Some(sort) = &input.sort {
+        super::sorting::predicate(sort, raw_cursor, &mut bind)?
+    } else {
+        format!("i.id>{}", bind(cursor.into()))
+    };
     let searching = !search.is_empty();
     let shared_roots = !trash && parent.is_none() && shared && !searching;
-    let mut predicates = if shared_roots {
+    let mut predicates = if shared_roots && input.sort.is_none() {
         vec![]
     } else {
-        vec![format!("i.id>{cursor}")]
+        vec![cursor.clone()]
     };
     if trash {
         predicates.extend([
@@ -88,15 +102,34 @@ fn listing_statement(
         let lookahead = bind(i64::from(limit + 1).into());
         format!(
             "SELECT i.* FROM hyori_items i {active_owner}
-            WHERE i.owner_id={actor} AND {} ORDER BY i.id LIMIT {lookahead}",
+            WHERE i.owner_id={actor} AND {} ORDER BY {order} LIMIT {lookahead}",
             predicates.join(" AND ")
         )
     } else {
         let grants = bind(serde_json::json!(public_shares).into());
         let eligible = policy::eligible_share_roots(&actor, &grants);
+        // Root candidates need only their ordering fields. Fetch full metadata after limiting
+        // the page, rather than carrying it through shared/search materialization and sorting.
+        let narrow = input.sort.is_some() && !shared;
+        let columns = if narrow {
+            "i.id,i.name,i.kind,i.size,i.updated_at"
+        } else if input.sort.is_some() {
+            "i.*"
+        } else {
+            "i.id"
+        };
         if let Some(parent) = parent {
             let parent = bind(parent.into());
-            predicates.push(format!("i.parent_id={parent}"));
+            if input.sort.is_some() {
+                // Parent IDs are nonempty. This equality is the same scope predicate, without
+                // a redundant parent_id equality that makes generic plans misestimate rows.
+                predicates.push(format!("coalesce(i.parent_id,'')={parent}"));
+                predicates.push(format!(
+                    "i.owner_id=(SELECT owner_id FROM hyori_items WHERE id={parent})"
+                ));
+            } else {
+                predicates.push(format!("i.parent_id={parent}"));
+            }
             predicates.push(format!("(i.owner_id={actor} OR EXISTS (
                 SELECT 1 FROM jsonb_array_elements_text(i.ancestor_ids || jsonb_build_array(i.id)) AS root(id)
                 JOIN hyori_shares s ON s.item_id=root.id AND s.revoked_at IS NULL
@@ -109,13 +142,13 @@ fn listing_statement(
             let lookahead = bind(i64::from(limit + 1).into());
             format!(
                 "SELECT i.* FROM hyori_items i {active_owner}
-                WHERE {} ORDER BY i.id LIMIT {lookahead}",
+                WHERE {} ORDER BY {order} LIMIT {lookahead}",
                 predicates.join(" AND ")
             )
         } else if !shared_roots {
             // Library root and searches: the actor's own items through owner indexes, plus items
             // reached from the actor's current shares. Each branch is filtered and keyset-limited; the merge
-            // keeps the single id order and cursor of one listing. Branches are disjoint by owner.
+            // keeps one selected order and cursor. Branches are disjoint by owner.
             // Shared candidates are collected before ordering: under a generic plan, ORDER BY id
             // LIMIT otherwise tempts PostgreSQL into walking the whole primary key.
             let lookahead = bind(i64::from(limit + 1).into());
@@ -123,31 +156,71 @@ fn listing_statement(
             let owned = if shared {
                 String::new()
             } else {
+                // Only the ordered owned scan needs the non-null equality prefix. Reachable
+                // grants are ID lookups; adding it there can make PostgreSQL scan every root.
+                let scope = if input.sort.is_some() && !searching {
+                    "AND coalesce(i.parent_id,'')=''"
+                } else {
+                    ""
+                };
                 format!(
-                    "(SELECT i.id FROM hyori_items i {active_owner}
-                    WHERE i.owner_id={actor} AND {predicates} ORDER BY i.id LIMIT {lookahead}) UNION ALL"
+                    "(SELECT {columns} FROM hyori_items i {active_owner}
+                    WHERE i.owner_id={actor} AND {predicates} {scope} ORDER BY {order} LIMIT {lookahead}) UNION ALL"
                 )
             };
             // Separate direct matches from inherited matches so PostgreSQL can use both indexes.
-            // Only folders can be ancestors; thousands of direct file grants must not become
+            // Only folders and Notes can be ancestors; direct binary file grants must not become
             // thousands of ancestry probes per candidate. UNION deduplicates overlapping grants
             // before the page limit. Parentless listing still needs only the direct branch.
             let descendants = if searching {
-                format!("UNION SELECT i.id FROM hyori_items i {active_owner}
+                format!(
+                    "UNION SELECT {columns} FROM hyori_items i {active_owner}
                     WHERE i.ancestor_ids ?| ARRAY(SELECT root.id FROM hyori_items root
-                        WHERE root.id=ANY(ARRAY(SELECT item_id FROM eligible)) AND root.kind='folder')
-                      AND i.owner_id IS DISTINCT FROM {actor} AND {predicates}")
+                        WHERE root.id=ANY(ARRAY(SELECT item_id FROM eligible))
+                          AND (root.kind='folder' OR root.mime_type='{note_mime}'))
+                      AND i.owner_id IS DISTINCT FROM {actor} AND {predicates}",
+                    note_mime = crate::features::notes::service::MIME
+                )
             } else {
                 String::new()
             };
-            format!("WITH eligible AS MATERIALIZED ({eligible}), reachable AS MATERIALIZED (
-                SELECT i.id FROM hyori_items i {active_owner}
+            let result = if narrow {
+                format!(
+                    "SELECT i.* FROM (SELECT i.id FROM page i ORDER BY {order} LIMIT {lookahead}) p
+                    JOIN hyori_items i ON i.id=p.id ORDER BY {order}"
+                )
+            } else if input.sort.is_some() {
+                format!("SELECT i.* FROM page i ORDER BY {order} LIMIT {lookahead}")
+            } else {
+                format!(
+                    "SELECT i.* FROM page p JOIN hyori_items i ON i.id=p.id ORDER BY i.id LIMIT {lookahead}"
+                )
+            };
+            // A sorted Shared search has no owned branch, and UNION already bounds/deduplicates
+            // its direct and inherited candidates. It needs no extra materialization boundary.
+            let materialized = if shared && input.sort.is_some() {
+                ""
+            } else {
+                "MATERIALIZED"
+            };
+            format!(
+                "WITH eligible AS MATERIALIZED ({eligible}), reachable AS {materialized} (
+                SELECT {columns} FROM hyori_items i {active_owner}
                 WHERE i.id=ANY(ARRAY(SELECT item_id FROM eligible))
                   AND i.owner_id IS DISTINCT FROM {actor} AND {predicates}
                 {descendants}
               ), page AS MATERIALIZED ({owned}
-                (SELECT id FROM reachable ORDER BY id LIMIT {lookahead})
-              ) SELECT i.* FROM page p JOIN hyori_items i ON i.id=p.id ORDER BY i.id LIMIT {lookahead}")
+                (SELECT {columns} FROM reachable i ORDER BY {order} LIMIT {lookahead})
+              ) {result}"
+            )
+        } else if input.sort.is_some() {
+            let lookahead = bind(i64::from(limit + 1).into());
+            // Unlike ID order, these orders cannot entice a full primary-key walk for LIMIT.
+            // Keep the eligible ID lookup and sort in one plan instead of copying every row.
+            format!("WITH eligible AS MATERIALIZED ({eligible})
+                SELECT i.* FROM hyori_items i {active_owner}
+                WHERE i.id=ANY(ARRAY(SELECT item_id FROM eligible)) AND i.owner_id IS DISTINCT FROM {actor} AND {}
+                ORDER BY {order} LIMIT {lookahead}", predicates.join(" AND "))
         } else {
             // Keep the measured direct-root shape, including its materialization boundaries.
             // Deduplication precedes page limiting; no inherited descendants or grant limit.
@@ -156,7 +229,7 @@ fn listing_statement(
                 SELECT id FROM ((WITH scope_ids AS MATERIALIZED (
                   SELECT i.id FROM hyori_items i {active_owner}
                   WHERE i.id=ANY(ARRAY(SELECT item_id FROM eligible)) AND i.owner_id IS DISTINCT FROM {actor} AND {}
-                ) SELECT id FROM scope_ids WHERE id>{cursor} ORDER BY id LIMIT {lookahead})
+                ) SELECT i.id FROM scope_ids i WHERE {cursor} ORDER BY i.id LIMIT {lookahead})
                 ) combined_ids ORDER BY id LIMIT {lookahead}
               ) SELECT i.* FROM visible v JOIN hyori_items i ON i.id=v.id ORDER BY i.id", predicates.join(" AND "))
         }
@@ -239,6 +312,7 @@ impl FilesService {
         .await
     }
     pub async fn list(&self, input: ListFiles) -> Result<FileList, ApiError> {
+        let media_enabled = self.state.media_worker.is_some();
         self.run(move |tx, actor| {
             let input = input.clone();
             Box::pin(async move {
@@ -280,7 +354,11 @@ impl FilesService {
                     .collect::<DomainResult<Vec<_>>>()?;
                 policy::load_roles(tx, &actor, &mut rows).await?;
                 let next_cursor = if rows.len() > limit as usize {
-                    Some(rows[limit as usize - 1].id.clone())
+                    let boundary = &rows[limit as usize - 1];
+                    Some(match &input.sort {
+                        Some(sort) => super::sorting::encode(sort, boundary)?,
+                        None => boundary.id.clone(),
+                    })
                 } else {
                     None
                 };
@@ -289,6 +367,13 @@ impl FilesService {
                     .take(limit as usize)
                     .map(|item| policy::project(item, &actor))
                     .collect();
+                let thumbnails = super::thumbnails::describe(
+                    tx,
+                    &rows[..rows.len().min(limit as usize)],
+                    media_enabled,
+                    trash,
+                )
+                .await?;
                 let mut breadcrumbs = vec![];
                 if let Some(folder) = &folder {
                     let mut ancestors = tx
@@ -326,6 +411,7 @@ impl FilesService {
                     breadcrumbs,
                     next_cursor: Nullable(next_cursor),
                     folder: Nullable(folder.map(|item| policy::project(&item, &actor))),
+                    thumbnails,
                 })
             })
         })
@@ -383,6 +469,13 @@ impl FilesService {
             Box::pin(async move {
                 let mut item =
                     policy::authorize(tx, &actor, &input.id.0, Action::Rename, false).await?;
+                // Files is another entry point to Notes metadata, not a way around its title fence.
+                if item.mime_type == crate::features::notes::service::MIME
+                    && input.expected_name.as_ref().map(|n| n.0.as_str())
+                        != Some(item.name.as_str())
+                {
+                    return Err(ApiError::conflict().into());
+                }
                 policy::available_name(
                     tx,
                     &item.owner_id,
@@ -426,7 +519,9 @@ impl FilesService {
                     Some(&item.id),
                 )
                 .await?;
-                if item.kind == FileKind::Folder {
+                if item.kind == FileKind::Folder
+                    || item.mime_type == crate::features::notes::service::MIME
+                {
                     item.move_descendants(tx, &destination.ancestor_ids).await?;
                 }
                 item.parent_id = parent_id;
@@ -447,7 +542,9 @@ impl FilesService {
                 let mut item =
                     policy::authorize(tx, &actor, &input.id.0, Action::Owner, false).await?;
                 let now = Utc::now();
-                if item.kind == FileKind::Folder {
+                if item.kind == FileKind::Folder
+                    || item.mime_type == crate::features::notes::service::MIME
+                {
                     item.trash_descendants(tx, now).await?;
                 }
                 item.trashed_at = Some(now);
@@ -483,7 +580,9 @@ impl FilesService {
                     Some(&item.id),
                 )
                 .await?;
-                if item.kind == FileKind::Folder {
+                if item.kind == FileKind::Folder
+                    || item.mime_type == crate::features::notes::service::MIME
+                {
                     item.restore_descendants(tx).await?;
                 }
                 item.trashed_at = None;
@@ -648,6 +747,20 @@ impl FilesService {
         self.run(move |tx, actor| {
             let input = input.clone();
             Box::pin(async move {
+                let item = policy::authorize(tx, &actor, &input.id.0, Action::Read, false).await?;
+                if item.mime_type == crate::features::notes::service::MIME {
+                    if input.version_id.is_some() {
+                        return Err(ApiError::invalid().into());
+                    }
+                    let (name, bytes, fence) =
+                        crate::features::notes::service::export(tx, &actor, &item.id).await?;
+                    return Ok(Download {
+                        url: format!("/api/storage/notes/{}?fence={fence}", item.id),
+                        name: crate::features::auth::api::Name(name),
+                        size: Bytes(bytes.len() as u64),
+                        mime_type: "application/json".into(),
+                    });
+                }
                 let descriptor = authorized_content(
                     tx,
                     &actor,

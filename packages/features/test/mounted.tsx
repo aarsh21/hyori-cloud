@@ -50,7 +50,7 @@ export class ApiFailure {
   ) {}
 }
 
-type Handlers = Record<string, (input: RequestInput) => object | Promise<object>>;
+type Handlers = Record<string, (input: RequestInput) => object | string | Promise<object | string>>;
 
 /** Real SDK and Query behavior over a scripted transport. Unscripted operations fail the request. */
 /**

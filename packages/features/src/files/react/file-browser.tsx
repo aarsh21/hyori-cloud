@@ -28,7 +28,10 @@ import { useSingleKeyShortcuts } from "@hyori-cloud/ui/hooks/use-single-key-shor
 import { useBrowserPreferencesReady } from "@hyori-cloud/ui/hooks/use-browser-preferences-ready";
 import { isAppShortcut } from "@hyori-cloud/ui/lib/browser";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
-import { useAvailableEditors } from "#features/editors/react/use-available-editors.ts";
+import {
+  AvailableEditorsContext,
+  useAvailableEditors,
+} from "#features/editors/react/use-available-editors.ts";
 import {
   countBarFilters,
   hasActiveFilters,
@@ -43,6 +46,8 @@ import {
 } from "#features/files/react/file-actions.tsx";
 import { FileFilterBar } from "#features/files/react/file-filter-bar.tsx";
 import { FileListingView } from "#features/files/react/file-listing-view.tsx";
+import { FileSortControl } from "#features/files/react/file-sort-control.tsx";
+import { useFileSort } from "#features/files/react/file-sort.ts";
 import { FolderPathProvider } from "#features/files/react/folder-path.tsx";
 import { useFileListing } from "#features/files/react/use-file-listing.ts";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
@@ -95,14 +100,19 @@ export function FileBrowser({
   empty,
 }: FileBrowserProps) {
   // Resolve the default open action alongside the listing, not after its rows arrive.
-  useAvailableEditors();
+  const editors = useAvailableEditors();
   const [layout, setLayout] = useItemLayout();
+  const [sort, setSort] = useFileSort();
   const ready = useBrowserPreferencesReady();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { filters, patch, clear } = useBrowserFilters(parentId);
 
   // Changing filters keeps this folder on screen. Entering another folder never shows this one's data.
-  const listing = useFileListing(toListFilesInput(parentId, view, filters), `${view}:${parentId}`);
+  const listing = useFileListing(
+    { ...toListFilesInput(parentId, view, filters), sort },
+    `${view}:${parentId}:${sort}`,
+  );
+
   const queue = useUploadQueue();
   const picker = useRef<FilePickerHandle>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -122,83 +132,88 @@ export function FileBrowser({
   }
 
   return (
-    <FolderPathProvider value={folderPath}>
-      <FileActionsProvider entries={entries} folderId={parentId}>
-        <FilePicker ref={picker} onFiles={addFiles} />
-        <BrowserShortcuts canCreate={canCreate} picker={picker} searchInput={searchInput} />
-        <PageBar data-browser-ready={ready}>
-          <BrowserLocation
-            root={
-              folder !== null && !folder.access.isOwner && foreignRoot
-                ? foreignRoot
-                : { label: rootLabel, path: folderPath(rootFolderId) }
-            }
-            showRoot={parentId !== rootFolderId}
-            title={title}
-            ancestors={crumbs.slice(0, -1).filter((crumb) => crumb.id !== rootFolderId)}
-            folderPath={folderPath}
-          />
-          <PageBarActions className="order-last w-full md:order-none md:ml-0 md:w-auto">
-            <SearchField
-              key={parentId}
-              inputRef={searchInput}
-              className="min-w-0 flex-1 md:w-56 md:flex-none"
-              label={`Search ${searchScope} by name`}
-              placeholder={`Search ${searchScope}`}
-              shortcut={shortcutsEnabled ? "/" : undefined}
-              value={filters.search}
-              onCommit={(search) => patch({ search })}
+    <AvailableEditorsContext value={editors}>
+      <FolderPathProvider value={folderPath}>
+        <FileActionsProvider entries={entries} folderId={parentId}>
+          <FilePicker ref={picker} onFiles={addFiles} />
+          <BrowserShortcuts canCreate={canCreate} picker={picker} searchInput={searchInput} />
+          <PageBar data-browser-ready={ready}>
+            <BrowserLocation
+              root={
+                folder !== null && !folder.access.isOwner && foreignRoot
+                  ? foreignRoot
+                  : { label: rootLabel, path: folderPath(rootFolderId) }
+              }
+              showRoot={parentId !== rootFolderId}
+              title={title}
+              ancestors={crumbs.slice(0, -1).filter((crumb) => crumb.id !== rootFolderId)}
+              folderPath={folderPath}
             />
-            <FiltersToggle
-              activeCount={countBarFilters(filters)}
-              open={filtersOpen}
-              onToggle={() => setFiltersOpen(!filtersOpen)}
-            />
-          </PageBarActions>
-          <PageBarActions className="md:ml-0">
-            <SegmentedControl label="Layout" value={layout} onValueChange={setLayout}>
-              <SegmentedControlItem value="list" label="List">
-                <List aria-hidden />
-              </SegmentedControlItem>
-              <SegmentedControlItem value="grid" label="Grid">
-                <LayoutGrid aria-hidden />
-              </SegmentedControlItem>
-            </SegmentedControl>
-            {canCreate ? <CreateFolderButton /> : null}
-            {canCreate ? (
-              <Button onClick={() => picker.current?.open()}>
-                <Upload aria-hidden />
-                Upload
-              </Button>
-            ) : null}
-            {actions}
-          </PageBarActions>
-        </PageBar>
-        {filtersOpen ? <FileFilterBar filters={filters} onChange={patch} onClear={clear} /> : null}
-        <DropZone disabled={!canCreate} label={`Drop to upload to ${title}`} onFiles={addFiles}>
-          {/* Keyed so entering a folder starts at its top instead of the last one's scroll offset. */}
-          <PageBody key={parentId} data-browser-ready={ready}>
-            <PageSection>
-              <ActionFailureNotice />
-              <FileListingView
-                listing={listing}
-                layout={layout}
-                label={title}
-                filtering={filtering}
-                onClearFilters={clear}
-                empty={
-                  <BrowserEmpty
-                    empty={empty}
-                    canCreate={canCreate}
-                    onUpload={() => picker.current?.open()}
-                  />
-                }
+            <PageBarActions className="order-last w-full md:order-none md:ml-0 md:w-auto">
+              <SearchField
+                key={parentId}
+                inputRef={searchInput}
+                className="min-w-0 flex-1 md:w-56 md:flex-none"
+                label={`Search ${searchScope} by name`}
+                placeholder={`Search ${searchScope}`}
+                shortcut={shortcutsEnabled ? "/" : undefined}
+                value={filters.search}
+                onCommit={(search) => patch({ search })}
               />
-            </PageSection>
-          </PageBody>
-        </DropZone>
-      </FileActionsProvider>
-    </FolderPathProvider>
+              <FiltersToggle
+                activeCount={countBarFilters(filters)}
+                open={filtersOpen}
+                onToggle={() => setFiltersOpen(!filtersOpen)}
+              />
+              <FileSortControl value={sort} onChange={setSort} />
+            </PageBarActions>
+            <PageBarActions className="md:ml-0">
+              <SegmentedControl label="Layout" value={layout} onValueChange={setLayout}>
+                <SegmentedControlItem value="list" label="List">
+                  <List aria-hidden />
+                </SegmentedControlItem>
+                <SegmentedControlItem value="grid" label="Grid">
+                  <LayoutGrid aria-hidden />
+                </SegmentedControlItem>
+              </SegmentedControl>
+              {canCreate ? <CreateFolderButton /> : null}
+              {canCreate ? (
+                <Button onClick={() => picker.current?.open()}>
+                  <Upload aria-hidden />
+                  Upload
+                </Button>
+              ) : null}
+              {actions}
+            </PageBarActions>
+          </PageBar>
+          {filtersOpen ? (
+            <FileFilterBar filters={filters} onChange={patch} onClear={clear} />
+          ) : null}
+          <DropZone disabled={!canCreate} label={`Drop to upload to ${title}`} onFiles={addFiles}>
+            {/* Keyed so entering a folder starts at its top instead of the last one's scroll offset. */}
+            <PageBody key={parentId} data-browser-ready={ready}>
+              <PageSection>
+                <ActionFailureNotice />
+                <FileListingView
+                  listing={listing}
+                  layout={layout}
+                  label={title}
+                  filtering={filtering}
+                  onClearFilters={clear}
+                  empty={
+                    <BrowserEmpty
+                      empty={empty}
+                      canCreate={canCreate}
+                      onUpload={() => picker.current?.open()}
+                    />
+                  }
+                />
+              </PageSection>
+            </PageBody>
+          </DropZone>
+        </FileActionsProvider>
+      </FolderPathProvider>
+    </AvailableEditorsContext>
   );
 }
 

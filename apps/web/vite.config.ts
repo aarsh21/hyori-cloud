@@ -19,7 +19,22 @@ export default defineConfig(({ command }) => ({
   // Keep the renderer, CommonJS hook shims and each workspace's icon version together.
   // A partially externalized intermediate build resolves them again from Nitro's directory,
   // producing duplicate React dispatchers or server/client icon mismatches on hydrated screens.
-  environments: command === "build" ? { ssr: { resolve: { noExternal: true } } } : undefined,
+  environments:
+    command === "build"
+      ? {
+          ssr: { resolve: { noExternal: true } },
+          client: {
+            build: {
+              rolldownOptions: {
+                output: {
+                  // Compress the already-eager graph together; screens and closed dialogs stay lazy.
+                  codeSplitting: { groups: [{ name: "initial", tags: ["$initial"] }] },
+                },
+              },
+            },
+          },
+        }
+      : undefined,
   plugins: [
     varlockVitePlugin({ ssrInjectMode: "auto-load" }),
     tailwindcss(),

@@ -116,6 +116,10 @@ impl EditorsService {
                 // A link visitor's session records its links and when its credentials expire, for cleanup.
                 let (link_shares, link_expires) = if actor.user_id().is_none() { (Some(serde_json::json!(actor.public_shares())), actor.link_expiry()) } else { (None, None) };
                 tx.execute_raw(sql("INSERT INTO hyori_editor_sessions(id,file_id,owner_id,initiator_id,grant_digests,principal,app,version,revision,name,link_shares,link_expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",vec![id.clone().into(),item.id.clone().into(),item.owner_id.clone().into(),actor.user_id().into(),serde_json::json!(grants).into(),principal.into(),formats::app_name(&app).into(),capability.version.clone().into(),item.revision.into(),item.name.clone().into(),link_shares.into(),link_expires.into()])).await?;
+                let annotation_author = if let (EditorApp::Pdfcraft, Some(user_id)) = (&app, actor.user_id()) {
+                    tx.query_one_raw(sql("SELECT name FROM hyori_users WHERE id=$1", vec![user_id.into()])).await?
+                        .map(|row| row.try_get::<String>("", "name").map(Name)).transpose()?
+                } else { None };
                 Ok(EditorDocument {
                     session_id: Id(id), version: capability.version.clone(), asset_url: capability.asset_url.clone(), name: Name(item.name.clone()), revision: item.revision.to_string(),
                     bridge: match (capability.bridge.as_str(), capability.protocol) {
@@ -126,7 +130,7 @@ impl EditorsService {
                         _ => return Err(ApiError::unavailable().into()),
                     },
                     protocol: Nullable(capability.protocol.map(EditorProtocol)),
-                    writable: files::access(&item,&actor).can_edit, max_bytes: Bytes(formats::max_bytes(&app)), replacement_name: Nullable(formats::replacement(&item.name).map(Name)), output_formats: formats::outputs(&app), engine: capability.engine.clone(), app,
+                    writable: files::access(&item,&actor).can_edit, max_bytes: Bytes(formats::max_bytes(&app)), replacement_name: Nullable(formats::replacement(&item.name).map(Name)), output_formats: formats::outputs(&app), annotation_author, engine: capability.engine.clone(), app,
                 })
             })
         }).await
@@ -179,6 +183,37 @@ impl EditorsService {
             .await?
             .map(|row| row.try_get::<String>("", "owner_id"))
             .transpose()?)
+    }
+    /// A suggestion, not a reservation: upload admission still rejects concurrent collisions.
+    pub async fn suggest_copy_name(&self, input: EditorCopyNameInput) -> Result<Name, ApiError> {
+        db::domain(&self.state.db, |tx| {
+            let assets = self.state.editor_assets.clone();
+            let (context, input) = (self.context.clone(), input.clone());
+            Box::pin(async move {
+                let (session, actor, _) = policy::session(tx, &assets, &context, &input.session_id.0, Action::Read).await?;
+                if input.intent == EditorIntent::Replace { return Err(ApiError::invalid().into()); }
+                formats::validate_output(&session.app, &input.name.0, &input.intent)?;
+                let parent = input.parent_id.0.as_ref().map(|id| id.0.as_str());
+                let destination = files::destination(tx, &actor, parent).await?;
+                let name = files::normalize_name(&input.name.0)?;
+                let (stem, extension) = name.rsplit_once('.').ok_or_else(ApiError::invalid)?;
+                // Leave room for every suffix in this bounded search, including Deck's UTF-16 limit.
+                let mut prefix = String::new();
+                let mut remaining = 255 - " (1000).".len() - extension.len();
+                for ch in stem.chars() {
+                    let units = ch.len_utf16();
+                    if units > remaining { break; }
+                    prefix.push(ch);
+                    remaining -= units;
+                }
+                let extension = extension.to_owned();
+                let row = tx.query_one_raw(sql(
+                    "SELECT candidate FROM (SELECT n, CASE WHEN n=1 THEN $3 ELSE $4 || ' (' || n || ').' || $5 END AS candidate FROM generate_series(1,1000) n) choices WHERE NOT EXISTS (SELECT 1 FROM hyori_items WHERE owner_id=$1 AND parent_id IS NOT DISTINCT FROM $2 AND name=choices.candidate AND trashed_at IS NULL) ORDER BY n LIMIT 1",
+                    vec![destination.owner_id.into(), parent.into(), name.into(), prefix.into(), extension.into()],
+                )).await?.ok_or_else(ApiError::unavailable)?;
+                Ok(Name(row.try_get("", "candidate")?))
+            })
+        }).await
     }
     pub async fn prepare_save(&self, input: EditorPrepareSave) -> Result<UploadStatus, ApiError> {
         self.state

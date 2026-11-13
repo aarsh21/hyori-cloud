@@ -1,10 +1,8 @@
-import { ApiError } from "@hyori-cloud/api/rpc";
-import { Either, Schema } from "@hyori-cloud/lib/effect";
+import { ApiError } from "@hyori-cloud/api/wire";
+import * as z from "@hyori-cloud/lib/json";
 import { normalizeError, SDKError, type ClientError } from "#client-sdk/errors";
 
-const decodeFailure = Schema.decodeUnknownEither(
-  Schema.Struct({ ok: Schema.Literal(false), error: ApiError }),
-);
+const failure = z.object({ ok: z.literal(false), error: ApiError });
 
 /** Binary routes use the same declared failures as RPC, not a success-schema mismatch. */
 export async function readBinaryRejection(
@@ -22,9 +20,9 @@ export async function readBinaryRejection(
     if (!(cause instanceof SyntaxError)) return normalizeError(cause);
   }
 
-  const decoded = decodeFailure(body);
+  const decoded = failure.safeParse(body);
 
-  if (Either.isRight(decoded)) return decoded.right.error;
+  if (decoded.success) return decoded.data.error;
 
   if (response.status === 408 || response.status === 429 || response.status >= 500)
     return new SDKError("SDK_TRANSPORT", `Binary request failed (${response.status}).`);

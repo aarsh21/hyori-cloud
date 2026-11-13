@@ -6,7 +6,27 @@ use serde_json::json;
 #[test]
 fn complete_deterministic_catalog() {
     let manifest = manifest().unwrap();
-    assert_eq!(manifest.operations.len(), 54);
+    assert_eq!(manifest.operations.len(), 66);
+    for name in [
+        "notes.list",
+        "notes.get",
+        "notes.create",
+        "notes.rename",
+        "notes.favorite",
+        "notes.history",
+        "notes.checkpoint",
+        "notes.restoreCheckpoint",
+        "collaboration.open",
+        "collaboration.sync",
+        "collaboration.close",
+    ] {
+        assert!(
+            manifest
+                .operations
+                .iter()
+                .any(|operation| operation.name == name)
+        );
+    }
     assert_eq!(
         serde_json::to_string(&manifest).unwrap(),
         serde_json::to_string(&hyori_server::wire::manifest().unwrap()).unwrap()
@@ -76,6 +96,21 @@ fn complete_deterministic_catalog() {
         "Albums",
         "CreateAlbum",
         "AddToAlbum",
+        "Note",
+        "NoteListInput",
+        "NoteList",
+        "CreateNote",
+        "RenameNote",
+        "FavoriteNote",
+        "NoteCheckpoint",
+        "NoteHistoryInput",
+        "NoteHistory",
+        "RestoreNoteCheckpoint",
+        "CollaborationOpen",
+        "CollaborationDocument",
+        "CollaborationSync",
+        "CollaborationReceipt",
+        "CollaborationClose",
     ] {
         assert!(
             manifest.schemas.contains_key(name),

@@ -51,6 +51,9 @@ fn free_keys(scope: &str) -> String {
          keys AS MATERIALIZED (
             SELECT object_key FROM doomed WHERE object_key IS NOT NULL
             UNION SELECT v.object_key FROM hyori_versions v JOIN doomed d ON d.id=v.file_id),
+         collab_free AS MATERIALIZED (
+            SELECT octet_length(c.state) AS size FROM hyori_collab_documents c JOIN doomed d ON d.id=c.item_id
+            UNION ALL SELECT octet_length(c.state) FROM hyori_collab_checkpoints c JOIN doomed d ON d.id=c.item_id),
          free AS MATERIALIZED (SELECT k.object_key FROM keys k
             WHERE NOT EXISTS (SELECT 1 FROM hyori_items i WHERE i.object_key=k.object_key AND NOT ({scope}))
               AND NOT EXISTS (SELECT 1 FROM hyori_versions v WHERE v.object_key=k.object_key
@@ -86,6 +89,17 @@ pub(crate) async fn delete_trashed(
     doomed: Doomed<'_>,
 ) -> DomainResult<PermanentDeletion> {
     let (scope, values) = doomed.scope(owner);
+    let collab_freed: i64 = tx
+        .query_one_raw(sql(
+            &format!(
+                "WITH {} SELECT coalesce(sum(size),0)::bigint AS freed FROM collab_free",
+                free_keys(scope)
+            ),
+            values.clone(),
+        ))
+        .await?
+        .ok_or_else(ApiError::unavailable)?
+        .try_get("", "freed")?;
     let freed: i64 = tx
         .query_one_raw(sql(
             &format!(
@@ -115,7 +129,7 @@ pub(crate) async fn delete_trashed(
         .rows_affected();
     Ok(PermanentDeletion {
         items: Bytes(items),
-        freed_bytes: Bytes(freed as u64),
+        freed_bytes: Bytes((freed + collab_freed) as u64),
     })
 }
 
@@ -129,8 +143,8 @@ pub(crate) async fn trash_summary(
         .query_one_raw(sql(
             &format!(
                 "WITH {} SELECT (SELECT count(*) FROM doomed WHERE trash_root=id) AS items,
-                    coalesce((SELECT sum(o.size) FROM hyori_objects o JOIN free f ON f.object_key=o.object_key
-                        WHERE o.owner_id=$1),0)::bigint AS freed",
+                    (coalesce((SELECT sum(o.size) FROM hyori_objects o JOIN free f ON f.object_key=o.object_key
+                        WHERE o.owner_id=$1),0)+coalesce((SELECT sum(size) FROM collab_free),0))::bigint AS freed",
                 free_keys(scope)
             ),
             values,

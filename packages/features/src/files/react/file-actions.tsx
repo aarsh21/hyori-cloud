@@ -4,8 +4,9 @@ import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { createContext, useContext, useId, useRef, useState } from "@hyori-cloud/lib/react";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { toast } from "@hyori-cloud/ui/components/sonner";
+import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
 import { useDisposeOnUnmount } from "@hyori-cloud/ui/hooks/use-dispose-on-unmount";
-import { FileDialogs } from "#features/files/react/file-dialogs.tsx";
+import { loadFileDialogs } from "#features/files/react/file-dialog-loaders.ts";
 import { DOWNLOAD_MUTATION_KEY, useDownloadFile } from "#features/files/react/use-download-file.ts";
 import { useRestoreFile, useTrashFile } from "#features/files/react/use-file-mutations.ts";
 import { usePendingItemActions } from "#features/files/react/use-pending-item-actions.ts";
@@ -13,6 +14,8 @@ import { useFileActionErrors } from "#features/files/react/use-file-action-error
 import { isMediaType } from "#features/shared/format.ts";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
 import type { CloudError } from "#features/shared/cloud-error.ts";
+
+const loadDialogs = async () => (await loadFileDialogs()).FileDialogs;
 
 export type FileDialog =
   | { readonly kind: "createFolder" }
@@ -52,6 +55,21 @@ function targetIsGone(dialog: FileDialog, entries: readonly FileEntry[]) {
   if (dialog.kind === "createFolder" || dialog.kind === "move") return false;
 
   return !entries.some((entry) => entry.id === dialog.id);
+}
+
+function dialogTitle(dialog: FileDialog) {
+  switch (dialog.kind) {
+    case "createFolder":
+      return "New folder";
+    case "viewer":
+      return "Preview";
+    case "replace":
+    case "share":
+    case "move":
+    case "rename":
+    case "versions":
+      return "File details";
+  }
 }
 
 /**
@@ -139,13 +157,22 @@ export function FileActionsProvider({
     <FileActionsContext value={actions}>
       <ActionFailureContext value={failure}>
         <PendingActionsContext value={pendingIds}>{children}</PendingActionsContext>
-        <FileDialogs
-          active={active}
-          entries={entries}
-          folderId={folderId}
-          onSelect={openDialog}
-          onClose={() => setActive(active === null ? null : { ...active, open: false })}
-        />
+        {active !== null ? (
+          <DeferredDialog
+            key={`${active.dialog.kind}:${"id" in active.dialog ? active.dialog.id : ""}`}
+            load={loadDialogs}
+            title={dialogTitle(active.dialog)}
+            open={active.open}
+            onClose={() => setActive({ ...active, open: false })}
+            props={{
+              active,
+              entries,
+              folderId,
+              onSelect: openDialog,
+              onClose: () => setActive({ ...active, open: false }),
+            }}
+          />
+        ) : null}
       </ActionFailureContext>
     </FileActionsContext>
   );

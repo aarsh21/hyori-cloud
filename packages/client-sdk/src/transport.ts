@@ -1,4 +1,4 @@
-import { Schema } from "@hyori-cloud/lib/effect";
+import * as z from "@hyori-cloud/lib/json";
 import type { OperationDeclaration, Payload, Success } from "#client-sdk/inference";
 import { normalizeError, SDKError } from "#client-sdk/errors";
 import type { RequestOptions } from "#client-sdk/operation-catalog";
@@ -14,25 +14,19 @@ export type TransportOptions = {
   readonly credentials?: RequestCredentials;
 };
 
-const envelopeValue = Schema.Unknown.pipe(Schema.filter((value) => value !== undefined));
+const envelopeValue = z.unknown().check(z.refine((value) => value !== undefined));
 
-const decodeEnvelope = Schema.decodeUnknownSync(
-  Schema.Union(
-    Schema.Struct({ ok: Schema.Literal(true), value: envelopeValue }),
-    Schema.Struct({ ok: Schema.Literal(false), error: envelopeValue }),
-  ),
-);
+const rpcEnvelope = z.union([
+  z.object({ ok: z.literal(true), value: envelopeValue }),
+  z.object({ ok: z.literal(false), error: envelopeValue }),
+]);
 
 export function encodeOperationInput<D extends OperationDeclaration>(
   declaration: D,
   input: Payload<D>,
 ) {
   try {
-    return Schema.encodeUnknownSync(
-      Schema.make<Payload<D>, Schema.Schema.Encoded<D["rpc"]["payloadSchema"]>>(
-        declaration.rpc.payloadSchema.ast,
-      ),
-    )(input);
+    return declaration.rpc.payloadSchema.parse(input);
   } catch (cause) {
     throw new SDKError("SDK_VALIDATION", "The operation input is invalid.", { cause });
   }
@@ -94,7 +88,7 @@ export function createTransport(options: TransportOptions) {
 
       const envelope = (() => {
         try {
-          return decodeEnvelope(JSON.parse(body));
+          return rpcEnvelope.parse(JSON.parse(body));
         } catch (cause) {
           // Gateways cannot emit our envelope when their upstream is unavailable.
           if ([502, 503, 504].includes(response.status))
@@ -108,16 +102,9 @@ export function createTransport(options: TransportOptions) {
       })();
 
       if (!envelope.ok) {
-        const declaredError = Schema.decodeUnknownSync(
-          Schema.make<
-            Schema.Schema.Type<D["rpc"]["errorSchema"]>,
-            Schema.Schema.Encoded<D["rpc"]["errorSchema"]>
-          >(declaration.rpc.errorSchema.ast),
-        );
-
         const failure = (() => {
           try {
-            return declaredError(envelope.error);
+            return declaration.rpc.errorSchema.parse(envelope.error);
           } catch (cause) {
             throw new SDKError("SDK_PROTOCOL", "The server returned an undeclared failure.", {
               cause,
@@ -132,11 +119,8 @@ export function createTransport(options: TransportOptions) {
         throw new SDKError("SDK_TRANSPORT", `The request failed (${response.status}).`);
 
       try {
-        return Schema.decodeUnknownSync(
-          Schema.make<Success<D>, Schema.Schema.Encoded<D["rpc"]["successSchema"]>>(
-            declaration.rpc.successSchema.ast,
-          ),
-        )(envelope.value);
+        // SAFETY: the declaration's Rust-derived codec is the source of Success<D>.
+        return declaration.rpc.successSchema.parse(envelope.value) as Success<D>;
       } catch (cause) {
         throw new SDKError(
           "SDK_PROTOCOL",

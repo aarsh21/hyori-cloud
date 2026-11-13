@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-receipt",
+  "app": "deckcraft",
+  "artifactVersion": "0.14.1-hyori-host.7",
+  "bridge": "hyori-correlated-host-v3",
+  "protocol": 3,
+  "sourceArchiveSha256": "6e03f2e9532c0102ec01d8be8bba556a0191ee11d5ca64412a5b48457afddfb7",
+  "buildManifestSha256": "10ad2f981c2417eaa285677c1c537bf810de0f4e963cadeaf91e58ad395db5e4",
+  "sourceSummarySha256": "c3bdc44400c30f45a7528b05a6edd67438303ee69e295ca6460f269c3c591e21",
+  "wasmSha256": "40e82f7766a86b44f7e1fb8fa1123c454c4c8d53cf50e40f246f270aa47f1db8",
+  "payloadSha256": "66b21193f90cb0bc3c13dc7b9e4d4af20940c37519e624106aa8885981147a0b",
+  "cspScriptHashes": [
+    "sha256-MIgl6/Y9ElILB3dWTXPyWbCBxol/LcIFaIwzByExzTA="
+  ],
+  "files": [
+    {
+      "path": "deckcraft/0.14.1-hyori-host.7/deckcraft-web-7f3f7d6aae253a5e.js",
+      "bytes": 167130,
+      "sha256": "cd306d89214cd565505fb4ecc5948f1cfd50f537657169512927204c76f4e8e2"
+    },
+    {
+      "path": "deckcraft/0.14.1-hyori-host.7/deckcraft-web-7f3f7d6aae253a5e_bg.wasm",
+      "bytes": 33242315,
+      "sha256": "40e82f7766a86b44f7e1fb8fa1123c454c4c8d53cf50e40f246f270aa47f1db8"
+    },
+    {
+      "path": "deckcraft/0.14.1-hyori-host.7/hyori-mark-1e3aa2eda2b94725.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "deckcraft/0.14.1-hyori-host.7/index.html",
+      "bytes": 1808,
+      "sha256": "3c79e7ac6e137c9288f1cf9863b8e36021e1206de7b28e185fec083ee3830786"
+    },
+    {
+      "path": "deckcraft/0.14.1-hyori-host.7/snippets/deckcraft-web-78a7450ef22232a7/hyori-native-host.js",
+      "bytes": 184183,
+      "sha256": "3416c2c5838e3ea5e7f21c53e3a27786c2b48314a2fc53189704f3c46ca2294a"
+    },
+    {
+      "path": "deckcraft/0.14.1-hyori-host.7/snippets/eframe-d31a8450ea12dfc1/inline0.js",
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    }
+  ]
+}

@@ -17,7 +17,9 @@ import { readEditorBundle } from "./browser-fixtures/editor-bundle.ts";
 import { runEditorScenarios } from "./browser-fixtures/scenarios-editors.ts";
 import { runDerivativeScenarios } from "./browser-fixtures/scenarios-derivatives.ts";
 import { runFileScenarios } from "./browser-fixtures/scenarios-files.ts";
+import { runSortingScenarios } from "./browser-fixtures/scenarios-sorting.ts";
 import { runPhotoScenarios } from "./browser-fixtures/scenarios-photos.ts";
+import { runNotesScenarios } from "./browser-fixtures/scenarios-notes.ts";
 import {
   runDownloadSoak,
   runReplacementScenarios,
@@ -261,9 +263,18 @@ try {
 
   if (selected("files")) await runFileScenarios(run);
 
+  if (only?.includes("sorting")) {
+    for (const phone of [false, true])
+      await report.scenario(`File sorting: ${phone ? "phone" : "desktop"}`, () =>
+        runSortingScenarios(run, phone),
+      );
+  }
+
   if (selected("replacement")) await runReplacementScenarios(run);
 
   if (selected("sharing")) await runSharingScenarios(run);
+
+  if (only?.includes("notes")) await runNotesScenarios(run);
 
   if (selected("admin")) await runAdminScenarios(run);
 

@@ -19,6 +19,7 @@ pub(crate) struct ExactBody {
     final_frame: Option<Bytes>,
     done: bool,
     verified: Arc<AtomicBool>,
+    pub(crate) waiting_for_source: Arc<AtomicBool>,
 }
 
 impl ExactBody {
@@ -31,6 +32,7 @@ impl ExactBody {
                 final_frame: None,
                 done: false,
                 verified: verified.clone(),
+                waiting_for_source: Arc::new(AtomicBool::new(false)),
             },
             verified,
         )
@@ -50,7 +52,10 @@ impl Body for ExactBody {
         }
         // Yield if an adversarial producer emits only empty frames.
         for _ in 0..16 {
-            match self.source.get_mut().as_mut().poll_next(cx) {
+            let frame = self.source.get_mut().as_mut().poll_next(cx);
+            self.waiting_for_source
+                .store(frame.is_pending(), Ordering::Release);
+            match frame {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Some(Err(_))) => {
                     self.done = true;

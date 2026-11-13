@@ -1,4 +1,3 @@
-import { Schema } from "@hyori-cloud/lib/effect";
 import type { Client } from "#client-sdk/client";
 import type { InputOf } from "#client-sdk/inference";
 import type { RequestOptions } from "#client-sdk/operation-catalog";
@@ -8,7 +7,8 @@ import {
   checkpointIntent,
   decodeUploadCheckpoint,
   matchesCheckpointFile,
-} from "#client-sdk/features/uploads/upload-checkpoint";
+  intent as intentCodec,
+} from "#client-sdk/features/uploads/upload-codecs";
 import type { UploadCheckpoint } from "#client-sdk/features/uploads/upload-checkpoint";
 import type {
   ReplaceUpload,
@@ -16,7 +16,7 @@ import type {
   UploadSnapshot,
   UploadTask,
 } from "#client-sdk/features/uploads/upload";
-import { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
+import type { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
 
 export type CheckpointStore = {
   readonly read: () => readonly unknown[];
@@ -468,7 +468,7 @@ export function createUploadQueue(
 
       try {
         intent = Object.freeze(
-          Schema.decodeUnknownSync(UploadIntent)({
+          intentCodec.parse({
             kind: "replacement",
             name: input.target.name,
             targetId: input.target.id,

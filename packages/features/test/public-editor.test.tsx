@@ -66,7 +66,7 @@ function share(item: FileEntry | null, role = "editor") {
   };
 }
 
-type Handlers = Record<string, (input: RequestInput) => object | Promise<object>>;
+type Handlers = Record<string, (input: RequestInput) => object | string | Promise<object | string>>;
 
 // This DOM replaces a frame's window when it navigates, where a real browser keeps it. So the server
 // holds its answer until a test has the window the session bound to, which is what must speak.
@@ -95,6 +95,7 @@ function apiFor(item: FileEntry, handlers: Handlers = {}) {
     }),
     "files.get": ({ id }) => [INSIDE, NESTED, LONE].find((file) => file.id === id) ?? INSIDE,
     "files.list": () => fileList([INSIDE], FOLDER, [{ id: FOLDER.id, name: FOLDER.name }]),
+    "editors.suggestCopyName": (input) => String(input.name),
     ...handlers,
   });
 }

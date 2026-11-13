@@ -1,4 +1,4 @@
-import { operations } from "@hyori-cloud/api/rpc";
+import { operations } from "@hyori-cloud/api/wire";
 import { deriveOperations } from "#client-sdk/operation-catalog";
 import type { InputOf } from "#client-sdk/inference";
 import type { RPC } from "#client-sdk/product-types";

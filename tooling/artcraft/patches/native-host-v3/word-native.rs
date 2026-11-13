@@ -3,6 +3,11 @@ use super::*;
 type NativeHostApp = crate::WordApp;
 
 impl WordApp {
+    /// The canvas's Paste Formatting binding is meaningful only while a picked format exists.
+    pub fn native_host_has_copied_format(&self) -> bool {
+        self.canvas.focused && self.session.painter.is_some()
+    }
+
     /// Committed native model identity; uncommitted native input is guarded separately.
     pub fn native_host_identity(&self) -> NativeHostIdentity {
         NativeHostIdentity {

@@ -82,6 +82,21 @@ for (const app of nativeApps)
 
       if (app === "deckcraft") expect(ui("ribbon/title_bar.rs")).not.toContain("Icon::Sparkle");
 
+      if (app === "pdfcraft") {
+        const printPath = "crates/ui-egui/src/workflows/web_print.rs";
+        const before = original.get(printPath)!.toString();
+        const after = result.files.get(printPath)!.toString();
+
+        expect(after).toStartWith(
+          before.slice(0, before.indexOf('#[cfg(target_arch = "wasm32")]\nthread_local!')),
+        );
+        expect(after.slice(after.indexOf("#[cfg(test)]\nmod tests {"))).toBe(
+          before.slice(before.indexOf("#[cfg(test)]\nmod tests {")),
+        );
+        expect(after).toContain('wasm_bindgen(module = "/hyori-pdf-print.js")');
+        expect(result.files.has("crates/ui-egui/hyori-pdf-print.js")).toBe(true);
+      }
+
       // A sandboxed frame can't show a PDF at all: hosted Word and Grid download it instead.
       if (app === "wordcraft" || app === "gridcraft")
         expect(result.files.get(`apps/${app}-web/src/web.rs`)!.toString()).toContain(

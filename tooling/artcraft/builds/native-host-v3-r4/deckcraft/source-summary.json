@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-source-summary",
+  "app": "deckcraft",
+  "artifactVersion": "0.14.1-hyori-host.7",
+  "upstreamVersion": "0.14.1",
+  "productPresentation": "Hyori Presentations",
+  "sourcePin": {
+    "url": "https://codeload.github.com/storytold/deckcraft/tar.gz/refs/tags/v0.14.1",
+    "sha256": "6e03f2e9532c0102ec01d8be8bba556a0191ee11d5ca64412a5b48457afddfb7",
+    "commit": "ee39ff67816d0039143ec7c98ea604cefe0cd2e5"
+  },
+  "sourceCargoLockSha256": "91594bc6b91f1501b9bd1330e46cfaa262b8c757359880786dbe098e8fc1ace4",
+  "cargoLockUnchanged": true,
+  "cargoManifestsUnchanged": true,
+  "stages": [
+    "deck-host-engine-base",
+    "direct-native-methods",
+    "app-native-hookup",
+    "shared-native-frame",
+    "hyori-chrome-palette",
+    "marks-removed",
+    "hyori-host-polish"
+  ],
+  "paletteCssSha256": "c3211690ba6916dd259d397da520f188d4c05dc88708d2460d0e39740311105f",
+  "hostJavaScriptSha256": "3416c2c5838e3ea5e7f21c53e3a27786c2b48314a2fc53189704f3c46ca2294a",
+  "embeddedFonts": {
+    "source": {
+      "repository": "https://github.com/storytold/craft-fonts",
+      "commit": "37827adc41fd165f9a9234ac40f94dbad353aa69",
+      "pinnedBy": "DeckCraft 0.14.1 .github/workflows/release.yml (craft-fonts-ref)",
+      "rawBase": "https://raw.githubusercontent.com/storytold/craft-fonts/37827adc41fd165f9a9234ac40f94dbad353aa69/"
+    },
+    "license": "OFL-1.1",
+    "faces": [
+      {
+        "family": "Inter",
+        "style": "Regular",
+        "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+        "path": "fonts/inter/Inter-Regular.ttf",
+        "bytes": 411640
+      },
+      {
+        "family": "Inter",
+        "style": "Bold",
+        "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f",
+        "path": "fonts/inter/Inter-Bold.ttf",
+        "bytes": 420428
+      }
+    ],
+    "schemaVersion": 1,
+    "kind": "hyori-native-host-v3-embedded-fonts",
+    "app": "deckcraft",
+    "purpose": "Inter is DeckCraft's default theme and interface font. Upstream's web release embeds no craft-fonts face, so every new presentation showed \"Inter isn't installed on this computer\" and drew in a fallback face.",
+    "upstream": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip (extras/ttf)",
+    "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+    "licenseFile": "fonts/inter/OFL.txt",
+    "licenseSha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+  },
+  "changedFiles": [
+    {
+      "path": "apps/deckcraft-web/hyori-host.js",
+      "before": null,
+      "after": "cbaf952ff39f19859ee90cf04d7839eb4a7dc6bf61fbfc650b718c25e01be0c6"
+    },
+    {
+      "path": "apps/deckcraft-web/hyori-mark.ico",
+      "before": null,
+      "after": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "apps/deckcraft-web/hyori-native-host.js",
+      "before": null,
+      "after": "3416c2c5838e3ea5e7f21c53e3a27786c2b48314a2fc53189704f3c46ca2294a"
+    },
+    {
+      "path": "apps/deckcraft-web/index.html",
+      "before": "5ff552301bfde3d5d369c93ad1a7a886f7aa639c021692269677c12f68e132be",
+      "after": "45593497479b5a06c0c125b2f10d2e48e37f6e359309c68071ef224779350131"
+    },
+    {
+      "path": "apps/deckcraft-web/src/host.rs",
+      "before": null,
+      "after": "692b7b79caca36f25df214fd1c72ab51f182ca5bd9de047b7d0f389e99ccdc00"
+    },
+    {
+      "path": "apps/deckcraft-web/src/main.rs",
+      "before": "191cf6b07d914fcbcd15bcca55bb5e9606779b24ace7d5622c2a1dc8422f3223",
+      "after": "fa057f0581ce6f11a2c236d23b30deae67a10074c0251f3d83f5e6fd09822fdb"
+    },
+    {
+      "path": "apps/deckcraft-web/src/native_frame.rs",
+      "before": null,
+      "after": "e13e8aa674f51a11242c9e982c1b6ed931f87cd90c08002ac150ca028f93b067"
+    },
+    {
+      "path": "apps/deckcraft-web/src/native_host.rs",
+      "before": null,
+      "after": "2684820de0682fba764b94ee009917fbade8decc8d9380d1ef6d89eede08fef9"
+    },
+    {
+      "path": "apps/deckcraft-web/src/native_host/clock.rs",
+      "before": null,
+      "after": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "apps/deckcraft-web/src/web.rs",
+      "before": "20826f67b279adf4ec3c730d1be063d8a00e2223bcc23d8cad3b6b342105349b",
+      "after": "58f0b3ec2513dda321dcbde47035b2b63911444e81742c1883ec65a28a0cffc1"
+    },
+    {
+      "path": "assets/hyori-mark.png",
+      "before": null,
+      "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "crates/engine/src/cmd/file.rs",
+      "before": "bb7223f475a3424051d511b48e845d5230c76f22f427fddb21c72d798d8bc566",
+      "after": "15f93dd5bc7b2ba1839ed7808e1a16a1a3cd9b4cb406aad1d57ad15e36f8ef88"
+    },
+    {
+      "path": "crates/engine/src/lib.rs",
+      "before": "5f9bfddf317c43c3ccc51a82b3fdca56ccd27420e5d68d9935fbae02d813175f",
+      "after": "b3775d2ae93d82647066390476082cf207475af1146152cc3e763dca0856731d"
+    },
+    {
+      "path": "crates/engine/src/links.rs",
+      "before": "a60b41637788503857504beeea799836bb5191ce20de8d2dc3ff621da3e56357",
+      "after": "24aefca55c38695138db335a904fe1def79491d020f295cf4fbccbcb4f561dd4"
+    },
+    {
+      "path": "crates/ui-egui/src/app.rs",
+      "before": "2f20fd4faa98797d2ab0f0264679faf63bfabbad24f4a26bcff6698d8a1f73e2",
+      "after": "1fa593e54b15ea0781ec4c0cf8641fe8bd4822a71e280693dd9d44df06e14395"
+    },
+    {
+      "path": "crates/ui-egui/src/app/commands.rs",
+      "before": "5f8476a99a14407adb81f641c169ec3182250047a84cd0ee4b030417a6e98914",
+      "after": "14555012120b67c7421b4519a3e6f266f2293fe9cb05d871571fa23d156213d6"
+    },
+    {
+      "path": "crates/ui-egui/src/app/files.rs",
+      "before": "7b6fdf0aa8ae65f273c694d94f7d76d78f8d4ce4aa91aa5c2b2760bf61ffb2b3",
+      "after": "00e341df3e227735b28b054d23b98bd1806ed7af61f5d64de728525c1595b2a0"
+    },
+    {
+      "path": "crates/ui-egui/src/app/native_host.rs",
+      "before": null,
+      "after": "b2f92527f2a3dda73751b3ea937ae138048fef8e72f93820e1ff2c4b1b7d962f"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/files.rs",
+      "before": "47eb50c1c9ca56e8c85f56b0d07094ccca2ec66620ff46246e7b31018b8fadb6",
+      "after": "b51662f81176e33489cff3fe965a25f819bff943111bfcd196281ead08938b25"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/info.rs",
+      "before": "2b892f93b3452529cb4a239e5031fe768f507f904d11e2224bdb4eda8e933f5c",
+      "after": "11779539ee55bb28e3bcae004e8281a21dfcc9af7553a7fa2265bf19cf3069ad"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/print.rs",
+      "before": "5431bac51489c514ce9ccf14ef1a958b5dff195657745d622c38b8c15e4f922d",
+      "after": "e62d20cbd6018830aed1ef66a0b981ef3ad0a418046ea3321104b913cf6ca281"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs.rs",
+      "before": "1872e13592f1347937570cda1dd104e091b768faa096e900aa79698c97b6ffe0",
+      "after": "6ca7feab3fe392f2814772d3571ee3b8087442b3868c693d54395a4cb91a514e"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/about.rs",
+      "before": "8f24be71ea1ffda27e1f4dae8912b59375d41dfd6574511c6a6d69e157a3e240",
+      "after": "48f3845f2dc6908ee09daad9c499c49b2f4ae19d5dd5116ef0db620c15422266"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/body.rs",
+      "before": "8d3f4d6ef3a35720112b178d9f661b3c2802fb66e299e9ae32e5426f3eace070",
+      "after": "91c7215a326638a7b8b0c844cc3aec768a6ede8f15099d9fc84fa61b47736425"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/find.rs",
+      "before": "ed2e84bf82f59a8168e87d8bd8d05593a88eddeca4c7f2b21bfdece3b099fbd3",
+      "after": "722017d5f7ded3128513cbd050eeac092fad54c9cf4d05edc44f37e1b665f5ad"
+    },
+    {
+      "path": "crates/ui-egui/src/lib.rs",
+      "before": "cb666e312fc84a2eea533a9971f2f62fec0cf62b843f6ef8f203f5631836cfe2",
+      "after": "89b7f58845f26b3039e8afb808b401e1d32cbfb49fc30e90897eea4590f585c2"
+    },
+    {
+      "path": "crates/ui-egui/src/menus.rs",
+      "before": "295efa42e529e80dabae527647b50367e16c6c1a8b283e4deeabe2b372b12600",
+      "after": "e255204e9bcf3ee942607653968c5d6186ad7b043f1d4681cecae5071bdbe4e8"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon/title_bar.rs",
+      "before": "709ee60846db52727234221012161c89c109bbd41e20626d33bef14eade12068",
+      "after": "12aed717bb15c20b8500b4089a5701fcd6dc7f9612f252415c3f55098a1099f0"
+    },
+    {
+      "path": "crates/ui-egui/src/services.rs",
+      "before": "30ff46f32738612c20f927f8610db493f6fe837498b57b2b087cc12ce43ce42d",
+      "after": "3d2a27e00cd53bc77685fb2a80db374f1b250f426dd63c285c3e6f8d1c5eed0f"
+    },
+    {
+      "path": "crates/ui-egui/src/show/presenter.rs",
+      "before": "291cf781e3e7587481413d5bca6992e651a725c64be5d84009625eb75c6b43c8",
+      "after": "9e7d721270fa66dec16b709e5671e07c81e4f02ec4f8afef98a922a39fe5bbaf"
+    },
+    {
+      "path": "crates/ui-egui/src/theme.rs",
+      "before": "d8d6f55195ac5b0c22d49ec313b716fcfab6cb2c08b3c15445b1ed1fcbe97c6a",
+      "after": "0249b4005f5c9fbf45734908ce36492a6cf992dbd61905304b76dd3c46dbad6a"
+    }
+  ],
+  "originalLegalBytesUnchanged": [
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "90e96fef569474cd526350e716e4b05dd32f179ca96d39d61e6b928485e35406"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "2ce764ed5d83f2453a7dba485092c0c41b465fe795b31c2c59bc5279332bc4f3"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "sha256": "3e0b490182f29522d002af0b4f0f46ab44ab8863bfe5e4e50c65a84d2d18c076"
+    },
+    {
+      "path": "docs/brand/LICENSE-brand.txt",
+      "sha256": "c5ad8e77d0dd8939161b4c4eca7aaba2437d6340c29e7809fa4679f0f2a82f62"
+    }
+  ],
+  "dependencyGraphEqualsNoticedUpstreamGraph": {
+    "targetNormalPackages": 236,
+    "hostInclusivePackages": 264
+  }
+}

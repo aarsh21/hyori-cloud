@@ -1,4 +1,6 @@
 import { ChevronRight, Folder } from "@hyori-cloud/lib/icons";
+import { useClientSDK } from "@hyori-cloud/client-sdk/react";
+import { useQuery } from "@hyori-cloud/lib/query";
 import { useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
@@ -25,19 +27,22 @@ export type CopyDestination =
   | { readonly kind: "folder"; readonly folderId: string | null }
   | { readonly kind: "none" };
 
-/** Asks where a copy or export should go. Answers only with the folder someone chose. */
+/** Names the captured copy against the folder actually chosen, without reserving it. */
 export function DestinationDialog({
   requests,
   destination,
+  sessionId,
 }: {
   requests: DestinationRequests;
   destination: CopyDestination;
+  sessionId: string;
 }) {
   const output = useStoreValue(requests);
-  const [name, setName] = useState(output?.name ?? "");
+  const [lastOutput, setLastOutput] = useState(output);
 
   // Answer immediately, but keep the last request's title throughout the exit transition.
-  if (output !== null && output.name !== name) setName(output.name);
+  if (output !== null && output !== lastOutput) setLastOutput(output);
+  const visible = output ?? lastOutput;
 
   return (
     <Dialog
@@ -47,13 +52,20 @@ export function DestinationDialog({
       }}
     >
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Save “{name}” to…</DialogTitle>
-        </DialogHeader>
-        {destination.kind === "folder" ? (
-          <FolderChoice requests={requests} rootFolderId={destination.folderId} />
+        {destination.kind === "folder" && visible !== null ? (
+          <FolderChoice
+            requests={requests}
+            rootFolderId={destination.folderId}
+            output={visible}
+            sessionId={sessionId}
+          />
         ) : (
-          <NoFolderToChoose requests={requests} />
+          <>
+            <DialogHeader>
+              <DialogTitle>Save “{visible?.name ?? ""}” to…</DialogTitle>
+            </DialogHeader>
+            <NoFolderToChoose requests={requests} />
+          </>
         )}
       </DialogContent>
     </Dialog>
@@ -63,14 +75,26 @@ export function DestinationDialog({
 function FolderChoice({
   requests,
   rootFolderId,
+  output,
+  sessionId,
 }: {
   requests: DestinationRequests;
   rootFolderId: string | null;
+  output: NonNullable<ReturnType<DestinationRequests["getSnapshot"]>>;
+  sessionId: string;
 }) {
   const browser = useFolderBrowser(rootFolderId);
+  const suggestion = useCopyName(output, browser.folderId, sessionId);
 
   return (
     <>
+      <DialogHeader>
+        <DialogTitle>
+          {suggestion.data === undefined
+            ? "Choose a folder for the copy"
+            : `Save “${suggestion.data}” to…`}
+        </DialogTitle>
+      </DialogHeader>
       <DialogBody className="gap-2">
         <FolderPickerHeader
           title={browser.breadcrumbs.at(-1)?.name ?? "Files"}
@@ -89,15 +113,42 @@ function FolderChoice({
           ))}
           <FolderPickerState listing={browser.listing} isEmpty={browser.folders.length === 0} />
         </PickerList>
+        {suggestion.isError ? (
+          <Text role="alert" tone="destructive">
+            Couldn’t find an available name in this folder.{" "}
+            <Button variant="link" onClick={() => suggestion.refetch()}>
+              Try again
+            </Button>
+          </Text>
+        ) : null}
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={() => requests.answer(null)}>
           Cancel
         </Button>
-        <Button onClick={() => requests.answer({ parentId: browser.folderId })}>Save here</Button>
+        <Button
+          disabled={suggestion.data === undefined || suggestion.isFetching || suggestion.isError}
+          onClick={() => requests.answer({ parentId: browser.folderId, name: suggestion.data })}
+        >
+          {suggestion.isFetching ? "Checking name…" : "Save here"}
+        </Button>
       </DialogFooter>
     </>
   );
+}
+
+function useCopyName(
+  output: NonNullable<ReturnType<DestinationRequests["getSnapshot"]>>,
+  parentId: string | null,
+  sessionId: string,
+) {
+  const { query } = useClientSDK();
+
+  return useQuery({
+    ...query.editors.suggestCopyName.getOptions({ ...output, parentId, sessionId }),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
 }
 
 function NoFolderToChoose({ requests }: { requests: DestinationRequests }) {

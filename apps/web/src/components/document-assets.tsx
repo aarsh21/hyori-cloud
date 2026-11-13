@@ -13,7 +13,16 @@ function documentAsset(asset: RouterManagedTag): RouterManagedTag {
 
   // 'self' already authorizes these URLs. A rotating nonce also enters V8's compilation
   // cache identity, including when a modulepreload is the first fetch of the module.
-  return external ? { ...asset, attrs: { ...asset.attrs, nonce: undefined } } : asset;
+  return external
+    ? {
+        ...asset,
+        attrs: {
+          ...asset.attrs,
+          nonce: undefined,
+          fetchPriority: asset.attrs?.fetchPriority === "low" ? "high" : asset.attrs?.fetchPriority,
+        },
+      }
+    : asset;
 }
 
 export function DocumentHead() {

@@ -18,6 +18,7 @@
     ".": "./src/index.ts",
     "./react": "./src/react/index.ts",
     "./browser": "./src/browser/index.ts",
+    "./collaboration": "./src/collaboration.ts",
     "./editor-runtime": "./src/editor-runtime.ts"
   },
   "scripts": {
@@ -27,7 +28,9 @@
   },
   "dependencies": {
     "@hyori-cloud/api": "workspace:*",
-    "@hyori-cloud/lib": "workspace:*"
+    "@hyori-cloud/lib": "workspace:*",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "@hyori-cloud/config": "workspace:*",

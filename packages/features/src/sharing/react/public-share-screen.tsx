@@ -94,17 +94,25 @@ function PublicShareAccess({
       };
     }
 
-    if (reopen.error.code === "access.denied") {
-      return {
-        ...attempt,
-        title: "This link is no longer available",
-        detail: "Ask the person who shared it for a new link.",
-        actionLabel: "Try again",
-      };
-    }
-
     return { ...attempt, ...describeCloudError(reopen.error), actionLabel: "Try again" };
   };
+
+  // Resolve refuses every dead token the same way. Don't infer whether it ever existed, or
+  // offer a retry that cannot repair it. Reloading still lets the owner reactivate the link.
+  if (resolve.error?.code === "access.denied" || reopen.error?.code === "access.denied") {
+    return (
+      <FocusLayout footer={<AppearanceMenu />}>
+        <Wordmark />
+        <FocusLayoutHeader role="alert">
+          <Heading>This link no longer works</Heading>
+          <Text tone="muted">
+            The link may have ended, or the address may be wrong. Ask the person who shared it to
+            send a new link.
+          </Text>
+        </FocusLayoutHeader>
+      </FocusLayout>
+    );
+  }
 
   if (resolved === undefined) {
     return (
@@ -121,7 +129,7 @@ function PublicShareAccess({
           pendingLabel="Opening…"
           onClick={() => resolve.mutate({ token })}
         >
-          Open shared item
+          {resolve.error === null ? "Open shared item" : "Try again"}
         </Button>
       </FocusLayout>
     );

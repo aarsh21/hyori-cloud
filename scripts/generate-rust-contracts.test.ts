@@ -114,6 +114,37 @@ test("generation is byte deterministic across manifest, property, definition, an
   );
 });
 
+test("JSON client catalog preserves the Effect RPC codecs, tags and mutation policies", async () => {
+  const directory = await temporary();
+
+  try {
+    await emit(directory);
+    await runConsumer(
+      directory,
+      `
+      import assert from "node:assert/strict";
+      import { operations, ApiRpc } from "./operations";
+      import { operations as client } from "./client-operations";
+      assert.equal(client.length, 2);
+      assert.equal(ApiRpc.requests.size, 2);
+      for (const [index, operation] of operations.entries()) {
+        const descriptor = client[index];
+        assert.equal(descriptor.rpc._tag, operation.rpc._tag);
+        assert.equal(descriptor.rpc.payloadSchema, operation.rpc.payloadSchema);
+        assert.equal(descriptor.rpc.successSchema, operation.rpc.successSchema);
+        assert.equal(descriptor.rpc.errorSchema, operation.rpc.errorSchema);
+        assert.equal(descriptor.kind, operation.kind);
+        assert.deepEqual(descriptor.invalidates, operation.invalidates);
+        assert.equal(descriptor.resetCache, operation.resetCache);
+        assert.equal(ApiRpc.requests.get(operation.rpc._tag), operation.rpc);
+      }
+      `,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("generated runtime validates optional vs nullable, bounds, enums and ordinary/closed object keys", async () => {
   const directory = await temporary();
 
@@ -180,6 +211,92 @@ test("generated runtime validates optional vs nullable, bounds, enums and ordina
       assert.equal(Schema.is(ClosedEmpty)({ extra: true }), false);
     `,
     );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("the JSON wire catalog and codecs preserve the Effect contract on asymmetric boundary inputs", async () => {
+  const directory = await temporary();
+
+  try {
+    const manifest = fixture();
+    Object.assign(manifest.schemas, {
+      Closed: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+      ClosedEmpty: { type: "object", additionalProperties: false },
+      Unicode: { type: "string", minLength: 1, maxLength: 1 },
+      Counter: { type: "integer", format: "uint64" },
+      Part: { type: "integer", format: "uint32" },
+      Signed: { type: "integer", format: "int32" },
+      Fraction: { type: "number", exclusiveMinimum: 0, maximum: 10, multipleOf: 0.5 },
+      Headers: { type: "object", additionalProperties: { type: "string" } },
+      Timestamp: { type: "string", anyOf: [{ format: "date" }, { format: "date-time" }] },
+      NullableDate: { type: ["string", "null"], format: "date" },
+      Conjunction: {
+        allOf: [
+          { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+          { type: "object", properties: { age: { type: "integer" } }, required: ["age"] },
+        ],
+      },
+      Exclusive: {
+        oneOf: [
+          { type: "number", minimum: 0 },
+          { type: "number", maximum: 5 },
+        ],
+      },
+      Reference: {
+        $ref: "#/$defs/User",
+        type: "object",
+        properties: { age: { type: "integer", minimum: 18 } },
+        required: ["age"],
+      },
+    });
+    await emit(directory, manifest);
+    await runConsumer(
+      directory,
+      `
+      import assert from "node:assert/strict";
+      import { Schema } from "@hyori-cloud/lib/effect";
+      import * as effect from "./schemas";
+      import * as wire from "./wire-schemas";
+      import { operations as rpc } from "./operations";
+      import { operations } from "./wire-operations";
+      const valid = { id: "ada", age: 42, role: "reader" };
+      const candidates = [undefined, null, true, false, -2147483649, -2147483648, -1, 0, 0.3, 0.5, 1, 1.5, 5, 6, 10, 11, 2147483647, 2147483648, 4294967295, 4294967296, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity,
+        "", "A", "😀", "😀😀", "2024-02-29", "2025-02-29", "2016-12-31T23:59:60Z", "2026-11-05T12:00:60Z", "2026-11-05t14:13:12.123+05:30", "2026-11-05T00:00:00", "2026-11-05T12:00:00+25:00",
+        {}, { extra: true }, { id: "x" }, { id: "x", extra: true }, { id: "x", age: 19 }, { "Content-Type": "text/plain" }, { "Content-Length": 3 }, [], [valid], [valid, valid], [valid, valid, valid], valid,
+        { ...valid, extra: "strip" }, { ...valid, label: undefined }, { ...valid, label: null }, { ...valid, label: "A" }, { ...valid, label: "AB" }, { ...valid, label: "too long a label" }, { ...valid, id: "UPPER" }, { ...valid, id: "toolongname" }, { ...valid, age: 17 }, { ...valid, age: 121 }, { ...valid, age: 1.5 }, { ...valid, role: "admin" }];
+      let cases = 0;
+      for (const name of Object.keys(wire)) for (const input of candidates) {
+        const before = Schema.decodeUnknownEither(effect[name])(input);
+        const after = wire[name].safeParse(input);
+        assert.equal(after.success, before._tag === "Right", name + ": " + String(JSON.stringify(input)));
+        if (after.success) assert.deepEqual(after.data, before.right, name);
+        cases++;
+      }
+      assert(cases > 900);
+      assert.equal(operations.length, rpc.length);
+      for (const [index, operation] of operations.entries()) {
+        assert.equal(operation.rpc._tag, rpc[index].rpc._tag);
+        assert.equal(operation.kind, rpc[index].kind);
+        assert.deepEqual(operation.invalidates, rpc[index].invalidates);
+        assert.equal(operation.resetCache, rpc[index].resetCache);
+        assert.deepEqual(operation.rpc.payloadSchema.parse(valid), Schema.encodeUnknownSync(rpc[index].rpc.payloadSchema)(valid));
+      }
+    `,
+    );
+
+    for (const name of ["z", "Contract"]) {
+      assert.throws(
+        () => generateRustContracts({ ...fixture(), schemas: { [name]: { type: "string" } } }),
+        /reserved schema identifier/,
+      );
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -309,7 +426,12 @@ test("references and allOf/anyOf/oneOf preserve constraints and exclusive matchi
   }
 });
 
-test("generated public RPC consumers retain schema, client and literal metadata inference", async () => {
+// This test runs the TypeScript compiler as a child process: about two seconds on an idle two-core
+// machine, and past the default five-second limit when other work shares the processors.
+const compiledConsumers =
+  "generated public RPC consumers retain schema, client and literal metadata inference";
+
+test(compiledConsumers, { timeout: 30_000 }, async () => {
   const directory = await temporary();
 
   try {

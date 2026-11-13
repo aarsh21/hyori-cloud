@@ -9,6 +9,16 @@ use sea_orm::{ConnectionTrait, DatabaseTransaction};
 pub(crate) async fn prepare(tx: &DatabaseTransaction, user: &str) -> DomainResult<()> {
     crate::features::media::cleanup::prepare_purge(tx, user).await?;
     crate::features::editors::cleanup::purge(tx, user).await?;
+    tx.execute_raw(sql(
+        "DELETE FROM hyori_note_favorites WHERE user_id=$1",
+        vec![user.into()],
+    ))
+    .await?;
+    tx.execute_raw(sql(
+        "DELETE FROM hyori_collab_sessions WHERE principal=$1",
+        vec![format!("user:{user}").into()],
+    ))
+    .await?;
     let account = tx
         .query_one_raw(sql(
             "SELECT email FROM hyori_users WHERE id=$1 AND status IN ('deleting','deleted')",

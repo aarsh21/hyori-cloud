@@ -86,11 +86,55 @@ The **product** schemas live in `apps/server/src/features/media/api.rs`, not in 
 - Photos `previewUrl` continues to mean the safe **original**, including video playback. A poster is never substituted for that URL.
 - `/api/storage/derivatives/{fileId}/{artifactId}?revision=...` reauthorizes the current original and verifies its current immutable-source association on every GET, before checking its ETag. Responses are normalized WebP or legacy PNG with `private, no-cache`, nosniff/sandbox headers and shared range/admission policy. Authorized matching validators answer 304 without storage access. An old derivative URL cannot read a replaced original's old cache. Original history remains owner-only through the existing APIs.
 
+Files adds an optional `FileList.thumbnails` map beside the unchanged `items`, keyed by item ID.
+Each value has a nullable ready `url` and a `pending` flag. The already-authorized page is selected
+first; one batched lookup supplies this projection. It serves owned Files, shared items and public
+folders through the same currently authorized derivative route, not an owner-scoped Photos call.
+Trash keeps its icons. Readers from before this addition can ignore the map. Missing, pending,
+failed and binary-error thumbnails retain the existing fixed-size icon slot; image bytes enter a
+six-slot shared load queue only near the viewport. Pending listings refresh whole pages, at most
+three loaded pages every 15 seconds, never one metadata request per row.
+
 ### Upgrading existing thumbnails
 
 Upgrade the backend (migration 20) before replacing the worker. The geometry constraint is relaxed with `NOT VALID`: no table rewrite or existing-row scan; a two-second DDL lock timeout fails startup rather than waiting indefinitely behind another transaction. Existing rows satisfy the old, stricter constraint. New and updated rows are checked immediately.
 
 Recipe 1 is retained deliberately. Existing PNG thumbnails are **not automatically regenerated or deleted**. Legacy server-owned artifact keys have no suffix; newly validated WebP keys end in `_webp` (the storage adapter deliberately forbids dots). That immutable format marker selects the response MIME/filename without reading or decoding the object. Current authorization and ETag policy are unchanged for both.
+
+Migration 22 adds a decoder identity, upgrade-retry marker and private failure diagnostic. The
+worker's private `GET /v1/decoder` reports a deterministic SHA-256 of the decoder's Rust tokens
+(arguments, validation and limits), actual installed FFprobe/FFmpeg executables and their linked
+shared-library bytes. Comments, formatting, unrelated server/UI/protocol code, package-ledger
+entries, timestamps and image IDs do not participate. Decoder source/argument changes enter the
+identity automatically at compilation through `build.rs`; there is no manual recipe bump to forget.
+This includes the request's bounded streaming/header-validation function, not socket startup.
+`cargo check -p hyori-media-worker` fails if `decode.rs` gains an unregistered child module;
+extracted decoder implementation must enter the identity inputs rather than silently escape them.
+An identified POST carries `x-hyori-decoder`; a worker replaced between lookup and POST rejects an
+identity mismatch before decoding. An old worker with no identity can process ordinary work but
+cannot trigger automatic terminal recovery.
+
+The existing bounded 256-item discovery sweep requeues `failed` (including exhausted retryable
+failures) and `unsupported` jobs whose last decoder differs. Each gets exactly one automatic
+attempt for that decoder; another failure is terminal until the decoder changes again or a reader
+explicitly retries an eligible failed job. Ready artifacts are untouched. Restarting either process
+with identical inputs does not reset attempts. Upgrade work is lower priority than ordinary due
+jobs, uses the same one-at-a-time claim/worker semaphore, and does not create a parallel queue
+processor. A successful upgrade clears its low-priority marker so later cache repair remains
+ordinary work. A rollback to different decoder inputs is another decoder change.
+
+Decoder rejections persist `failure_detail` as allowlisted `{stage, reason}` values in
+`hyori_media_jobs` and an operator warning correlated by job ID. Probe and encode failures are
+distinct; deadlines, limits, invalid probe/output, missing visual/duration and a small stderr-phrase
+allowlist have bounded reasons. Raw stderr, paths, embedded metadata and source bytes are never
+persisted or returned. Storage/transport failures and old workers can have no decoder detail;
+the existing typed `failure` still identifies that category. Product RPCs expose none of this
+operator diagnostic. Operators can inspect it with a read-only database query:
+
+```sql
+SELECT id, state, attempts, decoder_revision, upgrade_retry, failure, failure_detail
+FROM hyori_media_jobs WHERE state IN ('failed', 'unsupported') ORDER BY due_at LIMIT 100;
+```
 
 An operator wanting smaller derivatives can explicitly requeue selected legacy jobs in small batches, after taking a backup and upgrading both processes. This is maintenance SQL, not a browser action or a required upgrade step:
 
@@ -137,3 +181,26 @@ Verified decoder build on 2026-11-05: Debian FFmpeg **7:7.1.5-0+deb13u1**, libav
 License/provenance: FFmpeg upstream is <https://ffmpeg.org>. The installed Debian `/usr/share/doc/ffmpeg/copyright` states most source is LGPL-2.1+, Debian's default binary uses GPL parts and is GPL-2+, optional extra library flavors may be effectively GPL-3+, and Debian does not enable the nonfree combination. This image's configure flags include `--enable-gpl`. Preserve `/usr/share/doc/*/copyright`, `/usr/share/common-licenses`, notices and required corresponding source when redistributing the image; the package ledger/URLs alone do not fulfill all distribution obligations. The broader container/library graph has **not** received a complete legal or security audit. No image was publicly pushed. Rust dependency versions remain in the naturally resolved Cargo.lock.
 
 All media inputs in acceptance are locally synthetic CC0 fixtures documented in `apps/server/tests/fixtures/media/README.md`. No product artwork was generated and no user media was sent to Codex or any external service.
+
+`tests/fixtures/video` adds sixteen generated CC0-1.0 two-second clips, including audio ordering,
+fragmentation, codecs, odd/tall/4K geometry and a display-matrix rotation. Recreate them with
+`bun scripts/generate-media-video-fixtures.ts`; their README records generation and provenance.
+The isolated-worker `media_videos` suite independently decodes every WebP and checks the rotated
+quadrants as well as portrait dimensions. `media_upgrades` checks the additive listing, exhausted
+and unsupported recovery, new-upload priority, preserved ready artifact and same-worker restart.
+
+Upgrade recovery distinguishes a decoder verdict (`unsupported`, `invalidMedia`, `resourceLimit`)
+from an infrastructure failure (`unavailable`, `busy`, `timeout`, including an expired lease).
+A verdict remains terminal for that fingerprint. Infrastructure failures release the verdict
+attempt and stay queued behind new uploads, with durable 20/40/80/160/320/640-second backoff,
+capped at 640 seconds until the fault clears. Migration `0023` persists the bounded backoff
+counter. Same-fingerprint server/worker restarts neither reset that counter nor advance its due
+time; ready artifacts remain untouched. Discovery also repairs the same-fingerprint transient
+rows stranded by the earlier upgrade policy. This does not change ordinary initial-job retry
+limits. Operators can inspect `state`, `failure`, `failure_detail`, `upgrade_failures`, `due_at`
+and `decoder_revision` in `hyori_media_jobs`; no raw subprocess stderr is stored or exposed.
+
+`lead_outage` is the supplied real TCP-relay/RustFS outage regression, with final recovery and
+natural-backoff assertions added. `media_recovery` additionally injects Busy/Timeout responses
+at the private socket (not a real process deadline), then uses the real isolated decoder for
+recovery, checks the backoff cap/restarts/expired leases and verifies new-upload priority.

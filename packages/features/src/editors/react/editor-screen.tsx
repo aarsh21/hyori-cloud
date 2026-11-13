@@ -157,7 +157,13 @@ function EditorAttempt({
           onReopen={onReopen}
         />
       )}
-      <DestinationDialog requests={requests} destination={copyDestination} />
+      {snapshot !== null && snapshot.document !== null ? (
+        <DestinationDialog
+          requests={requests}
+          destination={copyDestination}
+          sessionId={snapshot.document.sessionId}
+        />
+      ) : null}
     </HostedDocumentLayout>
   );
 }

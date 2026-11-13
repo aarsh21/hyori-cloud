@@ -6,6 +6,11 @@ export const NATIVE_HOST_PROTOCOL = 3;
 export const NATIVE_HOST_BRIDGE = "hyori-correlated-host-v3";
 export const NATIVE_MAX_BYTES = 64 * 1024 * 1024;
 
+export const PDF_ANNOTATION_AUTHOR_VERSIONS: readonly string[] = [
+  "0.17.0-hyori-host.4",
+  "0.17.0-hyori-host.5",
+];
+
 // Keep this leaf contract independent of product RPC schemas: the frame never calls the API.
 export const EditorName = Schema.String.pipe(
   Schema.filter((value) => Array.from(value).length >= 1),
@@ -88,6 +93,7 @@ const open = Schema.Struct({
   openId: id,
   name,
   bytes,
+  annotationAuthor: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255))),
   writable: Schema.Boolean,
   replacementName: Schema.NullOr(name),
   outputFormats,

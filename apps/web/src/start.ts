@@ -1,4 +1,5 @@
 import { createMiddleware, createStart } from "@tanstack/react-start";
+import { browserPreferencesFromCookie } from "@hyori-cloud/ui/lib/browser-preferences";
 import { ENV } from "@/env";
 
 const browserSecurity = createMiddleware().server(async ({ next, handlerType, request }) => {
@@ -10,6 +11,7 @@ const browserSecurity = createMiddleware().server(async ({ next, handlerType, re
     context: {
       cspNonce: nonce,
       crossSiteNavigation: request.headers.get("sec-fetch-site") === "cross-site",
+      browserPreferences: browserPreferencesFromCookie(request.headers.get("cookie") ?? ""),
     },
   });
 

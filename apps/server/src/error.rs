@@ -12,6 +12,7 @@ crate::wire_enum!(ErrorCode {
     AccessDenied => "access.denied", InvalidInput => "input.invalid",
     NotFound => "resource.notFound", Conflict => "resource.conflict",
     UploadLimit => "uploads.limitReached", UploadBusy => "uploads.busy",
+    UploadTooSlow => "uploads.tooSlow",
     QuotaExceeded => "storage.quotaExceeded", Unavailable => "service.unavailable",
     SignInBusy => "auth.signInBusy"
 });
@@ -72,6 +73,7 @@ impl ApiError {
             | ErrorCode::UploadLimit
             | ErrorCode::UploadBusy => StatusCode::CONFLICT,
             ErrorCode::RateLimited | ErrorCode::SignInBusy => StatusCode::TOO_MANY_REQUESTS,
+            ErrorCode::UploadTooSlow => StatusCode::REQUEST_TIMEOUT,
             ErrorCode::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
@@ -102,6 +104,9 @@ impl From<sea_orm::DbErr> for ApiError {
             sqlstate = sqlstate.as_deref().unwrap_or("none"),
             "database operation failed"
         );
+        if sqlstate.as_deref() == Some("HC001") {
+            return Self::new(ErrorCode::QuotaExceeded, "Storage quota exceeded");
+        }
         if matches!(
             error.sql_err(),
             Some(sea_orm::SqlErr::UniqueConstraintViolation(_))

@@ -1,0 +1,55 @@
+.hyori-note-editor {
+  --bn-colors-editor-background: var(--card);
+  --bn-colors-editor-text: var(--foreground);
+  --bn-colors-menu-background: var(--popover);
+  --bn-colors-menu-text: var(--popover-foreground);
+  --bn-colors-tooltip-background: var(--primary);
+  --bn-colors-tooltip-text: var(--primary-foreground);
+  --bn-colors-hovered-background: var(--accent);
+  --bn-colors-hovered-text: var(--accent-foreground);
+  --bn-colors-selected-background: var(--accent);
+  --bn-colors-selected-text: var(--foreground);
+  --bn-colors-disabled-text: var(--muted-foreground);
+  --bn-colors-border: var(--border);
+  --bn-colors-shadow: transparent;
+  --bn-font-family: inherit;
+  color: var(--foreground);
+}
+.hyori-note-editor .bn-editor {
+  min-height: 16rem;
+  padding: 0 36px 96px;
+  background: var(--card);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.hyori-note-editor .bn-block-content[data-content-type="heading"] {
+  letter-spacing: -0.02em;
+}
+.hyori-note-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child):after {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+.hyori-note-editor .bn-editor a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hyori-note-editor .bn-editor:focus-visible {
+  outline: none;
+}
+.hyori-note-editor .bn-editor:focus-within {
+  border-radius: 8px;
+}
+.hyori-note-editor .bn-side-menu .bn-button {
+  transition: background-color 150ms var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hyori-note-editor *,
+  .hyori-note-editor *:before,
+  .hyori-note-editor *:after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}

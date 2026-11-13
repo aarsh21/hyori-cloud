@@ -8,6 +8,7 @@ import { Kbd } from "@hyori-cloud/ui/components/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@hyori-cloud/ui/components/tooltip";
 import { useDocumentKeydown } from "@hyori-cloud/ui/hooks/use-document-keydown";
 import { useBrowserPreferencesReady } from "@hyori-cloud/ui/hooks/use-browser-preferences-ready";
+import { useServerBrowserPreferences } from "@hyori-cloud/ui/components/browser-preferences-provider";
 import {
   readSidebarOpen,
   subscribeSidebarOpen,
@@ -33,10 +34,6 @@ function toggleSidebar() {
   writeSidebarOpen(!readSidebarOpen());
 }
 
-function serverSidebarOpen() {
-  return true;
-}
-
 function subscribeToNothing() {
   return () => {};
 }
@@ -59,7 +56,14 @@ function isEditing(target: EventTarget | null) {
  * navigate with `AppBottomNav`, so there is no off-canvas sheet.
  */
 function SidebarProvider({ className, children, ...props }: React.ComponentProps<"div">) {
-  const open = React.useSyncExternalStore(subscribeSidebarOpen, readSidebarOpen, serverSidebarOpen);
+  const preferences = useServerBrowserPreferences();
+
+  const open = React.useSyncExternalStore(
+    subscribeSidebarOpen,
+    readSidebarOpen,
+    () => preferences.sidebarOpen,
+  );
+
   const ready = useBrowserPreferencesReady();
 
   useDocumentKeydown((event) => {

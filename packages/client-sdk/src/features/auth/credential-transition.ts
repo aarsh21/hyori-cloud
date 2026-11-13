@@ -1,5 +1,4 @@
-import { PasswordResetResult, User } from "@hyori-cloud/api/rpc";
-import { Schema } from "@hyori-cloud/lib/effect";
+import { PasswordResetResult, User } from "@hyori-cloud/api/wire";
 import type { QueryClient } from "@hyori-cloud/lib/query-core";
 import { operationPrefix } from "#client-sdk/operation-key";
 import type { OperationDeclaration, Success } from "#client-sdk/inference";
@@ -13,7 +12,7 @@ export function reconcileCredentialTransition<D extends OperationDeclaration>(
 ): void {
   switch (operation) {
     case "auth.resetPassword": {
-      const reset = Schema.decodeUnknownSync(PasswordResetResult)(result);
+      const reset = PasswordResetResult.parse(result);
       queryClient.setQueriesData<AuthStatus>(
         { queryKey: operationPrefix("auth.status") },
         (previous) =>
@@ -33,7 +32,7 @@ export function reconcileCredentialTransition<D extends OperationDeclaration>(
     case "auth.acceptInvite":
       queryClient.setQueriesData(
         { queryKey: operationPrefix("auth.status") },
-        { initialized: true, user: Schema.decodeUnknownSync(User)(result) },
+        { initialized: true, user: User.parse(result) },
       );
       break;
   }

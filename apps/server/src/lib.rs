@@ -42,7 +42,8 @@ pub struct AppState {
     pub(crate) account_purge: tokio::sync::Notify,
     /// Resume point of the incremental thumbnail discovery sweep (an item ID; empty restarts).
     pub(crate) media_discovery: tokio::sync::Mutex<String>,
-    pub(crate) owner_locks: db::OwnerLocks,
+    pub(crate) owner_locks: db::KeyLocks,
+    pub(crate) collaboration_locks: db::KeyLocks,
 }
 impl AppState {
     /// The credentials a request carries, with the key that verifies its link capabilities.
@@ -80,6 +81,8 @@ impl AppState {
         features::photos::api::bind(&mut rpc).map_err(contract_failure)?;
         features::media::api::bind(&mut rpc).map_err(contract_failure)?;
         features::editors::api::bind(&mut rpc).map_err(contract_failure)?;
+        features::notes::api::bind(&mut rpc).map_err(contract_failure)?;
+        features::collaboration::api::bind(&mut rpc).map_err(contract_failure)?;
         let media_worker = config
             .media_worker_socket
             .as_deref()
@@ -131,7 +134,8 @@ impl AppState {
             upload_cleanup: tokio::sync::Notify::new(),
             account_purge: tokio::sync::Notify::new(),
             media_discovery: tokio::sync::Mutex::new(String::new()),
-            owner_locks: db::OwnerLocks::new(),
+            owner_locks: db::KeyLocks::new(),
+            collaboration_locks: db::KeyLocks::new(),
         }))
     }
 }
@@ -152,6 +156,7 @@ pub fn router(state: Arc<AppState>) -> Router {
     // Every download-like route shares one per-principal concurrency budget.
     let downloads = Router::new()
         .route("/api/storage/files/{id}", get(features::uploads::http::get))
+        .route("/api/storage/notes/{id}", get(features::notes::http::get))
         .route(
             "/api/storage/previews/{id}",
             get(features::files::preview::get),

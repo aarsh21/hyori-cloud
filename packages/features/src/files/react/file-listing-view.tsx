@@ -63,7 +63,10 @@ function LoadedListing({
   onClearFilters: () => void;
   empty: ReactNode;
 }) {
-  const entries = listing.data?.pages.flatMap((page) => page.items) ?? [];
+  const entries =
+    listing.data?.pages.flatMap((page) =>
+      page.items.map((entry) => ({ ...entry, derivative: page.thumbnails?.[entry.id] })),
+    ) ?? [];
 
   // Retained rows belong to the previous filters, so an empty set says nothing about these ones.
   if (listing.isPlaceholderData && entries.length === 0) {

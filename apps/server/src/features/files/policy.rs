@@ -239,12 +239,13 @@ pub(crate) async fn load_roles(
 /// SQL selecting the item IDs at which the actor's current direct and public shares are rooted,
 /// given the actor and public-grant parameter placeholders. Direct shares come through the
 /// recipient index and public ones by share ID, never through a scan of every account's shares.
+/// Consumers use membership (ANY or ?|), so duplicate roots need no sort/deduplication here.
 pub(crate) fn eligible_share_roots(actor: &str, grants: &str) -> String {
     let current = "s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())";
     let issuer = "JOIN hyori_users issuer ON issuer.id=s.issuer_id AND issuer.status='active'";
     format!(
         "SELECT s.item_id FROM hyori_shares s {issuer} WHERE s.recipient_id={actor} AND {current}
-        UNION SELECT s.item_id FROM hyori_shares s {issuer}
+        UNION ALL SELECT s.item_id FROM hyori_shares s {issuer}
         WHERE s.public AND s.id IN (SELECT jsonb_array_elements_text({grants}::jsonb)) AND {current}"
     )
 }

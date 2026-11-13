@@ -32,7 +32,7 @@ For Caddy, mount the bundle at `/srv/artcraft` and place this handler **inside y
 The Content-Security-Policy line depends on the exact bundle. Each editor's index page runs one inline loader `<script>` and carries one inline `<style>`, and their hashes change with every build. Print the line for the bundle and receipt you are deploying, and paste it where the handler below has its placeholder:
 
 ```sh
-bun scripts/editor-csp.ts /path/to/verified/runtime-bundle tooling/artcraft/runtime-all4-native-v3-r3.json
+bun scripts/editor-csp.ts /path/to/verified/runtime-bundle tooling/artcraft/runtime-all4-native-v3-r4.json
 ```
 
 The command reads each editor's index page through the bundle's `runtime-bundle-manifest.json` and hashes the inline loader and style. It fails unless the receipt's `manifestSha256` matches the bundle and its `editors[].cspScriptHashes` match the loaders exactly. `'wasm-unsafe-eval'` allows WebAssembly compilation, not JavaScript `eval`. Print the line again whenever you change the bundle: a stale line blocks the new loaders, and the editors never get past their loading text.
@@ -104,14 +104,22 @@ The runtime notice entry is `/artcraft/legal/RUNTIME-NOTICE-INDEX.md`; retain it
 
 ## Upgrading to sandboxed editor frames
 
-This release sandboxes every editor frame without `allow-same-origin`. Only the protocol 3 runtime (`hyori-correlated-host-v3`, artifact versions `0.14.0-hyori-host.4`, `0.15.0-hyori-host.3`, `0.17.0-hyori-host.3` and `0.14.1-hyori-host.6`) starts there. An older bundle keeps verifying, so no data or session state is touched, but its editors don't open: people see "This editor needs an update" until the bundle is replaced. Upgrade in this order:
+This release sandboxes every editor frame without `allow-same-origin`. Protocol 3 runtimes (`hyori-correlated-host-v3`) r3 and r4 start there. The current r4 versions are Word `0.14.0-hyori-host.5`, Grid `0.15.0-hyori-host.4`, PDF `0.17.0-hyori-host.4` and Deck `0.14.1-hyori-host.7`; r3 remains accepted and usable. Earlier protocol 1/2 bundles keep verifying, so no data or session state is touched, but their editors don't open: people see "This editor needs an update" until the bundle is replaced. Upgrade in this order:
 
-1. Build and verify the protocol 3 bundle with this release's ArtCraft tooling, on the build machine, and record its receipt and manifest SHA-256. The tooling writes `runtime-native-v3-r3.json`.
+1. Build and verify the protocol 3 bundle with this release's ArtCraft tooling, on the build machine, and record its receipt and manifest SHA-256. The tooling writes `runtime-native-v3-r4.json`. Rebuild the server image with that authority before mounting r4; its manifest SHA-256 is `322272308851138cd682a031ee15c6b658d2c752a771aff3135cc608208cfed7`.
 2. Add `header Access-Control-Allow-Origin *` to the `/artcraft/*` handler, as shown above. The header is harmless for the old bundle, so it can go first. Without it, the sandboxed frame can't load the editor's own scripts and WASM, and the editors stay on their loading text.
 3. Print the gateway's Content-Security-Policy line for the new bundle with `bun scripts/editor-csp.ts`. It refuses an older bundle and names the runtimes that predate sandboxed frames. The line now starts with `sandbox …`; a gateway still sending the previous line serves editor pages that run with Hyori's origin when opened outside the frame, so replace it, don't keep it.
 4. Mount the new bundle in the backend and the gateway, set `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`, then restart the backend with this release and reload the gateway. A backend started on an older bundle logs `Editor runtime predates sandboxed editor frames` once per editor.
 
 Do steps 2 to 4 in one maintenance window. Between the new release and the new bundle, documents don't open in an editor; people see the update message instead. Files, sharing and downloads are unaffected.
+
+### r5: the development default
+
+r5 is the accepted development default: `scripts/dev-stack.ts` selects its receipt unless `HYORI_DEV_EDITOR_RECEIPT` names another. r4 and its immutable inventory remain unchanged and accepted by the server. The r5 manifest SHA-256 is `2e248a3aedfbd976bc28d29d44f52dec8e7ddbdf4149b1e28cc4a2613f3b7b25`, receipt `tooling/artcraft/runtime-all4-native-v3-r5.json`. Versions are Word `0.14.0-hyori-host.6`, Grid `0.15.0-hyori-host.5`, PDF `0.17.0-hyori-host.5` and Deck `0.14.1-hyori-host.8`. A deployment still selects its bundle explicitly, by mounting it and setting `HYORI_EDITOR_ASSETS_MANIFEST_SHA256`; nothing upgrades automatically.
+
+It streams transferred, verified engine bytes without the additional whole-buffer `Response` copy, and repairs Deck's shadowed Paste Formatting shortcut through the existing UI hookup, without reordering the upstream engine registry. With a painter armed, Mod+Shift+V applies it without inserting clipboard text. With none armed, the paired paste event supplies the OS clipboard once, even when the internal copy differs. Stock fields keep their own behavior. The PDF author accepting-version guard includes both r4 and r5; r3 still receives no author property. Sandbox, CSP policy and asset verification stay unchanged. See [the measured boundaries](editor-performance.md#r5-handoff-profiling-and-visible-content-boundary): visible-content non-regression and the 1000 ms worst-case target have not been established.
+
+`scripts/artcraft/check-deck-clipboard.ts` is an opt-in real-stack regression using headed Chromium and real X11 keys. Its source documents the private fixture-state, fresh upload and output-directory inputs; never commit or share that state's cookies. The r4 run fails on internal A plus OS B and the r5 run passes, including armed formatting, one undo, focus retention and unarmed paste. Unit hookup tests additionally require the engine registry files to remain byte-identical.
 
 ## Opt-in gateway client addresses for authentication limits
 

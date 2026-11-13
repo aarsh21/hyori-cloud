@@ -1,4 +1,7 @@
-use hyori_media_worker::{Failure, Format, MAX_DURATION, MAX_OUTPUT, MAX_PIXELS, webp_dimensions};
+use hyori_media_worker::{
+    ErrorBody, Failure, Format, MAX_DURATION, MAX_OUTPUT, MAX_PIXELS, Reason, Stage,
+    rejection_reason, webp_dimensions,
+};
 use serde::Deserialize;
 use std::{path::Path, process::Stdio, time::Duration};
 use tokio::{
@@ -23,30 +26,53 @@ async fn limited(mut pipe: impl AsyncRead + Unpin, limit: usize) -> Result<Vec<u
         bytes.extend_from_slice(&buffer[..length]);
     }
 }
-async fn command(mut command: Command, cap: usize, seconds: u64) -> Result<Vec<u8>, Failure> {
-    command
-        .env_clear()
-        .env("LANG", "C")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    let mut child = command.spawn().map_err(|_| Failure::Unavailable)?;
-    let stdout = child.stdout.take().ok_or(Failure::Unavailable)?;
-    let stderr = child.stderr.take().ok_or(Failure::Unavailable)?;
-    tokio::time::timeout(Duration::from_secs(seconds), async {
-        let (status, output, _) = tokio::try_join!(
-            async { child.wait().await.map_err(|_| Failure::Unavailable) },
-            limited(stdout, cap),
-            limited(stderr, 8192)
-        )?;
-        if !status.success() {
-            return Err(Failure::InvalidMedia);
+async fn command(
+    mut command: Command,
+    cap: usize,
+    seconds: u64,
+    stage: Stage,
+) -> Result<Vec<u8>, ErrorBody> {
+    let result = async {
+        command
+            .env_clear()
+            .env("LANG", "C")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
+        let mut child = command.spawn().map_err(|_| Failure::Unavailable)?;
+        let stdout = child.stdout.take().ok_or(Failure::Unavailable)?;
+        let stderr = child.stderr.take().ok_or(Failure::Unavailable)?;
+        tokio::time::timeout(Duration::from_secs(seconds), async {
+            let (status, output, stderr) = tokio::try_join!(
+                async { child.wait().await.map_err(|_| Failure::Unavailable) },
+                limited(stdout, cap),
+                limited(stderr, 8192)
+            )?;
+            if !status.success() {
+                return Err(ErrorBody::diagnostic(
+                    Failure::InvalidMedia,
+                    stage,
+                    rejection_reason(&stderr),
+                ));
+            }
+            Ok(output)
+        })
+        .await
+        .map_err(|_| Failure::Timeout)?
+    }
+    .await;
+    result.map_err(|mut error: ErrorBody| {
+        if error.diagnostic.is_none() {
+            let reason = match error.error {
+                Failure::ResourceLimit => Reason::OutputLimit,
+                Failure::Timeout => Reason::Deadline,
+                _ => Reason::ProcessUnavailable,
+            };
+            error.diagnostic = Some(hyori_media_worker::Diagnostic { stage, reason });
         }
-        Ok(output)
+        error
     })
-    .await
-    .map_err(|_| Failure::Timeout)?
 }
 fn input(command: &mut Command, format: Format) {
     command.args([
@@ -87,7 +113,7 @@ struct ProbeFormat {
     duration: Option<String>,
 }
 
-pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, Failure> {
+pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, ErrorBody> {
     let mut probe = Command::new("/usr/bin/ffprobe");
     probe.current_dir(directory);
     input(&mut probe, format);
@@ -98,19 +124,26 @@ pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, Failure
         "json",
         "source",
     ]);
-    let info: Probe = serde_json::from_slice(&command(probe, 64 * 1024, 10).await?)
-        .map_err(|_| Failure::InvalidMedia)?;
+    let info: Probe = serde_json::from_slice(&command(probe, 64 * 1024, 10, Stage::Probe).await?)
+        .map_err(|_| {
+        ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::InvalidProbe)
+    })?;
     let visual = info
         .streams
         .iter()
         .find(|s| s.codec_type == "video")
-        .ok_or(Failure::InvalidMedia)?;
-    let (width, height) = visual
-        .width
-        .zip(visual.height)
-        .ok_or(Failure::InvalidMedia)?;
+        .ok_or_else(|| {
+            ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::MissingVisual)
+        })?;
+    let (width, height) = visual.width.zip(visual.height).ok_or_else(|| {
+        ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::InvalidProbe)
+    })?;
     if width == 0 || height == 0 || u64::from(width) * u64::from(height) > MAX_PIXELS {
-        return Err(Failure::ResourceLimit);
+        return Err(ErrorBody::diagnostic(
+            Failure::ResourceLimit,
+            Stage::Probe,
+            Reason::InputLimit,
+        ));
     }
     if format.is_video() {
         let duration = info
@@ -118,9 +151,15 @@ pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, Failure
             .duration
             .and_then(|v| v.parse::<f64>().ok())
             .filter(|v| v.is_finite() && *v > 0.0)
-            .ok_or(Failure::Unsupported)?;
+            .ok_or_else(|| {
+                ErrorBody::diagnostic(Failure::Unsupported, Stage::Probe, Reason::MissingDuration)
+            })?;
         if duration > MAX_DURATION {
-            return Err(Failure::ResourceLimit);
+            return Err(ErrorBody::diagnostic(
+                Failure::ResourceLimit,
+                Stage::Probe,
+                Reason::InputLimit,
+            ));
         }
     }
     let mut encoder = Command::new("/usr/bin/ffmpeg");
@@ -164,7 +203,9 @@ pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, Failure
         "webp",
         "pipe:1",
     ]);
-    let bytes = command(encoder, MAX_OUTPUT, 20).await?;
-    webp_dimensions(&bytes).ok_or(Failure::InvalidMedia)?;
+    let bytes = command(encoder, MAX_OUTPUT, 20, Stage::Encode).await?;
+    webp_dimensions(&bytes).ok_or_else(|| {
+        ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Encode, Reason::InvalidOutput)
+    })?;
     Ok(bytes)
 }

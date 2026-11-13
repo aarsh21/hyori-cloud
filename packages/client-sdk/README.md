@@ -1,6 +1,6 @@
 # Hyori Cloud client SDK
 
-The root is framework-independent. RPC, query and mutation method trees derive from the feature-owned `operations` tuple exported by `@hyori-cloud/api/rpc`; the SDK contains no second method catalog. The same declaration supplies payload, success and expected-failure runtime codecs. The wire protocol is documented in `../../docs/implementation-contract.md`.
+The root is framework-independent. RPC, query and mutation method trees derive from the feature-owned `operations` tuple exported by `@hyori-cloud/api/client`; the SDK contains no handwritten method catalog. That lightweight catalog and the compatible `@hyori-cloud/api/rpc` catalog are generated from the same Rust manifest and supply identical payload, success and expected-failure runtime codecs. The wire protocol is documented in `../../docs/implementation-contract.md`.
 
 ```ts
 import { createClient } from "@hyori-cloud/client-sdk";

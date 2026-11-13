@@ -55,6 +55,14 @@ try {
     path.join(temporary, "fixture-api.ts"),
     'export * from "./schemas";\nexport { operations, ApiRpc, type Api } from "./operations";\n',
   );
+  writeFileSync(
+    path.join(temporary, "fixture-client.ts"),
+    'export * from "./schemas";\nexport { operations } from "./client-operations";\n',
+  );
+  writeFileSync(
+    path.join(temporary, "fixture-wire.ts"),
+    'export * from "./wire-schemas";\nexport { operations } from "./wire-operations";\n',
+  );
 
   const consumer = `
     import { createClient } from "@hyori-cloud/client-sdk";
@@ -94,6 +102,8 @@ try {
             path.join(root, "packages/client-sdk/src/react/index.ts"),
           ],
           "@hyori-cloud/api/rpc": [path.join(temporary, "fixture-api.ts")],
+          "@hyori-cloud/api/client": [path.join(temporary, "fixture-client.ts")],
+          "@hyori-cloud/api/wire": [path.join(temporary, "fixture-wire.ts")],
         },
       },
       include: [path.join(temporary, "*.ts")],

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { sha256 } from "./evidence-bytes.ts";
 
 /** Compose over the retained Deck host-engine source base, never edit its frozen patcher. */
@@ -96,6 +97,35 @@ export function patchDeckNativeHookup(source: ReadonlyMap<string, Buffer>, frame
                 // In the browser a save is a download:`,
   );
 
+  // Resolve the duplicate Shift+V binding only after the UI's focus/modal/backstage guards.
+  // The engine's command registry remains byte-identical.
+  replace(
+    `${ui}/app/keys.rs`,
+    `        for e in events {
+            // An earlier command in this raw batch may have settled the composition.`,
+    `        let painter_paste = self.native_host_intents.is_some() && self.session.painter.is_some()
+            && events.iter().any(|event| matches!(event,
+                egui::Event::Key { key: egui::Key::V, pressed: true, modifiers: m, .. }
+                    if (m.command || m.ctrl) && m.shift && !m.alt));
+        let plain_paste = self.native_host_intents.is_some() && !painter_paste
+            && events.iter().any(|event| matches!(event, egui::Event::Paste(_)));
+        let events = events.into_iter().filter(|event| match event {
+            egui::Event::Paste(_) if painter_paste => false,
+            egui::Event::Key { key: egui::Key::V, pressed: true, modifiers: m, .. }
+                if plain_paste && (m.command || m.ctrl) && m.shift && !m.alt => false,
+            _ => true,
+        });
+        for e in events {
+            // An earlier command in this raw batch may have settled the composition.`,
+  );
+  replace(
+    `${ui}/app/keys.rs`,
+    "                    match self.session.key(name, mods) {",
+    `                    match if painter_paste && key == egui::Key::V && mods.cmd && mods.shift && !mods.alt {
+                        self.session.execute("format.painterApply", &json!({}))
+                    } else { self.session.key(name, mods) } {`,
+  );
+
   replace(
     `${web}/main.rs`,
     "mod host;",
@@ -173,7 +203,12 @@ export function patchDeckNativeHookup(source: ReadonlyMap<string, Buffer>, frame
   replace(
     `${web}/web.rs`,
     "        // Browsers cannot read dropped files synchronously.",
-    `${call("note_input", "raw")}\n        // Browsers cannot read dropped files synchronously.`,
+    `        clipboard_events_only(&mut raw.events, false);\n${call("note_input", "raw")}\n        // Browsers cannot read dropped files synchronously.`,
+  );
+  replace(
+    `${web}/web.rs`,
+    "impl eframe::App for WebShell {",
+    `${readFileSync(new URL("../../tooling/artcraft/patches/native-host-v3/clipboard-events.rs", import.meta.url), "utf8")}\nimpl eframe::App for WebShell {`,
   );
 
   const module = `${web}/native_frame.rs`;

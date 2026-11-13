@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { operations } from "@hyori-cloud/api/rpc";
+import { operations } from "@hyori-cloud/api/wire";
 import { createClient, type Client } from "@hyori-cloud/client-sdk";
 import { setMutationDefaults } from "@hyori-cloud/client-sdk/react";
 import { MutationObserver, QueryClient, QueryObserver } from "@hyori-cloud/lib/query-core";
@@ -128,3 +128,87 @@ for (const transition of transitions) {
     }
   });
 }
+
+const noteEntryMutations = [
+  "files.rename",
+  "files.move",
+  "files.trash",
+  "files.restore",
+  "files.restoreVersion",
+  "files.deletePermanently",
+  "files.emptyTrash",
+];
+
+test("Files mutations that change a note's entry declare Notes invalidation in Rust", () => {
+  const declarations: readonly OperationDeclaration[] = operations;
+
+  for (const tag of noteEntryMutations) {
+    const declaration = declarations.find((operation) => operation.rpc._tag === tag);
+    expect(declaration?.invalidates).toContain("notes");
+  }
+});
+
+test("an active notes.list drops a note as soon as files.trash completes", async () => {
+  let trashed = false;
+  let reads = 0;
+
+  const client = createClient({
+    fetch: async (_url, init) => {
+      const { operation } = requestOperation(await new Response(init?.body).json());
+
+      if (operation === "notes.list") {
+        reads += 1;
+
+        return Response.json({
+          ok: true,
+          value: {
+            items: trashed
+              ? []
+              : [
+                  {
+                    file: entry,
+                    generation: "generation_fake",
+                    metadataRevision: "1",
+                    favorite: false,
+                  },
+                ],
+            nextCursor: null,
+          },
+        });
+      }
+
+      if (operation !== "files.trash")
+        throw new Error(`Unexpected cache fixture operation: ${operation}`);
+      trashed = true;
+
+      return Response.json({ ok: true, value: entry });
+    },
+  });
+
+  const cache = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+      mutations: { retry: false },
+    },
+  });
+
+  setMutationDefaults(cache);
+  const options = client.query.notes.list.getOptions({});
+  await cache.fetchQuery(options);
+  const observer = new QueryObserver(cache, options);
+  const unsubscribe = observer.subscribe(() => undefined);
+
+  try {
+    expect(observer.getCurrentResult().data?.items).toHaveLength(1);
+    await new MutationObserver(cache, client.mutation.files.trash.mutationOptions()).mutate({
+      id: entry.id,
+    });
+    expect(reads).toBe(2);
+    expect(observer.getCurrentResult().data?.items).toHaveLength(0);
+  } finally {
+    unsubscribe();
+    observer.destroy();
+    cache.clear();
+    client.dispose();
+  }
+});

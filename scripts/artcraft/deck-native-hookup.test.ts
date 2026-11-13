@@ -75,11 +75,29 @@ test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
     );
     const web = result.files.get("apps/deckcraft-web/src/web.rs")!.toString();
     expect(web).not.toContain("host::Bridge");
+    expect(web).toContain("clipboard_events_only(&mut raw.events, false);");
+    expect(web.indexOf("clipboard_events_only(&mut raw.events,")).toBeLessThan(
+      web.indexOf("host.note_input"),
+    );
+    expect(web).toContain("paste && m.command && !m.shift");
     expect(web.indexOf("host.note_input")).toBeLessThan(
       web.indexOf("std::mem::take(&mut raw.dropped_files)"),
     );
     expect(web).toContain("host.after_logic");
     expect(web).toContain("host.after_ui");
+    const keys = result.files.get("crates/ui-egui/src/app/keys.rs")!.toString();
+    expect(keys).toContain("self.native_host_intents.is_some() && self.session.painter.is_some()");
+    expect(keys.indexOf("let painter_paste")).toBeGreaterThan(
+      keys.indexOf("if self.backstage.is_some()"),
+    );
+    expect(keys).toContain('self.session.execute("format.painterApply", &json!({}))');
+
+    for (const path of [
+      "crates/engine/src/keys.rs",
+      "crates/engine/src/cmd/edit.rs",
+      "crates/engine/src/cmd/format.rs",
+    ])
+      expect(result.files.get(path)!.equals(original.get(path)!)).toBe(true);
     expect(() => patchDeckNativeHookup(result.files, adapter)).toThrow();
 
     for (const [path, bytes] of base)

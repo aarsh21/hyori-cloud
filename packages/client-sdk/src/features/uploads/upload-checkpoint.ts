@@ -1,4 +1,4 @@
-import { Bytes, Id } from "@hyori-cloud/api/rpc";
+import { Bytes, Id } from "@hyori-cloud/api/client";
 import { Schema } from "@hyori-cloud/lib/effect";
 import { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
 

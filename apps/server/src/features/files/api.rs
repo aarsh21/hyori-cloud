@@ -5,12 +5,14 @@ use crate::{
 crate::wire_enum!(ShareRole { Viewer => "viewer", Contributor => "contributor", Editor => "editor" });
 crate::wire_enum!(FileKind { File => "file", Folder => "folder" });
 crate::wire_enum!(FilesView { Files => "files", Shared => "shared", Trash => "trash" });
+crate::wire_enum!(FileSort { NameAsc => "nameAsc", NameDesc => "nameDesc", SizeAsc => "sizeAsc", SizeDesc => "sizeDesc", ModifiedAsc => "modifiedAsc", ModifiedDesc => "modifiedDesc" });
 crate::wire_struct!(Access { role: Nullable<ShareRole>, is_owner: bool, can_download: bool, can_upload: bool, can_edit: bool, can_rename: bool, can_delete: bool, can_share: bool });
 crate::wire_struct!(FileEntry { id: Id, name: Name, kind: FileKind, parent_id: Nullable<Id>, owner_id: Id, size: Bytes, mime_type: String, created_at: String, updated_at: String, trashed_at: Nullable<String>, access: Access });
 crate::wire_struct!(ItemInput { id: Id });
 crate::wire_struct!(ListFiles {
     #[serde(default, skip_serializing_if = "Option::is_none")] parent_id: Option<Nullable<Id>>,
     #[serde(default, skip_serializing_if = "Option::is_none")] #[schemars(with = "FilesView")] view: Option<FilesView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] sort: Option<FileSort>,
     #[serde(default, skip_serializing_if = "Option::is_none")] #[schemars(with = "String", length(max = 255))] search: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")] #[schemars(with = "String", length(max = 128))] r#type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")] #[schemars(with = "Timestamp")] after: Option<Timestamp>,
@@ -21,13 +23,20 @@ crate::wire_struct!(ListFiles {
     #[serde(default, skip_serializing_if = "Option::is_none")] #[schemars(with = "u32", range(min = 1, max = 100))] limit: Option<u32>
 });
 crate::wire_struct!(Breadcrumb { id: Id, name: Name });
-crate::wire_struct!(FileList { items: Vec<FileEntry>, breadcrumbs: Vec<Breadcrumb>, next_cursor: Nullable<String>, folder: Nullable<FileEntry> });
+crate::wire_struct!(FileThumbnail { url: Nullable<String>, pending: bool });
+crate::wire_struct!(FileList {
+    items: Vec<FileEntry>, breadcrumbs: Vec<Breadcrumb>, next_cursor: Nullable<String>, folder: Nullable<FileEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "std::collections::BTreeMap<String, FileThumbnail>")]
+    thumbnails: Option<std::collections::BTreeMap<String, FileThumbnail>>
+});
 // The service trims/NFC-normalizes before validating the final Name; JSON body size bounds input.
 crate::wire_struct!(CreateFolder { parent_id: Nullable<Id>, #[schemars(with = "String")] name: Name });
 crate::wire_struct!(RenameFile {
     id: Id,
     #[schemars(with = "String")]
-    name: Name
+    name: Name,
+    #[serde(default, skip_serializing_if = "Option::is_none")] expected_name: Option<Name>
 });
 crate::wire_struct!(MoveFile { id: Id, parent_id: Nullable<Id> });
 crate::wire_struct!(FileVersion {
@@ -224,7 +233,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         RenameFile,
         FileEntry,
         "mutation",
-        ["files", "photos"],
+        ["files", "photos", "notes"],
         false
     );
     crate::operation!(
@@ -233,7 +242,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         MoveFile,
         FileEntry,
         "mutation",
-        ["files", "photos", "shares", "media"],
+        ["files", "photos", "shares", "media", "notes"],
         false
     );
     crate::operation!(
@@ -242,7 +251,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         ItemInput,
         FileEntry,
         "mutation",
-        ["files", "photos", "shares", "media"],
+        ["files", "photos", "shares", "media", "notes"],
         false
     );
     crate::operation!(
@@ -251,7 +260,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         ItemInput,
         FileEntry,
         "mutation",
-        ["files", "photos", "media"],
+        ["files", "photos", "media", "notes"],
         false
     );
     crate::operation!(
@@ -269,7 +278,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         RestoreVersion,
         FileEntry,
         "mutation",
-        ["files", "photos", "auth", "media"],
+        ["files", "photos", "auth", "media", "notes"],
         false
     );
     crate::operation!(
@@ -278,7 +287,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         ItemInput,
         PermanentDeletion,
         "mutation",
-        ["files", "photos", "shares", "media", "auth"],
+        ["files", "photos", "shares", "media", "auth", "notes"],
         false
     );
     crate::operation!(
@@ -287,7 +296,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         Empty,
         PermanentDeletion,
         "mutation",
-        ["files", "photos", "shares", "media", "auth"],
+        ["files", "photos", "shares", "media", "auth", "notes"],
         false
     );
     crate::operation!(

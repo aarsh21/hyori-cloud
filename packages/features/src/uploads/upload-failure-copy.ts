@@ -34,7 +34,12 @@ const FAILURE_COPY: Record<
 
 /** What a failed upload means for this intent, which the error's code alone can't say. */
 export function describeUploadFailure(intent: UploadIntent, error: CloudError, copy: ErrorCopy) {
-  return FAILURE_COPY[getUploadFailure(intent, error)](copy.detail ?? copy.title);
+  const message =
+    error.code === "uploads.tooSlow"
+      ? `${copy.title}. ${copy.detail}`
+      : (copy.detail ?? copy.title);
+
+  return FAILURE_COPY[getUploadFailure(intent, error)](message);
 }
 
 /** A cancel that wasn't confirmed is about the cancel, whatever the error was. It may still commit. */

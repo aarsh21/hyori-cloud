@@ -39,6 +39,10 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
     title: "Uploads are busy",
     detail: "Wait for a running transfer to finish, then try again.",
   },
+  "uploads.tooSlow": {
+    title: "Your connection was too slow to finish uploading",
+    detail: "Your progress is kept. Use a faster connection, then press Retry.",
+  },
   "storage.quotaExceeded": {
     title: "Not enough storage",
     detail: "Free up space or ask your admin for a larger quota.",

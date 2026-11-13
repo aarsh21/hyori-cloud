@@ -1,0 +1,485 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-build",
+  "app": "wordcraft",
+  "artifactVersion": "0.14.0-hyori-host.6",
+  "officialReleaseReplaced": false,
+  "buildInputsSha256": "d78508e8e7feef9a26018e6381992148cbb3cc176e4f2cfff877291df0f3ef20",
+  "cargoLockSha256": "bf95944918a91a759fdcef5435876c4ba63631ab4f3046111c24b1d28611025c",
+  "tools": {
+    "schemaVersion": 1,
+    "artifactVersion": "0.14.1-hyori-host.1",
+    "platform": "linux/amd64",
+    "baseImage": "docker.io/library/rust@sha256:be49948243566aa0ae465ae2786c4bab8cb5597084873b01d3db50dcebc70b18",
+    "baseImageConfigSha256": "a9d8776121944dc474cbae7b1184dbdbd28f0d08d9fefa25737522c56a3f25cb",
+    "rustVersion": "1.99.1",
+    "rustCommit": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+    "target": "wasm32-unknown-unknown",
+    "bun": {
+      "version": "1.4.4",
+      "bytes": 107308936,
+      "sha256": "10702245766b225e70bbf6235fd6b47214fd94b4760d00ffaed8ab0df57ac235"
+    },
+    "archives": [
+      {
+        "id": "rust-std",
+        "version": "1.99.1",
+        "url": "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-wasm32-unknown-unknown.tar.gz",
+        "sha256": "fdc80d2da1effc88df0bae8503ad117d268a4854afb14a8e31fd1ef6df0aad17",
+        "checksumEvidence": "Installed Rust 1.99.1 multirust-channel-manifest.toml, pkg.rust-std.target.wasm32-unknown-unknown.hash",
+        "checksumUrl": null
+      },
+      {
+        "id": "trunk",
+        "version": "0.21.14",
+        "url": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "a67f4054b249fe9acc5fabc25de1aebf19783aca3ad6ff64bf34d7da44d0ea20",
+        "checksumEvidence": "Publisher release .sha256 asset",
+        "checksumUrl": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz.sha256"
+      },
+      {
+        "id": "wasm-bindgen",
+        "version": "0.2.129",
+        "url": "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e",
+        "checksumEvidence": "Publisher GitHub expanded_assets HTML: exact matching x86_64-unknown-linux-musl asset digest",
+        "checksumUrl": null
+      },
+      {
+        "id": "binaryen",
+        "version": "123",
+        "url": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz",
+        "sha256": "e959f2170af4c20c552e9de3a0253704d6a9d2766e8fdb88e4d6ac4bae9388fe",
+        "checksumEvidence": "Publisher release .sha256 asset",
+        "checksumUrl": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz.sha256"
+      }
+    ],
+    "signatureVerification": "Publisher TLS/checksum or asset-digest evidence retained; no detached signature or SLSA verification claimed",
+    "deployable": false
+  },
+  "execution": "Restricted container (container-command.json): pinned Rust base image, no network, unprivileged, read-only root, all capabilities dropped, no-new-privileges, bounded memory/CPU/processes; read-only input/driver/tools mounts at the driver's absolute paths. Cargo and Trunk --locked --offline.",
+  "commands": [
+    {
+      "id": "rustc",
+      "status": 0,
+      "elapsedMs": 130
+    },
+    {
+      "id": "cargo-build",
+      "status": 0,
+      "elapsedMs": 217540
+    },
+    {
+      "id": "metadata",
+      "status": 0,
+      "elapsedMs": 1082
+    },
+    {
+      "id": "normal-tree",
+      "status": 0,
+      "elapsedMs": 330
+    },
+    {
+      "id": "host-tree",
+      "status": 0,
+      "elapsedMs": 333
+    },
+    {
+      "id": "trunk",
+      "status": 0,
+      "elapsedMs": 327647
+    }
+  ],
+  "wasm": {
+    "path": "artifact/wordcraft-web-7e4cfb892c0d7ee2_bg.wasm",
+    "bytes": 46519820,
+    "sha256": "d69e475ff77993d05ac1dd04653e309a41fe6be8b1b51351283bba74c554e494"
+  },
+  "assets": [
+    {
+      "path": "Cargo.lock",
+      "bytes": 180142,
+      "sha256": "bf95944918a91a759fdcef5435876c4ba63631ab4f3046111c24b1d28611025c"
+    },
+    {
+      "path": "artifact/hyori-mark-1e3aa2eda2b94725.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "artifact/index.html",
+      "bytes": 1797,
+      "sha256": "ab1401087daa0effd61bfc60c335d04bc5bb8aac7edde1aa87ddd9cd75aa7574"
+    },
+    {
+      "path": "artifact/snippets/eframe-d31a8450ea12dfc1/inline0.js",
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    },
+    {
+      "path": "artifact/snippets/wordcraft-web-320a272813e26a6a/hyori-native-host.js",
+      "bytes": 184256,
+      "sha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "artifact/wordcraft-web-7e4cfb892c0d7ee2.js",
+      "bytes": 178411,
+      "sha256": "2f1fe1c0b4331abef80de2ebf59de052219ebb72d9ff2f07902bca8665b48ed7"
+    },
+    {
+      "path": "artifact/wordcraft-web-7e4cfb892c0d7ee2_bg.wasm",
+      "bytes": 46519820,
+      "sha256": "d69e475ff77993d05ac1dd04653e309a41fe6be8b1b51351283bba74c554e494"
+    },
+    {
+      "path": "build-inputs.json",
+      "bytes": 454114,
+      "sha256": "d78508e8e7feef9a26018e6381992148cbb3cc176e4f2cfff877291df0f3ef20"
+    },
+    {
+      "path": "commands/cargo-build.command.json",
+      "bytes": 1301,
+      "sha256": "2b7b43122be057537592d37b73f71e57861ab1feb084ed943f13108217197d0b"
+    },
+    {
+      "path": "commands/cargo-build.result.json",
+      "bytes": 40,
+      "sha256": "a6e9879f72690ceb9aa8e2ba17e192d6807e1e8aaadfc5b70ec4f955fe0606aa"
+    },
+    {
+      "path": "commands/cargo-build.stderr",
+      "bytes": 11616,
+      "sha256": "ba5bbcec7b8f78f1f494d5b7967a1b70f46c65648ce3db81d506b180cffc7076"
+    },
+    {
+      "path": "commands/cargo-build.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "commands/host-tree.command.json",
+      "bytes": 1416,
+      "sha256": "e973f24f37451e27161c75513e19e07a017d7dbd1f86d7d4bcd6649e14913661"
+    },
+    {
+      "path": "commands/host-tree.result.json",
+      "bytes": 37,
+      "sha256": "17fe290f866de9e45d9975828a9af6acb2bb4023b8b0827d4a9a2124e76f7f3c"
+    },
+    {
+      "path": "commands/host-tree.stderr",
+      "bytes": 1000,
+      "sha256": "9244ac746d94bc68f99e926e094bf89bc5931fde32015ecc8a0c100ac28197df"
+    },
+    {
+      "path": "commands/host-tree.stdout",
+      "bytes": 69577,
+      "sha256": "bb74aa087bcfe9cfcd6499debd3a14acb7aee3062a09db272744760b1b4369d0"
+    },
+    {
+      "path": "commands/metadata.command.json",
+      "bytes": 1298,
+      "sha256": "84c325abd684afdc2b3c7933c72f7b5c34e6b38c693c735cd852fe4b5203a26a"
+    },
+    {
+      "path": "commands/metadata.result.json",
+      "bytes": 38,
+      "sha256": "b47a70a4782ea4b104f014260246f6c5f15057f96f6534f4d90c5bd40fb462bb"
+    },
+    {
+      "path": "commands/metadata.stderr",
+      "bytes": 1000,
+      "sha256": "9244ac746d94bc68f99e926e094bf89bc5931fde32015ecc8a0c100ac28197df"
+    },
+    {
+      "path": "commands/metadata.stdout",
+      "bytes": 1554680,
+      "sha256": "d8680423d916ccb70f8d0a4d5a76f7710e0ef0b99ecc481591451d6ab7ef03c6"
+    },
+    {
+      "path": "commands/normal-tree.command.json",
+      "bytes": 1424,
+      "sha256": "c47e738336c2e05f126d7ff93637c7bfc567b1fa8d72a7290952ffe7d81cb841"
+    },
+    {
+      "path": "commands/normal-tree.result.json",
+      "bytes": 37,
+      "sha256": "701d6a3c31547a9028481c307834858d3d062f4a598f6e4f9eec50754b78c574"
+    },
+    {
+      "path": "commands/normal-tree.stderr",
+      "bytes": 1000,
+      "sha256": "9244ac746d94bc68f99e926e094bf89bc5931fde32015ecc8a0c100ac28197df"
+    },
+    {
+      "path": "commands/normal-tree.stdout",
+      "bytes": 63600,
+      "sha256": "93355bf99f4bcd07e42d3e16d5ba9bc479576244ac9ae9d1b2b67207a7b3945d"
+    },
+    {
+      "path": "commands/rustc.command.json",
+      "bytes": 1096,
+      "sha256": "849d2db8d2900aedba7b46e4a4d5d5a4addbdec79310f1d867829994586d35e5"
+    },
+    {
+      "path": "commands/rustc.result.json",
+      "bytes": 37,
+      "sha256": "fbd28f96233753311d29265bdb360e9106da72ebf39cc1018fcd8e024975a55e"
+    },
+    {
+      "path": "commands/rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "commands/rustc.stdout",
+      "bytes": 196,
+      "sha256": "f22d5e4e9ced367e774ce5bc140d9e6b1235c1882fec80d011044851f3ae6369"
+    },
+    {
+      "path": "commands/trunk.command.json",
+      "bytes": 1294,
+      "sha256": "3723e9c5a9e35c28827f8e748812156917ad3d4a16c5a2dd2bba42f24a02619d"
+    },
+    {
+      "path": "commands/trunk.result.json",
+      "bytes": 40,
+      "sha256": "b88fc211bf1b5035b4b8d883c6319df3e019b92e9b5119aa8079f4a5542a96fe"
+    },
+    {
+      "path": "commands/trunk.stderr",
+      "bytes": 1504,
+      "sha256": "c286afe4f1e8e35ed8ab449f62c351d2595a68ddddc944a4b5e78a106982f1ef"
+    },
+    {
+      "path": "commands/trunk.stdout",
+      "bytes": 222,
+      "sha256": "1aed417d17df48148b46597fae07494ca0ab2f3a356b4c0e1dc3bb6fbb3e9092"
+    },
+    {
+      "path": "container-command.json",
+      "bytes": 1873,
+      "sha256": "7d81543868afbd89c11d3874311d3ef3d17476be9a791c7ffa2dbe43299837b3"
+    },
+    {
+      "path": "container-result.json",
+      "bytes": 41,
+      "sha256": "df580ce0bfa0739dee57d23cef6c1097b8ee3a67c6a66b40af826294f35eae28"
+    },
+    {
+      "path": "driver.js",
+      "bytes": 4294,
+      "sha256": "42cc7f9640c52672c33b5286866de2ea379d442bcf33a2a84f7ec9cbb4b62db5"
+    },
+    {
+      "path": "host-bridge-legal/effect/LICENSE",
+      "bytes": 1083,
+      "sha256": "774c3bc5924ad8ae6c5a75f1c53db13feb238ade15989625c513d07b60dedf30"
+    },
+    {
+      "path": "host-bridge-legal/effect/package.json",
+      "bytes": 40617,
+      "sha256": "7624819f8cd2b09b3be8706b0bb6a22a73061364479550b94d4e74e93797da92"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/hyori-mark.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/hyori-native-host.js",
+      "bytes": 184256,
+      "sha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/index.html",
+      "bytes": 919,
+      "sha256": "c8430ab240fe104b49de769da50d9f3794b586c74a2d619e2df039ea6ae4df3f"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/src/main.rs",
+      "bytes": 1476,
+      "sha256": "43a8f0e99ceb4e73c6a44e2feb54495d9c0eaa050f558581de6a6e50668f0d0a"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/src/native_frame.rs",
+      "bytes": 1993,
+      "sha256": "931ddc326fdde1b14ac076eb3a7171dd322743cfd931465a2c1b74863c3d841b"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/src/native_host.rs",
+      "bytes": 28682,
+      "sha256": "2cbf98ab46e082a0b433eac96784bda50f56ac027be6a462270fcf1201c1a30e"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/src/native_host/clock.rs",
+      "bytes": 5791,
+      "sha256": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "modified-source/apps/wordcraft-web/src/web.rs",
+      "bytes": 35740,
+      "sha256": "1f078941442e5415a0aaf22909efedc1a21ccdac87f990b3a066e6c2e4445ef9"
+    },
+    {
+      "path": "modified-source/assets/hyori-mark.png",
+      "bytes": 7627,
+      "sha256": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "modified-source/crates/engine/src/sample.rs",
+      "bytes": 10028,
+      "sha256": "b24dd888daf41ac9a4815b425d27c8f4fda66fa2287f192016c7cd4ca4985be8"
+    },
+    {
+      "path": "modified-source/crates/formats/src/latex/export.rs",
+      "bytes": 18760,
+      "sha256": "207418aaee8422059e18adf94db5547787db0ea8ebfd7a65ff9a61720e2b9ec6"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app.rs",
+      "bytes": 18947,
+      "sha256": "a3ae7a4b40ae25ac376a797cceb8f6f926b1638b8e3f32f299fc67e3c2231a76"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/commands.rs",
+      "bytes": 56327,
+      "sha256": "df152fa5b038e82666d4540dd423acc43229156976ffd68333e9764735aa74af"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/files.rs",
+      "bytes": 24796,
+      "sha256": "ee035ba3bf5350ea74f2fc0daedc905d2afc24cd761c78459e9e955f4c97eb28"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/native_host.rs",
+      "bytes": 10879,
+      "sha256": "45e5de0bc7c0d3e391d102769e80dd35534793a16bc83949168621d7fa4c9be9"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/backstage.rs",
+      "bytes": 35913,
+      "sha256": "a51e6ba04743bbd81d1b54aa3b133bd7fab361f1e73794b97d2460722061c7bc"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/chrome.rs",
+      "bytes": 39229,
+      "sha256": "c6ea11272f245ee5dc6f54dd1f4d308898978014001be7414889007d4174b9a1"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/dialogs/chrome.rs",
+      "bytes": 10123,
+      "sha256": "51065cea08be594dd2c120b9351aa99a632d12c94a38a422a41b04ab5c4e26d0"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/dialogs/dispatch.rs",
+      "bytes": 65576,
+      "sha256": "793d061ce4b525cf57322f63a7b6746f50a1bbb7a9be71597230d8ec8c18a188"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/file_dialogs.rs",
+      "bytes": 23612,
+      "sha256": "2386a2d876986218ddf8167307c703206790b8f7c6f571e2370bdb9d7cc5cb60"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/keytips.rs",
+      "bytes": 38811,
+      "sha256": "e051d04a87b154960d8729261399413a6f7b01fa6c953dcc0c92e8a73b54565a"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/lib.rs",
+      "bytes": 31311,
+      "sha256": "25def0b1464980d1d42581e730009e8e8fac4a597fb6d0ff27e0896c2d47393e"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/options.rs",
+      "bytes": 39346,
+      "sha256": "da7ab9385a96666dc84c7da62ce4c63205a65ff2e9e8c9c293bac05571168f70"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/ribbon.rs",
+      "bytes": 21838,
+      "sha256": "357c90a14e9cebd819167b0989a26022a784d34a3899523dec8d4896bb4b2da8"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/ribbon/review.rs",
+      "bytes": 8321,
+      "sha256": "37a9656cd59fd34100101da8a7613763c36df2dd7d66162b481ea99cb30109cb"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/theme.rs",
+      "bytes": 52528,
+      "sha256": "7e96f216b7b45f47936bc0130fdab85167909be1e1603ef4eb0961b59836c17d"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/window_ui.rs",
+      "bytes": 14699,
+      "sha256": "6070eeab3632d34764e79cd11ba6eb2aabf9f1405b6bdb900647f937cde47b9b"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/windows.rs",
+      "bytes": 34273,
+      "sha256": "22434d39d45dd3894d5ea43538ce9e2fea1198e0111450768b661985cff96af4"
+    },
+    {
+      "path": "original-legal/ATTRIBUTION.md",
+      "bytes": 19120,
+      "sha256": "4fc0ff4d918dd9c811d6d678c183b284981ad26db09c5aebc279d04e954401a2"
+    },
+    {
+      "path": "original-legal/LICENSE-APACHE",
+      "bytes": 10174,
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "original-legal/LICENSE-MIT",
+      "bytes": 1101,
+      "sha256": "fc257de83c44ae49e4aad1cf777b886794be3ac9c8d00c010ef55935d5bbeba5"
+    },
+    {
+      "path": "original-legal/NOTICE",
+      "bytes": 9012,
+      "sha256": "8943b156492b6f0caa7c59a53f97d7cc6a7b79ea3e54147b491e0821538606da"
+    },
+    {
+      "path": "original-legal/docs/brand/LICENSE-brand.txt",
+      "bytes": 2263,
+      "sha256": "ed4475eacf972c9584aa335001c59dfa646eb222549b928ffd6aefd4c805b41a"
+    },
+    {
+      "path": "source-summary.json",
+      "bytes": 7775,
+      "sha256": "d4ede4418ba0002fed8f6a9d561b1785e49ed1d7b3e4fe66414e3ad2a7f2d0ec"
+    },
+    {
+      "path": "tool-inputs.json",
+      "bytes": 24769,
+      "sha256": "8ad708779c6f5f860ab61509287f112d80e8fa1df03abeb8e2a451e8c588523b"
+    },
+    {
+      "path": "tool-legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/COPYRIGHT",
+      "bytes": 1571,
+      "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af"
+    },
+    {
+      "path": "tool-legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-APACHE",
+      "bytes": 9723,
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+    },
+    {
+      "path": "tool-legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-MIT",
+      "bytes": 1068,
+      "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1"
+    },
+    {
+      "path": "tool-legal/wasm-bindgen/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-APACHE",
+      "bytes": 10847,
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+    },
+    {
+      "path": "tool-legal/wasm-bindgen/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-MIT",
+      "bytes": 1057,
+      "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+    }
+  ]
+}

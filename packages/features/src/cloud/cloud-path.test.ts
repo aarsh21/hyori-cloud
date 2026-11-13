@@ -5,6 +5,8 @@ const locations: CloudLocation[] = [
   { section: "files", folderId: null },
   { section: "files", folderId: "abc_1" },
   { section: "shared" },
+  { section: "notes", noteId: null },
+  { section: "notes", noteId: "note-1" },
   { section: "trash" },
   { section: "photos" },
   { section: "albums" },

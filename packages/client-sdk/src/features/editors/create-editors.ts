@@ -12,10 +12,6 @@ import type {
   EditorStopReason,
 } from "#client-sdk/features/editors/editor-contract";
 import { hashEditorBytes, readEditorBytes } from "#client-sdk/features/editors/editor-bytes";
-import {
-  copyEditorBytes,
-  validateEditorDocument,
-} from "#client-sdk/features/editors/editor-protocol";
 
 export type EditorBackendOptions = InputOf<RPC["editors"]["open"]> & {
   /** An explicitly selected fixed destination, never an inferred source/root fallback. */
@@ -24,7 +20,7 @@ export type EditorBackendOptions = InputOf<RPC["editors"]["open"]> & {
   readonly chooseDestination?: (
     output: Pick<EditorOutput, "name" | "intent">,
     options: { signal: AbortSignal },
-  ) => Promise<EditorDestination | null>;
+  ) => Promise<(EditorDestination & { readonly name?: string }) | null>;
 };
 
 function saveFailure(
@@ -175,7 +171,7 @@ export function createEditors(
       }
 
       closers.add(close);
-      let chosen: { saveId: string; destination: EditorDestination } | null = null;
+      let chosen: { saveId: string; destination: EditorDestination; name: string } | null = null;
 
       return {
         close,
@@ -184,18 +180,23 @@ export function createEditors(
           const currentSignal = signalFor(signal);
 
           if (!opening) {
-            opening = rpc
-              .open({ id }, { signal: currentSignal })
-              .then((result) => {
-                validateEditorDocument(result, 64 * 1024 * 1024);
-                document = Object.freeze({
-                  ...result,
-                  outputFormats: Object.freeze(
-                    result.outputFormats.map((format) => Object.freeze({ ...format })),
-                  ),
-                });
+            opening = import("#client-sdk/features/editors/editor-protocol")
+              .then(({ validateEditorDocument }) => {
+                // Load validation before acquiring a server session, so cancellation while code
+                // arrives cannot strand an acquired descriptor outside this attachment's owner.
+                currentSignal.throwIfAborted();
 
-                return document;
+                return rpc.open({ id }, { signal: currentSignal }).then((result) => {
+                  validateEditorDocument(result, 64 * 1024 * 1024);
+                  document = Object.freeze({
+                    ...result,
+                    outputFormats: Object.freeze(
+                      result.outputFormats.map((format) => Object.freeze({ ...format })),
+                    ),
+                  });
+
+                  return document;
+                });
               })
               .catch((cause) => {
                 opening = null;
@@ -264,6 +265,11 @@ export function createEditors(
                 message: "This output format is not authorized by the open descriptor.",
               };
 
+            const { copyEditorBytes } =
+              await import("#client-sdk/features/editors/editor-protocol");
+
+            currentSignal.throwIfAborted();
+
             const bytes = copyEditorBytes(
               input.output.bytes,
               Math.min(format.maxBytes ?? document.maxBytes, document.maxBytes),
@@ -275,10 +281,13 @@ export function createEditors(
                 message: "The editor output is empty, shared or larger than its declared limit.",
               };
             let destination = fixedDestination;
+            let name = input.output.name;
 
             if (input.output.intent !== "replace" && !destination) {
-              if (chosen?.saveId === input.saveId) destination = chosen.destination;
-              else if (chooseDestination) {
+              if (chosen?.saveId === input.saveId) {
+                destination = chosen.destination;
+                name = chosen.name;
+              } else if (chooseDestination) {
                 const selected = await chooseDestination(
                   { name: input.output.name, intent: input.output.intent },
                   { signal: currentSignal },
@@ -287,8 +296,15 @@ export function createEditors(
                 currentSignal.throwIfAborted();
 
                 if (selected) {
-                  destination = Object.freeze({ ...selected });
-                  chosen = { saveId: input.saveId, destination };
+                  name = selected.name ?? name;
+
+                  if (name.slice(name.lastIndexOf(".")).toLowerCase() !== extension)
+                    throw new SDKError(
+                      "SDK_VALIDATION",
+                      "The selected name changes the captured format.",
+                    );
+                  destination = Object.freeze({ parentId: selected.parentId });
+                  chosen = { saveId: input.saveId, destination, name };
                 }
               }
 
@@ -305,7 +321,7 @@ export function createEditors(
               sessionId: input.sessionId,
               saveId: input.saveId,
               expectedRevision: input.expectedRevision,
-              name: input.output.name,
+              name,
               size: bytes.byteLength,
               sha256,
               intent: input.output.intent,

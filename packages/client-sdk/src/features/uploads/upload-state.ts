@@ -1,6 +1,6 @@
-import { Bytes, FileEntry } from "@hyori-cloud/api/rpc";
+import { Bytes, FileEntry } from "@hyori-cloud/api/client";
 import { Schema } from "@hyori-cloud/lib/effect";
-import { ClientError } from "#client-sdk/errors";
+import { ClientError } from "#client-sdk/error-schema";
 import { UploadCheckpoint } from "#client-sdk/features/uploads/upload-checkpoint";
 
 const progress = {

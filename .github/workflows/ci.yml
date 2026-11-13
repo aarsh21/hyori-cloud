@@ -241,7 +241,7 @@ jobs:
           # Fresh stacks keep account/library mutations and simulated thumbnail states isolated.
           for scenarios in \
             files,replacement,sharing,admin,derivatives,photos,concurrency,touch,readiness,screens \
-            interface account phone-auth phone-completion resume tray-reach \
+            interface account phone-auth phone-completion resume tray-reach notes \
             download-soak download-network-change thumbnail-latency thumbnail-states; do
             bun run test:rust-browser hyori-browser-server:ci \
               --worker=hyori-browser-worker:ci --fresh-image --no-build \

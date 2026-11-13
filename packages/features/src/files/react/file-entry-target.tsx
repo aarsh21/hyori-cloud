@@ -1,10 +1,12 @@
 import type { FileEntry } from "@hyori-cloud/client-sdk";
 import type { ReactNode } from "@hyori-cloud/lib/react";
+import { useContext } from "@hyori-cloud/lib/react";
 import { ItemButton, ItemLink } from "@hyori-cloud/ui/components/item-collection";
 import { usePreloadWhenIdle } from "@hyori-cloud/ui/hooks/use-preload-when-idle";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
 import { preloadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { useOpenInEditor } from "#features/editors/react/use-open-in-editor.ts";
+import { AvailableEditorsContext } from "#features/editors/react/use-available-editors.ts";
 import { useFileActions } from "#features/files/react/file-actions.tsx";
 import { useFolderPath } from "#features/files/react/folder-path.tsx";
 
@@ -13,7 +15,11 @@ export function FileEntryTarget({ entry, children }: { entry: FileEntry; childre
   const { navigatePath } = useCloudNavigation();
   const folderPath = useFolderPath();
   const { openFile } = useFileActions();
-  const openEditor = useOpenInEditor(entry);
+  const editors = useContext(AvailableEditorsContext);
+
+  if (editors === null)
+    throw new Error("File entries require their browser's editor capabilities.");
+  const openEditor = useOpenInEditor(entry, editors);
 
   // A document on screen may be opened next, and touch gives no hover or focus to preload on.
   usePreloadWhenIdle(openEditor === null || openEditor === undefined ? null : preloadEditorScreen);

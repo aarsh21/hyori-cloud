@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { sha256 } from "./evidence-bytes.ts";
 
 /** Pure source overlay; shared methods/jobs/frame composition must already exist. */
@@ -196,7 +197,12 @@ export function patchWordNativeHookup(source: ReadonlyMap<string, Buffer>, frame
   replace(
     `${web}/web.rs`,
     "        self.app.raw_input_hook(ctx, raw);",
-    `${report("note_input", "raw")}        self.app.raw_input_hook(ctx, raw);`,
+    `        clipboard_events_only(&mut raw.events, self.app.native_host_has_copied_format());\n${report("note_input", "raw")}        self.app.raw_input_hook(ctx, raw);`,
+  );
+  replace(
+    `${web}/web.rs`,
+    "const MAX_PASTED_PICTURES: u32 = 20;",
+    `const MAX_PASTED_PICTURES: u32 = 20;\n\n${readFileSync(new URL("../../tooling/artcraft/patches/native-host-v3/clipboard-events.rs", import.meta.url), "utf8")}`,
   );
   replace(
     `${web}/web.rs`,

@@ -67,6 +67,7 @@ function fixture(overrides: Partial<EditorDocument> = {}) {
 
   const rpc: RPC["editors"] = {
     available: async () => ({ apps: [] }),
+    suggestCopyName: async (input) => input.name,
     close: async () => {
       calls.push("close");
 
@@ -310,7 +311,7 @@ test("copy/export needs explicit destination; user choice is retained across ret
     chooseDestination: async () => {
       choices += 1;
 
-      return { parentId: "chosen-folder" };
+      return { parentId: "chosen-folder", name: "Copy (2).docx" };
     },
   });
 
@@ -321,6 +322,8 @@ test("copy/export needs explicit destination; user choice is retained across ret
   expect(choices).toBe(1);
   expect(f.preparations[0]?.destination).toEqual({ parentId: "chosen-folder" });
   expect(f.preparations[1]?.destination).toEqual(f.preparations[0]?.destination);
+  expect(f.preparations[0]?.name).toBe("Copy (2).docx");
+  expect(f.preparations[1]?.name).toBe("Copy (2).docx");
   f.collection.dispose();
 });
 

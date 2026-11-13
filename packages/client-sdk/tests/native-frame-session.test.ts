@@ -36,7 +36,13 @@ type Capture =
   | { kind: "late"; ms: number }
   | { kind: "error"; code: "busy" | "serialization-failed" };
 
-function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = {}) {
+function harness(
+  options: {
+    readyTimeoutMs?: number;
+    hidden?: () => boolean;
+    document?: Partial<EditorDocument>;
+  } = {},
+) {
   const parent = {};
   const frameWindow = {};
   const listeners = new Set<(event: EditorMessageEvent) => void>();
@@ -57,8 +63,8 @@ function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = 
   });
 
   const bridge = createNativeHostProtocol({
-    app: "wordcraft",
-    version,
+    app: options.document?.app ?? "wordcraft",
+    version: options.document?.version ?? version,
     origin,
     parent,
     replacementExtensions: [".docx"],
@@ -157,6 +163,7 @@ function harness(options: { readyTimeoutMs?: number; hidden?: () => boolean } = 
       { extension: ".docx", kind: "document" },
       { extension: ".pdf", kind: "export" },
     ],
+    ...options.document,
   };
 
   const session = createEditorSession({
@@ -257,6 +264,26 @@ const sourceSaves = (h: ReturnType<typeof harness>) =>
   h.saves.filter((save) => save.output.intent === "replace");
 
 describe("SDK against the real frame protocol state machine (scripted engine, not WASM)", () => {
+  test("annotation authors reach only the PDF payload that accepts the added open field", async () => {
+    for (const [app, artifactVersion, author, expected] of [
+      ["wordcraft", "0.14.0-hyori-host.4", undefined, false],
+      ["pdfcraft", "0.17.0-hyori-host.3", "Noor Haddad", false],
+      ["pdfcraft", "0.17.0-hyori-host.4", "Noor Haddad", true],
+      ["pdfcraft", "0.17.0-hyori-host.4", undefined, false],
+      ["pdfcraft", "0.17.0-hyori-host.4", null, false],
+    ] as const) {
+      const h = harness({ document: { app, version: artifactVersion, annotationAuthor: author } });
+      await h.open();
+      const open = h.commands.find((command) => command.type.endsWith(":open"));
+      expect(open).toBeDefined();
+
+      if (expected) expect(open).toMatchObject({ annotationAuthor: author });
+      else expect(open).not.toHaveProperty("annotationAuthor");
+
+      h.session.dispose();
+    }
+  });
+
   test("an unreachable save retries its exact snapshot then autosaves edits made during the outage", async () => {
     const h = harness();
     h.setSave(async () => ({ status: "failed", message: "Offline", retryable: true }));

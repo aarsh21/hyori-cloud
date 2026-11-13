@@ -1,4 +1,4 @@
-import { Files, Images, Share2, Trash2 } from "@hyori-cloud/lib/icons";
+import { FileText, Files, Images, Share2, Trash2 } from "@hyori-cloud/lib/icons";
 import type { LucideIcon } from "@hyori-cloud/lib/icons";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 
@@ -24,6 +24,12 @@ export const CLOUD_SECTIONS: readonly CloudSection[] = [
       location.section === "photos" ||
       location.section === "albums" ||
       location.section === "album",
+  },
+  {
+    label: "Notes",
+    icon: FileText,
+    location: { section: "notes", noteId: null },
+    isCurrent: (location) => location.section === "notes",
   },
   {
     label: "Shared",

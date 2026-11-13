@@ -108,7 +108,15 @@ async function openReplaceDialog() {
   await openRowMenu();
   fireEvent.click(await screen.findByRole("menuitem", { name: "Upload new version…" }));
 
-  return screen.findByRole("dialog");
+  // Opening now has a cancellable loading modal. Wait for the requested form, not that progress UI.
+  return waitFor(() => {
+    const dialog = screen.getByRole("dialog");
+
+    if (dialog.querySelector('input[type="file"]') === null)
+      throw new Error("The dialog has no file input.");
+
+    return dialog;
+  });
 }
 
 function chooseSource(dialog: HTMLElement, file: File) {

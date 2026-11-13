@@ -89,10 +89,16 @@ function setup() {
 async function startNewVersion() {
   fireEvent.click(await screen.findByRole("button", { name: `Actions for ${REPORT.name}` }));
   fireEvent.click(await screen.findByRole("menuitem", { name: "Upload new version…" }));
-  const dialog = await screen.findByRole("dialog");
-  const input = dialog.querySelector<HTMLInputElement>('input[type="file"]');
 
-  if (input === null) throw new Error("The dialog has no file input.");
+  const input = await waitFor(() => {
+    const dialog = screen.getByRole("dialog");
+    const input = dialog.querySelector<HTMLInputElement>('input[type="file"]');
+
+    if (input === null) throw new Error("The dialog has no file input.");
+
+    return input;
+  });
+
   fireEvent.change(input, { target: { files: [new File(["new contents"], REPORT.name)] } });
   fireEvent.click(await screen.findByRole("button", { name: "Upload new version" }));
 }

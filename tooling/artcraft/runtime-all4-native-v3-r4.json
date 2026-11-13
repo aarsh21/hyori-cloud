@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "all-four-native-host-v3-runtime-handoff",
+  "bundleRoot": "tooling/artcraft/.generated/runtime-all4-native-v3-r4",
+  "manifest": "runtime-bundle-manifest.json",
+  "runtimeManifestSchemaVersion": 2,
+  "manifestBytes": 1260947,
+  "manifestSha256": "322272308851138cd682a031ee15c6b658d2c752a771aff3135cc608208cfed7",
+  "assetFiles": 4119,
+  "assetBytes": 269624077,
+  "transportSidecarFiles": 8,
+  "transportSidecarBytes": 56018024,
+  "encoder": "gzip-level6-mtime0-os255-v1",
+  "fileMode": "0444",
+  "directoryMode": "0555",
+  "mountPath": "/artcraft",
+  "requiresReadOnlyMount": true,
+  "authority": "tooling/artcraft/runtime-native-v3-r4.json",
+  "legalBase": {
+    "authority": "tooling/artcraft/runtime-all4-v2.json",
+    "manifestSha256": "bb6d2eb3f4e81976429c4e0c65de57452898398dd962af7e81083478daa28ea0",
+    "reused": "every legal/ file except RUNTIME-NOTICE-INDEX.md"
+  },
+  "replaces": {
+    "authority": "tooling/artcraft/runtime-all4-native-v3-r3.json",
+    "manifestSha256": "4fbf87ab7eb17b0c2009473bef195f45043e39ff8654f606692c4b4f983b615e",
+    "stillAcceptedByServer": true
+  },
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.14.0-hyori-host.5",
+      "role": "current",
+      "bridge": "hyori-correlated-host-v3",
+      "protocol": 3,
+      "assetUrl": "/artcraft/wordcraft/0.14.0-hyori-host.5/index.html?host=parent",
+      "payloadSha256": "17d389b3998e5fb139f51cadc1c5f1bf127a812dec2b0db5c2f8c36b3b78181b",
+      "wasmSha256": "1e99c7f8c2644a5ceed7290d6b95888b06acd27a3fc110033b219356b5d870dc",
+      "cspScriptHashes": [
+        "sha256-jwaV5GNCMmGiJ5Zom39KBRTDJ90see57zw90W6buVI8="
+      ]
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.15.0-hyori-host.4",
+      "role": "current",
+      "bridge": "hyori-correlated-host-v3",
+      "protocol": 3,
+      "assetUrl": "/artcraft/gridcraft/0.15.0-hyori-host.4/index.html?host=parent",
+      "payloadSha256": "842a38c62f7433301487308abf99933bbcd7866380e6cdb85de8f5317713f26a",
+      "wasmSha256": "18382e0cecf8aafaf73485228452a75fc219bd26db66302c7727c3b955b11892",
+      "cspScriptHashes": [
+        "sha256-oCitQUbtpzllaWxCooHpr2aZeMq5U0n4nNTuHgi1eUo="
+      ]
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.17.0-hyori-host.4",
+      "role": "current",
+      "bridge": "hyori-correlated-host-v3",
+      "protocol": 3,
+      "assetUrl": "/artcraft/pdfcraft/0.17.0-hyori-host.4/index.html?host=parent",
+      "payloadSha256": "c27e89f3952dad0dc4f6decc5298db579fdb252f2dd3ec20cfc7c3789b52a1f4",
+      "wasmSha256": "94020219e56e089acef71a36c0347d3a0f95313df8d735ac3d260f287594e89c",
+      "cspScriptHashes": [
+        "sha256-QDKECwvyKlDmdIEmAexh1qQgvaJBEs1auSZnQ7gwgS8="
+      ]
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.14.1-hyori-host.7",
+      "role": "current",
+      "bridge": "hyori-correlated-host-v3",
+      "protocol": 3,
+      "assetUrl": "/artcraft/deckcraft/0.14.1-hyori-host.7/index.html?host=parent",
+      "payloadSha256": "66b21193f90cb0bc3c13dc7b9e4d4af20940c37519e624106aa8885981147a0b",
+      "wasmSha256": "40e82f7766a86b44f7e1fb8fa1123c454c4c8d53cf50e40f246f270aa47f1db8",
+      "cspScriptHashes": [
+        "sha256-MIgl6/Y9ElILB3dWTXPyWbCBxol/LcIFaIwzByExzTA="
+      ]
+    }
+  ],
+  "deploymentScope": "verified-static-assets-only-not-product-launch-or-legal-clearance",
+  "legalOpinion": false,
+  "fullNoticeAuditComplete": false,
+  "compilerGeneratedNoticeAuditComplete": false,
+  "productIntegrationVerified": false,
+  "allFourLaunchReady": false,
+  "check": "bun scripts/artcraft/native-v3-runtime.ts check tooling/artcraft/.generated/runtime-all4-native-v3-r4 <manifestSha256>"
+}

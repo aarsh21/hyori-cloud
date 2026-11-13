@@ -1,12 +1,10 @@
 import { normalizeClientError } from "@hyori-cloud/client-sdk";
-import { Schema } from "@hyori-cloud/lib/effect";
 import { useMutationState, useQueryClient } from "@hyori-cloud/lib/query";
 import type { QueryKey } from "@hyori-cloud/lib/query";
 import type { FileActionScope } from "#features/files/react/file-action-scope.ts";
+import { isItemTarget } from "#features/files/react/file-action-scope.ts";
 import { useAccessRecoveryPolicy } from "#features/shared/react/access-recovery.tsx";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
-
-const isItemTarget = Schema.is(Schema.Struct({ id: Schema.String }));
 
 /** Notices are owner-scoped; identical visible feedback is acknowledged together. */
 export function useFileActionErrors(scope: FileActionScope) {

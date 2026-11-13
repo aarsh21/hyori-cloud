@@ -1,16 +1,16 @@
-import type { Schema } from "@hyori-cloud/lib/effect";
-import type { Rpc } from "@hyori-cloud/lib/effect/rpc";
 import type { SDKError } from "#client-sdk/errors";
+import type { ZodMiniType } from "@hyori-cloud/lib/json";
 
 export declare const operationTypes: unique symbol;
 
 export type OperationKind = "query" | "mutation";
 
 export type OperationDeclaration = {
-  readonly rpc: Rpc.Any & {
-    readonly payloadSchema: Schema.Schema.All & { readonly Context: never };
-    readonly successSchema: Schema.Schema.All & { readonly Context: never };
-    readonly errorSchema: Schema.Schema.All & { readonly Context: never };
+  readonly rpc: {
+    readonly _tag: string;
+    readonly payloadSchema: ZodMiniType;
+    readonly successSchema: ZodMiniType;
+    readonly errorSchema: ZodMiniType;
   };
   readonly kind: OperationKind;
   readonly invalidates?: readonly string[];
@@ -31,12 +31,16 @@ export type TypeCarrier<
   };
 };
 
-export type Payload<D extends OperationDeclaration> = Schema.Schema.Type<D["rpc"]["payloadSchema"]>;
+export type Payload<D extends OperationDeclaration> = ReturnType<
+  D["rpc"]["payloadSchema"]["parse"]
+>;
 
-export type Success<D extends OperationDeclaration> = Schema.Schema.Type<D["rpc"]["successSchema"]>;
+export type Success<D extends OperationDeclaration> = ReturnType<
+  D["rpc"]["successSchema"]["parse"]
+>;
 
 export type Failure<D extends OperationDeclaration> =
-  | Schema.Schema.Type<D["rpc"]["errorSchema"]>
+  | ReturnType<D["rpc"]["errorSchema"]["parse"]>
   | SDKError;
 
 export type CarrierFor<D extends OperationDeclaration> = TypeCarrier<

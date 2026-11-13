@@ -1,3 +1,5 @@
+import { mirrorBrowserPreferences } from "@hyori-cloud/ui/lib/browser-preferences";
+
 const STORAGE_KEY = "hyori-single-key-shortcuts";
 
 const listeners = new Set<() => void>();
@@ -24,13 +26,18 @@ export function writeSingleKeyShortcuts(enabled: boolean) {
     unstored = enabled;
   }
 
+  mirrorBrowserPreferences({ singleKeyShortcuts: enabled });
+
   for (const listener of listeners) listener();
 }
 
 /** Other tabs report changes through `storage`; this tab's own writes notify directly. */
 export function subscribeSingleKeyShortcuts(listener: () => void) {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY) listener();
+    if (event.key === STORAGE_KEY || event.key === null) {
+      mirrorBrowserPreferences();
+      listener();
+    }
   };
 
   listeners.add(listener);

@@ -62,6 +62,7 @@ export {
   ShieldCheck,
   SlidersHorizontal,
   SunMoon,
+  Star,
   Trash2,
   Upload,
   UploadCloud,

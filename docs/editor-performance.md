@@ -100,3 +100,55 @@ bun scripts/test-rust-browser.ts hyori-server:local --scenarios=editors \
 ```
 
 A timing runner should call `installNativePerformanceObserver` before navigation, mark `activation` on the click and `input-start` before typing, then report `nativePerformancePhases` over the `nativePerformanceMatrix` profiles (five fresh profiles, one cold and two warm attachments each), plus the `completeSave` response time from the SDK for durability. Measure each editor with the small fixtures in the workload table above.
+
+## r4 paired local open measurements — 2026-11-13
+
+The r4 review used that observer, including its sandboxed-frame support, in a retained scratch runner. Before is `23d927f` with r3; after is the r4 working tree and manifest `32227230…fed7`. Each editor has five fresh persistent Chromium profiles, one cold and two cleanly closed warm attachments per profile: five cold and ten warm observations, all 60 successful per batch. Conditions: Ryzen 5 4600H, Chromium 156.0.8078.4 with SwiftShader, production Nitro, disposable real PostgreSQL/RustFS/server, loopback verified HTTPS/Caddy HTTP/2. No competing worker jobs ran. Generated small fixtures have the same contents/workload; ZIP timestamps and therefore archive hashes vary. This is neither a physical-device/LAN measurement nor the two-core deployment baseline.
+
+These historical numbers use the trusted click timestamp to receipt of `opened`, not visible document content. Subsequent compositor captures show that `opened` and even the first GPU draw can precede the document's text, values, page or slide. They are lower bounds to visible content, not usable-open timings. The observer's earlier automation activation mark includes about 124–140 ms of click scheduling and is retained separately, not charged as product time. Times are milliseconds, median (min–max), with half milliseconds retained rather than rounded down:
+
+| Editor | r3 warm, n=10    | r4 warm, n=10     | r3 cold, n=5     | r4 cold, n=5     |
+| ------ | ---------------- | ----------------- | ---------------- | ---------------- |
+| Word   | 1259 (856–1342)  | 1154.5 (753–1297) | 1344 (1313–1416) | 1276 (1219–1440) |
+| Grid   | 982.5 (598–1225) | 858.5 (550–888)   | 883 (863–1070)   | 790 (581–871)    |
+| PDF    | 1061 (1032–1106) | 973 (955–1001)    | 1389 (1332–2102) | 989 (969–1032)   |
+| Deck   | 1137 (1005–1168) | 1083.5 (884–1117) | 1207 (1178–1343) | 1016 (944–1084)  |
+
+Only Grid meets the provisional warm target for every sample on that historical lower-bound measure. The visible-content target is not established for any editor by this table. No threshold was relaxed. All four retain the opaque sandbox and host digest/length verification. The safe change removes the unused Trunk WASM preload; other r4 fixes ship in the same comparison, so this is not an isolated preload-only causal benchmark.
+
+The observer localizes most remaining time after engine bytes arrive: r4 warm median engine-end→ready / ready→parsed is Word 474/448 ms, Grid 313/356 ms, PDF 350/364 ms, Deck 493/396 ms. Engine-end also precedes module instantiation, so this is not a pure CPU breakdown. Font/engine initialization has not been individually attributed by a profiler. Meeting the remaining worst-case target needs further initialization/parse investigation; no evidence establishes that weakening isolation or validation is necessary, and neither was weakened. Raw observations, fixture hashes, frontend/image identities and screenshots are retained under `.amp/in/artifacts/editors-r4/timing-before-23d927f/` and `timing-after/` on Hyorinmaru. The scratch driver is review evidence, not a new committed benchmark command. The old r3 run on `205bfda` used another head and is not substituted for this paired baseline.
+
+## r5: handoff profiling and visible-content boundary
+
+r5 removes a whole-engine `Response(ArrayBuffer)` copy by streaming the transferred, already verified buffer. It does not remove digest/length verification, change the sandbox or relax CSP. r5 is the development default, accepted for its Deck paste repair and not for speed; r4 remains accepted by the server. These measurements were taken while r5 was a candidate. Its manifest is `2e248a3aedfbd976bc28d29d44f52dec8e7ddbdf4149b1e28cc4a2613f3b7b25`.
+
+Same local stack and small workloads, alternating build order across five fresh profiles, one cold and two warm attachments each. The lightweight probe measures click to the later of first post-open GPU submission and host-cover removal. **That endpoint can still show only editor chrome; all entries below are lower bounds to visible content.** Each entry is median (range), milliseconds. Word/Grid/PDF use the initial candidate: every asset and descriptor is byte-identical in the repaired candidate. Deck was repeated on the repaired build.
+
+| Editor | r4 warm lower bound, n=10 | r5 warm lower bound, n=10 | r4 / r5 `hostOpened` receipt median |
+| ------ | ------------------------- | ------------------------- | ----------------------------------- |
+| Word   | 1400.35 (1364.9–1420)     | 1357.15 (1315.8–1376.8)   | 1397.85 / 1353.3                    |
+| Grid   | 1008 (984–1033.1)         | 979.4 (963–988.5)         | 1003.6 / 973.45                     |
+| PDF    | 1145.45 (1121.1–1182.2)   | 1094.2 (1061–1138)        | 1142.5 / 1090.6                     |
+| Deck   | 1208.05 (1167.1–1232.9)   | 1145.25 (1106.1–1218.2)   | 1206 / 1143.05                      |
+
+Four warm heavy-probe observations per build/editor account for that lower-bound endpoint without an arithmetic gap. They do not account for the later compositor presentation. Mean r5 milliseconds, aggregated from the retained per-span ledger:
+
+| Editor | Host route/RPC/React and cover | Frame assets/verification/transfer, compile and bridge | Engine initialization, startup, open and first GPU submission | Total lower bound |
+| ------ | ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------- | ----------------- |
+| Word   | 82.3                           | 471.9                                                  | 810.1                                                         | 1364.2            |
+| Grid   | 88.9                           | 283.1                                                  | 620.2                                                         | 992.3             |
+| PDF    | 81.0                           | 480.1                                                  | 532.3                                                         | 1093.5            |
+| Deck   | 82.9                           | 370.7                                                  | 698.6                                                         | 1152.2            |
+
+Displayed tenths may sum differently by 0.1 ms; raw span sums have zero gap. Engine initialization/startup attribution uses time inside synchronous WASM exports around `hostReady`/`hostTakeOpen`; it does not identify individual upstream functions or prove an unavoidable upstream limit. Heavy instrumentation and screencasting add overhead; their absolute values are not substituted into the lightweight batch.
+
+Inspected compositor captures identify actual Word body text, Grid cell values, a rendered PDF page and the Deck slide. One pair per editor; times below are the first captured frame with that content, not a median or a normal warm-open benchmark. The interval is candidate-minus-base bounded by the immediately preceding captured frame without content. Existing captures are reused for Word/Grid/PDF; only Deck was recaptured after its approved repair, using a byte-identical fresh fixture.
+
+| Editor | r4 visible frame | r5 visible frame | r5 − r4, captured-frame difference | Transition-difference interval |
+| ------ | ---------------- | ---------------- | ---------------------------------- | ------------------------------ |
+| Word   | 2550.5 ms        | 2523.1 ms        | −27.4 ms                           | −77.4 to +22.6 ms              |
+| Grid   | 2015.3 ms        | 2000.1 ms        | −15.3 ms                           | −48.6 to +34.7 ms              |
+| PDF    | 1554.7 ms        | 1589.4 ms        | +34.8 ms                           | −15.2 to +84.7 ms              |
+| Deck   | 2167.9 ms        | 2222.8 ms        | +54.9 ms                           | +4.9 to +104.9 ms              |
+
+Direction remains unknown as a repeatable performance result for all four: three intervals overlap zero; Deck is later in its single captured pair, not proof of a population regression. Screencast overhead is substantial. No speed or visible-content non-regression claim is made, and the 1000 ms worst-case visible-content target is unproven. The host can say “Ready to edit” over blank Word chrome or an empty Grid, and PDF can still say “Rendering...”. A future engine-owned content-presented signal would let the host measure and mask that interval correctly; a timer would not prove readiness. Raw traces, failed/discarded trials, captures, cold rows, instrumentation controls and exact commands are in the r5 evidence handoff on Hyorinmaru.

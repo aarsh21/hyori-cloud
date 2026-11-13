@@ -31,7 +31,11 @@
 mod body;
 mod config;
 
-use std::{pin::Pin, sync::atomic::Ordering, time::Duration};
+use std::{
+    pin::Pin,
+    sync::atomic::Ordering,
+    time::{Duration, Instant},
+};
 
 use aws_sdk_s3::{
     Client,
@@ -64,6 +68,8 @@ pub const MAX_PARTS: u16 = 10_000;
 /// Maximum records fetched in either cleanup listing per pass.
 pub const CLEANUP_LIMIT: i32 = 100;
 
+const PART_DEADLINE: Duration = Duration::from_secs(120);
+
 /// Stable owned storage failures. Product handlers must map these to their public error schema.
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -76,6 +82,9 @@ pub enum StorageError {
     /// Incoming or outgoing byte stream failed validation or transport.
     #[error("storage stream failed: {0}")]
     Body(&'static str),
+    /// The part deadline elapsed before the incoming source finished.
+    #[error("upload part did not finish before its deadline")]
+    PartDeadline,
     /// S3 rejected an operation. Only status and error code cross the vendor boundary.
     #[error("storage {operation} failed (HTTP {status:?}, code {code:?})")]
     Service {
@@ -285,9 +294,10 @@ impl ObjectStorage {
             ));
         }
         let (mut body, verified) = body::ExactBody::new(source, length);
+        let waiting_for_source = body.waiting_for_source.clone();
         let byte_stream = if length == 0 {
             // HTTP implementations may omit polling a Content-Length: 0 body entirely.
-            tokio::time::timeout(Duration::from_secs(120), async {
+            tokio::time::timeout(PART_DEADLINE, async {
                 while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
                     frame?;
                 }
@@ -299,6 +309,7 @@ impl ObjectStorage {
         } else {
             ByteStream::from_body_1_x(body)
         };
+        let started = Instant::now();
         let result = self
             .client
             .upload_part()
@@ -316,9 +327,9 @@ impl ObjectStorage {
                     .timeout_config(
                         TimeoutConfig::builder()
                             .connect_timeout(Duration::from_secs(5))
-                            .read_timeout(Duration::from_secs(120))
-                            .operation_timeout(Duration::from_secs(120))
-                            .operation_attempt_timeout(Duration::from_secs(120))
+                            .read_timeout(PART_DEADLINE)
+                            .operation_timeout(PART_DEADLINE)
+                            .operation_attempt_timeout(PART_DEADLINE)
                             .build(),
                     )
                     // The product bounds incoming idle time and the writer's lifetime.
@@ -327,7 +338,20 @@ impl ObjectStorage {
             )
             .send()
             .await
-            .map_err(|e| failure("part", &e))?;
+            .map_err(|e| {
+                let timed_out = matches!(&e, SdkError::TimeoutError(_))
+                    || matches!(&e, SdkError::DispatchFailure(context) if context.is_timeout());
+                // An unfinished source can also mean storage stopped reading. Blame upload speed
+                // only when the latest source poll was waiting for incoming data at the deadline.
+                if timed_out
+                    && started.elapsed() >= PART_DEADLINE
+                    && waiting_for_source.load(Ordering::Acquire)
+                {
+                    StorageError::PartDeadline
+                } else {
+                    failure("part", &e)
+                }
+            })?;
         if !verified.load(Ordering::Acquire) {
             return Err(StorageError::Body(
                 "storage acknowledged an unverified source",

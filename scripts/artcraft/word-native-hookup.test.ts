@@ -88,6 +88,18 @@ test.skipIf(!inputs.ARTCRAFT_TEST_INPUTS)(
     const web = result.files.get("apps/wordcraft-web/src/web.rs")!.toString();
     expect(web).not.toContain("crate::host::Bridge");
     expect(web).toContain("NATIVE_ARTIFACT_VERSION");
+    expect(web).toContain(
+      "clipboard_events_only(&mut raw.events, self.app.native_host_has_copied_format());",
+    );
+    expect(web.indexOf("clipboard_events_only(&mut raw.events,")).toBeLessThan(
+      web.indexOf("host.note_input"),
+    );
+    expect(web).toContain("paste && m.command && !m.shift");
+    expect(web).toContain("Event::Paste(_) if formatting_paste => false");
+    expect(web).toContain("if m.command && m.shift && !m.alt");
+    expect(base.get("crates/ui-egui/src/app/native_host.rs")!.toString()).toContain(
+      "self.canvas.focused && self.session.painter.is_some()",
+    );
     expect(web.indexOf("host.note_input")).toBeLessThan(web.indexOf("self.app.raw_input_hook"));
     expect(web).toContain("host.after_ui");
     expect(() => patchWordNativeHookup(result.files, adapter)).toThrow();

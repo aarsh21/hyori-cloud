@@ -10,6 +10,18 @@ The web interface exposes explicit new-version uploads with confirmation, progre
 
 ArtCraft editing, composed real-worker browser acceptance and several operational lifecycle features are unfinished. See [backend limits](packages/api/README.md), [ArtCraft findings](docs/artcraft-integration.md), and the [product scope](docs/product.md).
 
+## Notes
+
+Notes is the first collaborative editing slice, separate from ArtCraft native documents. `/notes` offers nested notes, name search, personal favorites, account/public-link sharing, a BlockNote rich-text editor, live selections, local-only undo, Markdown import/export, blocks export, owner checkpoints/restore and existing Trash. Opening Notes from Files or a shared link uses the same editor and permissions. Viewer and Contributor cannot edit existing notes; only the owner manages history and deletion.
+
+The vanilla SDK owns one Yjs document, pending batches, reconnect state and an authenticated browser's IndexedDB recovery journal. React observes session snapshots; Query caches metadata, not document content. PostgreSQL commits an isolated validated Yrs candidate before returning an exact-batch durability receipt. A restore advances the generation, keeps the replaced head and pauses stale editors with a local export/recovery path. Notes uses bounded HTTP synchronization rather than a new socket service: edits schedule a batch within 250 ms without postponing earlier work, with roughly one-second idle polling. Network and server time are additional; this is not a latency guarantee. Admission permits at most 16 sessions per note or principal, not 50 simultaneous editors.
+
+The session cap is shared with readers. Unsigned public-link sessions may hold at most 12 of a note's 16 leases, across all links, leaving four places for signed-in people. An active account using a public link still counts as signed in; an expired account session with a valid link counts as unsigned. A refused open uses the same note-full message and retry action. Sync has no separate per-principal request-rate limiter; the shared RPC admission and deadline still apply. Multi-replica capacity is unverified.
+
+Checkpoints remain quota-accounted until the note is permanently deleted; history is paginated, not silently pruned. Browser recovery is best-effort, scoped to account/note/schema/tab and cleared after acknowledgement. Automatic replay stops after 24 hours or a generation change; retained work can be exported rather than silently merged. Anonymous notes do not persist recovery on the device. Encoded live state is capped at 1 MiB and a sync batch at 96 KiB; an oversized edit pauses with export guidance. Browser storage is not a backup and a fully offline app shell is not provided.
+
+This is an Orbit-inspired Notes workspace, not all Orbit product features: comments are explicitly a later feature, not part of the first Notes release; databases, external-media embeds, arbitrary import formats and Office conversion are not included. The collaboration foundation does not enable co-editing in the ArtCraft engines; their adapters remain later stages. Whole-product production/capacity acceptance remains open.
+
 ## Local development
 
 Requirements: **Bun 1.4.4**, Node 24+, Docker with the Compose v2 and Buildx plugins, and an unused loopback web/backend port for native development. Bun 1.3.5 exhibited a dependency-resolution hang and a streamed Blob-slice sizing bug during integration; the runtime, Docker build, and CI are pinned to 1.4.4.
@@ -63,9 +75,13 @@ Shared primitives live in `packages/ui`; tokens and global styles live in `packa
 npx shadcn@latest add dialog popover sheet -c packages/ui
 ```
 
+The web document loads the separate `@hyori-cloud/ui/font.css` stylesheet after hydration, so the self-hosted Inter face does not compete with application scripts. The existing system-font fallback paints first (and remains usable without JavaScript); settled screens still use Inter. Other hosts should load both the global and font stylesheets.
+
 [DESIGN.md](DESIGN.md) defines the visual language. The [pinned upstream skills](.agents/skills/UPSTREAM.md) `design-taste-frontend-v2-experimental` and `brandkit` guide taste and brand imagery. Product features consume owned DS exports, not raw transport or server implementations. Emil-inspired polish includes keyboard interactions and explicit loading, empty, failure, and retained-data states; decorative motion must not delay frequent actions.
 
 The desktop sidebar collapses from its toggle or with Ctrl/Cmd+B, and this browser remembers the choice. Phones use the bottom navigation. **Single-key shortcuts** in the account menu (also available in public folders) controls `/`, `n`, and `u` locally. Larger loaded collections use bounded rendering above 200 items; browser find-in-page cannot search unmounted rows, so use the product search field to find files.
+
+List/Grid, file sort, sidebar and shortcut choices remain browser-local, including across sign-out and a second account on the same browser. A small `hyori_ui` cookie mirrors only these four choices so private, noncached documents can render them with the first page of content. Files and Shared prefetch the stored order; public folders first list in that order only after explicit Open consent. It carries no identity or access rights. Existing localStorage keys remain authoritative: a nonce-authorized pre-paint script migrates a missing copy and guards mismatched surfaces until the browser applies the stored choice. That exceptional arrival still waits for application scripts; matching visits do not. Blocking cookies retains this guarded behavior. Blocking localStorage retains the existing page-only preference fallback. Appearance is unchanged.
 
 Appearance defaults to **System**. Choose **Light**, **Dark**, or **System** in the account menu, or use **Appearance** below sign-in/setup/invite/public-link forms (in the toolbar for an opened shared folder). Choices persist locally in this browser, not on the account. The app root mounts the owned `@hyori-cloud/ui/theme` adapter once; its pre-paint script applies the saved or system scheme before content, and native controls and toasts follow the resolved appearance. Theme changes are immediate, without page-wide color animations.
 

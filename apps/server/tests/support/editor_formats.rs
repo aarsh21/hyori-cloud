@@ -3,6 +3,47 @@ use super::{
 };
 use serde_json::json;
 
+#[tokio::test]
+#[ignore = "disposable real PostgreSQL/RustFS editor copy names"]
+async fn copy_names_are_available_in_the_selected_folder() {
+    let (pg, _fs, server, _owner, cookie) = setup().await;
+    enable(&server).await;
+    let source = upload(&server, &cookie, "Draft.pdf", PDF, None).await;
+    let document = open(&server, &cookie, &source).await;
+    let request = json!({"sessionId":document["sessionId"],"name":"Draft copy.pdf","parentId":null,"intent":"save-as"});
+    let suggest = || server.rpc("editors.suggestCopyName", request.clone(), Some(&cookie));
+    assert_eq!(suggest().await.value(), "Draft copy.pdf");
+    upload(&server, &cookie, "Draft copy.pdf", PDF, None).await;
+    upload(&server, &cookie, "Draft copy (2).pdf", PDF, None).await;
+    assert_eq!(suggest().await.value(), "Draft copy (3).pdf");
+    assert_eq!(suggest().await.value(), "Draft copy (3).pdf");
+    let folder = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":null,"name":"Copies"}),
+            Some(&cookie),
+        )
+        .await
+        .value()
+        .clone();
+    let mut elsewhere = request.clone();
+    elsewhere["parentId"] = folder["id"].clone();
+    assert_eq!(
+        server
+            .rpc("editors.suggestCopyName", elsewhere, Some(&cookie))
+            .await
+            .value(),
+        "Draft copy.pdf"
+    );
+    let mut spoofed = request;
+    spoofed["sessionId"] = json!("missing-session");
+    server
+        .rpc("editors.suggestCopyName", spoofed, Some(&cookie))
+        .await
+        .error(404, "resource.notFound");
+    pg.stop();
+}
+
 // Locally synthesized ZIP containers, not vendor rendering/fidelity fixtures or product assets.
 pub(super) fn archive(entries: &[(&str, &[u8])]) -> Vec<u8> {
     let mut bytes = Vec::new();
@@ -91,6 +132,11 @@ async fn four_descriptor_formats_native_conversion_and_export_preserve_source() 
         let file = upload(&server, &cookie, name, bytes, None).await;
         let document = open(&server, &cookie, &file).await;
         assert_eq!(document["app"], app);
+        if app == "pdfcraft" {
+            assert_eq!(document["annotationAuthor"], "Owner");
+        } else {
+            assert!(document.get("annotationAuthor").is_none());
+        }
         let download = descriptor(&server, &cookie, &document).await;
         let response = get(&server, &cookie, download["url"].as_str().unwrap()).await;
         assert_eq!(response.status(), 200, "{name}");

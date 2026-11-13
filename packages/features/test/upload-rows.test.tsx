@@ -6,6 +6,7 @@ import type {
   UploadTask,
 } from "@hyori-cloud/client-sdk";
 import { AccessRecoveryProvider } from "#features/shared/react/access-recovery.tsx";
+import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 import { InterruptedUploadRow } from "#features/uploads/react/interrupted-upload-row.tsx";
 import { StartedUploadRow } from "#features/uploads/react/started-upload-row.tsx";
 import { UploadsProvider } from "#features/uploads/react/uploads-provider.tsx";
@@ -91,6 +92,38 @@ describe("upload rows", () => {
     rerender(startedRow({ ...PROGRESS, status: "pending" }));
 
     expect(screen.getByRole("button", { name: "Pause upload of a.bin" })).toBe(control);
+  });
+
+  test("a slow upload explains the deadline and retained progress, with a way to continue", () => {
+    mount(
+      startedRow({
+        ...PROGRESS,
+        status: "failed",
+        error: { code: "uploads.tooSlow", message: "Upload part took too long" },
+      }),
+      createFakeApi({}),
+    );
+
+    expect(
+      screen.getByText(
+        "Your connection was too slow to finish uploading. Your progress is kept. Use a faster connection, then press Retry.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry upload of a.bin" })).toBeTruthy();
+  });
+
+  test("a slow-upload notice gives the reason once, followed by recovery advice", () => {
+    const { container } = mount(
+      <MutationFailure error={{ code: "uploads.tooSlow", message: "Upload part took too long" }} />,
+      createFakeApi({}),
+    );
+
+    expect(
+      container.textContent?.match(/Your connection was too slow to finish uploading/g),
+    ).toHaveLength(1);
+    expect(
+      screen.getByText("Your progress is kept. Use a faster connection, then press Retry."),
+    ).toBeTruthy();
   });
 
   test("a Retry waiting for a slot keeps its control and focus, and can't be pressed again", () => {

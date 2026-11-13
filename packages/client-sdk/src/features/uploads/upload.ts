@@ -1,16 +1,20 @@
-import { Schema } from "@hyori-cloud/lib/effect";
 import type { RPC } from "#client-sdk/product-types";
 import { normalizeClientError, SDKError, type ClientError } from "#client-sdk/errors";
 import {
   checkpointIntent,
   decodeUploadCheckpoint,
   matchesCheckpointFile,
+  fingerprint as fingerprintCodec,
+  intent as intentCodec,
+  snapshot as snapshotCodec,
+} from "#client-sdk/features/uploads/upload-codecs";
+import type {
+  UploadCheckpoint,
   UploadFileFingerprint,
 } from "#client-sdk/features/uploads/upload-checkpoint";
-import type { UploadCheckpoint } from "#client-sdk/features/uploads/upload-checkpoint";
 import type { InputOf, OutputOf } from "#client-sdk/inference";
-import { UploadSnapshot } from "#client-sdk/features/uploads/upload-state";
-import { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
+import type { UploadSnapshot } from "#client-sdk/features/uploads/upload-state";
+import type { UploadIntent } from "#client-sdk/features/uploads/upload-intent";
 import { readBinaryRejection } from "#client-sdk/read-binary-rejection";
 
 type UploadRpc = RPC["uploads"];
@@ -129,7 +133,7 @@ export function createUploads(
 
     try {
       // Decode copies only metadata: never freeze or serialize a host's File/slice capability.
-      fingerprint = Schema.decodeUnknownSync(UploadFileFingerprint)({
+      fingerprint = fingerprintCodec.parse({
         name: file.name,
         size: file.size,
         type: file.type,
@@ -147,7 +151,7 @@ export function createUploads(
         };
       else if ("replaceId" in input && input.replaceId !== undefined)
         requestedIntent = { kind: "replacement", name: file.name, targetId: input.replaceId };
-      intent = Schema.decodeUnknownSync(UploadIntent)(requestedIntent);
+      intent = intentCodec.parse(requestedIntent);
       // These values are exposed to observers and durable storage; they must not be retargetable.
       Object.freeze(fingerprint);
       Object.freeze(intent);
@@ -207,7 +211,7 @@ export function createUploads(
     let promise: Promise<FileEntry>;
 
     const publish = (patch: Partial<UploadSnapshot>) => {
-      snapshot = Schema.decodeUnknownSync(UploadSnapshot)({ ...snapshot, ...patch });
+      snapshot = snapshotCodec.parse({ ...snapshot, ...patch });
 
       for (const listener of listeners) {
         try {
@@ -379,7 +383,7 @@ export function createUploads(
               });
 
               if (!response.ok) {
-                if (response.status === 408 || response.status === 429 || response.status >= 500)
+                if (response.status === 429 || response.status >= 500)
                   throw new SDKError("SDK_TRANSPORT", `Upload part failed (${response.status}).`);
                 throw await readBinaryRejection(response, signal);
               }

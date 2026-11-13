@@ -97,9 +97,18 @@ export async function runReadinessPhotoScenarios(run: CoreRun, phone: boolean) {
           });
           await run.report.shot(page, `readiness-${size}-media-viewer`);
           await page.getByRole("button", { name: "Add to album", exact: true }).press("Enter");
-          await page
-            .getByRole("menuitem", { name: `Memories ${size}`, exact: true })
-            .press("Enter");
+          const release = run.front.hold((record) => record.operation === "photos.addToAlbum");
+
+          try {
+            await page
+              .getByRole("menuitem", { name: `Memories ${size}`, exact: true })
+              .press("Enter");
+            // A slow mutation must still report success after the menu has closed.
+            await page.getByRole("menu").waitFor({ state: "hidden" });
+          } finally {
+            release();
+          }
+
           await page.getByText(`Added to Memories ${size}`, { exact: true }).waitFor();
           await closeViewer(page);
           await page.getByRole("link", { name: "Albums", exact: true }).click();

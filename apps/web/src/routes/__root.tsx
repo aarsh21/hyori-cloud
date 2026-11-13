@@ -1,8 +1,14 @@
 import { ClientSDKProvider } from "@hyori-cloud/client-sdk/react";
 import { QueryClientProvider, useQuery } from "@hyori-cloud/lib/query";
-import { lazy, Suspense } from "@hyori-cloud/lib/react";
+import { Toaster } from "@hyori-cloud/ui/components/sonner";
 import { AppearanceProvider } from "@hyori-cloud/ui/theme";
 import { BrowserPreferencesScript } from "@hyori-cloud/ui/components/browser-preferences-script";
+import { BrowserPreferencesProvider } from "@hyori-cloud/ui/components/browser-preferences-provider";
+import {
+  DEFAULT_BROWSER_PREFERENCES,
+  parseBrowserPreferences,
+} from "@hyori-cloud/ui/lib/browser-preferences";
+import { createIsomorphicFn, getGlobalStartContext } from "@tanstack/react-start";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -13,14 +19,27 @@ import {
 import type { createAppRuntime } from "@/app/runtime";
 import { DocumentHead, DocumentScripts } from "@/components/document-assets";
 import appCss from "@/index.css?url";
+import latinFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 
 export type RouterAppContext = ReturnType<typeof createAppRuntime>;
 
-const Toaster = lazy(async () => ({
-  default: (await import("@hyori-cloud/ui/components/sonner")).Toaster,
-}));
+const requestBrowserPreferences = createIsomorphicFn()
+  .server(() => {
+    // Standalone render tests have no Start request context.
+    try {
+      return getGlobalStartContext()?.browserPreferences ?? DEFAULT_BROWSER_PREFERENCES;
+    } catch {
+      return DEFAULT_BROWSER_PREFERENCES;
+    }
+  })
+  .client(() =>
+    parseBrowserPreferences(
+      document.querySelector('meta[name="hyori-ui"]')?.getAttribute("content"),
+    ),
+  );
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
+  beforeLoad: () => ({ browserPreferences: requestBrowserPreferences() }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -38,6 +57,13 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      {
+        rel: "preload",
+        href: latinFont,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
       { rel: "icon", type: "image/png", href: "/favicon-32.png", sizes: "32x32" },
       { rel: "icon", type: "image/png", href: "/icon-192.png", sizes: "192x192" },
@@ -48,7 +74,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
-  const { queryClient, sdkClient } = Route.useRouteContext();
+  const { queryClient, sdkClient, browserPreferences } = Route.useRouteContext();
   const nonce = useRouter().options.ssr?.nonce;
 
   const publicShare = useRouterState({
@@ -64,18 +90,16 @@ function RootDocument() {
     <html lang="en" suppressHydrationWarning>
       <head>
         <DocumentHead />
-        <BrowserPreferencesScript nonce={nonce} />
+        <BrowserPreferencesScript nonce={nonce} preferences={browserPreferences} />
       </head>
       <body>
         <AppearanceProvider nonce={nonce}>
           <QueryClientProvider client={queryClient}>
             <ClientSDKProvider sdkClient={sdkClient}>
-              <Outlet />
-              {status.data?.user || publicShare ? (
-                <Suspense fallback={null}>
-                  <Toaster />
-                </Suspense>
-              ) : null}
+              <BrowserPreferencesProvider value={browserPreferences}>
+                <Outlet />
+              </BrowserPreferencesProvider>
+              {status.data?.user || publicShare ? <Toaster /> : null}
             </ClientSDKProvider>
           </QueryClientProvider>
         </AppearanceProvider>

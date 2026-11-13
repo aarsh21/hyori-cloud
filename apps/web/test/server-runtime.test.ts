@@ -6,6 +6,91 @@ import { createWebBackendHandler } from "@/server/backend-handler";
 import { loadPage } from "@/app/load-page";
 import { createClient } from "@hyori-cloud/client-sdk";
 import { QueryClient, dehydrate } from "@hyori-cloud/lib/query";
+import { browserPreferencesFromCookie } from "@hyori-cloud/ui/lib/browser-preferences";
+
+test("presentation cookies accept only a single complete versioned preference value", () => {
+  const defaults = {
+    layout: "list",
+    sidebarOpen: true,
+    singleKeyShortcuts: true,
+    fileSort: "nameAsc",
+  } as const;
+
+  for (const layout of ["l", "g"]) {
+    for (const sidebar of ["o", "c"]) {
+      for (const shortcuts of ["0", "1"]) {
+        const value = `1.${layout}.${sidebar}.${shortcuts}`;
+
+        expect(browserPreferencesFromCookie(`other=ignored; hyori_ui=${value}`)).toEqual({
+          layout: layout === "g" ? "grid" : "list",
+          sidebarOpen: sidebar === "o",
+          singleKeyShortcuts: shortcuts === "1",
+          fileSort: "nameAsc",
+        });
+
+        // Any one-character corruption must default, unless it is another valid choice.
+        for (let index = 0; index < value.length; index++) {
+          for (let ascii = 33; ascii < 127; ascii++) {
+            const candidate =
+              value.slice(0, index) + String.fromCharCode(ascii) + value.slice(index + 1);
+
+            if (/^1\.[lg]\.[oc]\.[01]$/.test(candidate)) continue;
+            expect(browserPreferencesFromCookie(`hyori_ui=${candidate}`)).toEqual(defaults);
+          }
+        }
+      }
+    }
+  }
+
+  for (const header of [
+    "",
+    "hyori_ui=",
+    "hyori_ui=1.g.c.0.extra",
+    "hyori_ui=%31.g.c.0",
+    'hyori_ui="1.g.c.0"',
+    "hyori_ui=1.g.c.0 ; other=1",
+    "hyori_ui=1.g.c.0\t; other=1",
+    "hyori_ui=1.g.c.0\r\n",
+    `hyori_ui=${"x".repeat(8192)}`,
+    "hyori_ui=1.g.c.0; hyori_ui=1.l.o.1",
+    "hyori_ui=1.g.c.0; hyori_ui=1.g.c.0",
+  ]) {
+    expect(browserPreferencesFromCookie(header)).toEqual(defaults);
+  }
+
+  const sorts = [
+    "nameAsc",
+    "nameDesc",
+    "sizeAsc",
+    "sizeDesc",
+    "modifiedAsc",
+    "modifiedDesc",
+  ] as const;
+
+  for (const [code, fileSort] of sorts.entries()) {
+    const value = `2.g.c.0.${code}`;
+    expect(browserPreferencesFromCookie(`hyori_ui=${value}`)).toEqual({
+      layout: "grid",
+      sidebarOpen: false,
+      singleKeyShortcuts: false,
+      fileSort,
+    });
+
+    for (let index = 0; index < value.length; index++) {
+      for (let ascii = 33; ascii < 127; ascii++) {
+        const candidate =
+          value.slice(0, index) + String.fromCharCode(ascii) + value.slice(index + 1);
+
+        if (/^2\.[lg]\.[oc]\.[01]\.[0-5]$/.test(candidate)) continue;
+        expect(browserPreferencesFromCookie(`hyori_ui=${candidate}`)).toEqual(defaults);
+      }
+    }
+
+    for (const suffix of [".extra", "\n", "\r\n", "\t", " "]) {
+      expect(browserPreferencesFromCookie(`hyori_ui=${value}${suffix}`)).toEqual(defaults);
+    }
+  }
+});
 
 test("a refused render read still returns a document and can be fetched again by the browser", async () => {
   let busy = true;

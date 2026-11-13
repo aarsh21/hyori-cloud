@@ -150,6 +150,7 @@ impl NativeHostFrame {
         if bytes.length() == 0 || bytes.length() > 64 * 1024 * 1024 {
             return js_open_failed(&open_id, "Native open exceeds its byte bound").map_err(js_failure);
         }
+        app.host_annotation_author(optional_text(&command, "annotationAuthor")?.as_deref().unwrap_or("Guest"));
         self.opening = Some(open_id.clone());
         match app.host_open(&name, &bytes.to_vec()) {
             Ok(Some(identity)) => self.opened(app, identity),

@@ -14,6 +14,7 @@ import { describeCloudError } from "#features/shared/cloud-error.ts";
 
 export function AlbumMenu({ fileId }: { fileId: string }) {
   const albums = useAlbums();
+  const addToAlbum = useAddToAlbum();
 
   return (
     <DropdownMenu>
@@ -23,16 +24,22 @@ export function AlbumMenu({ fileId }: { fileId: string }) {
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Add to album</DropdownMenuLabel>
-          <AlbumItems albums={albums} fileId={fileId} />
+          <AlbumItems albums={albums} fileId={fileId} addToAlbum={addToAlbum} />
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-function AlbumItems({ albums, fileId }: { albums: ReturnType<typeof useAlbums>; fileId: string }) {
-  const addToAlbum = useAddToAlbum();
-
+function AlbumItems({
+  albums,
+  fileId,
+  addToAlbum,
+}: {
+  albums: ReturnType<typeof useAlbums>;
+  fileId: string;
+  addToAlbum: ReturnType<typeof useAddToAlbum>;
+}) {
   if (albums.data === undefined) return <AlbumsWaiting albums={albums} />;
 
   if (albums.data.items.length === 0) {

@@ -1,4 +1,4 @@
-import type { operations } from "@hyori-cloud/api/rpc";
+import type { operations } from "@hyori-cloud/api/wire";
 import type { OperationTree } from "#client-sdk/inference";
 
 export type RPC = OperationTree<(typeof operations)[number], "rpc">;

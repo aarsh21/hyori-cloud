@@ -11,6 +11,7 @@ import { patchNativeMethods } from "./native-methods-patch.ts";
 import { patchNativeMarks } from "./native-v3-marks.ts";
 import { patchNativePolish } from "./native-v3-polish.ts";
 import { patchPdfNativeHookup } from "./pdf-native-hookup.ts";
+import { patchPdfNativePrint } from "./pdf-native-print.ts";
 import { patchWordNativeHookup } from "./word-native-hookup.ts";
 
 export type NativeApp = keyof typeof nativeArtifactVersions;
@@ -77,6 +78,16 @@ async function hostBridgeLegal() {
 export async function nativeAuthoredInputs() {
   const read = (name: string) => readFile(`${patches}/${name}`);
 
+  const print = await Bun.build({
+    entrypoints: [`${patches}/pdf-print.ts`],
+    target: "browser",
+    format: "esm",
+    minify: true,
+  });
+
+  if (!print.success || print.outputs.length !== 1)
+    throw new Error("PDF print module build failed");
+
   return {
     hostJavaScript: await bundleHostEntry(true),
     hostLegal: await hostBridgeLegal(),
@@ -87,6 +98,8 @@ export async function nativeAuthoredInputs() {
     frame: await read("native-frame.rs"),
     clock: await read("native-clock.rs"),
     css: await readFile("packages/ui/src/styles/globals.css"),
+    pdfPrintRust: await read("pdf-print.rs"),
+    pdfPrintJavaScript: Buffer.from(await print.outputs[0]!.arrayBuffer()),
     favicon: await readFile("apps/web/public/favicon.ico"),
     icon: await readFile("apps/web/public/icon-192.png"),
     deckHostRust: await readFile("tooling/artcraft/patches/deckcraft-host-v1/host.rs"),
@@ -163,6 +176,11 @@ export async function composeNativeSource(
   else if (app === "pdfcraft") files = patchPdfNativeHookup(files).files;
   else files = patchDeckNativeHookup(files, own.frame).files;
   completed("app-native-hookup");
+
+  if (app === "pdfcraft") {
+    files = patchPdfNativePrint(files, authored.pdfPrintRust, authored.pdfPrintJavaScript).files;
+    completed("opaque-document-print");
+  }
 
   files = patchNativeFrame(files, app, {
     imports: authored.imports,

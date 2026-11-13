@@ -1,4 +1,4 @@
-import type { FileEntry } from "@hyori-cloud/client-sdk";
+import type { FileEntry, FileList } from "@hyori-cloud/client-sdk";
 import type { KeyboardEvent } from "@hyori-cloud/lib/react";
 import {
   ItemActionSlot,
@@ -16,16 +16,23 @@ import {
   ItemTileLabel,
 } from "@hyori-cloud/ui/components/item-collection";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
+import { ItemActionMenuScope } from "@hyori-cloud/ui/components/item-action-menu";
 import { VirtualItems } from "@hyori-cloud/ui/components/virtual-items";
 import { useFileActionPending, useFileActions } from "#features/files/react/file-actions.tsx";
+import { preloadFileDialogs } from "#features/files/react/file-dialog-loaders.ts";
 import { FileEntryMenu } from "#features/files/react/file-entry-menu.tsx";
 import { FileEntryTarget } from "#features/files/react/file-entry-target.tsx";
+import FileThumbnail from "#features/files/react/file-thumbnail.tsx";
 import { FileTypeIcon } from "#features/files/react/file-type-icon.tsx";
 import { NoSize } from "#features/files/react/no-size.tsx";
 import { formatBytes, formatDateTime, formatRecentDate } from "#features/shared/format.ts";
 import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 
 export type FileLayout = "list" | "grid";
+
+type ListingEntry = FileEntry & {
+  readonly derivative?: NonNullable<FileList["thumbnails"]>[string];
+};
 
 function entryMeta(entry: FileEntry, hydrated: boolean) {
   const date = hydrated ? formatRecentDate(entry.updatedAt) : "—";
@@ -37,11 +44,11 @@ function entryKey(entry: FileEntry) {
   return entry.id;
 }
 
-function renderRow(entry: FileEntry) {
+function renderRow(entry: ListingEntry) {
   return <FileRow entry={entry} />;
 }
 
-function renderTile(entry: FileEntry) {
+function renderTile(entry: ListingEntry) {
   return <FileTile entry={entry} />;
 }
 
@@ -50,7 +57,7 @@ export function FileListingContent({
   layout,
   label,
 }: {
-  entries: readonly FileEntry[];
+  entries: readonly ListingEntry[];
   layout: FileLayout;
   label: string;
 }) {
@@ -79,39 +86,49 @@ export function FileListingContent({
       layout={layout}
       onItemKeyDown={onItemKeyDown}
     >
-      {layout === "list" ? (
-        <ItemTable>
-          <ItemTableHeader>
-            <ItemTableHeaderCell>Name</ItemTableHeaderCell>
-            <ItemTableHeaderCell>Modified</ItemTableHeaderCell>
-            <ItemTableHeaderCell className="text-right">Size</ItemTableHeaderCell>
-            <ItemTableHeaderCell />
-          </ItemTableHeader>
-          <VirtualItems
-            items={entries}
-            itemKey={entryKey}
-            list={<ItemTableBody aria-label={label} />}
-          >
-            {renderRow}
+      <ItemActionMenuScope
+        onOpenChange={(open) => {
+          if (open) preloadFileDialogs();
+        }}
+      >
+        {layout === "list" ? (
+          <ItemTable>
+            <ItemTableHeader>
+              <ItemTableHeaderCell>Name</ItemTableHeaderCell>
+              <ItemTableHeaderCell>Modified</ItemTableHeaderCell>
+              <ItemTableHeaderCell className="text-right">Size</ItemTableHeaderCell>
+              <ItemTableHeaderCell />
+            </ItemTableHeader>
+            <VirtualItems
+              items={entries}
+              itemKey={entryKey}
+              list={<ItemTableBody aria-label={label} />}
+            >
+              {renderRow}
+            </VirtualItems>
+          </ItemTable>
+        ) : (
+          <VirtualItems items={entries} itemKey={entryKey} list={<ItemGrid aria-label={label} />}>
+            {renderTile}
           </VirtualItems>
-        </ItemTable>
-      ) : (
-        <VirtualItems items={entries} itemKey={entryKey} list={<ItemGrid aria-label={label} />}>
-          {renderTile}
-        </VirtualItems>
-      )}
+        )}
+      </ItemActionMenuScope>
     </ItemNavigation>
   );
 }
 
 /** The icon slot shows progress, so a slow action gives feedback without moving anything. */
-function FileEntryIcon({ entry }: { entry: FileEntry }) {
+function FileEntryIcon({ entry }: { entry: ListingEntry }) {
   if (useFileActionPending(entry.id)) return <Spinner label={`Working on ${entry.name}`} />;
 
-  return <FileTypeIcon entry={entry} />;
+  const icon = <FileTypeIcon entry={entry} />;
+
+  if (!entry.derivative?.url) return icon;
+
+  return <FileThumbnail key={entry.derivative.url} src={entry.derivative.url} fallback={icon} />;
 }
 
-function FileRow({ entry }: { entry: FileEntry }) {
+function FileRow({ entry }: { entry: ListingEntry }) {
   // Local dates cannot be rendered in the server's locale/time zone without a mismatch.
   const hydrated = useHydrated();
 
@@ -139,7 +156,7 @@ function FileRow({ entry }: { entry: FileEntry }) {
   );
 }
 
-function FileTile({ entry }: { entry: FileEntry }) {
+function FileTile({ entry }: { entry: ListingEntry }) {
   const hydrated = useHydrated();
 
   return (

@@ -10,6 +10,7 @@
   "exports": {
     "./effect": "./src/effect.ts",
     "./effect/rpc": "./src/effect-rpc.ts",
+    "./json": "./src/json.ts",
     "./react": "./src/react.ts",
     "./query": "./src/query.ts",
     "./query-core": "./src/query-core.ts",
@@ -19,7 +20,8 @@
     "@effect/platform": "0.97.2",
     "@effect/rpc": "0.76.2",
     "@tanstack/query-core": "5.104.2",
-    "effect": "3.22.2"
+    "effect": "3.22.2",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@tanstack/react-query": "5.104.2",

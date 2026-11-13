@@ -3,15 +3,14 @@ import {
   subscribeSingleKeyShortcuts,
 } from "@hyori-cloud/ui/lib/single-key-shortcuts";
 import { useSyncExternalStore } from "react";
-
-function serverSingleKeyShortcuts() {
-  return true;
-}
+import { useServerBrowserPreferences } from "@hyori-cloud/ui/components/browser-preferences-provider";
 
 export function useSingleKeyShortcuts() {
+  const preferences = useServerBrowserPreferences();
+
   return useSyncExternalStore(
     subscribeSingleKeyShortcuts,
     readSingleKeyShortcuts,
-    serverSingleKeyShortcuts,
+    () => preferences.singleKeyShortcuts,
   );
 }

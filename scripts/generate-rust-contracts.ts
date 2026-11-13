@@ -104,6 +104,8 @@ const prototypeNames = new Set([...Object.getOwnPropertyNames(Object.prototype),
 const forbiddenNames = new Set([
   ...prototypeNames,
   "Schema",
+  "z",
+  "Contract",
   "Rpc",
   "RpcGroup",
   "ApiRpc",
@@ -712,6 +714,152 @@ function exclusiveUnion<const Members extends readonly [Schema.Schema.AnyNoConte
 }
 `;
 
+// The same validated Rust manifest also owns the JSON SDK codecs. No Effect machinery is needed
+// to validate JSON; keep the existing Effect schemas/RPC exports for their existing consumers.
+function compileWire(schema: JsonSchema, name?: string): string {
+  if (schema["x-hyori-unknown"] || name === "Unknown") return "z.unknown()";
+
+  if (Array.isArray(schema.type)) {
+    return `z.union([${schema.type
+      .map((type) => {
+        const member = { ...schema, type };
+
+        for (const [expected, keywords] of [
+          ["string", stringKeywords],
+          ["number", numberKeywords],
+          ["array", arrayKeywords],
+          ["object", objectKeywords],
+        ] as const) {
+          if (type !== expected && !(expected === "number" && type === "integer"))
+            for (const key of keywords) delete member[key];
+        }
+
+        if (type === "null") delete member.format;
+
+        return compileWire(member);
+      })
+      .join(", ")}])`;
+  }
+
+  const parts: string[] = [];
+
+  if (schema.$ref) parts.push(refName(schema.$ref, "wire"));
+
+  if (schema.anyOf)
+    parts.push(`z.union([${schema.anyOf.map((child) => compileWire(child)).join(", ")}])`);
+
+  if (schema.oneOf)
+    parts.push(`exclusiveUnion(${schema.oneOf.map((child) => compileWire(child)).join(", ")})`);
+
+  if (schema.allOf) parts.push(...schema.allOf.map((child) => compileWire(child)));
+
+  if (schema.enum) parts.push(`z.literal(${JSON.stringify(schema.enum)})`);
+
+  if (Object.hasOwn(schema, "const"))
+    parts.push(`z.literal(${JSON.stringify(schema.const ?? null)})`);
+  let base: string | undefined;
+  const checks: string[] = [];
+
+  switch (schema.type) {
+    case "string":
+      base = "z.string()";
+
+      if (schema.format)
+        checks.push(
+          `z.refine((value) => validDateFormat(value, ${JSON.stringify(schema.format)}))`,
+        );
+
+      if (schema.minLength !== undefined)
+        checks.push(`z.refine((value) => Array.from(value).length >= ${schema.minLength})`);
+
+      if (schema.maxLength !== undefined)
+        checks.push(`z.refine((value) => Array.from(value).length <= ${schema.maxLength})`);
+
+      if (schema.pattern !== undefined)
+        checks.push(`z.regex(new RegExp(${JSON.stringify(schema.pattern)}, "u"))`);
+      break;
+    case "integer":
+    case "number":
+      base = schema.type === "integer" ? "z.int()" : "z.number()";
+
+      if (schema.format === "uint32") checks.push("z.gte(0)", "z.lte(4294967295)");
+
+      if (schema.format === "uint64") checks.push("z.gte(0)");
+
+      if (schema.format === "int32") checks.push("z.gte(-2147483648)", "z.lte(2147483647)");
+
+      for (const [key, operation] of [
+        ["minimum", "gte"],
+        ["maximum", "lte"],
+        ["exclusiveMinimum", "gt"],
+        ["exclusiveMaximum", "lt"],
+        ["multipleOf", "multipleOf"],
+      ] as const) {
+        if (schema[key] !== undefined) checks.push(`z.${operation}(${schema[key]})`);
+      }
+
+      break;
+    case "boolean":
+      base = "z.boolean()";
+      break;
+    case "null":
+      base = "z.null()";
+      break;
+    case "array":
+      base = `z.array(${compileWire(schema.items!)})`;
+
+      if (schema.minItems !== undefined) checks.push(`z.minLength(${schema.minItems})`);
+
+      if (schema.maxItems !== undefined) checks.push(`z.maxLength(${schema.maxItems})`);
+      break;
+    case "object": {
+      if (schema.additionalProperties && schema.additionalProperties !== true) {
+        base = `z.record(z.string(), ${compileWire(schema.additionalProperties)})`;
+        break;
+      }
+
+      const required = new Set(schema.required ?? []);
+
+      const fields = Object.entries(schema.properties ?? {})
+        .sort(([a], [b]) => compare(a, b))
+        .map(
+          ([key, child]) =>
+            `${JSON.stringify(key)}: ${required.has(key) ? compileWire(child) : `z.optional(${compileWire(child)})`}`,
+        );
+
+      base =
+        fields.length === 0 && schema.additionalProperties !== false
+          ? "z.custom<Record<string, unknown>>((value) => Object(value) === value && !Array.isArray(value))"
+          : `z.${schema.additionalProperties === false ? "strictObject" : "object"}({ ${fields.join(", ")} })`;
+      break;
+    }
+
+    case undefined:
+      if (schema.format) {
+        base = "z.unknown()";
+        checks.push(
+          `z.refine((value) => typeof value !== "string" || validDateFormat(value, ${JSON.stringify(schema.format)}))`,
+        );
+      }
+
+      break;
+  }
+
+  if (base) parts.push(checks.length ? `${base}.check(${checks.join(", ")})` : base);
+
+  return parts.slice(1).reduce((left, right) => `intersection(${left}, ${right})`, parts[0]!);
+}
+
+const wireCompositionHelpers = `
+// Match the Effect compatibility surface: conjunction/exclusive union validate the original value.
+function intersection<A, B>(left: z.ZodMiniType<A>, right: z.ZodMiniType<B>) {
+  return z.custom<A & B>((value) => left.safeParse(value).success && right.safeParse(value).success);
+}
+function exclusiveUnion<const Members extends readonly z.ZodMiniType[]>(...members: Members) {
+  return z.custom<z.infer<Members[number]>>((value) => members.filter((member) => member.safeParse(value).success).length === 1);
+}
+`;
+
 export function generateRustContracts(manifest: RustContractManifest) {
   // Reject names before Zod's defensive record decoding can discard a prototype key.
   for (const name of Object.keys(manifest.schemas)) identifier(name, `schemas.${name}`);
@@ -769,9 +917,22 @@ export function generateRustContracts(manifest: RustContractManifest) {
       `  {\n    rpc: Rpc.make(${JSON.stringify(operation.name)}, { payload: ${operation.input}, success: ${operation.output}, error: ${operation.error} }),\n    kind: ${JSON.stringify(operation.kind)},${operation.invalidates.length ? `\n    invalidates: ${JSON.stringify([...operation.invalidates].sort(compare))},` : ""}${operation.resetCache ? "\n    resetCache: true," : ""}\n  },`,
   );
 
+  const clientDescriptors = sortedOperations.map(
+    (operation) =>
+      `  {\n    rpc: { _tag: ${JSON.stringify(operation.name)}, payloadSchema: ${operation.input}, successSchema: ${operation.output}, errorSchema: ${operation.error} },\n    kind: ${JSON.stringify(operation.kind)},${operation.invalidates.length ? `\n    invalidates: ${JSON.stringify([...operation.invalidates].sort(compare))},` : ""}${operation.resetCache ? "\n    resetCache: true," : ""}\n  },`,
+  );
+
+  const wireDeclarations = ordered.map(
+    (name) =>
+      `export const ${name}: z.ZodMiniType<Contract.${name}> = ${compileWire(schemas.get(name)!, name)};\nexport type ${name} = Contract.${name};`,
+  );
+
   return {
     "schemas.ts": `${header}import { Schema } from "@hyori-cloud/lib/effect";\n${declarations.some((declaration) => declaration.includes("validDateFormat(")) ? dateFormatHelper : ""}${declarations.some((declaration) => declaration.includes("intersection(")) ? intersectionHelper : ""}${declarations.some((declaration) => declaration.includes("exclusiveUnion(")) ? exclusiveUnionHelper : ""}\n${declarations.join("\n\n")}\n`,
     "operations.ts": `${header}import { Rpc, RpcGroup } from "@hyori-cloud/lib/effect/rpc";\n${imports.length ? `import { ${imports.join(", ")} } from "./schemas";\n` : ""}\nexport const operations = [\n${descriptors.join("\n")}\n] as const;\n\nexport const ApiRpc = RpcGroup.make(...operations.map((operation) => operation.rpc));\n\nexport type Api = typeof ApiRpc;\n`,
+    "client-operations.ts": `${header}${imports.length ? `import { ${imports.join(", ")} } from "./schemas";\n` : ""}\n// The JSON SDK needs codecs and policy metadata, not Effect RPC handlers or stream machinery.\nexport const operations = [\n${clientDescriptors.join("\n")}\n] as const;\n`,
+    "wire-schemas.ts": `${header}import * as z from "@hyori-cloud/lib/json";\nimport type * as Contract from "./schemas";\n${wireDeclarations.some((declaration) => declaration.includes("validDateFormat(")) ? dateFormatHelper : ""}${wireDeclarations.some((declaration) => /(?:intersection|exclusiveUnion)\(/.test(declaration)) ? wireCompositionHelpers : ""}\n${wireDeclarations.join("\n\n")}\n`,
+    "wire-operations.ts": `${header}${imports.length ? `import { ${imports.join(", ")} } from "./wire-schemas";\n` : ""}\nexport const operations = [\n${clientDescriptors.join("\n")}\n] as const;\n`,
   };
 }
 

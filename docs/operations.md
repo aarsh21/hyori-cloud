@@ -99,6 +99,14 @@ After restoring the scheduled snapshot and repeating the workload under the fina
 
 Public link cookies are signed credentials, not stored grants: each lives at most 12 hours (less when the link expires sooner), and the server still checks on every request that the link exists, has not expired and has the same password. They are signed with a key derived from `HYORI_AUTH_SECRET`, so rotating that secret ends every open public link as well as every session: visitors open the link again, and unlock it again when it has a password.
 
+### Browser cookies
+
+Session and public-link grant cookies are HttpOnly, `SameSite=Strict`, `Path=/` and Secure on production HTTPS. They authorize access; a cross-site document navigation omits them and the browser recovers its session through same-origin requests without showing a signed-out screen first.
+
+`hyori_ui` is instead a functional **preference** cookie, with no identifier, credential or file information. Its nine-character value (`2.l.o.1.0` by default) encodes version, List/Grid, open/collapsed sidebar, single-key shortcuts on/off and file sort (`0` Name A–Z, `1` Name Z–A, `2` Size ascending, `3` Size descending, `4` Modified ascending, `5` Modified descending). Previous seven-character v1 cookies such as `1.g.c.0` remain valid and imply Name A–Z. The browser writes `hyori_ui=<value>; Path=/; Max-Age=31536000; SameSite=Lax; Secure` on HTTPS (without `; Secure` on local HTTP). It is host-only, deliberately readable/writable by script, and travels with top-level cross-site GET navigation so signed-in Files and Shared can prefetch and render the right order and proportions. Public first documents still carry no listing or account data. Every malformed or duplicate value is rejected in full; it cannot grant access. Private, signed-out and public-share HTML all remain `Cache-Control: private, no-store`.
+
+The existing localStorage choices win if the copies disagree. A nonce-authorized pre-paint guard hides only mismatched surfaces until the browser applies those choices, and rewrites the cookie for the next document. With cookies blocked this safe fallback repeats; with localStorage blocked, defaults apply on arrival and changes last only for that page. Like the previous browser-local choices, this cookie survives sign-out and another account on the same browser inherits the display choices, never the previous account's data. It needs no secret rotation and deleting it does not sign anyone out.
+
 ## What an operator can observe today
 
 | Signal                                  | Where                                   | What it tells you                                                                                                                                                                                                                                                                                       |

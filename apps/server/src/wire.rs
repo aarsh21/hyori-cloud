@@ -160,6 +160,8 @@ pub fn manifest() -> ContractResult<Manifest> {
     crate::features::photos::api::register(&mut m)?;
     crate::features::media::api::register(&mut m)?;
     crate::features::editors::api::register(&mut m)?;
+    crate::features::notes::api::register(&mut m)?;
+    crate::features::collaboration::api::register(&mut m)?;
     Ok(m)
 }
 pub fn decode<T: JsonSchema + DeserializeOwned>(input: Value) -> Result<T, ApiError> {

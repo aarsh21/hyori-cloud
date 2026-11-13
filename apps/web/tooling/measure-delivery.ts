@@ -18,6 +18,7 @@ declare global {
   interface Window {
     deliveryLongTasks: number[];
     deliveryCsp: string[];
+    deliveryFontActiveMs: number | null;
   }
 }
 
@@ -243,7 +244,23 @@ if (process.argv[2] === "seed") {
             Object.assign(window, {
               deliveryLongTasks: tasks,
               deliveryCsp: [],
+              deliveryFontActiveMs: null,
             });
+
+            // Observe activation without requesting a font or changing its network priority.
+            const observeFont = () => {
+              const active = [...document.fonts].some(
+                (face) =>
+                  face.family.replaceAll('"', "").includes("Inter Variable") &&
+                  face.status === "loaded",
+              );
+
+              if (active && document.fonts.check('14px "Inter Variable"')) {
+                window.deliveryFontActiveMs = performance.now();
+              } else requestAnimationFrame(observeFont);
+            };
+
+            requestAnimationFrame(observeFont);
             new PerformanceObserver((list) =>
               tasks.push(...list.getEntries().map((entry) => entry.duration)),
             ).observe({ type: "longtask", buffered: true });
@@ -329,6 +346,10 @@ if (process.argv[2] === "seed") {
                 .first()
                 .waitFor();
 
+            // Preserve the historical first-tile milestone alongside the decoded-visible-grid one.
+            const firstTileMs =
+              screen === "photos" ? await page.evaluate(() => performance.now()) : undefined;
+
             if (screen === "photos" && process.env.HYORI_DELIVERY_EXPECT_THUMBNAILS === "true") {
               const visibleLabels = await page
                 .locator('button[aria-label^="photo-"]')
@@ -404,6 +425,7 @@ if (process.argv[2] === "seed") {
             const usableMs = await page.evaluate(() => performance.now());
             const metrics = await session.send("Performance.getMetrics");
             await page.waitForLoadState("networkidle");
+            await page.waitForFunction(() => window.deliveryFontActiveMs !== null);
 
             const tracingDone = new Promise<void>((resolve) =>
               session.once("Tracing.tracingComplete", () => resolve()),
@@ -414,6 +436,17 @@ if (process.argv[2] === "seed") {
             session.off("Tracing.dataCollected", traceListener);
 
             const performanceData = await page.evaluate(() => ({
+              signInCommitMs: window.deliverySignInCommitMs,
+              signInTwoFramesMs: window.deliverySignInTwoFramesMs,
+              fontActiveMs: window.deliveryFontActiveMs,
+              firstContentfulPaintMs:
+                performance.getEntriesByName("first-contentful-paint")[0]?.startTime,
+              // Upper bound: FCP can include the logo before the first text paint.
+              fallbackVisibleMs: Math.max(
+                0,
+                (window.deliveryFontActiveMs ?? 0) -
+                  (performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? 0),
+              ),
               documentMs: performance
                 .getEntriesByType("navigation")
                 .filter((entry) => entry instanceof PerformanceNavigationTiming)[0]?.responseEnd,
@@ -453,6 +486,13 @@ if (process.argv[2] === "seed") {
               longTasks: window.deliveryLongTasks,
               csp: window.deliveryCsp,
             }));
+
+            if (
+              screen === "login" &&
+              (performanceData.signInCommitMs === null ||
+                performanceData.signInTwoFramesMs === null)
+            )
+              throw new Error("No enabled Sign in commit and two-frame reading were observed");
 
             const navigationStart = metrics.metrics.find(
               (metric) => metric.name === "NavigationStart",
@@ -499,6 +539,11 @@ if (process.argv[2] === "seed") {
               run,
               cache,
               usableMs,
+              firstTileMs,
+              decodedVisibleMs:
+                screen === "photos" && process.env.HYORI_DELIVERY_EXPECT_THUMBNAILS === "true"
+                  ? usableMs
+                  : undefined,
               wireBytes,
               errors,
               waterfall,

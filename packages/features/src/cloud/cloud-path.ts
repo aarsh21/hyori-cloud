@@ -1,6 +1,7 @@
 export type CloudLocation =
   | { readonly section: "files"; readonly folderId: string | null }
   | { readonly section: "shared" }
+  | { readonly section: "notes"; readonly noteId: string | null }
   | { readonly section: "trash" }
   | { readonly section: "photos" }
   | { readonly section: "albums" }
@@ -37,6 +38,8 @@ export function parseCloudPath(path: string): CloudLocation {
   }
 
   if (head === "shared" && segments.length === 1) return { section: "shared" };
+
+  if (head === "notes" && segments.length <= 2) return { section: "notes", noteId: second ?? null };
 
   if (head === "trash" && segments.length === 1) return { section: "trash" };
 
@@ -83,6 +86,8 @@ export function formatCloudPath(location: CloudLocation): string {
       return location.folderId === null ? "/" : `/folders/${encodeURIComponent(location.folderId)}`;
     case "shared":
       return "/shared";
+    case "notes":
+      return location.noteId === null ? "/notes" : `/notes/${encodeURIComponent(location.noteId)}`;
     case "trash":
       return "/trash";
     case "photos":

@@ -22,6 +22,7 @@ import {
   decodeNativeHostEvent,
   NATIVE_HOST_PROTOCOL,
   NativeTheme,
+  PDF_ANNOTATION_AUTHOR_VERSIONS,
 } from "#client-sdk/features/editors/native-runtime";
 import type {
   NativeHostCommand,
@@ -325,21 +326,27 @@ export function createNativeEditorSession(
     bytes = null;
 
     try {
-      send(
-        {
-          type: `${document.app}:open`,
-          protocol: NATIVE_HOST_PROTOCOL,
-          version: document.version,
-          openId,
-          name: document.name,
-          bytes: owned,
-          writable: document.writable,
-          replacementName: document.replacementName,
-          outputFormats: document.outputFormats,
-          maxBytes: document.maxBytes,
-        },
-        [owned.buffer],
-      );
+      let command: NativeHostCommand = {
+        type: `${document.app}:open`,
+        protocol: NATIVE_HOST_PROTOCOL,
+        version: document.version,
+        openId,
+        name: document.name,
+        bytes: owned,
+        writable: document.writable,
+        replacementName: document.replacementName,
+        outputFormats: document.outputFormats,
+        maxBytes: document.maxBytes,
+      };
+
+      // Earlier payloads reject unknown fields, even when their value is undefined.
+      if (
+        PDF_ANNOTATION_AUTHOR_VERSIONS.includes(document.version) &&
+        document.annotationAuthor !== undefined &&
+        document.annotationAuthor !== null
+      )
+        command = { ...command, annotationAuthor: document.annotationAuthor };
+      send(command, [owned.buffer]);
     } catch {
       stop("failed", "Could not send the document to the native editor", "crashed");
     }

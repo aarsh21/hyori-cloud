@@ -131,6 +131,18 @@ try {
     "--public-url",
     "./",
   ]);
+  // The opaque frame receives the descriptor's size/SHA-256-verified WASM from its host.
+  // Trunk's speculative fetch cannot enter that cache and downloads a second, unused engine.
+  // Keep every script preload (and its SRI); remove only this redundant WASM hint.
+  const index = `${root}/work/dist/index.html`;
+  const html = await readFile(index, "utf8");
+
+  const wasmHint =
+    /<link rel="preload" href="\.\/[a-z]+-web-[a-f0-9]+_bg\.wasm"[^>]*as="fetch" type="application\/wasm">/gu;
+
+  if ([...html.matchAll(wasmHint)].length !== 1)
+    throw new Error("Expected exactly one Trunk WASM preload");
+  await writeFile(index, html.replace(wasmHint, ""));
   await cp(`${root}/work/dist`, `${root}/output/dist`, { recursive: true });
   await writeFile(`${root}/output/Cargo.lock`, await readFile(`${root}/work/source/Cargo.lock`));
   console.log(`${app} build completed: ${(await readdir(`${root}/output/dist`)).join(", ")}`);

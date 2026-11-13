@@ -96,7 +96,7 @@ export const Albums = Schema.Struct({ "items": Schema.Array(Album) });
 
 export type Albums = typeof Albums.Type;
 
-export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("uploads.busy"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable"), Schema.Literal("auth.signInBusy")), Schema.String);
+export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("uploads.busy"), Schema.Literal("uploads.tooSlow"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable"), Schema.Literal("auth.signInBusy")), Schema.String);
 
 export type ErrorCode = typeof ErrorCode.Type;
 
@@ -124,6 +124,30 @@ export const ChangePassword = Schema.Struct({ "currentPassword": Schema.String.p
 
 export type ChangePassword = typeof ChangePassword.Type;
 
+export const CollaborationClose = Schema.Struct({ "sessionId": Id });
+
+export type CollaborationClose = typeof CollaborationClose.Type;
+
+export const CollaborationDocument = Schema.Struct({ "color": Schema.String, "generation": Id, "name": Schema.String, "schemaVersion": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(0)), "sequence": Schema.String, "sessionId": Id, "state": Schema.String, "writable": Schema.Boolean });
+
+export type CollaborationDocument = typeof CollaborationDocument.Type;
+
+export const CollaborationOpen = Schema.Struct({ "clientId": Schema.String.pipe(Schema.pattern(new RegExp("^[0-9]{1,16}$", "u"))), "id": Id, "schemaVersion": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(1)) });
+
+export type CollaborationOpen = typeof CollaborationOpen.Type;
+
+export const CollaborationPeer = Schema.Struct({ "clientId": Schema.String, "presence": Schema.String });
+
+export type CollaborationPeer = typeof CollaborationPeer.Type;
+
+export const CollaborationReceipt = Schema.Struct({ "acknowledged": Schema.String, "peers": Schema.Array(CollaborationPeer), "sequence": Schema.String, "update": Schema.String, "writable": Schema.Boolean });
+
+export type CollaborationReceipt = typeof CollaborationReceipt.Type;
+
+export const CollaborationSync = Schema.Struct({ "generation": Id, "presence": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 4096)), "sessionId": Id, "update": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 196608), Schema.pattern(new RegExp("^[a-f0-9]*$", "u"))), "vector": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 32768), Schema.pattern(new RegExp("^[a-f0-9]*$", "u"))) });
+
+export type CollaborationSync = typeof CollaborationSync.Type;
+
 export const CreateAlbum = Schema.Struct({ "name": Name });
 
 export type CreateAlbum = typeof CreateAlbum.Type;
@@ -139,6 +163,10 @@ export type Timestamp = typeof Timestamp.Type;
 export const CreateInvite = Schema.Struct({ "email": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 254))), "expiresAt": Schema.optional(Timestamp) });
 
 export type CreateInvite = typeof CreateInvite.Type;
+
+export const CreateNote = Schema.Struct({ "name": Schema.optional(Schema.Union(Name, Schema.Null)), "parentId": Schema.Union(Id, Schema.Null) });
+
+export type CreateNote = typeof CreateNote.Type;
 
 export const CreatePasswordReset = Schema.Struct({ "userId": Id });
 
@@ -204,6 +232,14 @@ export const EditorCloseInput = Schema.Struct({ "sessionId": Id });
 
 export type EditorCloseInput = typeof EditorCloseInput.Type;
 
+export const EditorIntent = intersection(Schema.Union(Schema.Literal("replace"), Schema.Literal("save-as"), Schema.Literal("export")), Schema.String);
+
+export type EditorIntent = typeof EditorIntent.Type;
+
+export const EditorCopyNameInput = Schema.Struct({ "intent": EditorIntent, "name": Name, "parentId": Schema.Union(Id, Schema.Null), "sessionId": Id });
+
+export type EditorCopyNameInput = typeof EditorCopyNameInput.Type;
+
 export const EditorDestination = Schema.Struct({ "parentId": Schema.Union(Id, Schema.Null) });
 
 export type EditorDestination = typeof EditorDestination.Type;
@@ -224,17 +260,13 @@ export const EditorProtocol = intersection(Schema.Union(Schema.Literal(1), Schem
 
 export type EditorProtocol = typeof EditorProtocol.Type;
 
-export const EditorDocument = Schema.Struct({ "app": EditorApp, "assetUrl": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256), Schema.pattern(new RegExp("^/artcraft/(wordcraft|gridcraft|deckcraft|pdfcraft)/[a-zA-Z0-9._-]+/index\\.html\\?host=parent$", "u"))), "bridge": EditorBridge, "engine": Schema.optional(Schema.Union(EditorEngine, Schema.Null)), "maxBytes": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.nonNegative(), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(67108864)), "name": Name, "outputFormats": Schema.Array(EditorOutputFormat).pipe(Schema.minItems(1), Schema.maxItems(32)), "protocol": Schema.Union(EditorProtocol, Schema.Null), "replacementName": Schema.Union(Name, Schema.Null), "revision": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 32), Schema.pattern(new RegExp("^[0-9]+$", "u"))), "sessionId": Id, "version": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 64)), "writable": Schema.Boolean });
+export const EditorDocument = Schema.Struct({ "annotationAuthor": Schema.optional(Schema.Union(Name, Schema.Null)), "app": EditorApp, "assetUrl": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 256), Schema.pattern(new RegExp("^/artcraft/(wordcraft|gridcraft|deckcraft|pdfcraft)/[a-zA-Z0-9._-]+/index\\.html\\?host=parent$", "u"))), "bridge": EditorBridge, "engine": Schema.optional(Schema.Union(EditorEngine, Schema.Null)), "maxBytes": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.nonNegative(), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(67108864)), "name": Name, "outputFormats": Schema.Array(EditorOutputFormat).pipe(Schema.minItems(1), Schema.maxItems(32)), "protocol": Schema.Union(EditorProtocol, Schema.Null), "replacementName": Schema.Union(Name, Schema.Null), "revision": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 32), Schema.pattern(new RegExp("^[0-9]+$", "u"))), "sessionId": Id, "version": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 64)), "writable": Schema.Boolean });
 
 export type EditorDocument = typeof EditorDocument.Type;
 
 export const EditorDownloadInput = Schema.Struct({ "expectedRevision": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 1), Schema.filter((value) => Array.from(value).length <= 32), Schema.pattern(new RegExp("^[0-9]+$", "u"))), "sessionId": Id });
 
 export type EditorDownloadInput = typeof EditorDownloadInput.Type;
-
-export const EditorIntent = intersection(Schema.Union(Schema.Literal("replace"), Schema.Literal("save-as"), Schema.Literal("export")), Schema.String);
-
-export type EditorIntent = typeof EditorIntent.Type;
 
 export const EditorSaveMode = intersection(Schema.Union(Schema.Literal("manual"), Schema.Literal("automatic")), Schema.String);
 
@@ -268,9 +300,21 @@ export const Empty = Schema.Struct({}).pipe(Schema.filter((value) => Object(valu
 
 export type Empty = typeof Empty.Type;
 
-export const FileList = Schema.Struct({ "breadcrumbs": Schema.Array(Breadcrumb), "folder": Schema.Union(FileEntry, Schema.Null), "items": Schema.Array(FileEntry), "nextCursor": Schema.Union(Schema.String, Schema.Null) });
+export const FavoriteNote = Schema.Struct({ "favorite": Schema.Boolean, "id": Id });
+
+export type FavoriteNote = typeof FavoriteNote.Type;
+
+export const FileThumbnail = Schema.Struct({ "pending": Schema.Boolean, "url": Schema.Union(Schema.String, Schema.Null) });
+
+export type FileThumbnail = typeof FileThumbnail.Type;
+
+export const FileList = Schema.Struct({ "breadcrumbs": Schema.Array(Breadcrumb), "folder": Schema.Union(FileEntry, Schema.Null), "items": Schema.Array(FileEntry), "nextCursor": Schema.Union(Schema.String, Schema.Null), "thumbnails": Schema.optional(Schema.Record({ key: Schema.String, value: FileThumbnail }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))) });
 
 export type FileList = typeof FileList.Type;
+
+export const FileSort = intersection(Schema.Union(Schema.Literal("nameAsc"), Schema.Literal("nameDesc"), Schema.Literal("sizeAsc"), Schema.Literal("sizeDesc"), Schema.Literal("modifiedAsc"), Schema.Literal("modifiedDesc")), Schema.String);
+
+export type FileSort = typeof FileSort.Type;
 
 export const FileVersion = Schema.Struct({ "createdAt": Schema.String, "fileId": Id, "id": Id, "size": Bytes });
 
@@ -296,7 +340,7 @@ export const ItemInput = Schema.Struct({ "id": Id });
 
 export type ItemInput = typeof ItemInput.Type;
 
-export const ListFiles = Schema.Struct({ "after": Schema.optional(Timestamp), "before": Schema.optional(Timestamp), "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)), "limit": Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(100))), "maxSize": Schema.optional(Bytes), "minSize": Schema.optional(Bytes), "parentId": Schema.optional(Schema.Union(Id, Schema.Null)), "search": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255))), "type": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 128))), "view": Schema.optional(FilesView) });
+export const ListFiles = Schema.Struct({ "after": Schema.optional(Timestamp), "before": Schema.optional(Timestamp), "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)), "limit": Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(100))), "maxSize": Schema.optional(Bytes), "minSize": Schema.optional(Bytes), "parentId": Schema.optional(Schema.Union(Id, Schema.Null)), "search": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255))), "sort": Schema.optional(Schema.Union(FileSort, Schema.Null)), "type": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 128))), "view": Schema.optional(FilesView) });
 
 export type ListFiles = typeof ListFiles.Type;
 
@@ -319,6 +363,30 @@ export type MoveFile = typeof MoveFile.Type;
 export const NewAccount = Schema.Struct({ "email": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 254)), "name": Name, "password": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 12), Schema.filter((value) => Array.from(value).length <= 1024)) });
 
 export type NewAccount = typeof NewAccount.Type;
+
+export const Note = Schema.Struct({ "favorite": Schema.Boolean, "file": FileEntry, "generation": Id, "metadataRevision": Schema.String });
+
+export type Note = typeof Note.Type;
+
+export const NoteCheckpoint = Schema.Struct({ "createdAt": Schema.String, "id": Id, "name": Name });
+
+export type NoteCheckpoint = typeof NoteCheckpoint.Type;
+
+export const NoteHistory = Schema.Struct({ "items": Schema.Array(NoteCheckpoint), "nextCursor": Schema.Union(Id, Schema.Null) });
+
+export type NoteHistory = typeof NoteHistory.Type;
+
+export const NoteHistoryInput = Schema.Struct({ "cursor": Schema.optional(Schema.Union(Id, Schema.Null)), "id": Id });
+
+export type NoteHistoryInput = typeof NoteHistoryInput.Type;
+
+export const NoteList = Schema.Struct({ "items": Schema.Array(Note), "nextCursor": Schema.Union(Id, Schema.Null) });
+
+export type NoteList = typeof NoteList.Type;
+
+export const NoteListInput = Schema.Struct({ "cursor": Schema.optional(Schema.Union(Id, Schema.Null)), "favorites": Schema.optional(Schema.Boolean), "search": Schema.optional(Schema.Union(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255)), Schema.Null)), "trash": Schema.optional(Schema.Boolean) });
+
+export type NoteListInput = typeof NoteListInput.Type;
 
 export const PasswordResetLink = Schema.Struct({ "expiresAt": Schema.String, "token": Schema.String });
 
@@ -360,9 +428,13 @@ export const PutMethod = intersection(Schema.Union(Schema.Literal("PUT")), Schem
 
 export type PutMethod = typeof PutMethod.Type;
 
-export const RenameFile = Schema.Struct({ "id": Id, "name": Schema.String });
+export const RenameFile = Schema.Struct({ "expectedName": Schema.optional(Schema.Union(Name, Schema.Null)), "id": Id, "name": Schema.String });
 
 export type RenameFile = typeof RenameFile.Type;
+
+export const RenameNote = Schema.Struct({ "expectedName": Name, "id": Id, "name": Name });
+
+export type RenameNote = typeof RenameNote.Type;
 
 export const ResetPassword = Schema.Struct({ "newPassword": Schema.String.pipe(Schema.filter((value) => Array.from(value).length >= 12), Schema.filter((value) => Array.from(value).length <= 1024)), "token": Schema.String.pipe(Schema.pattern(new RegExp("^[a-f0-9]{64}$", "u"))) });
 
@@ -379,6 +451,10 @@ export type Share = typeof Share.Type;
 export const ResolvedShare = Schema.Struct({ "item": Schema.Union(FileEntry, Schema.Null), "requiresPassword": Schema.Boolean, "share": Share });
 
 export type ResolvedShare = typeof ResolvedShare.Type;
+
+export const RestoreNoteCheckpoint = Schema.Struct({ "checkpointId": Id, "id": Id });
+
+export type RestoreNoteCheckpoint = typeof RestoreNoteCheckpoint.Type;
 
 export const RestoreVersion = Schema.Struct({ "id": Id, "versionId": Id });
 

@@ -186,6 +186,7 @@ async fn anonymous_viewer_copy_cannot_invent_root_or_destination_authority() {
         .value()
         .clone();
     let document = open(&server, &source_cookie, &file).await;
+    assert!(document.get("annotationAuthor").is_none());
     let mut copy = input(&document, "anonymous-copy", PDF_EDIT);
     copy["intent"] = json!("save-as");
     copy["name"] = json!("anonymous-copy.pdf");

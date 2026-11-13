@@ -74,6 +74,9 @@ crate::wire_struct!(EditorDocument {
     replacement_name: Nullable<Name>,
     #[schemars(length(min = 1, max = 32))]
     output_formats: Vec<EditorOutputFormat>,
+    /// Display name for new PDF annotations only; no account identity enters the frame.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    annotation_author: Option<Name>,
     /// Present for runtimes whose sandboxed frame asks the host for its engine (protocol 3).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     engine: Option<EditorEngine>
@@ -85,6 +88,7 @@ crate::wire_struct!(EditorDownloadInput {
     expected_revision: String
 });
 crate::wire_struct!(EditorDestination { parent_id: Nullable<Id> });
+crate::wire_struct!(EditorCopyNameInput { session_id: Id, parent_id: Nullable<Id>, name: Name, intent: EditorIntent });
 crate::wire_struct!(EditorPrepareSave {
     session_id: Id,
     #[schemars(length(min = 1, max = 160), regex(pattern = r"^[a-zA-Z0-9_:-]+$"))]
@@ -163,6 +167,15 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
                 .map(RpcResult::value)
         },
     )?;
+    registry.bind::<EditorCopyNameInput, Name, _, _>(
+        "editors.suggestCopyName",
+        |state, context, input| async move {
+            EditorsService::new(state, context)
+                .suggest_copy_name(input)
+                .await
+                .map(RpcResult::value)
+        },
+    )?;
     registry.bind::<EditorSaveInput, EditorSaved, _, _>(
         "editors.completeSave",
         |state, context, input| async move {
@@ -175,7 +188,16 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
     Ok(())
 }
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
-    crate::schemas!(m; EditorAvailability, EditorDocument, EditorCloseInput, EditorDownloadInput, EditorPrepareSave, EditorSaveInput, EditorSaved);
+    crate::schemas!(m; EditorAvailability, EditorDocument, EditorCloseInput, EditorDownloadInput, EditorCopyNameInput, EditorPrepareSave, EditorSaveInput, EditorSaved);
+    crate::operation!(
+        m,
+        "editors.suggestCopyName",
+        EditorCopyNameInput,
+        Name,
+        "query",
+        [],
+        false
+    );
     crate::operation!(
         m,
         "editors.close",

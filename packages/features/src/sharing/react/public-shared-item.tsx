@@ -6,6 +6,7 @@ import { AppearanceMenu } from "@hyori-cloud/ui/components/appearance-menu";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { FocusLayout, FocusLayoutHeader } from "@hyori-cloud/ui/components/focus-layout";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
+import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { ShortcutPreferenceMenuItems } from "@hyori-cloud/ui/components/shortcut-preference-menu-items";
 import { Heading, Stack, Text } from "@hyori-cloud/ui/components/text";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
@@ -26,6 +27,10 @@ import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 import { UploadTray } from "#features/uploads/react/upload-tray.tsx";
 
+const NoteDocument = lazy(async () => ({
+  default: (await import("#features/notes/react/note-document.tsx")).NoteDocument,
+}));
+
 const ReplaceFileDialog = lazy(async () => ({
   default: (await loadReplaceFileDialog()).ReplaceFileDialog,
 }));
@@ -39,6 +44,20 @@ export function PublicSharedItem({
   folderId: string | null;
   item: FileEntry;
 }) {
+  if (item.mimeType === "application/vnd.hyori.note")
+    return (
+      <AppShell className="md:p-2">
+        <AppMain className="md:m-0">
+          <Suspense fallback={<Spinner />}>
+            <NoteDocument
+              id={item.id}
+              closePath={formatCloudPath({ section: "publicShare", token, folderId: null })}
+            />
+          </Suspense>
+        </AppMain>
+      </AppShell>
+    );
+
   if (item.kind === "file") return <PublicSharedFile item={item} />;
 
   return (

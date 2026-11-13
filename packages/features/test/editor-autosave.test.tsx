@@ -53,7 +53,10 @@ const UPLOADING = {
 
 function fixture(
   overrides: Partial<EditorDocument> = {},
-  handlers: Record<string, (input: RequestInput) => object | Promise<object>> = {},
+  handlers: Record<
+    string,
+    (input: RequestInput) => object | string | Promise<object | string>
+  > = {},
   copyDestination: CopyDestination = { kind: "folder", folderId: null },
 ) {
   const descriptor = { ...DOCUMENT, ...overrides };
@@ -69,6 +72,7 @@ function fixture(
     }),
     "files.get": () => owned,
     "files.list": () => fileList([]),
+    "editors.suggestCopyName": (input) => String(input.name),
     "editors.prepareSave": () => UPLOADING,
     "uploads.status": () => UPLOADING,
     "uploads.part": () => ({ url: "/synthetic-part", method: "PUT", headers: {} }),

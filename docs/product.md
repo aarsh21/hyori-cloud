@@ -27,9 +27,18 @@ See `../README.md` for development setup.
 - Shared-folder permissions apply recursively to existing contents, subfolders, and future uploads. Inheritance applies to both account-specific shares and public links and does not grant deletion rights. How inherited access combines with direct item shares remains to be defined.
 - New files uploaded into a shared folder belong to that folder's owner, not the contributor. Record upload attribution separately from ownership: identify the uploader when authenticated, and mark anonymous link uploads as anonymous rather than inventing an account identity. Uploading does not confer deletion rights.
 - A dedicated Photos view over the same underlying file library, not a separate storage/import system. Files and Photos reference the same originals and preserve the same ownership and access rules. Photo sources use the confirmed folder-selection model below; organization and presentation remain to be defined.
-- Browser-based document editing in v1 through all four selected ArtCraft apps: **WordCraft**, **GridCraft**, **DeckCraft**, and **PdfCraft** (https://getartcraft.com/apps). One-person-at-a-time editing is sufficient; simultaneous co-editing is not a launch requirement. Browser integration and supported formats must be validated for each app. Locking or conflict handling must prevent silent overwrites; the exact mechanism remains open.
+- Browser-based document editing in v1 through all four selected ArtCraft apps: **WordCraft**, **GridCraft**, **DeckCraft**, and **PdfCraft** (https://getartcraft.com/apps). Simultaneous collaboration across these apps and the planned Notes feature follows the approved staged rollout below; all-five co-editing is not a launch blocker. Browser integration and supported formats must be validated for each app. Preserve safe existing editing until each collaborative adapter is ready; prevent silent overwrites.
 
 This establishes the product areas, not their detailed feature contracts or implementation feasibility. Calendars, contacts, and a general third-party app ecosystem have not been requested for v1.
+
+### Staged collaborative editing — confirmed 2026-11-12
+
+- Build Orbit-style Docs as **Notes**, using BlockNote/Yjs, the shared shadcn design system, clean state ownership and subtle, purposeful motion. Notes is approved for this release as the first live co-editing slice; do not retrofit ArtCraft editors in that slice. Comments are a later feature, not part of the first Notes release.
+- Notes uses existing item shares, ownership, quota and Trash rather than a separate permissions system. Notes and ArtCraft native documents are distinct formats; no implicit conversion is approved.
+- Build toward simultaneous collaboration across Notes and all four ArtCraft apps, with seamless state management as a core requirement. Roll out app by app while retaining safe single-editor/conflict-protected editing in apps that are not ready. This does not remove any ArtCraft browser integration from v1.
+- PdfCraft initially supports collaborative review/annotations and ordinary form filling. Coordinate destructive or structural operations, including redaction application, signing and base-document changes, exclusively at explicit checkpoints; arbitrary simultaneous PDF content/structure editing is not required for the initial phase.
+- Automatically merge offline work only where the editor's supported operations make that safe. Preserve ambiguous work in recoverable branches/copies for reconciliation instead of silently overwriting or discarding it. Full automatic offline merging across every engine is not a launch requirement.
+- The [architecture assessment](https://ampcode.com/artifacts/collaborative-editing-assessment-cdbb2d3c-864d-4be9-a869-65848d6e861e) recommends shared permissions, presence, durability, recovery and history infrastructure with engine-specific editing adapters. Its implementation details, effort estimates and exact rollout order remain proposals to validate, not evidence of delivered capabilities or a committed launch date.
 
 ### Integrated document workspace — confirmed 2026-11-05
 
@@ -37,7 +46,7 @@ This establishes the product areas, not their detailed feature contracts or impl
 - Opening, reopening, and saving documents must feel immediate and be optimized with measured cold/warm workloads. Separate asset transfer, decompression/compilation, engine initialization, document parsing, serialization, and durable persistence before attributing delays. Keep measured-device/network conditions and proposed performance targets explicit; the existing 2-core/4-GB deployment target is not a capacity guarantee.
 - ArtCraft's actual editor chrome and interactions should follow Hyori's design language, including Light/Dark/System, restrained motion, accessible controls, typography, and spacing. Matching only the outer iframe wrapper does not complete this requirement. Preserve document content and formatting rather than changing document styling to match interface tokens.
 - Support automatic saving for authorized writable documents, with honest pending/saving/saved/error states tied to backend durability, plus an explicit save/flush action. Do not silently overwrite conflicts, save read-only sources, choose copy/export destinations automatically, or claim automatic saving when an engine cannot provide a reliable native serialization/acknowledgement contract. Preserve recovery bytes and explicit failure recovery.
-- Google Office-style automatic saving is the interaction direction, not authorization for simultaneous co-editing or a claim of feature/performance parity. Save/version checkpoint boundaries must preserve useful history without treating every keystroke as a separate full-file historical version.
+- Google Office-style automatic saving is the interaction direction, not a claim of feature/performance parity. Simultaneous co-editing is separately approved through the staged scope above. Save/version checkpoint boundaries must preserve useful history without treating every keystroke as a separate full-file historical version.
 - Existing open tabs and sessions must remain safe during engine upgrades. New versioned runtime bundles must not silently make an old live editor unable to save; retain bounded verified legacy compatibility or explicitly coordinate a safe transition without discarding work.
 
 ### Public-link controls — confirmed
@@ -106,7 +115,7 @@ Detailed timeline ordering, album membership/sharing, and supported media format
 
 - V1 includes both trash/restore and file version history.
 - Ordinary file/folder deletion moves owned items to trash so they can be restored before permanent removal. The existing owner-only deletion rule still applies.
-- Preserve recoverable previous file contents when existing files are edited or replaced, including changes made through shared editing and the selected browser editors. Define save/version boundaries during editor integration; this is not simultaneous co-editing.
+- Preserve recoverable previous file contents when existing files are edited or replaced, including changes made through shared editing and the selected browser editors. Define save/version boundaries during editor integration; version history is distinct from the staged simultaneous co-editing capability.
 - Recovery must preserve ownership and enforce current authorization; trash and historical versions must not become an alternate way to access revoked or private content.
 - Retention durations, version limits, permissions for viewing/restoring history, and how retained content counts toward storage quotas remain to be specified.
 - Admin deletion of a user and all owned data remains a separate destructive workflow. Its retention/recovery policy is unresolved; ordinary trash does not automatically make a deleted account recoverable.
@@ -117,7 +126,7 @@ Detailed timeline ordering, album membership/sharing, and supported media format
 - V1 searches file and folder names, with filters for file type, date, and size.
 - Return only items the requesting user or share holder is authorized to access. Results, exposed metadata, and filter counts must respect that access scope; search must not reveal private file names or metadata.
 - Searching inside document contents and OCR for images/scanned PDFs are deferred beyond v1, without a committed delivery date.
-- Exact name-matching behavior, date-field semantics, and sorting/pagination contracts remain to be specified.
+- Exact search name-matching behavior and date-field semantics remain to be specified. The listing sort/pagination contract is recorded below.
 
 ### Uploads — confirmed
 
@@ -126,6 +135,14 @@ Detailed timeline ordering, album membership/sharing, and supported media format
 - Apply the existing sharing roles, destination-folder ownership, and storage quotas to uploads. Resume/finalization must respect current authorization rather than relying solely on access granted when the transfer began.
 - Incomplete uploads must not appear as successfully stored files. A failed or cancelled replacement must preserve the previously committed file; successful replacements participate in version history.
 - Specify the transfer protocol, checkpoint retention/cleanup, and browser reload/restart behavior during contract design. Browser resumption may require the user to reselect a local file; unrestricted background browser access is not assumed.
+
+### File sorting — review-lead defaults, subject to owner veto
+
+- Files, Shared, and public-folder browsing offer name, size, and modified date in either direction, in List and Grid on desktop and touch devices. Search/filter results within these browsers use the same choice. Trash and Photos keep their existing ordering models.
+- The interface now explicitly requests Name A–Z by default, replacing its previous incidental ID order. Name comparison is case-insensitive (`lower(name)` in PostgreSQL), not natural numeric sorting. Folders precede files in every direction; the item ID breaks equal-key ties in the chosen direction. Folders have no meaningful size: within size ascending they use name A–Z, and within size descending name Z–A. Equal file sizes still use ID, not name.
+- The server owns ordering and keyset pagination across the complete authorized scope, not just the loaded page. The optional six-value `files.list.sort` contract preserves legacy ID order and ID cursors when omitted. Sorted cursors carry the key values and order; a cursor from another order is rejected. Deleting a boundary item does not invalidate continuation. Concurrent changes to a sort key can still move an item across the boundary; this is not snapshot pagination.
+- The browser remembers the choice locally, like List/Grid, without adding an account setting. A validated presentation-cookie copy supplies the request-scoped first-render order for signed-in Files and Shared; localStorage remains authoritative. First paint must not expose the default order when a different stored order is selected. A missing, malformed or stale cookie retains the pre-paint mismatch guard. Public first documents still carry no listing or account data; the first authorized folder listing after explicit Open already uses the stored order.
+- Rationale: the review lead selected these reversible defaults under delegated product authority to close the missing sort control without changing existing API consumers or recovery/timeline behavior. This scope entry is not acceptance evidence; the review records checks and measurements separately.
 
 ### Candidate file workflows — details awaiting approval
 
@@ -163,7 +180,7 @@ ArtCraft is the user's selected integration direction; changing it requires disc
 The product-scope grilling is finished. Resolve these follow-ups during contract design and implementation with explicit, reasonable defaults; record the rationale. Ask the user only when a choice materially changes scope, security, or data-loss behavior. Resource sizing remains deferred as agreed.
 
 1. **Audience — confirmed:** The first release must serve individual self-hosters, families/small private groups, and teams/organizations. Required capabilities for each audience remain to be defined.
-2. **Product boundary — confirmed:** Files, sharing, Photos, and shared document editing belong in v1. Photos uses the same underlying file library and source-selection rules above; timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1. Still define detailed album/timeline behavior and media formats. Integrate WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser; one-person-at-a-time editing is sufficient initially. Still validate per-app integration, exact file-format support, and the locking/conflict policy.
+2. **Product boundary — confirmed:** Files, sharing, Photos, Notes and shared document editing belong in v1. Photos uses the same underlying file library and source-selection rules above; timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1. Still define detailed album/timeline behavior and media formats. Integrate WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser, upgrading co-editing in stages with Notes first. Still validate per-app integration, exact file-format support, native collaboration adapters, migration from revision-fenced saves, and engine-specific conflict/recovery policies.
 3. **Deployment — direction and target confirmed:** Use the Deployment target section above. RustFS is settled, and detailed resource tuning is deferred rather than blocking discovery. Installation, upgrades, and operational burden still need definition. Managed hosting is a possible later offering, not authorization for SaaS infrastructure in v1.
 4. **Access and trust — core policies confirmed:** Use the sharing rules, Authentication section, and Administration and storage limits section above as the authoritative requirements. Public links have the password, expiry, and revocation controls specified above. Still define secure bootstrap access, password policy, invite lifecycle, recovery, combined direct/inherited access, moves, resharing, detailed link-session/expiry behavior, quota accounting/enforcement, account-deletion retention, and at-rest encryption/key management. E2EE is deferred as specified in Data protection.
 5. **File workload — detailed sizing deferred:** Library size, files per folder, largest file, and simultaneous transfers remain unspecified. Revisit capacity scenarios later; do not block current feature discovery on resource sizing.
@@ -180,6 +197,12 @@ The product-scope grilling is finished. Resolve these follow-ups during contract
 Validate capabilities against the selected versions and official documentation before committing to a design. In particular, do not assume complete S3 compatibility, resumable-upload behavior, or cross-system transaction guarantees.
 
 ## Decision log
+
+### 2026-11-12: staged collaboration across Notes and ArtCraft
+
+- **Decision:** Approve staged simultaneous collaboration across Notes, WordCraft, GridCraft, DeckCraft and PdfCraft, with PDF review/forms first and recovery branches for unsafe offline merges.
+- **Rationale:** After reviewing the engine-specific feasibility assessment, the owner explicitly approved: "Approve the staged approach, with PDF review/forms first and recovery branches for unsafe offline merges."
+- **Scope consequence:** Supersede the earlier single-editor-only direction without making all-five co-editing a launch blocker. Preserve safe existing editing during rollout, coordinate destructive PDF operations exclusively, and retain ambiguous offline work for reconciliation. This approval sets product scope; it does not establish implementation completion, a fixed engine design or delivery dates.
 
 ### 2026-11-05: GPT-only integration, performance, and automatic saving
 
@@ -231,11 +254,11 @@ Validate capabilities against the selected versions and official documentation b
 - **Rationale:** The user explicitly requested all four areas and supplied the ArtCraft app directory.
 - **Scope consequence:** Photo-library and editor integration work are launch scope, not deferred expansions. ArtCraft integration feasibility must be validated before promising specific editing capabilities.
 
-### 2026-11-04: shared editing is sufficient initially
+### 2026-11-04: shared editing is sufficient initially (superseded by staged collaboration on 2026-11-12)
 
 - **Decision:** Shared documents can be edited one person at a time in v1. Real-time simultaneous co-editing is not required for launch.
 - **Rationale:** The user explicitly accepted shared editing as the initial collaboration model.
-- **Scope consequence:** Define safe locking or conflict handling during editor integration. Real-time co-editing may be added later; it is not a current implementation requirement.
+- **Scope consequence:** This was the original launch scope. The 2026-11-12 decision above authorizes staged co-editing, starting with Notes, while retaining safe editing for engines not yet upgraded.
 
 ### 2026-11-04: self-hosted first, managed service possible later
 
@@ -416,3 +439,9 @@ Validate capabilities against the selected versions and official documentation b
 - **Decision:** Keep the three-minute upload lease unchanged, without renewal or startup clearing. Distinguish a held lease from an outage; let the SDK wait up to the lease lifetime plus fifteen seconds. Outage retries remain at one, two and four seconds. Begin/completion may retry only an explicit pre-write busy refusal, never an ambiguous failure.
 - **Rationale:** The production-readiness lead withdrew short renewed leases after a two-replica drill showed that a delayed storage write can overwrite a later writer's acknowledged part. Database tokens fence acknowledgement and stored ETags fence completion, not the mutable multipart part itself.
 - **Scope consequence:** Retain existing pending/uploading/finalizing states while waiting, without new interface copy. Record the stale-part recovery defect rather than repairing it in this round.
+
+### 2026-11-13: unsigned Notes admission
+
+- **Decision:** Keep the sixteen-lease cap. Public-link sessions without an active signed-in account may occupy at most twelve leases on one note, across all links and roles. Signed-in people retain the existing accounting. Add no eviction, owner-only reservation, address limit or new refusal screen.
+- **Rationale:** The production-readiness lead ruled that a public-link holder must not occupy every place and exclude the owner. Four places remain available to signed-in people; this is not an owner-only guarantee if other signed-in people use them.
+- **Scope consequence:** Classify from the server-resolved actor, not the route or a client flag. An active account with a public link counts as signed in. An expired account cookie with a valid link, legacy grant or stateless capability counts as unsigned. The thirteenth unsigned open uses the same note-full sentence and retry as the seventeenth total open. Existing lease expiry and all authorization/generation fences remain.

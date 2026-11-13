@@ -5,14 +5,18 @@ import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { useBrowserPreferencesReady } from "@hyori-cloud/ui/hooks/use-browser-preferences-ready";
 import { readSidebarOpen, subscribeSidebarOpen } from "@hyori-cloud/ui/lib/sidebar-preference";
 import { useSyncExternalStore } from "react";
-
-function serverSidebarOpen() {
-  return true;
-}
+import { useServerBrowserPreferences } from "@hyori-cloud/ui/components/browser-preferences-provider";
 
 /** The frame in its real proportions while the signed-in app's code arrives, so nothing moves after. */
 export function AppShellFallback() {
-  const open = useSyncExternalStore(subscribeSidebarOpen, readSidebarOpen, serverSidebarOpen);
+  const preferences = useServerBrowserPreferences();
+
+  const open = useSyncExternalStore(
+    subscribeSidebarOpen,
+    readSidebarOpen,
+    () => preferences.sidebarOpen,
+  );
+
   const ready = useBrowserPreferencesReady();
 
   return (

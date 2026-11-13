@@ -3,6 +3,11 @@ use super::*;
 type NativeHostApp = crate::PdfCraftApp;
 
 impl PdfCraftApp {
+    /// A default for future annotations, never a rewrite of the document's stored authors.
+    pub fn native_host_annotation_author(&mut self, display_name: &str) {
+        self.comment_prefs.author = display_name.to_owned();
+    }
+
     /// Native working-file generation, not the number of saved PDF incremental revisions.
     pub fn native_host_identity(&self) -> Option<NativeHostIdentity> {
         let index = self.active?;
@@ -17,7 +22,9 @@ impl PdfCraftApp {
 
     /// Conservatively keep a live native field/content editor out of background serialization.
     pub fn native_host_pending_input(&self) -> bool {
-        if self.dialog.is_some() || self.password_prompt.is_some() { return true; }
+        // Print only configures output; opening it must not manufacture a document edit.
+        if (self.dialog.is_some() && !matches!(self.dialog, Some(crate::Dialog::Print)))
+            || self.password_prompt.is_some() { return true; }
         let Some(view) = self.active.and_then(|index| self.views.get(index)) else { return false };
         view.pending_edit.is_some()
             || view.content.draft.is_some()

@@ -6,13 +6,20 @@ import {
   DropdownMenuTrigger,
 } from "@hyori-cloud/ui/components/dropdown-menu";
 import { toast } from "@hyori-cloud/ui/components/sonner";
-import { ChangePasswordDialog } from "#features/auth/react/change-password-dialog.tsx";
+import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { useLogout } from "#features/auth/react/use-logout.ts";
-import { AccountIdDialog } from "#features/cloud/react/account-id-dialog.tsx";
 import { AccountMenuItems } from "#features/cloud/react/account-menu-items.tsx";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
-import { PendingUploadsDialog } from "#features/uploads/react/pending-uploads-dialog.tsx";
+
+const loadPassword = async () =>
+  (await import("#features/auth/react/change-password-dialog.tsx")).ChangePasswordDialog;
+
+const loadAccountId = async () =>
+  (await import("#features/cloud/react/account-id-dialog.tsx")).AccountIdDialog;
+
+const loadPendingUploads = async () =>
+  (await import("#features/uploads/react/pending-uploads-dialog.tsx")).PendingUploadsDialog;
 
 type MenuContentProps = ComponentProps<typeof DropdownMenuContent>;
 
@@ -31,9 +38,10 @@ export function AccountMenuRoot({
 }) {
   const user = useCurrentUser();
   const logout = useLogout();
-  const [accountIdOpen, setAccountIdOpen] = useState(false);
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [pendingUploadsOpen, setPendingUploadsOpen] = useState(false);
+  // Unopened dialogs load nothing. Once opened, retain their normal closing/focus lifecycle.
+  const [accountIdOpen, setAccountIdOpen] = useState<boolean>();
+  const [changePasswordOpen, setChangePasswordOpen] = useState<boolean>();
+  const [pendingUploadsOpen, setPendingUploadsOpen] = useState<boolean>();
 
   function signOut() {
     logout.mutate(
@@ -57,7 +65,11 @@ export function AccountMenuRoot({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger render={trigger} />
-        <DropdownMenuContent side="top" align={align} className={className}>
+        <DropdownMenuContent
+          side="top"
+          align={align}
+          className={`${className ?? ""} animate-none! duration-0!`}
+        >
           <AccountMenuItems
             signingOut={logout.isPending}
             onShowAccountId={() => setAccountIdOpen(true)}
@@ -67,9 +79,33 @@ export function AccountMenuRoot({
           />
         </DropdownMenuContent>
       </DropdownMenu>
-      <AccountIdDialog accountId={user.id} open={accountIdOpen} onOpenChange={setAccountIdOpen} />
-      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
-      <PendingUploadsDialog open={pendingUploadsOpen} onOpenChange={setPendingUploadsOpen} />
+      {accountIdOpen !== undefined ? (
+        <DeferredDialog
+          load={loadAccountId}
+          title="Account ID"
+          open={accountIdOpen}
+          onClose={() => setAccountIdOpen(false)}
+          props={{ accountId: user.id, open: accountIdOpen, onOpenChange: setAccountIdOpen }}
+        />
+      ) : null}
+      {changePasswordOpen !== undefined ? (
+        <DeferredDialog
+          load={loadPassword}
+          title="Change password"
+          open={changePasswordOpen}
+          onClose={() => setChangePasswordOpen(false)}
+          props={{ open: changePasswordOpen, onOpenChange: setChangePasswordOpen }}
+        />
+      ) : null}
+      {pendingUploadsOpen !== undefined ? (
+        <DeferredDialog
+          load={loadPendingUploads}
+          title="Unfinished uploads"
+          open={pendingUploadsOpen}
+          onClose={() => setPendingUploadsOpen(false)}
+          props={{ open: pendingUploadsOpen, onOpenChange: setPendingUploadsOpen }}
+        />
+      ) : null}
     </>
   );
 }

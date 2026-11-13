@@ -73,6 +73,30 @@ const revisions = [
       stillAcceptedByServer: true,
     },
   },
+  {
+    authority: "runtime-native-v3-r4.json",
+    receiptRoot: "builds/native-host-v3-r4",
+    bundle: "runtime-all4-native-v3-r4",
+    handoff: "runtime-all4-native-v3-r4.json",
+    protocol: 3,
+    replaces: {
+      authority: "tooling/artcraft/runtime-all4-native-v3-r3.json",
+      manifestSha256: "4fbf87ab7eb17b0c2009473bef195f45043e39ff8654f606692c4b4f983b615e",
+      stillAcceptedByServer: true,
+    },
+  },
+  {
+    authority: "runtime-native-v3-r5.json",
+    receiptRoot: "builds/native-host-v3-r5",
+    bundle: "runtime-all4-native-v3-r5",
+    handoff: "runtime-all4-native-v3-r5.json",
+    protocol: 3,
+    replaces: {
+      authority: "tooling/artcraft/runtime-all4-native-v3-r4.json",
+      manifestSha256: "322272308851138cd682a031ee15c6b658d2c752a771aff3135cc608208cfed7",
+      stillAcceptedByServer: true,
+    },
+  },
 ] as const;
 
 type Revision = (typeof revisions)[number];

@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
-import { Schema } from "@hyori-cloud/lib/effect";
-import { Rpc } from "@hyori-cloud/lib/effect/rpc";
+import * as z from "@hyori-cloud/lib/json";
 import { MutationObserver, QueryClient } from "@hyori-cloud/lib/query-core";
 import { deriveOperations } from "#client-sdk/operation-catalog";
 import { createTransport } from "#client-sdk/transport";
@@ -9,9 +8,14 @@ const transport = createTransport({
   fetch: async () => Response.json({ ok: true, value: "decoded" }),
 });
 
-function declaration(tag: string) {
+function declaration<const Tag extends string>(tag: Tag) {
   return {
-    rpc: Rpc.make(tag, { payload: Schema.Struct({}), success: Schema.String }),
+    rpc: {
+      _tag: tag,
+      payloadSchema: z.object({}),
+      successSchema: z.string(),
+      errorSchema: z.never(),
+    },
     kind: "query" as const,
   };
 }
@@ -56,11 +60,11 @@ test("a newly declared mutation composes typed callbacks with its own declared i
   const catalog = deriveOperations(
     [
       {
-        rpc: Rpc.make("fixture.read", { payload: Schema.Struct({}), success: Schema.String }),
+        rpc: declaration("fixture.read").rpc,
         kind: "query",
       },
       {
-        rpc: Rpc.make("fixture.write", { payload: Schema.Struct({}), success: Schema.String }),
+        rpc: declaration("fixture.write").rpc,
         kind: "mutation",
         invalidates: ["fixture.read"],
       },
@@ -86,7 +90,7 @@ test("a newly declared mutation composes typed callbacks with its own declared i
 test("catalog supports safe own-property names and binds validated declared outputs", async () => {
   const operations = [
     {
-      rpc: Rpc.make("toString.read", { payload: Schema.Struct({}), success: Schema.String }),
+      rpc: declaration("toString.read").rpc,
       kind: "query",
     },
   ] as const;

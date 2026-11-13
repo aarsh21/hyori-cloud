@@ -3,12 +3,14 @@ import type { QueryClient } from "@hyori-cloud/lib/query";
 import { parseCloudPath } from "#features/cloud/cloud-path.ts";
 import { preloadCloudPath } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { NO_FILTERS, toListFilesInput } from "#features/files/file-filters.ts";
+import type { ListFilesInput } from "#features/files/file-filters.ts";
 import { cursorPagesOptions } from "#features/shared/react/use-cursor-pages.ts";
 
 /** First-document reads only. Link consent never resolves a grant or exposes account state. */
 export async function loadCloudPage(
   { sdkClient, queryClient }: { sdkClient: Client; queryClient: QueryClient },
   path: string,
+  sort: NonNullable<ListFilesInput["sort"]> = "nameAsc",
 ) {
   const location = parseCloudPath(path);
 
@@ -39,7 +41,10 @@ export async function loadCloudPage(
       );
 
       await queryClient.prefetchInfiniteQuery(
-        cursorPagesOptions(sdkClient.query.files.list, sdkClient.rpc.files.list, input),
+        cursorPagesOptions(sdkClient.query.files.list, sdkClient.rpc.files.list, {
+          ...input,
+          sort,
+        }),
       );
       break;
     }
@@ -51,7 +56,18 @@ export async function loadCloudPage(
         );
 
       break;
-    case "photos":
+    case "photos": {
+      const sources = await queryClient.fetchQuery(sdkClient.query.photos.sources.getOptions({}));
+
+      if (sources.allMyFiles || sources.folderIds.length > 0)
+        await queryClient.prefetchInfiniteQuery(
+          cursorPagesOptions(sdkClient.query.photos.timeline, sdkClient.rpc.photos.timeline, {}),
+        );
+
+      break;
+    }
+
+    case "notes":
     case "editor":
     case "trash":
     case "albums":

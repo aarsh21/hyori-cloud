@@ -1,27 +1,21 @@
 import type { FileEntry } from "@hyori-cloud/client-sdk";
-import { lazy, Suspense } from "@hyori-cloud/lib/react";
-import { CreateFolderDialog } from "#features/files/react/create-folder-dialog.tsx";
+import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
 import type { FileDialog, OpenFileDialog } from "#features/files/react/file-actions.tsx";
+import { CreateFolderDialog } from "#features/files/react/create-folder-dialog.tsx";
+import { RenameDialog } from "#features/files/react/rename-dialog.tsx";
+import { MediaViewer } from "#features/media/react/media-viewer.tsx";
 import {
   loadMoveDialog,
   loadReplaceFileDialog,
   loadShareDialog,
   loadVersionHistoryDialog,
 } from "#features/files/react/file-dialog-loaders.ts";
-import { RenameDialog } from "#features/files/react/rename-dialog.tsx";
-import { MediaViewer } from "#features/media/react/media-viewer.tsx";
 import { isMediaType } from "#features/shared/format.ts";
 
-const MoveDialog = lazy(async () => ({ default: (await loadMoveDialog()).MoveDialog }));
-const ShareDialog = lazy(async () => ({ default: (await loadShareDialog()).ShareDialog }));
-
-const ReplaceFileDialog = lazy(async () => ({
-  default: (await loadReplaceFileDialog()).ReplaceFileDialog,
-}));
-
-const VersionHistoryDialog = lazy(async () => ({
-  default: (await loadVersionHistoryDialog()).VersionHistoryDialog,
-}));
+const loadMove = async () => (await loadMoveDialog()).MoveDialog;
+const loadShare = async () => (await loadShareDialog()).ShareDialog;
+const loadReplace = async () => (await loadReplaceFileDialog()).ReplaceFileDialog;
+const loadVersions = async () => (await loadVersionHistoryDialog()).VersionHistoryDialog;
 
 export function FileDialogs({
   active,
@@ -49,14 +43,14 @@ export function FileDialogs({
 
   if (dialog.kind === "move") {
     return (
-      <Suspense fallback={null}>
-        <MoveDialog
-          key={`${dialog.entry.id}:${dialog.entry.parentId}`}
-          entry={dialog.entry}
-          open={open}
-          onOpenChange={onOpenChange}
-        />
-      </Suspense>
+      <DeferredDialog
+        key={`${dialog.entry.id}:${dialog.entry.parentId}`}
+        load={loadMove}
+        title="Move"
+        open={open}
+        onClose={onClose}
+        props={{ entry: dialog.entry, open, onOpenChange }}
+      />
     );
   }
 
@@ -69,27 +63,38 @@ export function FileDialogs({
       return <RenameDialog key={entry.id} entry={entry} open={open} onOpenChange={onOpenChange} />;
     case "replace":
       return (
-        <Suspense fallback={null}>
-          <ReplaceFileDialog key={entry.id} entry={entry} open={open} onOpenChange={onOpenChange} />
-        </Suspense>
+        <DeferredDialog
+          load={loadReplace}
+          title="Upload new version"
+          open={open}
+          onClose={onClose}
+          props={{ entry, open, onOpenChange }}
+        />
       );
     case "share":
       return (
-        <Suspense fallback={null}>
-          <ShareDialog key={entry.id} entry={entry} open={open} onOpenChange={onOpenChange} />
-        </Suspense>
+        <DeferredDialog
+          load={loadShare}
+          title="Share"
+          open={open}
+          onClose={onClose}
+          props={{ entry, open, onOpenChange }}
+        />
       );
     case "versions":
       return (
-        <Suspense fallback={null}>
-          <VersionHistoryDialog
-            key={entry.id}
-            entry={entry}
-            open={open}
-            onOpenChange={onOpenChange}
-            onUploadNewVersion={() => onSelect({ kind: "replace", id: entry.id })}
-          />
-        </Suspense>
+        <DeferredDialog
+          load={loadVersions}
+          title="Version history"
+          open={open}
+          onClose={onClose}
+          props={{
+            entry,
+            open,
+            onOpenChange,
+            onUploadNewVersion: () => onSelect({ kind: "replace", id: entry.id }),
+          }}
+        />
       );
     case "viewer":
       return (

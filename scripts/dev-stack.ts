@@ -48,7 +48,7 @@ if (Bun.semver.order(Bun.version, PINNED_BUN) < 0) {
 }
 
 const EDITOR_RECEIPT =
-  process.env.HYORI_DEV_EDITOR_RECEIPT ?? "tooling/artcraft/runtime-all4-native-v3-r3.json";
+  process.env.HYORI_DEV_EDITOR_RECEIPT ?? "tooling/artcraft/runtime-all4-native-v3-r5.json";
 
 const Secrets = z.object({
   pg: z.string(),

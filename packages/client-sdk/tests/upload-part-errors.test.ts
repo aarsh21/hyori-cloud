@@ -25,6 +25,7 @@ function skipWaits(onWait: (ms: number) => void) {
 for (const [status, code] of [
   [409, "resource.conflict"],
   [403, "access.denied"],
+  [408, "uploads.tooSlow"],
 ] as const) {
   test(`binary part ${status} preserves the declared ${code} failure and checkpoint`, async () => {
     const api = fakeAPI();
@@ -92,6 +93,38 @@ test("transient binary HTTP failures keep bounded part retries", async () => {
     expect(failures).toBe(4);
     expect(api.beginCount).toBe(1);
     expect(api.completeCount).toBe(1);
+  } finally {
+    task.dispose();
+    client.dispose();
+  }
+});
+
+test("an unstructured gateway timeout remains a retryable connection failure", async () => {
+  const api = fakeAPI();
+  let timedOut = false;
+
+  const client = createClient({
+    fetch: async (url, init) => {
+      if (String(url).includes("/binary/") && !timedOut) {
+        timedOut = true;
+
+        return new Response("Request timed out", { status: 408 });
+      }
+
+      return api.fetch(url, init);
+    },
+  });
+
+  const task = client.uploads.start(
+    { parentId: null, file: new File(["1234567"], "report.txt") },
+    { retryDelayMs: 0 },
+  );
+
+  try {
+    await task.result;
+    expect(timedOut).toBe(true);
+    expect(task.getSnapshot().status).toBe("complete");
+    expect(api.beginCount).toBe(1);
   } finally {
     task.dispose();
     client.dispose();

@@ -23,6 +23,7 @@ function FallbackFrame({ children }: { children: React.ReactNode }) {
 export function CloudScreenFallback({ location }: { location: ShellLocation }) {
   switch (location.section) {
     case "files":
+    case "notes":
     case "shared":
     case "trash":
     case "admin":

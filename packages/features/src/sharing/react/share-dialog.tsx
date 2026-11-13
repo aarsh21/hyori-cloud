@@ -33,17 +33,19 @@ export function ShareDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const shares = useItemShares(entry.id, open);
+  let description = "Only you can delete this file, whatever role you give.";
+
+  if (entry.mimeType === "application/vnd.hyori.note")
+    description = "Applies to this note and its nested notes. Only you can delete.";
+  else if (entry.kind === "folder")
+    description = "Applies to everything inside, including future uploads. Only you can delete.";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Share “{entry.name}”</DialogTitle>
-          <DialogDescription>
-            {entry.kind === "folder"
-              ? "Applies to everything inside, including future uploads. Only you can delete."
-              : "Only you can delete this file, whatever role you give."}
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-5">
           <ShareDialogBody entry={entry} shares={shares} />

@@ -1,5 +1,4 @@
-import { ApiError } from "@hyori-cloud/api/rpc";
-import { Either, Schema } from "@hyori-cloud/lib/effect";
+import { ApiError } from "@hyori-cloud/api/wire";
 
 export class SDKError extends Error {
   readonly name = "SDKError";
@@ -18,15 +17,14 @@ export class SDKError extends Error {
   }
 }
 
-export const ClientError = Schema.Union(ApiError, Schema.instanceOf(SDKError));
-
-export type ClientError = typeof ClientError.Type;
+export type ClientError = ApiError | SDKError;
 
 /** Query/host observer boundaries can expose failures without preserving their generic type. */
 export function normalizeClientError(cause: unknown): ClientError {
-  const parsed = Schema.decodeUnknownEither(ClientError)(cause);
+  if (cause instanceof SDKError) return cause;
+  const parsed = ApiError.safeParse(cause);
 
-  return Either.isRight(parsed) ? parsed.right : normalizeError(cause);
+  return parsed.success ? parsed.data : normalizeError(cause);
 }
 
 export function normalizeError(cause: unknown): SDKError {

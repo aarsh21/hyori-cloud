@@ -18,21 +18,50 @@ impl WorkerClient {
             .map(Self)
             .map_err(|_| crate::error::ApiError::unavailable())
     }
+    /// Old/unreachable workers report no identity: ordinary bounded processing continues, but no
+    /// terminal job is automatically reset until an identified decoder is actually connected.
+    pub async fn decoder_revision(&self) -> Option<String> {
+        let response = self
+            .0
+            .get(format!(
+                "http://localhost{}",
+                hyori_media_worker::DECODER_PATH
+            ))
+            .timeout(Duration::from_secs(2))
+            .send()
+            .await
+            .ok()?;
+        if !response.status().is_success() || response.content_length()? > 128 {
+            return None;
+        }
+        let bytes = response.bytes().await.ok()?;
+        if bytes.len() > 128 {
+            return None;
+        }
+        let revision: String = serde_json::from_slice(&bytes).ok()?;
+        (revision.len() == 64 && revision.bytes().all(|b| b.is_ascii_hexdigit()))
+            .then_some(revision)
+    }
     pub async fn derive(
         &self,
         mime: &str,
         size: u64,
         body: StorageStream,
-    ) -> Result<(Vec<u8>, &'static str), Failure> {
+        revision: Option<&str>,
+    ) -> Result<(Vec<u8>, &'static str), ErrorBody> {
         if size == 0 || size > MAX_INPUT {
-            return Err(Failure::ResourceLimit);
+            return Err(Failure::ResourceLimit.into());
         }
-        let response = self
+        let mut request = self
             .0
             .post(format!("http://localhost{}", hyori_media_worker::PATH))
             .header("content-length", size)
             .header("content-type", "application/octet-stream")
-            .header("x-hyori-media-type", mime)
+            .header("x-hyori-media-type", mime);
+        if let Some(revision) = revision {
+            request = request.header("x-hyori-decoder", revision);
+        }
+        let response = request
             .body(reqwest::Body::wrap_stream(body))
             .send()
             .await
@@ -50,7 +79,7 @@ impl WorkerClient {
             Some("image/webp") => "image/webp",
             Some("image/png") => "image/png", // Allow an old worker during a rolling upgrade.
             _ if !success => "application/json",
-            _ => return Err(Failure::InvalidMedia),
+            _ => return Err(Failure::InvalidMedia.into()),
         };
         let mut stream = response.bytes_stream();
         let mut bytes = Vec::with_capacity(length as usize);
@@ -60,17 +89,16 @@ impl WorkerClient {
         {
             let chunk = chunk.map_err(|_| Failure::Unavailable)?;
             if bytes.len() + chunk.len() > MAX_OUTPUT {
-                return Err(Failure::ResourceLimit);
+                return Err(Failure::ResourceLimit.into());
             }
             bytes.extend_from_slice(&chunk);
         }
         if bytes.len() != length as usize {
-            return Err(Failure::Unavailable);
+            return Err(Failure::Unavailable.into());
         }
         if !success {
             return Err(serde_json::from_slice::<ErrorBody>(&bytes)
-                .map(|v| v.error)
-                .unwrap_or(Failure::Unavailable));
+                .unwrap_or_else(|_| Failure::Unavailable.into()));
         }
         match mime {
             "image/webp" => webp_dimensions(&bytes),

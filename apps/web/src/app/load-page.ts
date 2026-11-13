@@ -1,15 +1,19 @@
 import { loadCloudPage, parseCloudPath, preloadCloudPath } from "@hyori-cloud/features/react";
 import { createIsomorphicFn, getGlobalStartContext } from "@tanstack/react-start";
 import type { createAppRuntime } from "@/app/runtime";
+import { DEFAULT_BROWSER_PREFERENCES } from "@hyori-cloud/ui/lib/browser-preferences";
 import screenAssets from "virtual:hyori-screen-assets";
 
 const loadDocument = createIsomorphicFn()
   .server(async (runtime: ReturnType<typeof createAppRuntime>, path: string) => {
     const location = parseCloudPath(path);
     let crossSiteNavigation = false;
+    let preferences = DEFAULT_BROWSER_PREFERENCES;
 
     try {
-      crossSiteNavigation = getGlobalStartContext()?.crossSiteNavigation ?? false;
+      const context = getGlobalStartContext();
+      crossSiteNavigation = context?.crossSiteNavigation ?? false;
+      preferences = context?.browserPreferences ?? DEFAULT_BROWSER_PREFERENCES;
     } catch {
       // Standalone runtime tests have no Start request context.
     }
@@ -23,7 +27,7 @@ const loadDocument = createIsomorphicFn()
       location.section === "invite" ||
       location.section === "passwordReset"
     )
-      await loadCloudPage(runtime, path).catch(() => {
+      await loadCloudPage(runtime, path, preferences.fileSort).catch(() => {
         // The regular query boundary owns service failures; never mistake them for setup/sign-out.
       });
 

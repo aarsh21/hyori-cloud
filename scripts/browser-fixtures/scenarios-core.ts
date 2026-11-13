@@ -115,16 +115,31 @@ async function authScenario(run: CoreRun) {
     await page.getByText("No files yet").waitFor();
   });
 
-  await report.check("session cookies are Secure and HttpOnly", async () => {
-    const cookies = await context.cookies(origin);
+  await report.check(
+    "session cookies are Secure and HttpOnly; presentation is SameSite Lax and host-only",
+    async () => {
+      const cookies = await context.cookies(origin);
+      const session = cookies.filter((cookie) => cookie.name !== "hyori_ui");
 
-    assert.ok(cookies.length > 0, "no cookies were set");
+      assert.ok(session.length > 0, "no session cookies were set");
+      assert.ok(session.some((cookie) => cookie.name === "hyori_session"));
 
-    for (const cookie of cookies) {
-      assert.ok(cookie.secure, `${cookie.name} isn't Secure`);
-      assert.ok(cookie.httpOnly, `${cookie.name} isn't HttpOnly`);
-    }
-  });
+      for (const cookie of session) {
+        assert.ok(cookie.secure, `${cookie.name} isn't Secure`);
+        assert.ok(cookie.httpOnly, `${cookie.name} isn't HttpOnly`);
+      }
+
+      const presentation = cookies.find((cookie) => cookie.name === "hyori_ui");
+      assert.ok(presentation, "no presentation cookie was set");
+      assert.ok(presentation.secure);
+      assert.equal(presentation.httpOnly, false);
+      assert.equal(presentation.sameSite, "Lax");
+      assert.equal(presentation.path, "/");
+      assert.equal(presentation.domain, new URL(origin).hostname);
+      assert.equal(presentation.value.length, presentation.value[0] === "1" ? 7 : 9);
+      assert.match(presentation.value, /^(?:1\.[lg]\.[oc]\.[01]|2\.[lg]\.[oc]\.[01]\.[0-5])$/);
+    },
+  );
 
   await report.check("no public asset names the private backend", () => {
     const needles = privateBackendHosts(run);

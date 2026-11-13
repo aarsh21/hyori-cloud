@@ -86,7 +86,7 @@ function bindQuery<D extends OperationDeclaration>(
     getKey,
     getOptions: (input: Payload<D>) => ({
       queryKey: getKey(input),
-      queryFn: ({ signal }: { signal: AbortSignal }) => invoke(declaration, input, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => invoke<D>(declaration, input, { signal }),
       retry: false as const,
     }),
   };
@@ -103,7 +103,7 @@ function bindMutation<D extends OperationDeclaration>(
     key,
     mutationOptions: () => ({
       mutationKey: key,
-      mutationFn: (input: Payload<D>) => invoke(declaration, input),
+      mutationFn: (input: Payload<D>) => invoke<D>(declaration, input),
       retry: false,
     }),
     setDefaults: <TContext>(
@@ -181,13 +181,21 @@ export function deriveOperations<const D extends readonly OperationDeclaration[]
 
   for (const declaration of declarations) {
     assignPath(rpc, declaration.rpc._tag, (input: Payload<D[number]>, options?: RequestOptions) =>
-      invoke(declaration, input, options),
+      invoke<D[number]>(declaration, input, options),
     );
 
     if (declaration.kind === "query") {
-      assignPath(query, declaration.rpc._tag, bindQuery(declaration, invoke, cacheScope));
+      assignPath(
+        query,
+        declaration.rpc._tag,
+        bindQuery<D[number]>(declaration, invoke, cacheScope),
+      );
     } else {
-      assignPath(mutation, declaration.rpc._tag, bindMutation(declaration, invoke, declarations));
+      assignPath(
+        mutation,
+        declaration.rpc._tag,
+        bindMutation<D[number]>(declaration, invoke, declarations),
+      );
     }
   }
 

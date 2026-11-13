@@ -8,6 +8,9 @@ pub trait NativeHostAdapter {
     fn host_open(&mut self, name: &str, bytes: &[u8]) -> Result<Option<NativeHostIdentity>, NativeHostFailure>;
     fn host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure>;
 
+    /// Only PDF annotations have authors; other engines leave this display-only preference alone.
+    fn host_annotation_author(&mut self, _display_name: &str) {}
+
     fn host_capture(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure>;
     fn host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> Result<bool, NativeHostFailure>;
 

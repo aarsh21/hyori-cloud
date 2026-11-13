@@ -11,6 +11,7 @@ import { MediaViewer } from "#features/media/react/media-viewer.tsx";
 import { LoadMore } from "#features/shared/react/load-more.tsx";
 import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
+import { useHydrated } from "#features/shared/react/use-hydrated.ts";
 
 type ViewerState = { readonly itemId: string; readonly open: boolean };
 
@@ -22,6 +23,11 @@ export function PhotoTimeline({
   empty: ReactNode;
 }) {
   const [viewer, setViewer] = useState<ViewerState | null>(null);
+  const hydrated = useHydrated();
+
+  // Data arrives in the document, but month groups use the browser's locale and time zone.
+  // Keep the same skeleton until hydration; warm section switches already have a client snapshot.
+  if (!hydrated) return <MediaGridSkeleton />;
 
   if (timeline.data === undefined) {
     return <QueryWaiting resource={timeline} pending={<MediaGridSkeleton />} />;

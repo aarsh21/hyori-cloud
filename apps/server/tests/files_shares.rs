@@ -1,5 +1,7 @@
 #[path = "support/authorization_lifecycle.rs"]
 mod authorization_lifecycle;
+#[path = "support/file_sorting.rs"]
+mod file_sorting;
 #[path = "support/link_capability.rs"]
 mod link_capability;
 #[path = "support/metadata_listing.rs"]

@@ -77,7 +77,17 @@ function takeEngineFromHost() {
         resolve(
           command.bytes === null
             ? load(input, init)
-            : new Response(command.bytes, { headers: { "content-type": "application/wasm" } }),
+            : new Response(
+                new ReadableStream({
+                  start(controller) {
+                    // The transferred, verified buffer belongs to this frame. Response(buffer)
+                    // would copy the whole engine before the streaming compiler could read it.
+                    controller.enqueue(new Uint8Array(command.bytes!));
+                    controller.close();
+                  },
+                }),
+                { headers: { "content-type": "application/wasm" } },
+              ),
         );
       }
 
@@ -95,6 +105,15 @@ takeEngineFromHost();
 /** Prepare before WebRunner startup, so native initialization failure has a real error surface.
  * Nothing accepts open/save commands or advertises capabilities until hostReady(). */
 export function prepareHost(app: string, version: string) {
+  if (app === "wordcraft" || app === "deckcraft") {
+    // Both apps bind Copy Formatting. Don't let the browser's inspector steal its key/focus.
+    // The event still reaches eframe; only the browser's default action is cancelled.
+    window.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey && event.code === "KeyC")
+        event.preventDefault();
+    }, true);
+  }
+
   if (!hostRequested()) return false;
 
   if (protocol) throw new Error("Native host preparation is single-use per iframe");

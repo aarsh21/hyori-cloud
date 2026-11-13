@@ -22,7 +22,10 @@ pub(crate) async fn destination(
 ) -> DomainResult<(Destination, Option<Item>)> {
     if let Some(id) = replacement {
         let item = policy::authorize(tx, actor, id, Action::Edit, false).await?;
-        if item.kind != FileKind::File || item.parent_id.as_deref() != parent {
+        if item.kind != FileKind::File
+            || item.mime_type == crate::features::notes::service::MIME
+            || item.parent_id.as_deref() != parent
+        {
             return Err(ApiError::conflict().into());
         }
         // A directly shared file may be edited without access to its containing folder.

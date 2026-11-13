@@ -1,8 +1,11 @@
 //! The private, versioned media capability protocol. This library never starts a decoder.
 //! Worker runtime/decode implementation belongs exclusively to the separate executable.
 #![forbid(unsafe_code)]
+mod diagnostics;
+pub use diagnostics::{Diagnostic, Reason, Stage, rejection_reason};
 use serde::{Deserialize, Serialize};
 pub const PATH: &str = "/v1/derive";
+pub const DECODER_PATH: &str = "/v1/decoder";
 pub const MAX_INPUT: u64 = 64 * 1024 * 1024;
 pub const MAX_OUTPUT: usize = 256 * 1024;
 pub const MAX_PIXELS: u64 = 40_000_000;
@@ -22,6 +25,8 @@ pub enum Failure {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorBody {
     pub error: Failure,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic: Option<Diagnostic>,
 }
 
 #[derive(Clone, Copy)]

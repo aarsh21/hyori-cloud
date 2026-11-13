@@ -48,6 +48,30 @@ describe("public non-React SDK with explicit fake API (not real storage evidence
     ).toBe(false);
   });
 
+  test("upload metadata retains the public checkpoint integer boundary", () => {
+    const client = createClient({ fetch: fakeAPI().fetch });
+    const file = localFile();
+
+    try {
+      for (const lastModified of [Number.MAX_SAFE_INTEGER + 1, 1.5, Infinity]) {
+        expect(() =>
+          client.uploads.start({
+            parentId: null,
+            file: {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified,
+              slice: (start, end) => file.slice(start, end),
+            },
+          }),
+        ).toThrow(SDKError);
+      }
+    } finally {
+      client.dispose();
+    }
+  });
+
   test("owns bounded chunk sequencing, retry, acknowledged progress, and streamed download", async () => {
     const api = fakeAPI();
     api.failParts(1);

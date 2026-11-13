@@ -334,3 +334,131 @@ async fn unfinished_filters_prefix_neighbours_even_on_a_conforming_s3_service() 
             .any(|(name, value)| name == "uploadId" && value == "exact-id")
     );
 }
+
+#[tokio::test]
+#[ignore = "two real 120-second part deadlines against loopback HTTP"]
+async fn part_deadline_distinguishes_an_unfinished_source_from_a_storage_response_stall() {
+    use futures_util::{StreamExt, stream};
+    use hyori_storage::{Bytes, StorageStream};
+
+    for slow_source in [true, false] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let storage = ObjectStorage::new(StorageConfig {
+            endpoint: format!("http://{}", listener.local_addr().unwrap()),
+            region: "us-east-1".into(),
+            bucket: "hyori-part-deadline".into(),
+            access_key_id: Uuid::new_v4().simple().to_string(),
+            secret_access_key: Uuid::new_v4().simple().to_string(),
+        })
+        .unwrap();
+        // Consume everything sent, but withhold the storage response in both cases.
+        let reader = tokio::spawn(async move {
+            let (mut connection, _) = listener.accept().await.unwrap();
+            let mut buffer = [0; 4096];
+            while connection.read(&mut buffer).await.unwrap_or(0) > 0 {}
+        });
+        let source: StorageStream = if slow_source {
+            Box::pin(stream::iter(0..32).then(|_| async {
+                tokio::time::sleep(Duration::from_secs(6)).await;
+                Ok(Bytes::from_static(b"a"))
+            }))
+        } else {
+            Box::pin(stream::once(async { Ok(Bytes::from(vec![b'a'; 32])) }))
+        };
+        let started = std::time::Instant::now();
+        let result = storage
+            .part("owners/fault/key", "upload", 1, 32, source)
+            .await;
+
+        if slow_source {
+            assert!(
+                matches!(result, Err(StorageError::PartDeadline)),
+                "{result:?}"
+            );
+        } else {
+            assert!(
+                matches!(result, Err(StorageError::Transport { operation: "part" })),
+                "{result:?}"
+            );
+        }
+        assert!(started.elapsed() >= Duration::from_secs(119));
+        assert!(started.elapsed() < Duration::from_secs(125));
+        reader.abort();
+        let _ = reader.await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "two real 120-second part deadlines against storage that stops reading"]
+async fn storage_backpressure_is_not_the_uploaders_slow_connection() {
+    use futures_util::{StreamExt, stream};
+    use hyori_storage::{Bytes, StorageStream};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    };
+    use tokio::net::TcpSocket;
+
+    const FRAME: usize = 64 * 1024;
+    const FRAMES: u64 = 128;
+    for trickling in [false, true] {
+        // Accepted connections inherit this buffer: the kernel cannot absorb the whole 8 MiB.
+        let socket = TcpSocket::new_v4().unwrap();
+        socket.set_recv_buffer_size(4096).unwrap();
+        socket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+        let listener = socket.listen(8).unwrap();
+        let storage = ObjectStorage::new(StorageConfig {
+            endpoint: format!("http://{}", listener.local_addr().unwrap()),
+            region: "us-east-1".into(),
+            bucket: "hyori-part-backpressure".into(),
+            access_key_id: Uuid::new_v4().simple().to_string(),
+            secret_access_key: Uuid::new_v4().simple().to_string(),
+        })
+        .unwrap();
+        let holder = tokio::spawn(async move {
+            let (connection, _) = listener.accept().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(600)).await;
+            drop(connection);
+        });
+        let started = std::time::Instant::now();
+        let taken = Arc::new(AtomicU64::new(0));
+        let last_taken_ms = Arc::new(AtomicU64::new(0));
+        let (count, last) = (taken.clone(), last_taken_ms.clone());
+        let source: StorageStream = Box::pin(stream::iter(0..FRAMES).then(move |_| {
+            let (count, last) = (count.clone(), last.clone());
+            async move {
+                if trickling {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+                count.fetch_add(FRAME as u64, Ordering::Relaxed);
+                last.store(started.elapsed().as_millis() as u64, Ordering::Relaxed);
+                Ok(Bytes::from(vec![b'a'; FRAME]))
+            }
+        }));
+        let result = storage
+            .part(
+                "owners/fault/key",
+                "upload",
+                1,
+                FRAMES * FRAME as u64,
+                source,
+            )
+            .await;
+        eprintln!(
+            "storage stopped reading (trickling={trickling}): {result:?} after {:.1}s; polled {} of {} bytes, last at {}ms",
+            started.elapsed().as_secs_f64(),
+            taken.load(Ordering::Relaxed),
+            FRAMES * FRAME as u64,
+            last_taken_ms.load(Ordering::Relaxed),
+        );
+        holder.abort();
+        let _ = holder.await;
+        assert!(
+            matches!(result, Err(StorageError::Transport { operation: "part" })),
+            "storage backpressure must not blame the uploader: {result:?}"
+        );
+        assert!(taken.load(Ordering::Relaxed) < FRAMES * FRAME as u64);
+        assert!(started.elapsed() >= Duration::from_secs(119));
+        assert!(started.elapsed() < Duration::from_secs(125));
+    }
+}

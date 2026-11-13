@@ -24,7 +24,9 @@ import {
   createFakeApi,
   deferred,
   fileEntry,
+  fileList,
   fireEvent,
+  folderEntry,
   mount,
   screen,
   test,
@@ -53,7 +55,11 @@ test("a cancelled destination keeps its filename through exit and uses the next 
   const requests = createDestinationRequests();
 
   mount(
-    <DestinationDialog requests={requests} destination={{ kind: "none" }} />,
+    <DestinationDialog
+      requests={requests}
+      destination={{ kind: "none" }}
+      sessionId={DOCUMENT.sessionId}
+    />,
     createFakeApi({}),
   );
   const options = { signal: new AbortController().signal };
@@ -75,6 +81,48 @@ test("a cancelled destination keeps its filename through exit and uses the next 
   expect(await screen.findByRole("heading", { name: "Save “Budget.xlsx” to…" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(await choice!).toBeNull();
+});
+
+test("copy names follow the selected folder and refresh for the next copy", async () => {
+  const requests = createDestinationRequests();
+  let next = 7;
+
+  const api = createFakeApi({
+    "files.list": () => fileList([folderEntry({ id: "copies", name: "Copies" })]),
+    "files.get": () => folderEntry({ id: "copies", name: "Copies" }),
+    "editors.suggestCopyName": ({ parentId }) =>
+      parentId === null ? "Budget (2).pptx" : `Budget (${next}).pptx`,
+  });
+
+  mount(
+    <DestinationDialog
+      requests={requests}
+      destination={{ kind: "folder", folderId: null }}
+      sessionId={DOCUMENT.sessionId}
+    />,
+    api,
+  );
+  const options = { signal: new AbortController().signal };
+  let choice: ReturnType<typeof requests.choose>;
+
+  act(() => {
+    choice = requests.choose({ name: "Budget.pptx", intent: "save-as" }, options);
+  });
+  await screen.findByRole("heading", { name: "Save “Budget (2).pptx” to…" });
+  fireEvent.click(await screen.findByRole("button", { name: "Copies" }));
+  await screen.findByRole("heading", { name: "Save “Budget (7).pptx” to…" });
+  fireEvent.click(screen.getByRole("button", { name: "Save here" }));
+  expect(await choice!).toEqual({ parentId: "copies", name: "Budget (7).pptx" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  next = 8;
+  act(() => {
+    choice = requests.choose({ name: "Budget.pptx", intent: "save-as" }, options);
+  });
+  await screen.findByRole("heading", { name: "Save “Budget (2).pptx” to…" });
+  fireEvent.click(await screen.findByRole("button", { name: "Copies" }));
+  await screen.findByRole("heading", { name: "Save “Budget (8).pptx” to…" });
+  fireEvent.click(screen.getByRole("button", { name: "Save here" }));
+  expect(await choice!).toEqual({ parentId: "copies", name: "Budget (8).pptx" });
 });
 
 function mountedFrame() {
@@ -308,6 +356,7 @@ describe("the editor screen", () => {
         mimeType: "application/octet-stream",
       }),
       "files.get": () => OWNED,
+      "editors.suggestCopyName": (input) => String(input.name),
       ...handlers,
     });
   }

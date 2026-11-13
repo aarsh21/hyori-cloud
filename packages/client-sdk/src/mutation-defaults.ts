@@ -1,4 +1,4 @@
-import { operations } from "@hyori-cloud/api/rpc";
+import { operations } from "@hyori-cloud/api/wire";
 import type { MutationObserverOptions, QueryClient } from "@hyori-cloud/lib/query-core";
 import { reconcileCredentialTransition } from "#client-sdk/features/auth/credential-transition";
 import type { Failure, OperationDeclaration, Payload, Success } from "#client-sdk/inference";

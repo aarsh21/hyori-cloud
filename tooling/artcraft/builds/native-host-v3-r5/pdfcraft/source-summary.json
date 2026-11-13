@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-source-summary",
+  "app": "pdfcraft",
+  "artifactVersion": "0.17.0-hyori-host.5",
+  "upstreamVersion": "0.17.0",
+  "productPresentation": "Hyori PDF",
+  "sourcePin": {
+    "url": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.17.0",
+    "sha256": "51f6c4ff4a71809f00a93356d074816e89afe0dfd4f8fcc6be42e59f63c78365",
+    "commit": "7d78f3e14474b978be014715e0cc64895d77025a"
+  },
+  "sourceCargoLockSha256": "74c44e8189b9b017cb9e975ef725263deb3cb951acf9b85adca6cabe392047dd",
+  "cargoLockUnchanged": true,
+  "cargoManifestsUnchanged": true,
+  "stages": [
+    "direct-native-methods",
+    "app-native-hookup",
+    "opaque-document-print",
+    "shared-native-frame",
+    "hyori-chrome-palette",
+    "marks-removed"
+  ],
+  "paletteCssSha256": "c3211690ba6916dd259d397da520f188d4c05dc88708d2460d0e39740311105f",
+  "hostJavaScriptSha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82",
+  "changedFiles": [
+    {
+      "path": "apps/pdfcraft-web/hyori-mark.ico",
+      "before": null,
+      "after": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "apps/pdfcraft-web/hyori-native-host.js",
+      "before": null,
+      "after": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "apps/pdfcraft-web/index.html",
+      "before": "139837866320cf67a49e49f5ccc6c6b58e0bfeec8128833fc13dce259a5eac31",
+      "after": "9d8220b8376a74c34ddab02dae52d9c05e1ffd164d8b3f24eb6b66ae2d7eaf14"
+    },
+    {
+      "path": "apps/pdfcraft-web/src/main.rs",
+      "before": "57b0116b7a8db753d3026c15b592cd9815f7e3d06f4080530cb0201ddf060b67",
+      "after": "987fa25579e6c9f80cb5bfd198d280625f7ddaea3bdecc3339b1901387820962"
+    },
+    {
+      "path": "apps/pdfcraft-web/src/native_frame.rs",
+      "before": null,
+      "after": "23a78a0f3213c1e3e81a5d79d1a880165027abf15083c8487ef231b5043e50da"
+    },
+    {
+      "path": "apps/pdfcraft-web/src/native_host.rs",
+      "before": null,
+      "after": "2152c4bc7b5e04b07782eefaca0ba789ec415a88a0b4cce67d216ba53ccfe8f4"
+    },
+    {
+      "path": "apps/pdfcraft-web/src/native_host/clock.rs",
+      "before": null,
+      "after": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "assets/hyori-mark.png",
+      "before": null,
+      "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "crates/engine/src/commands.rs",
+      "before": "a0be0e484b8be8093792dbc91057971ca3a881f0bab0dfcb7b92c1e1f3f00b9c",
+      "after": "8888b086086ebb94ad937f0268b7dabffb8844c113da20e7ff3525027cc67ad2"
+    },
+    {
+      "path": "crates/engine/src/links.rs",
+      "before": "c3dad51e02f3d4f1783c56c7d4b255897ac6a6771d52f4bfe2c261e6dc9fdb65",
+      "after": "edb84e6d35305acd06be3b44759b4828276cf5c8930f8252206a8d8280b250c6"
+    },
+    {
+      "path": "crates/ui-egui/hyori-pdf-print.js",
+      "before": null,
+      "after": "1a971eb7a3b7693ca6718f86781898093bbcbeddbffda34447af6b5f342b921f"
+    },
+    {
+      "path": "crates/ui-egui/src/app.rs",
+      "before": "f9331b42dfcd51ae04f8f6a02142a070387295d4f91cb126d551f10bae7da2c0",
+      "after": "f6de1155a4001215f16a961d20ab564f590276086943f0964736712f4e495b66"
+    },
+    {
+      "path": "crates/ui-egui/src/app/files.rs",
+      "before": "8b2d12f1850ea5ed1a40e3449905d39ac1fd78cc5ca4395ad0b0d9569e92dfa9",
+      "after": "4b78831ffc3c03abdd5cf46ac2c07e2ff83507370c64897d526eba29c47ba280"
+    },
+    {
+      "path": "crates/ui-egui/src/chrome.rs",
+      "before": "b8da91a1fdfa5546c02c74c8763a82af91726ba7e2e0e3f1c716494a581cf200",
+      "after": "77ebf87e8f969b5d8db54f698aa00a599ee69f43bff214d2deda46e65b470bae"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs.rs",
+      "before": "9a5dd00b7677138b8c24d7ed58bf1b58e647ab4b775cac8d3e866466aa30d218",
+      "after": "893620e2d21ba6e8ee3bc24d26847bb1d3e7c60db307619b119522a7074a59b9"
+    },
+    {
+      "path": "crates/ui-egui/src/editing.rs",
+      "before": "e9ec9639449fee27f5c4ede063b37ae1a26b94e73fff1399d0de7e350dc9e86a",
+      "after": "69a4ef8917cfc5ac6da38808cccb964bde52fdbb319189efa7eb7353bf7142c5"
+    },
+    {
+      "path": "crates/ui-egui/src/editing/native_host.rs",
+      "before": null,
+      "after": "e7842cd50d756d3c51f3e209e7780453ae668415b12304307d6c66f3e834d297"
+    },
+    {
+      "path": "crates/ui-egui/src/editing/save.rs",
+      "before": "b82cd5f91c5c558dd9c951c15131edc262b465640f702b75e66ec34a8c4f5991",
+      "after": "9b3b62810406a055f0ad886f0424bfc476cc683d8808e9bcb90b424e47007391"
+    },
+    {
+      "path": "crates/ui-egui/src/home.rs",
+      "before": "f314e4c16a558e089f3cd29b4f4ea53c8b01e07b107ede718947e2729326d3d9",
+      "after": "36675cbd3ad1fe96d81aa6da56fb365c8a18ba1ceacdd1be8f2a4fa5a7a49d35"
+    },
+    {
+      "path": "crates/ui-egui/src/lib.rs",
+      "before": "ff2bf9bf0fe96363d70b5fb3280a13fedb00dd99e8aed1cd548e7be74637328a",
+      "after": "6bda1e0f2fd12d916af6a96b186d8ba51a570faac2d399822a7fcb8d2f066fc9"
+    },
+    {
+      "path": "crates/ui-egui/src/menus.rs",
+      "before": "4bdec8e8e17d0dd534e8eb21efdda422b4eb9186461e3c7508247d9f452e0b34",
+      "after": "ff0b26dbe58f29bcb4718a167a29ac168992a0204888c0762346e91d8e49fe45"
+    },
+    {
+      "path": "crates/ui-egui/src/theme.rs",
+      "before": "b0b8abf78ee8e6199f0cb479dd9b88052a7dcad820541c721a9e78ffa8a69dd9",
+      "after": "fb45331dd58afad3508bdcc245738c58f4004e2a20bb06c2d712f032af147bee"
+    },
+    {
+      "path": "crates/ui-egui/src/widgets.rs",
+      "before": "9e24c1c90992845e0819044705171655ae53e659a688fdbf100bd8583d32fc64",
+      "after": "b3bb526972bec9b68e27df70bb928e5bf9c0173bf627dd14b0d5f517285a45cc"
+    },
+    {
+      "path": "crates/ui-egui/src/workflows/web_print.rs",
+      "before": "82cc646485a812718398596e73ad5f262dc1399d529fc5319de37d48191f2226",
+      "after": "9540bc79b849d8a1e7ab952fac1e9b52703c9502a1a33e702f41bf541f632ea8"
+    }
+  ],
+  "originalLegalBytesUnchanged": [
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "cd7032ea33b71427f188e34ffb4aee9d6868a57fd196037c5c8b2be03a2a0352"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "9f854f730719af962cd840529324d089e05e68a30bd245c50e33f96e009b4314"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "sha256": "8ece0d5145eb7720bc562db8d209efe641862c088e9c764833721305be7a98c1"
+    },
+    {
+      "path": "docs/brand/LICENSE-brand.txt",
+      "sha256": "0f33f48e7a96cd359d4e4e5b11424b13cebeb59cc70c77928186695e4173585c"
+    }
+  ],
+  "dependencyGraphEqualsNoticedUpstreamGraph": {
+    "targetNormalPackages": 363,
+    "hostInclusivePackages": 411
+  }
+}

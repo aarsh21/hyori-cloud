@@ -2,7 +2,9 @@ export { createClient } from "#client-sdk/client";
 
 export type { Client, ClientOptions } from "#client-sdk/client";
 
-export { ClientError, normalizeClientError, SDKError } from "#client-sdk/errors";
+export { ClientError } from "#client-sdk/error-schema";
+
+export { normalizeClientError, SDKError } from "#client-sdk/errors";
 
 export type { InputOf, OutputOf, ErrorOf } from "#client-sdk/inference";
 
@@ -41,11 +43,9 @@ export {
 
 export { UploadSnapshot } from "#client-sdk/features/uploads/upload-state";
 
-export {
-  UploadIntent,
-  UploadFailure,
-  getUploadFailure,
-} from "#client-sdk/features/uploads/upload-intent";
+export { UploadIntent, UploadFailure } from "#client-sdk/features/uploads/upload-intent";
+
+export { getUploadFailure } from "#client-sdk/features/uploads/upload-failure";
 
 export { createUploadQueue } from "#client-sdk/features/uploads/upload-queue";
 

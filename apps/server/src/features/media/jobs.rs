@@ -8,7 +8,7 @@ use crate::{
         media::service,
     },
 };
-use hyori_media_worker::{Failure, RECIPE, png_dimensions, webp_dimensions};
+use hyori_media_worker::{ErrorBody, Failure, RECIPE, Reason, png_dimensions, webp_dimensions};
 use hyori_storage::{Bytes, PartRef};
 use sea_orm::{ConnectionTrait, QueryResult};
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -22,6 +22,8 @@ struct Job {
     mime: String,
     token: String,
     attempts: i32,
+    upgrade_retry: bool,
+    revision: Option<String>,
 }
 impl Job {
     fn from_row(row: QueryResult) -> DomainResult<Self> {
@@ -33,6 +35,8 @@ impl Job {
             mime: row.try_get("", "source_mime")?,
             token: row.try_get("", "lease_token")?,
             attempts: row.try_get("", "attempts")?,
+            upgrade_retry: row.try_get("", "upgrade_retry")?,
+            revision: row.try_get("", "decoder_revision")?,
         })
     }
 }
@@ -84,7 +88,7 @@ async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
         WHERE i.id>$3 AND i.id<=$4 AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
         AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
         AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
-        ORDER BY i.id",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.into(),last.clone().into()])).await?
+        ORDER BY i.id",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.clone().into(),last.clone().into()])).await?
         .into_iter().map(|row| row.try_get::<String>("", "id")).collect::<Result<Vec<_>, _>>()?;
     if !candidates.is_empty() {
         db::domain(&state.db,|tx|{let ids=serde_json::json!(candidates);Box::pin(async move {
@@ -97,6 +101,11 @@ async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
             Ok(())
         })}).await?;
     }
+    if let Some(worker) = &state.media_worker {
+        if let Some(revision) = worker.decoder_revision().await {
+            super::upgrades::requeue_page(state, &after, &last, &revision).await?;
+        }
+    }
     *cursor = if seen < DISCOVERY_PAGE {
         String::new()
     } else {
@@ -107,7 +116,12 @@ async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
 /// Claim and process the next due job; false when nothing was due or settled.
 pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError> {
     let runnable = state.media_worker.is_some() && state.storage.is_some();
-    let (job,settled)=db::domain(&state.db,|tx|Box::pin(async move {
+    let revision = if let Some(worker) = &state.media_worker {
+        worker.decoder_revision().await
+    } else {
+        None
+    };
+    let (job,settled)=db::domain(&state.db,|tx|{let revision=revision.clone();Box::pin(async move {
         // Only a bounded head is read and locked before anything is classified, so jobs no claim
         // can run never make a claim scan them, or every item. Each one examined is settled so it
         // leaves the head: a source nothing refers to any more can never be reached again, so its
@@ -116,19 +130,21 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
         // first runnable one is claimed. Without a decoder only expired leases are examined, and
         // a runnable one is released back to the queue.
         let head = if runnable {
-            "j.due_at<=now() AND ((j.state='queued' AND j.attempts<6) OR (j.state='processing' AND j.lease_until<=now())) ORDER BY j.due_at,j.id"
+            "j.due_at<=now() AND ((j.state='queued' AND j.attempts<6 AND (NOT j.upgrade_retry OR j.decoder_revision=$2)) OR (j.state='processing' AND j.lease_until<=now())) ORDER BY j.upgrade_retry,j.due_at,j.id"
         } else {
             "j.state='processing' AND j.lease_until<=now() ORDER BY j.lease_until,j.id"
         };
-        let rows=tx.query_all_raw(sql(&format!("WITH c AS MATERIALIZED (SELECT j.id,j.owner_id,j.source_key,j.state,j.attempts,j.due_at,j.lease_until FROM hyori_media_jobs j WHERE {head} LIMIT $1 FOR UPDATE OF j SKIP LOCKED)
+        let values = if runnable { vec![CLAIM_WINDOW.into(),revision.clone().into()] } else { vec![CLAIM_WINDOW.into()] };
+        let rows=tx.query_all_raw(sql(&format!("WITH c AS MATERIALIZED (SELECT j.id,j.owner_id,j.source_key,j.state,j.attempts,j.due_at,j.lease_until,j.upgrade_retry FROM hyori_media_jobs j WHERE {head} LIMIT $1 FOR UPDATE OF j SKIP LOCKED)
             SELECT c.id,CASE
                 WHEN NOT EXISTS(SELECT 1 FROM hyori_items i WHERE i.object_key=c.source_key)
                     AND NOT EXISTS(SELECT 1 FROM hyori_versions v WHERE v.object_key=c.source_key) THEN 'retire'
+                WHEN c.state='processing' AND c.upgrade_retry THEN 'retry_upgrade'
                 WHEN c.state='processing' AND c.attempts>=3 THEN 'timeout'
                 WHEN EXISTS(SELECT 1 FROM hyori_users u WHERE u.id=c.owner_id AND u.status='active')
                     AND EXISTS(SELECT 1 FROM hyori_items i WHERE i.owner_id=c.owner_id AND i.object_key=c.source_key AND i.trashed_at IS NULL) THEN 'claim'
                 ELSE 'defer' END AS action
-            FROM c ORDER BY c.due_at,c.lease_until,c.id"),vec![CLAIM_WINDOW.into()])).await?;
+            FROM c ORDER BY c.upgrade_retry,c.due_at,c.lease_until,c.id"),values)).await?;
         let mut claim=None;
         let mut settle:HashMap<String,Vec<String>>=HashMap::new();
         for row in rows {
@@ -140,8 +156,10 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
                 _ => settle.entry(action).or_default().push(id),
             }
         }
+        let retry_upgrade=format!("UPDATE hyori_media_jobs SET {},failure='timeout',failure_detail=NULL WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))",super::upgrades::TRANSIENT_UPDATE);
         for (action,statement) in [
             ("retire","DELETE FROM hyori_media_jobs WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
+            ("retry_upgrade",retry_upgrade.as_str()),
             ("timeout","UPDATE hyori_media_jobs SET state='failed',failure='timeout',lease_token=NULL,lease_until=NULL WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
             ("defer","UPDATE hyori_media_jobs SET state='queued',lease_token=NULL,lease_until=NULL,due_at=now()+interval '1 hour',deferred=true WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
             ("release","UPDATE hyori_media_jobs SET state='queued',lease_token=NULL,lease_until=NULL WHERE id IN (SELECT jsonb_array_elements_text($1::jsonb))"),
@@ -152,21 +170,27 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
         }
         let settled=!settle.is_empty();
         let Some(id)=claim else {return Ok((None,settled));};
-        let claimed=tx.query_one_raw(sql("UPDATE hyori_media_jobs SET state='processing',attempts=attempts+1,deferred=false,lease_token=$2,lease_until=now()+interval '5 minutes' WHERE id=$1 RETURNING *",vec![id.into(),random_token().into()])).await?.ok_or_else(ApiError::unavailable)?;
+        let claimed=tx.query_one_raw(sql("UPDATE hyori_media_jobs SET state='processing',attempts=attempts+1,deferred=false,decoder_revision=$3,lease_token=$2,lease_until=now()+interval '5 minutes' WHERE id=$1 RETURNING *",vec![id.into(),random_token().into(),revision.into()])).await?.ok_or_else(ApiError::unavailable)?;
         Ok((Some(Job::from_row(claimed)?),settled))
-    })).await?;
+    })}).await?;
     let Some(job) = job else {
         // Settling the head is progress: the next claim reaches what was waiting behind it.
         return Ok(settled);
     };
     let result = tokio::time::timeout(Duration::from_secs(120), process(state, &job))
         .await
-        .unwrap_or(Err(Failure::Timeout));
-    if let Err(failure) = result {
+        .unwrap_or(Err(Failure::Timeout.into()));
+    if let Err(error) = result {
+        let failure = error.error;
         let terminal = matches!(
             failure,
             Failure::Unsupported | Failure::InvalidMedia | Failure::ResourceLimit
         );
+        // Only a diagnosed stage deadline proves decoding ran; bare timeouts can be transfer stalls.
+        let decoder_deadline = failure == Failure::Timeout
+            && error
+                .diagnostic
+                .is_some_and(|d| matches!(d.reason, Reason::Deadline));
         let status = if terminal {
             "unsupported"
         } else if job.attempts < 3 {
@@ -179,11 +203,21 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
             .as_str()
             .ok_or_else(ApiError::unavailable)?
             .to_owned();
-        state.db.execute_raw(sql("UPDATE hyori_media_jobs SET state=$3,failure=$4,lease_token=NULL,lease_until=NULL,due_at=now()+$5::bigint*interval '1 second' WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),status.into(),failure.into(),(10_i64*2_i64.pow(job.attempts as u32)).into()])).await?;
+        let detail = error
+            .diagnostic
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|_| ApiError::unavailable())?;
+        tracing::warn!(job_id=%job.id, failure=%failure, diagnostic=?error.diagnostic, "media derivation failed");
+        if job.upgrade_retry && !terminal && !decoder_deadline {
+            state.db.execute_raw(sql(&format!("UPDATE hyori_media_jobs SET {},failure=$3,failure_detail=$4 WHERE id=$1 AND lease_token=$2",super::upgrades::TRANSIENT_UPDATE),vec![job.id.into(),job.token.into(),failure.into(),detail.into()])).await?;
+        } else {
+            state.db.execute_raw(sql("UPDATE hyori_media_jobs SET state=$3,failure=$4,failure_detail=$6,lease_token=NULL,lease_until=NULL,due_at=now()+$5::bigint*interval '1 second' WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),status.into(),failure.into(),(10_i64*2_i64.pow(job.attempts as u32)).into(),detail.into()])).await?;
+        }
     }
     Ok(true)
 }
-async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
+async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), ErrorBody> {
     let storage = state.storage.as_ref().ok_or(Failure::Unavailable)?;
     let worker = state.media_worker.as_ref().ok_or(Failure::Unavailable)?;
     let source = storage
@@ -191,9 +225,11 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
         .await
         .map_err(|_| Failure::Unavailable)?;
     if source.size != job.size as u64 {
-        return Err(Failure::InvalidMedia);
+        return Err(Failure::InvalidMedia.into());
     }
-    let (bytes, mime) = worker.derive(&job.mime, source.size, source.body).await?;
+    let (bytes, mime) = worker
+        .derive(&job.mime, source.size, source.body, job.revision.as_deref())
+        .await?;
     let (width, height) = if mime == "image/webp" {
         webp_dimensions(&bytes)
     } else {
@@ -220,7 +256,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
             current(tx,&job).await?;
             let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state='ready',size=$2,width=$3,height=$4,cleanup_due=now(),clean_checks=0 WHERE id=$1 AND state='starting'",vec![artifact.clone().into(),(size as i64).into(),(width as i32).into(),(height as i32).into()])).await?;
             if changed.rows_affected()!=1 {return Err(ApiError::conflict().into());}
-            tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='ready',artifact_id=$3,failure=NULL,lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),artifact.into()])).await?;
+            tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='ready',artifact_id=$3,failure=NULL,failure_detail=NULL,upgrade_retry=false,lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),artifact.into()])).await?;
             Ok(())
         })}).await.map_err(|_|Failure::Unavailable)
     }.await;
@@ -228,7 +264,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), Failure> {
         // An ambiguous DB acknowledgement may already have published. Never abort a ready artifact.
         let _=state.db.execute_raw(sql("UPDATE hyori_media_artifacts SET state='aborted',cleanup_due=now(),clean_checks=0 WHERE id=$1 AND state<>'ready'",vec![artifact.into()])).await;
     }
-    publish
+    publish.map_err(Into::into)
 }
 async fn current(tx: &sea_orm::DatabaseTransaction, job: &Job) -> DomainResult<()> {
     let owner = tx

@@ -11,9 +11,10 @@ use sha2::{Digest, Sha256};
 /// Every upload reservation and publication updates its owner's `hyori_users` row, so under
 /// SERIALIZABLE two that overlap always cost one of them a retry, and a busy batch can exhaust
 /// the budget. Queueing them here first leaves retries for contention this process can't see.
-/// Striped, so different owners rarely wait on each other; the stripe is only a hint.
-pub(crate) struct OwnerLocks([tokio::sync::Mutex<()>; 64]);
-impl OwnerLocks {
+/// Collaboration uses a separate instance keyed by document for the same reason. Striped,
+/// so different keys rarely wait on each other; the stripe is only a contention hint.
+pub(crate) struct KeyLocks([tokio::sync::Mutex<()>; 64]);
+impl KeyLocks {
     pub(crate) fn new() -> Self {
         Self(std::array::from_fn(|_| tokio::sync::Mutex::new(())))
     }
@@ -171,6 +172,19 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
         (
             20_i32,
             include_str!("../migrations/0020_thumbnail_geometry.sql"),
+        ),
+        (21_i32, include_str!("../migrations/0021_file_sorting.sql")),
+        (
+            22_i32,
+            include_str!("../migrations/0022_media_decoder_revision.sql"),
+        ),
+        (
+            23_i32,
+            include_str!("../migrations/0023_media_upgrade_backoff.sql"),
+        ),
+        (
+            24_i32,
+            include_str!("../migrations/0024_notes_collaboration.sql"),
         ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));

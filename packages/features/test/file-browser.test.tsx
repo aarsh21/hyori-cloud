@@ -48,6 +48,44 @@ function renderAt(path: string, api: ReturnType<typeof signedInApi>) {
 }
 
 describe("server-computed rename access", () => {
+  test("successive row menus act on their own file and Escape restores the trigger", async () => {
+    renderAt("/folders/folder_a", signedInApi());
+
+    const first = await screen.findByRole("button", { name: "Actions for roadmap.pdf" });
+    fireEvent.click(first);
+    const menu = await screen.findByRole("menu");
+    fireEvent.keyDown(menu, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(first));
+
+    const second = screen.getByRole("button", { name: "Actions for notes.txt" });
+    fireEvent.click(second);
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Rename/ }));
+
+    expect((await screen.findByRole<HTMLInputElement>("textbox", { name: "Name" })).value).toBe(
+      "notes.txt",
+    );
+  });
+
+  test("a refetch removing the open menu's row closes it without affecting another row", async () => {
+    const api = signedInApi();
+    const view = renderAt("/folders/folder_a", api);
+    fireEvent.click(await screen.findByRole("button", { name: "Actions for roadmap.pdf" }));
+    await screen.findByRole("menu");
+
+    api.handlers["files.list"] = () => fileList([NOTES], FOLDER_A, []);
+    await view.refetchActive();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Actions for roadmap.pdf" })).toBeNull();
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for notes.txt" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Rename/ }));
+    expect((await screen.findByRole<HTMLInputElement>("textbox", { name: "Name" })).value).toBe(
+      "notes.txt",
+    );
+  });
+
   for (const canRename of [false, true]) {
     test(`an Editor ${canRename ? "can" : "cannot"} rename through the menu and F2`, async () => {
       const entry = fileEntry({

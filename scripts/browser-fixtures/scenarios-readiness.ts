@@ -6,6 +6,7 @@ import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { PHONE } from "./scenarios-touch.ts";
 import { runReadinessPhotoScenarios } from "./scenarios-readiness-photos.ts";
+import { runSortingScenarios } from "./scenarios-sorting.ts";
 import {
   chooseWith,
   downloadBytes,
@@ -598,13 +599,11 @@ export async function runReadinessScenarios(run: CoreRun) {
     }
   }
 
-  run.report.unverified(
-    "File sorting (desktop and phone)",
-    "The Files screen offers name search and type/date/size filters, but no user-facing sorting control.",
-  );
-
   for (const phone of [false, true]) {
     const label = phone ? "Phone" : "Desktop";
+    await run.report.scenario(`${label} readiness: file sorting`, () =>
+      runSortingScenarios(run, phone),
+    );
     await run.report.scenario(`${label} readiness: file lifecycle`, () => lifecycle(run, phone));
     await run.report.scenario(`${label} readiness: multipart transfers`, () =>
       transfers(run, phone),

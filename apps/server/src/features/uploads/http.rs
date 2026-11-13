@@ -392,6 +392,21 @@ pub(crate) async fn stream_content(
         .map_err(|_| ApiError::unavailable())
 }
 
+/// Native exports use the same admission lifetime and deadlines as storage-backed downloads.
+pub(crate) fn stream_bytes(bytes: Vec<u8>, permit: tokio::sync::OwnedSemaphorePermit) -> Body {
+    let bytes = Bytes::from(bytes);
+    let chunks = stream::iter(
+        (0..bytes.len())
+            .step_by(64 * 1024)
+            .map(move |start| Ok(bytes.slice(start..(start + 64 * 1024).min(bytes.len())))),
+    );
+    let slot = DOWNLOAD_SLOT
+        .try_with(|slot| slot.borrow_mut().take())
+        .ok()
+        .flatten();
+    Body::from_stream(relay(Box::pin(chunks), (permit, slot), IDLE))
+}
+
 /// Hyper polls a response body only while the client reads, so deadlines inside the body never
 /// fire for a stalled reader. A spawned producer owns the storage stream and the admission, and
 /// gives up when storage or the reader is idle for `idle` or the body passes its deadline.

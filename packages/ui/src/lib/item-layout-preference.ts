@@ -1,3 +1,5 @@
+import { mirrorBrowserPreferences } from "@hyori-cloud/ui/lib/browser-preferences";
+
 export type ItemLayout = "list" | "grid";
 
 const STORAGE_KEY = "hyori-item-layout";
@@ -26,13 +28,18 @@ export function writeItemLayout(layout: ItemLayout) {
     unstored = layout;
   }
 
+  mirrorBrowserPreferences({ layout });
+
   for (const listener of listeners) listener();
 }
 
 /** Other tabs report changes through `storage`; this tab's own writes notify directly. */
 export function subscribeItemLayout(listener: () => void) {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY) listener();
+    if (event.key === STORAGE_KEY || event.key === null) {
+      mirrorBrowserPreferences();
+      listener();
+    }
   };
 
   listeners.add(listener);

@@ -8,7 +8,6 @@ import {
 import { ItemActionMenu } from "@hyori-cloud/ui/components/item-action-menu";
 import { OpenInEditorItem } from "#features/editors/react/open-in-editor-item.tsx";
 import { useFileActions } from "#features/files/react/file-actions.tsx";
-import { preloadFileDialogs } from "#features/files/react/file-dialog-loaders.ts";
 
 /** Offers only what this person may do. The server still authorizes every operation. */
 export function FileEntryMenu({ entry }: { entry: FileEntry }) {
@@ -22,12 +21,7 @@ export function FileEntryMenu({ entry }: { entry: FileEntry }) {
   if (!hasSecondaryActions) return null;
 
   return (
-    <ItemActionMenu
-      label={`Actions for ${entry.name}`}
-      onOpenChange={(open) => {
-        if (open) preloadFileDialogs();
-      }}
-    >
+    <ItemActionMenu label={`Actions for ${entry.name}`}>
       <OpenInEditorItem entry={entry} />
       {access.canShare ? (
         <DropdownMenuItem onClick={() => actions.openDialog({ kind: "share", id: entry.id })}>

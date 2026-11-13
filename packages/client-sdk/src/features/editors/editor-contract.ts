@@ -1,4 +1,4 @@
-import { EditorApp, EditorDocument as ProductEditorDocument } from "@hyori-cloud/api/rpc";
+import { EditorApp, EditorDocument as ProductEditorDocument } from "@hyori-cloud/api/client";
 import type { EditorIntent, EditorPrepareSave, EditorSaved } from "@hyori-cloud/api/rpc";
 import { Schema } from "@hyori-cloud/lib/effect";
 

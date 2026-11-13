@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-receipt",
+  "app": "wordcraft",
+  "artifactVersion": "0.14.0-hyori-host.5",
+  "bridge": "hyori-correlated-host-v3",
+  "protocol": 3,
+  "sourceArchiveSha256": "d35c399acbd438c3c536e31a78f35d3fc7074afcc992e8c7e092fc41fb866aa6",
+  "buildManifestSha256": "d83e5c4215e24de73420a1c3e39571f8fa8953915b9fa9e9830c8d32d355b366",
+  "sourceSummarySha256": "bd7e30cb025338a65236d1cf53bfc8ccdf0f2ff247bc88a5f044b3de0cc09cc6",
+  "wasmSha256": "1e99c7f8c2644a5ceed7290d6b95888b06acd27a3fc110033b219356b5d870dc",
+  "payloadSha256": "17d389b3998e5fb139f51cadc1c5f1bf127a812dec2b0db5c2f8c36b3b78181b",
+  "cspScriptHashes": [
+    "sha256-jwaV5GNCMmGiJ5Zom39KBRTDJ90see57zw90W6buVI8="
+  ],
+  "files": [
+    {
+      "path": "wordcraft/0.14.0-hyori-host.5/hyori-mark-1e3aa2eda2b94725.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "wordcraft/0.14.0-hyori-host.5/index.html",
+      "bytes": 1797,
+      "sha256": "ed84b1fdc65b444480e13d30517c13f81fd86184323919a78f817919bf65be2f"
+    },
+    {
+      "path": "wordcraft/0.14.0-hyori-host.5/snippets/eframe-d31a8450ea12dfc1/inline0.js",
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    },
+    {
+      "path": "wordcraft/0.14.0-hyori-host.5/snippets/wordcraft-web-320a272813e26a6a/hyori-native-host.js",
+      "bytes": 184183,
+      "sha256": "3416c2c5838e3ea5e7f21c53e3a27786c2b48314a2fc53189704f3c46ca2294a"
+    },
+    {
+      "path": "wordcraft/0.14.0-hyori-host.5/wordcraft-web-6cc0638e0394e415.js",
+      "bytes": 178411,
+      "sha256": "2f1fe1c0b4331abef80de2ebf59de052219ebb72d9ff2f07902bca8665b48ed7"
+    },
+    {
+      "path": "wordcraft/0.14.0-hyori-host.5/wordcraft-web-6cc0638e0394e415_bg.wasm",
+      "bytes": 46519820,
+      "sha256": "1e99c7f8c2644a5ceed7290d6b95888b06acd27a3fc110033b219356b5d870dc"
+    }
+  ]
+}

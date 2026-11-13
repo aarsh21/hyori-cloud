@@ -12,6 +12,9 @@ impl NativeHostAdapter for PdfCraftApp {
     fn host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
         self.native_host_poll_open()
     }
+    fn host_annotation_author(&mut self, display_name: &str) {
+        self.native_host_annotation_author(display_name);
+    }
     fn host_capture(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure> {
         self.native_host_capture_job(document_id, name, reason, intent_id)
     }

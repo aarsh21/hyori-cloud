@@ -65,6 +65,39 @@ function failListingWith(
   };
 }
 
+test("a refused first open explains the dead link without offering to open it again", async () => {
+  const api = publicApi();
+  api.handlers["shares.resolve"] = () => {
+    throw new ApiFailure("access.denied");
+  };
+
+  mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
+  expect(api.callsTo("shares.resolve")).toHaveLength(0);
+  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+
+  await screen.findByRole("heading", { name: "This link no longer works" });
+  expect(screen.getByRole("alert").textContent).toContain("This link no longer works");
+  expect(screen.getByText(/The link may have ended, or the address may be wrong/)).toBeTruthy();
+  expect(screen.getByText(/Ask the person who shared it to send a new link/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Open shared item|Try again/ })).toBeNull();
+});
+
+test("a temporary first-open failure can be retried without reloading", async () => {
+  const api = publicApi();
+  api.handlers["shares.resolve"] = () => {
+    throw new ApiFailure("service.unavailable");
+  };
+
+  mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
+  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+
+  const retry = await screen.findByRole("button", { name: "Try again" });
+  expect(screen.queryByText("This link no longer works")).toBeNull();
+  api.handlers["shares.resolve"] = () => OPENED;
+  fireEvent.click(retry);
+  expect(await screen.findByText("map.png")).toBeTruthy();
+});
+
 test("changing the public-link token resets the previous link's open state", async () => {
   const api = createFakeApi({
     "shares.resolve": () => ({
@@ -147,7 +180,7 @@ describe("a public link whose grant stopped working", () => {
     expect(await screen.findByText("map.png")).toBeTruthy();
   });
 
-  test("a revoked link says so and can be tried again", async () => {
+  test("a refused reopen ends on the dead-link explanation, but a fresh load can open it", async () => {
     const api = publicApi();
     const view = await openLinkIn(api);
 
@@ -160,15 +193,18 @@ describe("a public link whose grant stopped working", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Open link again" }));
 
-    const retry = await screen.findByRole("button", { name: "Try again" });
-
-    expect(screen.getByText(/This link is no longer available/)).toBeTruthy();
+    await screen.findByRole("heading", { name: "This link no longer works" });
+    expect(
+      screen.queryByRole("button", { name: /Try again|Open link again|Open shared item/ }),
+    ).toBeNull();
+    expect(screen.queryByText("map.png")).toBeNull();
+    view.rerender(null);
     api.handlers["shares.resolve"] = () => OPENED;
     api.handlers["files.list"] = listing;
-    fireEvent.click(retry);
+    mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
+    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
 
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Try again" })).toBeNull());
-    expect(screen.getByText("map.png")).toBeTruthy();
+    expect(await screen.findByText("map.png")).toBeTruthy();
   });
 
   test("a password link asks for its password again, then returns to the item", async () => {
@@ -477,8 +513,11 @@ describe("a public link whose grant stopped working", () => {
       fireEvent.click(screen.getByRole("button", { name: "Download" }));
       fireEvent.click(await screen.findByRole("button", { name: "Open link again" }));
 
-      await screen.findByText("This link is no longer available");
-      expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+      await screen.findByRole("heading", { name: "This link no longer works" });
+      expect(
+        screen.queryByRole("button", { name: /Try again|Open link again|Download/ }),
+      ).toBeNull();
+      expect(screen.queryByText(FILE.name)).toBeNull();
     });
 
     test("revoked access stops showing the file, and recovery brings it back", async () => {

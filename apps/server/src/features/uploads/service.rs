@@ -27,6 +27,9 @@ use std::{future::Future, sync::Arc, time::Duration};
 use tracing::Instrument;
 
 pub(crate) fn storage_error(error: StorageError) -> ApiError {
+    if matches!(error, StorageError::PartDeadline) {
+        return ApiError::new(ErrorCode::UploadTooSlow, "Upload part took too long");
+    }
     crate::observability::storage_error();
     // StorageError contains only owned operation/status/code diagnostics, never keys or requests.
     tracing::error!(category = "storage", %error, "storage operation failed");
@@ -659,6 +662,9 @@ pub(crate) async fn reserve(
     input: &BeginUpload,
     id: &str,
 ) -> db::DomainResult<Upload> {
+    if input.mime_type == crate::features::notes::service::MIME {
+        return Err(ApiError::invalid().into());
+    }
     let actor = files::resolve_actor(tx, context).await?;
     let parent = input.parent_id.0.as_ref().map(|id| id.0.as_str());
     let replacement = input.replace_id.as_ref().map(|id| id.0.as_str());

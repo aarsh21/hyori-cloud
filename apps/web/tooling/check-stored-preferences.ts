@@ -72,6 +72,7 @@ try {
         deviceScaleFactor: 2,
         hasTouch: mobile,
         isMobile: mobile,
+        colorScheme: process.env.HYORI_DELIVERY_APPEARANCE === "dark" ? "dark" : "light",
       });
 
       const label = `${mobile ? "phone" : "desktop"}-${choice}`;
@@ -163,6 +164,9 @@ try {
         await page.waitForTimeout(5_000);
         const entry = page.getByRole("button", { name: /^document-\d+\.txt/ }).first();
         const beforeVisible = await entry.isVisible();
+        const heldEntryBox = await entry.boundingBox();
+        const heldGrid = await page.locator('[data-slot="item-grid"]').isVisible();
+        const heldSidebar = await page.locator('[data-slot="sidebar"]').isVisible();
 
         if (shots)
           await page.screenshot({
@@ -199,8 +203,16 @@ try {
         const sidebarVisible = await page.locator('[data-slot="sidebar"]').isVisible();
         const faults: string[] = [];
 
-        if ((choice === "defaults" || (mobile && !grid)) && !beforeVisible)
-          faults.push("correct default layout lost its immediate SSR paint");
+        if (!beforeVisible)
+          faults.push("stored layout content is absent while application modules are held");
+
+        if (heldGrid !== grid) faults.push(`held Grid visible=${heldGrid}`);
+
+        if (heldSidebar !== (!mobile && !collapsed))
+          faults.push(`held sidebar visible=${heldSidebar}`);
+
+        if (JSON.stringify(heldEntryBox) !== JSON.stringify(await entry.boundingBox()))
+          faults.push("first entry geometry changed when application modules started");
 
         if (observations.wrongLayoutFrames)
           faults.push(`wrong layout on ${observations.wrongLayoutFrames} frames`);
@@ -225,7 +237,19 @@ try {
           (await page.getByRole("searchbox").locator("..").locator("kbd").count())
         )
           faults.push("disabled shortcut hint is visible");
-        const result = { label, beforeVisible, ...observations, pressed, sidebarVisible, faults };
+
+        const result = {
+          label,
+          beforeVisible,
+          heldGrid,
+          heldSidebar,
+          heldEntryBox,
+          ...observations,
+          pressed,
+          sidebarVisible,
+          faults,
+        };
+
         results.push(result);
         console.log(`${faults.length ? "FAIL" : "PASS"} ${JSON.stringify(result)}`);
 

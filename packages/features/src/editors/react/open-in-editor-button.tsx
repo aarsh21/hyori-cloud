@@ -4,10 +4,12 @@ import { Button } from "@hyori-cloud/ui/components/button";
 import { usePreloadWhenIdle } from "@hyori-cloud/ui/hooks/use-preload-when-idle";
 import { preloadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { useOpenInEditor } from "#features/editors/react/use-open-in-editor.ts";
+import { useAvailableEditors } from "#features/editors/react/use-available-editors.ts";
 
 /** For a link to a single file, which has no row menu to offer this from. */
 export function OpenInEditorButton({ entry }: { entry: FileEntry }) {
-  const open = useOpenInEditor(entry);
+  const editors = useAvailableEditors();
+  const open = useOpenInEditor(entry, editors);
 
   usePreloadWhenIdle(open === null || open === undefined ? null : preloadEditorScreen);
 

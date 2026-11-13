@@ -45,7 +45,11 @@ export function RenameDialog({
             const name = formText(values, "name").trim();
 
             if (name === entry.name) onOpenChange(false);
-            else rename.mutate({ id: entry.id, name }, { onSuccess: () => onOpenChange(false) });
+            else
+              rename.mutate(
+                { id: entry.id, name, expectedName: entry.name },
+                { onSuccess: () => onOpenChange(false) },
+              );
           }}
         >
           <DialogBody>
