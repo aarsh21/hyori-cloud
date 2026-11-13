@@ -52,7 +52,7 @@ impl MediaService {
             let item=policy::authorize(tx,&actor,&input.id.0,Action::Read,false).await?;
             if enabled && supported(&item) {
                 enqueue(tx,&item).await?;
-                tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='queued',failure=NULL,failure_detail=NULL,upgrade_retry=false,due_at=now() WHERE source_key=$1 AND recipe=$2 AND state='failed' AND attempts<6",vec![item.object_key.clone().into(),RECIPE.into()])).await?;
+                tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='queued',failure=NULL,failure_detail=NULL,upgrade_retry=false,upgrade_failures=0,due_at=now() WHERE source_key=$1 AND recipe=$2 AND state='failed' AND attempts<6",vec![item.object_key.clone().into(),RECIPE.into()])).await?;
             }
             describe_page(tx,std::slice::from_ref(&item),enabled).await?.pop().ok_or_else(||ApiError::unavailable().into())
         })}).await

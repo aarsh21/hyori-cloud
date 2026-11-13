@@ -126,7 +126,8 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
         // can run never make a claim scan them, or every item. Each one examined is settled so it
         // leaves the head: a source nothing refers to any more can never be reached again, so its
         // job goes (until then it keeps the original from being reclaimed); one only in Trash, or
-        // whose owner can't run work, waits; an expired third or later lease ends the job. The
+        // whose owner can't run work, waits; an expired third lease ends the job, and one a
+        // reader's Retry started goes back to the queue. The
         // first runnable one is claimed. Without a decoder only expired leases are examined, and
         // a runnable one is released back to the queue.
         let head = if runnable {
@@ -139,7 +140,7 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
             SELECT c.id,CASE
                 WHEN NOT EXISTS(SELECT 1 FROM hyori_items i WHERE i.object_key=c.source_key)
                     AND NOT EXISTS(SELECT 1 FROM hyori_versions v WHERE v.object_key=c.source_key) THEN 'retire'
-                WHEN c.state='processing' AND c.upgrade_retry THEN 'retry_upgrade'
+                WHEN c.state='processing' AND (c.upgrade_retry OR c.attempts>3) THEN 'retry_upgrade'
                 WHEN c.state='processing' AND c.attempts>=3 THEN 'timeout'
                 WHEN EXISTS(SELECT 1 FROM hyori_users u WHERE u.id=c.owner_id AND u.status='active')
                     AND EXISTS(SELECT 1 FROM hyori_items i WHERE i.owner_id=c.owner_id AND i.object_key=c.source_key AND i.trashed_at IS NULL) THEN 'claim'
@@ -209,7 +210,11 @@ pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError
             .transpose()
             .map_err(|_| ApiError::unavailable())?;
         tracing::warn!(job_id=%job.id, failure=%failure, diagnostic=?error.diagnostic, "media derivation failed");
-        if job.upgrade_retry && !terminal && !decoder_deadline {
+        // Attempts past the third exist only because a reader pressed Retry. Like an upgrade
+        // retry, such an attempt is spent by a decoder verdict, never by an outage: otherwise
+        // three presses while storage or the worker is down end the job with no Retry left.
+        let released = job.upgrade_retry || job.attempts > 3;
+        if released && !terminal && !decoder_deadline {
             state.db.execute_raw(sql(&format!("UPDATE hyori_media_jobs SET {},failure=$3,failure_detail=$4 WHERE id=$1 AND lease_token=$2",super::upgrades::TRANSIENT_UPDATE),vec![job.id.into(),job.token.into(),failure.into(),detail.into()])).await?;
         } else {
             state.db.execute_raw(sql("UPDATE hyori_media_jobs SET state=$3,failure=$4,failure_detail=$6,lease_token=NULL,lease_until=NULL,due_at=now()+$5::bigint*interval '1 second' WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),status.into(),failure.into(),(10_i64*2_i64.pow(job.attempts as u32)).into(),detail.into()])).await?;

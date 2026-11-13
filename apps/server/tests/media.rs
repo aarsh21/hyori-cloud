@@ -720,6 +720,50 @@ async fn durable_derivatives_preserve_originals_scope_restore_quota_and_purge_la
             .value()["status"],
         "ready"
     );
+    // Retry pressed while the worker is still down: an outage must not spend the reader's three
+    // explicit attempts. Four failing passes exceed that budget; the job has to keep waiting.
+    worker.stop();
+    let pressed = upload(
+        &server,
+        &cookie,
+        None,
+        "outage-retried.png",
+        "image/png",
+        FIXTURES[0].2,
+        None,
+    )
+    .await;
+    for _ in 0..3 {
+        due(&server).await;
+        jobs::run_once(&server.state).await.unwrap();
+    }
+    for _ in 0..4 {
+        server
+            .rpc("media.retry", json!({"id":pressed["id"]}), Some(&cookie))
+            .await
+            .value();
+        due(&server).await;
+        jobs::run_once(&server.state).await.unwrap();
+        assert_eq!(
+            server
+                .rpc("media.get", json!({"id":pressed["id"]}), Some(&cookie))
+                .await
+                .value()["status"],
+            "queued"
+        );
+    }
+    // The returning worker drops the backoff those presses earned, as it revives a failed job.
+    worker.restart().await;
+    for _ in 0..3 {
+        jobs::run_once(&server.state).await.unwrap();
+    }
+    assert_eq!(
+        server
+            .rpc("media.get", json!({"id":pressed["id"]}), Some(&cookie))
+            .await
+            .value()["status"],
+        "ready"
+    );
     let folder = server
         .rpc(
             "files.createFolder",
