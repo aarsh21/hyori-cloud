@@ -140,7 +140,7 @@ async function publicFile(run: CoreRun) {
           .filter((record) => record.operation === "shares.resolve")
           .map((record) => record.status),
       );
-      await visitor.getByText("This link is no longer available").first().waitFor();
+      await visitor.getByText("This link no longer works").first().waitFor();
       assert.deepEqual(
         await visitor.getByRole("button", { name: "Open link again" }).count(),
         0,

@@ -148,7 +148,8 @@ export async function runThumbnailStateScenario(run: CoreRun) {
     await page.goto("about:blank");
     await page.waitForTimeout(300);
     front.resetCounters();
-    await page.goto(new URL("/photos", run.origin).href);
+    await page.goto(new URL("/files", run.origin).href);
+    await page.getByRole("link", { name: "Photos", exact: true }).first().click();
     await tileNamed(page, "red.png").waitFor();
     await page
       .getByRole("button", { name: /\. Preparing thumbnail\.$/ })
@@ -232,7 +233,8 @@ export async function runThumbnailStateScenario(run: CoreRun) {
     for (const colorScheme of ["light", "dark"] as const) {
       const phone = await ownerPage(run, { ...PHONE, colorScheme });
 
-      await phone.page.goto(new URL("/photos", run.origin).href);
+      await phone.page.goto(new URL("/files", run.origin).href);
+      await phone.page.getByRole("link", { name: "Photos", exact: true }).first().click();
       await tileNamed(phone.page, "red.png").waitFor();
       await phone.page.waitForTimeout(800);
       await report.shot(phone.page, `thumbnail-states-phone-${colorScheme}`);

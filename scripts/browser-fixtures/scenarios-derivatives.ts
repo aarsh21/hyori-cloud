@@ -77,6 +77,15 @@ function decodedVideoFrame(page: Page) {
       video.addEventListener("seeked", resolve, { once: true }),
     );
 
+    // Ignore a queued old frame; this 24 fps fixture seeks to the frame at 2 seconds.
+    let presented = false;
+
+    const onFrame: VideoFrameRequestCallback = (_now, frame) => {
+      if (Math.abs(frame.mediaTime - 2) <= 1 / 24) presented = true;
+      else video.requestVideoFrameCallback(onFrame);
+    };
+
+    video.requestVideoFrameCallback(onFrame);
     video.currentTime = 2;
 
     // “seeked” can arrive before the decoder holds that frame, so wait for both, and say so on a
@@ -85,7 +94,7 @@ function decodedVideoFrame(page: Page) {
 
     await Promise.race([seeked, new Promise((resolve) => setTimeout(resolve, 8000))]);
 
-    while (video.seeking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+    while (video.seeking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !presented) {
       if (Date.now() > deadline) throw new Error(`No decoded frame after seeking: ${state()}.`);
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -210,8 +219,6 @@ async function outageAndRetry(run: CoreRun, page: Page) {
   await report.shot(phonePage, "real-thumbnails-outage-phone-dark");
   await phone.close();
 
-  await stack.startWorker();
-
   await report.check("Retry by keyboard asks once, and leaves focus on the tile", async () => {
     await tile(page, CLIP).focus();
     await page.keyboard.press("Tab");
@@ -236,6 +243,7 @@ async function outageAndRetry(run: CoreRun, page: Page) {
 
   await retryButton(page, PHOTO).click();
   await retryButton(page, MALFORMED).click();
+  await stack.startWorker();
 }
 
 async function realResults(run: CoreRun, page: Page, files: { photo: number; clip: number }) {

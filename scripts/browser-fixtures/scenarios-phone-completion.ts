@@ -119,7 +119,6 @@ export async function runPhoneCompletionScenarios(run: CoreRun) {
         await retry(video).waitFor({ timeout: 240_000 });
         await run.report.shot(page, "phone-real-retry");
       });
-      await run.stack.startWorker();
       await run.report.check(
         "phone: keyboard Retry after worker recovery decodes image and poster",
         async () => {
@@ -132,6 +131,11 @@ export async function runPhoneCompletionScenarios(run: CoreRun) {
             );
             await page.keyboard.press("Enter");
             await retry(name).waitFor({ state: "detached" });
+          }
+
+          await run.stack.startWorker();
+
+          for (const name of [photo, video]) {
             await page.waitForFunction(
               (selector) => {
                 const img = document.querySelector(selector)?.querySelector("img");
