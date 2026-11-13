@@ -279,6 +279,8 @@ jobs:
         # Better Auth's rust_icu_* 5.8.0 retains paste 1.0.15 (build-time macro),
         # and its serde_yaml 0.9.34 retains unsafe-libyaml 0.2.11. Both unmaintained
         # dependencies need an upstream auth upgrade; do not ignore the warning category.
+        # yrs =0.24.0 (note co-editing) retains smallstr 0.3.1, unmaintained with no patched
+        # release. Every yrs release through 0.28.1 requires it, so this waits on yrs upstream.
         run: |
           cargo audit --deny warnings \
             --ignore RUSTSEC-2026-0258 \
@@ -292,7 +294,8 @@ jobs:
             --ignore RUSTSEC-2023-0071 \
             --ignore RUSTSEC-2026-0459 \
             --ignore RUSTSEC-2024-0436 \
-            --ignore RUSTSEC-2024-0449
+            --ignore RUSTSEC-2024-0449 \
+            --ignore RUSTSEC-2026-0215
       - name: Reject new JavaScript advisories in Bun's locked graph
         # apps/web pins @babel/core 7.29.0: sourceMappingURL local-file read during builds.
         # shadcn 4.23.0 -> @shadcn/registry 0.2.1 retains deepmerge 4.3.1:
