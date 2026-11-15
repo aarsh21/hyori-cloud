@@ -12,12 +12,12 @@ Aim for Emil Kowalski's level of design engineering: restrained visuals, excelle
 - Design loading, empty, error, success, focus, hover, and pressed states alongside the happy path.
 - Make keyboard and touch interactions first-class; preserve accessible semantics, visible focus, and reduced-motion preferences.
 - Motion must clarify state or provide feedback. Keep frequent actions immediate, keyboard-triggered actions unanimated, and occasional transitions short and interruptible. Prefer transform and opacity for motion.
-- Before interface implementation or review, on any model, read `DESIGN.md`, load `emil-design-eng`, and read `.agents/skills/design-taste-frontend-v2-experimental/SKILL.md` directly, because that skill disables model invocation. `DESIGN.md` sets precedence when they conflict. Report an unavailable skill rather than silently skipping its requirements.
+- Before interface implementation or review, on any model, read `DESIGN.md`; it sets the visual language and motion rules.
 - Run the local React Doctor check for UI changes. `doctor.config.json` owns scan scope and privacy settings; keep remote scoring and dependency-report uploads disabled unless the user approves them. Report its diagnostics separately from functional tests.
 
 ## Images and web assets
 
-From any agent, use the Codex CLI to source, generate, or edit product images and web assets: illustrations, photos, favicons, social cards. An agent already running in Codex uses its own image capability. Standard controls and interface glyphs stay with `packages/ui` and its shared icon set. Art direction follows `DESIGN.md`. For brand boards, logo systems, and identity imagery, also load `brandkit` (`.agents/skills/brandkit/SKILL.md`).
+From any agent, use the Codex CLI to source, generate, or edit product images and web assets: illustrations, photos, favicons, social cards. An agent already running in Codex uses its own image capability. Standard controls and interface glyphs stay with `packages/ui` and its shared icon set. Art direction follows `DESIGN.md`.
 
 - Confirm capability from the installed CLI (`codex --help`, `codex features list`) before choosing commands. If the CLI, its sign-in, its image capability, or host permission to run it is missing, report that and wait for direction rather than switching tools.
 - Share with Codex only what the task needs. Keep user files, credentials, and private data out of prompts and attachments unless the user approves that input.
@@ -37,7 +37,7 @@ Optimize both measured and perceived speed. A polished interface must remain res
 
 ## Rust implementation
 
-For Rust implementation or review, load `rust-best-practices` and read its affected references in parallel. The installed source is `.claude/skills/rust-best-practices/SKILL.md`; provenance and license are recorded in `.agents/skills/UPSTREAM.md`. Product invariants and the repository's architecture rules take precedence over generic examples. Verify compiler and thread-safety claims against the actual toolchain.
+For Rust implementation or review, product invariants and the repository's architecture rules take precedence over generic idioms. Verify compiler and thread-safety claims against the actual toolchain.
 
 ## Architecture: Fernando Rojo's product engineering
 

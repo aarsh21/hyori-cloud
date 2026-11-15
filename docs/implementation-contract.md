@@ -80,7 +80,7 @@ app RootDocument (document markup, stylesheet, metadata)
 
 App bootstrap and API mounts remain app-owned; do not create `features/app`. SDK context is not Query cache ownership. Portable UI components and hooks have no effects or raw transports. Keep existing data visible during refresh errors. Controlled drafts/selection remain React state; server entities remain Query data. Use explicit semantic states and exhaustive handling rather than a universal status wrapper.
 
-`vercel-composition-patterns` is unavailable in this session; use Fernando's self-contained React reference and report that limitation. UI owner must read `emil-design-eng`. Compile new React with React Compiler and run its diagnostics.
+`vercel-composition-patterns` is unavailable in this session; use Fernando's self-contained React reference and report that limitation. Compile new React with React Compiler and run its diagnostics.
 
 ## Verification
 

@@ -77,7 +77,7 @@ npx shadcn@latest add dialog popover sheet -c packages/ui
 
 The web document loads the separate `@hyori-cloud/ui/font.css` stylesheet after hydration, so the self-hosted Inter face does not compete with application scripts. The existing system-font fallback paints first (and remains usable without JavaScript); settled screens still use Inter. Other hosts should load both the global and font stylesheets.
 
-[DESIGN.md](DESIGN.md) defines the visual language. The [pinned upstream skills](.agents/skills/UPSTREAM.md) `design-taste-frontend-v2-experimental` and `brandkit` guide taste and brand imagery. Product features consume owned DS exports, not raw transport or server implementations. Emil-inspired polish includes keyboard interactions and explicit loading, empty, failure, and retained-data states; decorative motion must not delay frequent actions.
+[DESIGN.md](DESIGN.md) defines the visual language. Product features consume owned DS exports, not raw transport or server implementations. Emil-inspired polish includes keyboard interactions and explicit loading, empty, failure, and retained-data states; decorative motion must not delay frequent actions.
 
 The desktop sidebar collapses from its toggle or with Ctrl/Cmd+B, and this browser remembers the choice. Phones use the bottom navigation. **Single-key shortcuts** in the account menu (also available in public folders) controls `/`, `n`, and `u` locally. Larger loaded collections use bounded rendering above 200 items; browser find-in-page cannot search unmounted rows, so use the product search field to find files.
 

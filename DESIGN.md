@@ -18,11 +18,7 @@ When guidance conflicts, the earlier source wins:
 
 1. `AGENTS.md` and `docs/product.md`: accessibility, performance, shared UI, confirmed scope, and Light/Dark/System appearance.
 2. This file: visual language.
-3. `emil-design-eng`: interaction and motion craft.
-4. `design-taste-frontend-v2-experimental`: taste rules, kept exactly as published.
-5. The Raycats source, for anything not settled above.
-
-That taste skill scopes itself to landing pages, portfolios, and redesigns, and marks dense product UI out of scope. On product screens, apply what fits: states, contrast, forms, and its catalogue of generic tells. Its dials, hero and section layouts, motion, and default font, icon, and palette choices give way to this file, so Inter, `lucide-react`, Porcelain, and pure-white Dark ink stay. A public landing page, if approved, can use it in full.
+3. The Raycats source, for anything not settled above.
 
 ## Tokens
 
@@ -69,7 +65,7 @@ Light comes from the source's Porcelain scheme, with muted text darkened slightl
 
 ## Motion
 
-Follow `AGENTS.md` and `emil-design-eng`. Use `--ease-out` (the source's `cubic-bezier(.23, 1, .32, 1)`), at most 200ms on occasional transitions. List navigation and keyboard actions respond immediately. Surfaces brighten on hover rather than lift. Nothing animates on entrance or on scroll.
+Follow `AGENTS.md`. Use `--ease-out` (the source's `cubic-bezier(.23, 1, .32, 1)`), at most 200ms on occasional transitions. List navigation and keyboard actions respond immediately. Surfaces brighten on hover rather than lift. Nothing animates on entrance or on scroll.
 
 ## Left out
 
