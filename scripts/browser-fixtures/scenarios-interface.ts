@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { chmodSync, readdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import type { Locator, Page } from "playwright-core";
 import { ownerPage } from "./scenarios-core.ts";
@@ -298,18 +297,21 @@ export async function runInterfaceScenarios(run: CoreRun) {
           await warm.context.close();
         }
 
-        // A genuinely missing built asset while online, not an offline/network-error substitute.
+        // A 404 for the deployed chunk while online. For an image, publicDirectory is only
+        // an inspection copy; moving that copy would not affect what the browser receives.
         const stale = await ownerPage(run, options);
-        const assets = join(run.web.publicDirectory, "assets");
-        const shared = readdirSync(assets).find((name) => /^shared-screen-.*\.js$/.test(name));
-        assert.ok(shared, "Shared screen chunk missing from build");
-        const chunk = join(assets, shared);
-        chmodSync(assets, 0o755);
-        renameSync(chunk, `${chunk}.withheld`);
+        const chunk = /^\/assets\/shared-screen-[^/]+\.js$/;
+        run.front.refuse((record) => chunk.test(record.path), 404, Infinity);
 
         try {
-          await stale.page.getByRole("link", { name: "Shared", exact: true }).first().click();
           await run.report.check(`${label}: stale deployed chunk still offers Reload`, async () => {
+            await Promise.all([
+              stale.page.waitForResponse(
+                (response) =>
+                  chunk.test(new URL(response.url()).pathname) && response.status() === 404,
+              ),
+              stale.page.getByRole("link", { name: "Shared", exact: true }).first().click(),
+            ]);
             await stale.page
               .getByText("Your files aren’t affected. Reloading gets the latest version.")
               .waitFor();
@@ -318,8 +320,7 @@ export async function runInterfaceScenarios(run: CoreRun) {
           });
           await run.report.shot(stale.page, `interface-stale-${label}`);
         } finally {
-          renameSync(`${chunk}.withheld`, chunk);
-          chmodSync(assets, 0o555);
+          run.front.clearFaults();
           await stale.context.close();
         }
       });
