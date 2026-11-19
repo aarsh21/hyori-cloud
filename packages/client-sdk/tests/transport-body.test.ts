@@ -47,7 +47,8 @@ function brokenBody() {
   return new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new TextEncoder().encode('{"ok":true,"value":'));
-      controller.error(new TypeError("Synthetic connection lost after headers"));
+      // Firefox reports an interrupted response stream this way even with a live caller signal.
+      controller.error(new DOMException("Connection lost after headers", "AbortError"));
     },
   });
 }

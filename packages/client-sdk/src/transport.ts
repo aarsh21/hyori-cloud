@@ -83,7 +83,8 @@ export function createTransport(options: TransportOptions) {
           (!requestOptions?.keepalive && lifetime.signal.aborted)
         )
           throw new SDKError("SDK_CANCELLED", "The operation was cancelled.", { cause });
-        throw normalizeError(cause);
+        // A broken stream can also throw AbortError; only the caller's signal means cancellation.
+        throw new SDKError("SDK_TRANSPORT", "The RPC response was interrupted.", { cause });
       });
 
       const envelope = (() => {

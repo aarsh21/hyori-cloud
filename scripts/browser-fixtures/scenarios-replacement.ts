@@ -277,6 +277,26 @@ async function repeatedDownloads(run: CoreRun) {
     assert.equal(results.filter((result) => result === "ok").length, attempts, results.join(", "));
   });
 
+  await report.check(
+    "one download click survives a lost descriptor reply without fetching the file twice",
+    async () => {
+      const start = front.trace.length;
+      front.dropReply((record) => record.operation === "files.download");
+      assert.equal(await downloadRow(page, name), sha256(path));
+      const traffic = front.trace.slice(start);
+      assert.deepEqual(
+        traffic
+          .filter((record) => record.operation === "files.download")
+          .map((record) => record.outcome),
+        ["dropped", "complete"],
+      );
+      assert.equal(
+        traffic.filter((record) => record.path.startsWith("/api/storage/files/")).length,
+        1,
+      );
+    },
+  );
+
   await context.close();
 }
 
