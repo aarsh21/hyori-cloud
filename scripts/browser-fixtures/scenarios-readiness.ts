@@ -347,9 +347,28 @@ async function links(run: CoreRun, phone: boolean) {
         await page.getByRole("button", { name: new RegExp(`^anonymous-${size}`) }).waitFor();
       },
     );
-    report.unverified(
-      `${size}: wall-clock expiry boundary`,
-      "Created a dated password-protected contributor link; advancing the production server clock is not available, so this does not prove access at/after expiry.",
+    await report.check(
+      `${size}: an unlocked link stops working when its deadline passes`,
+      async () => {
+        const file = `anonymous-${size}.bin`;
+        const download = () => menu(guest, file, "Download");
+        assert.equal((await downloadBytes(guest, download)).length, 6701);
+
+        // The UI accepts whole dates. Shorten only this disposable link's deadline, after its
+        // visitor already has a grant. Both requests use the real server clock and same cookies.
+        assert.equal(
+          run.stack.sql(`WITH shortened AS (
+        UPDATE hyori_shares SET expires_at = now() + interval '1 second'
+        WHERE public AND expires_at > now() AND item_id IN
+          (SELECT id FROM hyori_items WHERE name = 'Drop box ${size}') RETURNING id
+      ) SELECT count(*) FROM shortened`),
+          "1",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+        await download();
+        await enter(guest.getByRole("button", { name: "Open link again" }).first());
+        await guest.getByRole("heading", { name: "This link no longer works" }).waitFor();
+      },
     );
   } finally {
     await guestContext.close();
