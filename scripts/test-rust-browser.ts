@@ -341,7 +341,9 @@ try {
     join(artifacts, "traffic.json"),
     JSON.stringify(
       front.trace.filter((record) => record.path.startsWith("/api/")),
-      null,
+      // Fixture assertions may inspect envelopes in memory. Uploaded traces need timings and
+      // outcomes, not the setup token, passwords or document contents inside those envelopes.
+      (key, value) => (key === "rpcBody" || key === "errorBody" ? undefined : value),
       1,
     ),
   );

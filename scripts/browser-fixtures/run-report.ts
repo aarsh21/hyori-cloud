@@ -132,7 +132,15 @@ export function createRunReport(
 
         return true;
       } catch (error) {
-        record(name, "fail", error instanceof Error ? error.message.split("\n")[0] : String(error));
+        const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+
+        // Include the caller: rowMenu alone cannot distinguish opening a file from downloading it.
+        // Keep source locations, not locator arguments or protected document content.
+        const steps =
+          error instanceof Error &&
+          error.stack?.match(/browser-fixtures\/[\w/-]+\.ts:\d+:\d+/g)?.slice(0, 4);
+
+        record(name, "fail", steps ? `${message} (${steps.join(" ← ")})` : message);
 
         if (captureFailure) await failureShot(name);
 
