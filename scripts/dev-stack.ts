@@ -386,6 +386,8 @@ function editorAsset(
     "content-type": TYPES.get(extname(path)) ?? "application/octet-stream",
     "x-content-type-options": "nosniff",
     "x-frame-options": "SAMEORIGIN",
+    // The portal's review widget cannot run inside an opaque-origin editor frame.
+    "x-amp-review-widget": "off",
     // The sandboxed, opaque-origin editor frame loads its own scripts and WASM with CORS.
     "access-control-allow-origin": "*",
     "content-security-policy": bundle.contentSecurityPolicy,
