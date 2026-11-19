@@ -17,7 +17,7 @@ export function useDownloadFile(scope?: FileActionScope) {
     mutationKey: DOWNLOAD_MUTATION_KEY,
     meta: scope,
     mutationFn: (input) => rpc.files.download(input),
-    onSuccess: ({ url, name }) => startBrowserDownload(url, name),
+    onSuccess: ({ url }) => startBrowserDownload(url),
     // Only the read-only descriptor is retried. Once bytes start, the browser owns the download.
     retry: (failures, error) => failures === 0 && error.code === "SDK_TRANSPORT",
   });

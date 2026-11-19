@@ -1290,6 +1290,12 @@ async fn native_note_downloads_hold_admission_until_read_or_abandoned() {
         assert_eq!(response.status(), 200);
         held.push(response);
     }
+    assert!(
+        held[0].headers()["content-disposition"]
+            .to_str()
+            .unwrap()
+            .contains("filename*=UTF-8''Bounded%20native%20export.hyori-note.json")
+    );
     let refused = app.clone().oneshot(request()).await.unwrap();
     assert_eq!(
         refused.status(),

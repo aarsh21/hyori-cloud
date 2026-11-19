@@ -99,17 +99,17 @@ impl NotesService {
             files: FilesService::new(state, context),
         }
     }
-    pub async fn download(&self, id: String, fence: String) -> Result<Vec<u8>, ApiError> {
+    pub async fn download(&self, id: String, fence: String) -> Result<(String, Vec<u8>), ApiError> {
         self.files
             .run(move |tx, actor| {
                 let id = id.clone();
                 let fence = fence.clone();
                 Box::pin(async move {
-                    let (_, bytes, current) = export(tx, &actor, &id).await?;
+                    let (name, bytes, current) = export(tx, &actor, &id).await?;
                     if current != fence {
                         return Err(ApiError::conflict().into());
                     }
-                    Ok(bytes)
+                    Ok((name, bytes))
                 })
             })
             .await

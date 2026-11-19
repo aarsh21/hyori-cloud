@@ -1,10 +1,12 @@
 import { readSingleKeyShortcuts } from "@hyori-cloud/ui/lib/single-key-shortcuts";
 
-/** Hands a capability URL to the browser's own download manager, which streams to disk. */
-export function startBrowserDownload(url: string, name: string) {
+/** Server attachments name themselves. Only a local Blob needs a download attribute:
+ * WebKit omits same-origin request metadata when that attribute forces a network download. */
+export function startBrowserDownload(url: string, name?: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = name;
+
+  if (name !== undefined) anchor.download = name;
   anchor.rel = "noopener";
   anchor.style.display = "none";
   document.body.append(anchor);

@@ -355,9 +355,7 @@ pub(crate) async fn stream_content(
         }
     };
     let body = stream::iter(first).chain(body);
-    let encoded = url::form_urlencoded::byte_serialize(descriptor.name.as_bytes())
-        .collect::<String>()
-        .replace('+', "%20");
+    let encoded = encoded_filename(&descriptor.name);
     let mut response = Response::builder()
         .status(if range.is_some() {
             StatusCode::PARTIAL_CONTENT
@@ -390,6 +388,12 @@ pub(crate) async fn stream_content(
     response
         .body(Body::from_stream(body))
         .map_err(|_| ApiError::unavailable())
+}
+
+pub(crate) fn encoded_filename(name: &str) -> String {
+    url::form_urlencoded::byte_serialize(name.as_bytes())
+        .collect::<String>()
+        .replace('+', "%20")
 }
 
 /// Native exports use the same admission lifetime and deadlines as storage-backed downloads.

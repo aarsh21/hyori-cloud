@@ -1,7 +1,10 @@
 use crate::{
     AppState,
     error::ApiError,
-    features::{notes::service::NotesService, uploads::http::stream_bytes},
+    features::{
+        notes::service::NotesService,
+        uploads::http::{encoded_filename, stream_bytes},
+    },
     rpc::validate_origin,
 };
 use axum::{
@@ -33,18 +36,19 @@ pub(crate) async fn get(
     if query.fence.len() > 128 {
         return Err(ApiError::invalid());
     }
-    let bytes = NotesService::new(&state, state.request_context(request.headers()))
+    let (name, bytes) = NotesService::new(&state, state.request_context(request.headers()))
         .download(id, query.fence)
         .await?;
     let length = bytes.len().to_string();
+    let disposition = format!(
+        "attachment; filename=note.hyori-note.json; filename*=UTF-8''{}",
+        encoded_filename(&name)
+    );
     Ok((
         [
             ("content-type", "application/json"),
             ("content-length", length.as_str()),
-            (
-                "content-disposition",
-                "attachment; filename=note.hyori-note.json",
-            ),
+            ("content-disposition", disposition.as_str()),
             ("cache-control", "no-store"),
             ("x-content-type-options", "nosniff"),
             ("content-security-policy", "sandbox; default-src 'none'"),
