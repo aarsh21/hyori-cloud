@@ -281,6 +281,10 @@ jobs:
         # dependencies need an upstream auth upgrade; do not ignore the warning category.
         # yrs =0.24.0 (note co-editing) retains smallstr 0.3.1, unmaintained with no patched
         # release. Every yrs release through 0.28.1 requires it, so this waits on yrs upstream.
+        # RUSTSEC-2026-0543 is temporary: Better Auth requires unmaintained chrono, and
+        # SeaORM's optional dependencies keep it in Cargo.lock even with `with-time`.
+        # Once both allow a chrono-free lockfile, migrate Hyori to `time`, verify unchanged
+        # PostgreSQL and API timestamps, and remove this exception with chrono from Cargo.lock.
         run: |
           cargo audit --deny warnings \
             --ignore RUSTSEC-2026-0258 \
@@ -295,7 +299,8 @@ jobs:
             --ignore RUSTSEC-2026-0459 \
             --ignore RUSTSEC-2024-0436 \
             --ignore RUSTSEC-2024-0449 \
-            --ignore RUSTSEC-2026-0215
+            --ignore RUSTSEC-2026-0215 \
+            --ignore RUSTSEC-2026-0543
       - name: Reject new JavaScript advisories in Bun's locked graph
         # apps/web pins @babel/core 7.29.0: sourceMappingURL local-file read during builds.
         # shadcn 4.23.0 -> @shadcn/registry 0.2.1 retains deepmerge 4.3.1:
