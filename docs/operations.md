@@ -254,11 +254,11 @@ five-second stream-stall guard; other operations keep their SDK stream protectio
 
 ## Missing for production
 
-- **Metrics and alerts.** There is no metrics endpoint for request rates, errors, latency, queue depth, transfer admission, database pool, storage usage or media job state.
+- **Alert delivery.** The backend exposes private `/metrics`. The optional [monitoring overlay](monitoring.md) collects request, transfer, pool and media-job metrics and evaluates alert rules. Configure and test an operator-owned receiver; a firing rule alone does not page anyone.
 - **Diagnosable startup errors.** Storage and database misconfigurations log one indistinguishable line (see the table above).
 - **Storage health.** Web readiness follows backend/database readiness. Storage health remains a separate RustFS signal so metadata-only operations can keep working during a storage outage. Media worker health checks socket existence, not decoder progress.
 - **Log shipping.** Logs stay in Docker's json-file driver. This review added rotation (10 MB × 5 per container).
-- **Storage monitoring.** Storage failures now produce safe backend diagnostics, but there is no disk-space metric or alert. RustFS alpha.85 retains deleted bytes until restart as described above; no application workaround is applied.
+- **Disk space.** The monitoring overlay alerts on low available bytes and inodes on the PostgreSQL and RustFS volumes. RustFS alpha.85 can retain deleted bytes until restart, so use filesystem free space rather than released user quota to judge recovery.
 - **RustFS maturity.** The object store is an alpha (`1.0.0-alpha.85`).
 - **Backup shipping.** Scheduled, retained backups have a health failure signal (see [backup and restore](backup-restore.md)), but encryption, off-host copies and routing health alerts to an operator are not configured by the stack.
 - **Users.** The backend, media worker and RustFS run as UID 10001 and the web host as `node`. PostgreSQL's entrypoint starts as root and drops to `postgres`. The init containers run as root with every capability dropped except `CHOWN`/`FOWNER`.
