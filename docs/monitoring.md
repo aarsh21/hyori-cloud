@@ -12,15 +12,34 @@ The overlay adds Prometheus and a filesystem-only node-exporter. Neither publish
 
 ## Request logs and metrics
 
-The backend emits one `hyori_server::request` info event when a request produces response headers, including rejected and unknown routes:
+The Rust backend selects its log format at startup from `APP_ENV`:
 
-- `operation`: registered RPC operation or fixed storage route kind; malformed/unknown RPCs become `rpc.invalid` / `rpc.unknown`, never the submitted operation string.
-- `status`, `error_code`: HTTP status and product error code, or `none` where there is no product error (including framework rejections).
-- `duration_seconds`: arrival to headers, including admission/body receipt and sign-in answer delays. Download body streaming is **not** included; use the in-flight transfer gauge to see bodies that remain active. A client disconnect after headers does not turn a logged 200 into proof of successful delivery.
-- `request_id`: newly generated opaque ID, also returned as `x-request-id`; an incoming ID is never trusted or logged.
+- **`development`:** One short line per request, for example `POST files.list 401 client_error 7ms error=auth.required request_id=…` (the actual line includes the full ID). The status and outcome are colored when stdout is a terminal; redirected output is plain text. Set `NO_COLOR=1` to turn color off in a terminal. `-` means the request ended before headers and had no HTTP status. The error is omitted when there is no product error code. Other diagnostics use compact text.
+- **`production`** (the Compose default): One JSON object per event with the full context. `docker compose logs --no-log-prefix backend` shows the raw lines.
+
+Both formats render the same INFO summary per request handled by Axum, including rejected and unknown routes. In JSON, look for `target: "hyori_server::request"` and `fields.event: "http.request.completed"`. The envelope has `timestamp`, `level` and `target`; the request details are under `fields`:
+
+- `method`, `operation`: standard HTTP method (or `OTHER`) and registered RPC operation or fixed storage route kind. Malformed/unknown RPCs become `rpc.invalid` / `rpc.unknown`, never the submitted operation string.
+- `completion`: `response_headers` when the handler produces headers, or `before_headers` if the request future is dropped before then. Only the former has an HTTP `status` and contributes to the request counter and histogram.
+- `status`, `error_code`: HTTP status when one exists and product error code, or `none` where there is no product error (including framework rejections).
+- `outcome`: `client_error` for HTTP 4xx, `server_error` for 5xx or a panic before headers, `cancelled` when otherwise dropped before headers, `success` for other responses. A 5xx can be an admission refusal, not an outage.
+- `duration_seconds`: arrival to headers or cancellation, including admission/body receipt and sign-in answer delays. Download body streaming is **not** included. Use the in-flight transfer gauge to see bodies that remain active.
+- `request_id`: server-generated opaque ID, also returned as `x-request-id` when there is a response. An incoming ID is stripped by the web proxy and never trusted or logged by either service.
 - `client_address`: the existing `trusted_proxies` resolution, or `unknown`. Configure both proxy hops as described in operations guidance; an arbitrary forwarded header cannot name a client.
+- `service`, `version`, `environment`: the Rust package name and version, and the backend's `APP_ENV` mode.
+- `commit_hash`, `region`, `instance_id`: build revision and deployment labels. Set `HYORI_LOG_REGION` and optionally `HYORI_LOG_INSTANCE_ID` in `.env.deployment`. Instance ID defaults to `HOSTNAME` when present. Missing values are `unknown`. Use non-secret labels only.
+
+To record the revision when building the backend from a clean checkout:
+
+```sh
+docker compose --env-file .env.deployment build --build-arg HYORI_BUILD_COMMIT="$(git rev-parse HEAD)" backend
+```
 
 No URI, query string, credential header, request/response body, file/folder name, email, share token, or arbitrary error message is included in the request event. IP addresses are personal data: restrict log access and choose appropriate retention. Keep `hyori_server=info` (the default) enabled to retain these events. Debug logging of third-party dependencies is not covered by the request-log privacy contract. Route logs through the operator's existing container logging/rotation/shipping policy.
+
+**Uploads and editor saves** add `transfer_kind` (new file, replacement, or editor save), `transfer_replay` when a durable record reveals whether work is reused, the attempted `editor_intent` and `editor_save_mode` on preparation, and `refused_admission` when an upload lane rejects work. A request-time database or storage failure in these operations adds the first failure's category and, when available, a validated SQLSTATE or an owned storage operation and HTTP status. No SQL, vendor error body, account ID, file ID, or editor session/save ID is included. A detached worker that fails after the summary, or a storage response stream that fails, still logs a separate diagnostic with the same `request_id`.
+
+**Web correlation:** Join `web_request.request_id` to the Rust summary's `fields.request_id` when `request_id_source` is `backend`. Only direct product API responses with a backend-issued ID use that source. A rejected proxy request, a drop before upstream headers are available, or an SSR page (which can make multiple backend calls) gets a web-local ID instead. The web summary distinguishes `response_finished` from `connection_closed` (`status: 499`), and `headers_sent` distinguishes a mid-stream drop from an early one. A Rust `response_headers` summary with status 200 and a web `connection_closed` summary can describe the same request; neither is proof that the client received the full file.
 
 Metric names and semantics:
 
@@ -108,7 +127,7 @@ docker run --rm --entrypoint promtool -v "$PWD/monitoring:/etc/prometheus:ro" pr
 docker run --rm --entrypoint promtool -v "$PWD/monitoring:/etc/prometheus:ro" prom/prometheus:v3.8.0 check rules /etc/prometheus/alerts.yml
 ```
 
-The HTTP/privacy regression runs with an isolated PostgreSQL fixture:
+The HTTP/privacy regression runs with isolated PostgreSQL and RustFS fixtures:
 
 ```sh
 RUST_ICU_MAJOR_VERSION_NUMBER="$(pkg-config --modversion icu-uc | cut -d. -f1)" cargo test --locked -p hyori-server --test observability -- --ignored --test-threads=1

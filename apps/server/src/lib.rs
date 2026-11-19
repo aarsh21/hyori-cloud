@@ -29,6 +29,7 @@ pub struct AppState {
     pub storage: Option<hyori_storage::ObjectStorage>,
     pub(crate) media_worker: Option<media_worker::WorkerClient>,
     pub(crate) editor_assets: editor_assets::EditorAssets,
+    request_log_deployment: observability::RequestLogDeployment,
     /// Download-like bodies (originals, previews, thumbnails, editor bytes). A permit lives in the
     /// task that drives one body and is dropped when that body finishes, fails or stalls.
     pub(crate) transfers: Arc<tokio::sync::Semaphore>,
@@ -126,6 +127,7 @@ impl AppState {
             storage,
             media_worker,
             editor_assets,
+            request_log_deployment: observability::RequestLogDeployment::from_env(),
             transfers: Arc::new(tokio::sync::Semaphore::new(config::DOWNLOAD_CONCURRENCY)),
             uploads: Arc::new(tokio::sync::Semaphore::new(config::UPLOAD_CONCURRENCY)),
             upload_principals: features::uploads::http::PrincipalLimiter::default(),

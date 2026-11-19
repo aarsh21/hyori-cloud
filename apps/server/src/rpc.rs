@@ -287,10 +287,6 @@ async fn handle_inner(
         return Err(ApiError::invalid());
     }
     let mut context = state.request_context(request.headers());
-    let observed = request
-        .extensions()
-        .get::<crate::observability::Operation>()
-        .cloned();
     context.client = client_address(
         request.headers(),
         request
@@ -307,15 +303,13 @@ async fn handle_inner(
     .map_err(|_| ApiError::unavailable())?
     .map_err(|_| ApiError::invalid())?;
     let envelope: Envelope = serde_json::from_slice(&bytes).map_err(|_| ApiError::invalid())?;
-    if let Some(observed) = observed {
-        let name = state
-            .rpc
-            .operations
-            .get_key_value(envelope.operation.as_str())
-            .map(|(name, _)| *name)
-            .unwrap_or("rpc.unknown");
-        let _ = observed.0.set(name);
-    }
+    let name = state
+        .rpc
+        .operations
+        .get_key_value(envelope.operation.as_str())
+        .map(|(name, _)| *name)
+        .unwrap_or("rpc.unknown");
+    crate::observability::operation(name);
     context.arrived = Some(Instant::now());
     context.answer_not_before = answer_not_before;
     // Admission bounds handler work, not clients: taken only once the whole bounded body has

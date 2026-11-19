@@ -216,6 +216,16 @@ impl EditorsService {
         }).await
     }
     pub async fn prepare_save(&self, input: EditorPrepareSave) -> Result<UploadStatus, ApiError> {
+        let intent = match input.intent {
+            EditorIntent::Replace => "replace",
+            EditorIntent::SaveAs => "save-as",
+            EditorIntent::Export => "export",
+        };
+        let mode = match input.save_mode {
+            Some(EditorSaveMode::Automatic) => "automatic",
+            _ => "manual",
+        };
+        crate::observability::editor_save(intent, mode);
         self.state
             .storage
             .as_ref()
@@ -272,7 +282,7 @@ impl EditorsService {
                 let begin = BeginUpload { parent_id,name: input.name.clone(),size: input.size.clone(),mime_type: formats::mime(&input.name.0)?.into(),replace_id };
                 let upload = uploads::reserve(tx,&context,&begin,&upload_id).await?;
                 tx.execute_raw(sql("UPDATE hyori_uploads SET editor_bound=true WHERE id=$1",vec![upload_id.clone().into()])).await?;
-                tx.execute_raw(sql("INSERT INTO hyori_editor_saves(session_id,save_id,upload_id,fingerprint,sha256,expected_revision,intent,destination_owner_id,save_mode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",vec![session.id.into(),input.save_id.into(),upload_id.clone().into(),fingerprint.into(),input.sha256.into(),expected.into(),match input.intent { EditorIntent::Replace => "replace",EditorIntent::SaveAs => "save-as",EditorIntent::Export => "export" }.into(),upload.owner_id.into(),match input.save_mode { Some(EditorSaveMode::Automatic) => "automatic", _ => "manual" }.into()])).await?;
+                tx.execute_raw(sql("INSERT INTO hyori_editor_saves(session_id,save_id,upload_id,fingerprint,sha256,expected_revision,intent,destination_owner_id,save_mode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",vec![session.id.into(),input.save_id.into(),upload_id.clone().into(),fingerprint.into(),input.sha256.into(),expected.into(),intent.into(),upload.owner_id.into(),mode.into()])).await?;
                 Ok(upload_id)
             })
         }).await?;
@@ -281,6 +291,7 @@ impl EditorsService {
             .await
     }
     pub async fn complete_save(&self, input: EditorSaveInput) -> Result<EditorSaved, ApiError> {
+        crate::observability::transfer("editor_save", None);
         let id = db::domain(&self.state.db,|tx| {
             let assets = self.state.editor_assets.clone();
             let (context,input)=(self.context.clone(),input.clone());

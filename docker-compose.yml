@@ -179,6 +179,8 @@ services:
       APP_ENV: ${APP_ENV:-production}
       APP_ORIGIN: ${APP_ORIGIN:?Set the exact public HTTPS origin in .env.deployment}
       HYORI_SERVER_BIND: 0.0.0.0:3002
+      HYORI_LOG_REGION: ${HYORI_LOG_REGION:-}
+      HYORI_LOG_INSTANCE_ID: ${HYORI_LOG_INSTANCE_ID:-}
       # This full URL is operator-supplied so password URL encoding is never guessed by Compose.
       HYORI_DATABASE_URL: ${HYORI_DATABASE_URL:?Set the dedicated PostgreSQL URL in .env.deployment}
       HYORI_SETUP_TOKEN: ${HYORI_SETUP_TOKEN:?Set HYORI_SETUP_TOKEN in .env.deployment}

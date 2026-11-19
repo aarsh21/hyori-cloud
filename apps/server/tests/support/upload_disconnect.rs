@@ -38,12 +38,13 @@ impl StorageGate {
             );
             async move {
                 let (parts, body) = request.into_parts();
-                let selected = match control.load(Ordering::SeqCst) {
+                let mode = control.load(Ordering::SeqCst);
+                let selected = match mode {
                     1 => {
                         parts.method == "POST"
                             && parts.uri.query().unwrap_or("").contains("uploadId=")
                     }
-                    2 => {
+                    2 | 3 => {
                         parts.method == "PUT"
                             && parts.uri.query().unwrap_or("").contains("partNumber=")
                     }
@@ -69,6 +70,9 @@ impl StorageGate {
                     tokio::time::timeout(Duration::from_secs(45), resume.notified())
                         .await
                         .expect("test must release storage response");
+                    if mode == 3 {
+                        return Response::builder().status(503).body(Body::empty()).unwrap();
+                    }
                 }
                 outgoing.body(Body::from(bytes)).unwrap()
             }

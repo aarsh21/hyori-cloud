@@ -17,6 +17,7 @@ use crate::{
             policy,
         },
     },
+    observability,
     rpc::RequestContext,
 };
 use chrono::Utc;
@@ -30,11 +31,36 @@ pub(crate) fn storage_error(error: StorageError) -> ApiError {
     if matches!(error, StorageError::PartDeadline) {
         return ApiError::new(ErrorCode::UploadTooSlow, "Upload part took too long");
     }
-    crate::observability::storage_error();
-    // StorageError contains only owned operation/status/code diagnostics, never keys or requests.
-    tracing::error!(category = "storage", %error, "storage operation failed");
+    observability::storage_error();
+    let (operation, status) = match &error {
+        StorageError::Service {
+            operation, status, ..
+        } => (Some(*operation), *status),
+        StorageError::Transport { operation } => (Some(*operation), None),
+        StorageError::Body(_) => (Some("body"), None),
+        _ => (None, None),
+    };
+    if !observability::record_failure(observability::Failure {
+        category: "storage",
+        operation,
+        status,
+        sqlstate: None,
+    }) {
+        // Existing non-request diagnostics still carry the adapter's safe details.
+        tracing::error!(category = "storage", %error,
+            request_id = observability::request_id().as_deref(), "storage operation failed");
+    }
     ApiError::unavailable()
 }
+
+fn transfer_kind(editor_bound: bool, replacement: bool) -> &'static str {
+    match (editor_bound, replacement) {
+        (true, _) => "editor_save",
+        (_, true) => "replacement",
+        _ => "new_file",
+    }
+}
+
 pub(crate) struct UploadsService {
     state: Arc<AppState>,
     context: RequestContext,
@@ -69,6 +95,7 @@ impl UploadsService {
         db::domain(&self.state.db, operation).await
     }
     pub async fn begin(&self, input: BeginUpload) -> Result<UploadStatus, ApiError> {
+        observability::transfer(transfer_kind(false, input.replace_id.is_some()), None);
         let storage = self.storage()?;
         let _permit = admission::begin(&self.state, &self.context, &input).await?;
         if input.size.0 > CHUNK_SIZE * u64::from(MAX_PARTS) {
@@ -145,12 +172,14 @@ impl UploadsService {
             })
         })
         .await?;
+        observability::transfer("editor_save", Some(upload.state != "starting"));
         if upload.state == "starting" {
             let multipart = match storage.begin(&upload.object_key, &upload.mime_type).await {
                 Ok(multipart) => multipart,
                 Err(error) => {
+                    let error = storage_error(error);
                     self.release(id, &token).await;
-                    return Err(storage_error(error));
+                    return Err(error);
                 }
             };
             let recorded = db::domain(&self.state.db, |tx| {
@@ -258,6 +287,10 @@ impl UploadsService {
             if !claim(tx,&upload,&token,"uploading").await? { return Err(ApiError::upload_busy().into()); }
             Ok((upload,false))
         }) }).await?;
+        observability::transfer(
+            transfer_kind(upload.editor_bound, upload.replace_id.is_some()),
+            Some(acknowledged),
+        );
         let checksum = if upload.editor_bound {
             let (hashed_body, digest) = crate::features::editors::ingest::PartDigest::wrap(body);
             body = hashed_body;
@@ -350,7 +383,7 @@ impl UploadsService {
         let service = Self::new(self.state.clone(), self.context.clone());
         let worker = Self::new(self.state.clone(), self.context.clone());
         let token = random_token();
-        tokio::spawn(
+        tokio::spawn(observability::inherit_request_log(
             async move {
                 let _permit = permit;
                 match tokio::time::timeout(
@@ -367,7 +400,7 @@ impl UploadsService {
                 }
             }
             .in_current_span(),
-        )
+        ))
         .await
         .map_err(|_| ApiError::unavailable())?
     }
@@ -380,7 +413,10 @@ impl UploadsService {
             Ok::<_, ApiError>(())
         }).await;
         if !matches!(released, Ok(Ok(()))) {
-            tracing::warn!("upload lease release failed; expiry will recover it");
+            tracing::warn!(
+                request_id = observability::request_id().as_deref(),
+                "upload lease release failed; expiry will recover it"
+            );
         }
     }
     #[tracing::instrument(skip_all, name = "upload_completion")]
@@ -447,6 +483,10 @@ impl UploadsService {
                 })
             })
             .await?;
+        observability::transfer(
+            transfer_kind(upload.editor_bound, upload.replace_id.is_some()),
+            Some(upload.state == "complete"),
+        );
         if upload.state == "complete" {
             return terminal(&upload);
         }
@@ -462,8 +502,9 @@ impl UploadsService {
             )
             .await;
         if let Err(error) = result {
+            let error = storage_error(error);
             self.release(&id, &token).await;
-            return Err(storage_error(error));
+            return Err(error);
         }
         if let Err(error) =
             crate::features::editors::service::validate_upload(&self.state, &upload).await

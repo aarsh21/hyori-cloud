@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ServerResponse } from "node:http";
 import { z } from "zod";
 
@@ -61,53 +62,71 @@ export function withOperations(
   return async (request: Request): Promise<Response> => {
     const started = performance.now();
     const path = new URL(request.url).pathname;
-    let status = 500;
-    let logged = false;
-
-    const log = () => {
-      if (logged) return;
-      logged = true;
-      write(
-        JSON.stringify({
-          event: "web_request",
-          method: methods.has(request.method) ? request.method : "OTHER",
-          route: routeKind(path),
-          status,
-          duration_ms: Math.round((performance.now() - started) * 100) / 100,
-        }),
-      );
-    };
-
     const node = nodeResponse.safeParse(request);
+    const route = routeKind(path);
+    let upstreamId: string | undefined;
 
     if (node.success) {
       const response = node.data.runtime.node.res;
+      let logged = false;
+
+      const log = () => {
+        if (logged) return;
+        logged = true;
+
+        const finished = response.writableFinished;
+        const status = finished ? response.statusCode : 499;
+        write(
+          JSON.stringify({
+            event: "web_request",
+            timestamp: new Date().toISOString(),
+            service: "hyori-web",
+            method: methods.has(request.method) ? request.method : "OTHER",
+            route,
+            request_id: upstreamId ?? randomUUID(),
+            request_id_source: upstreamId ? "backend" : "web",
+            status,
+            outcome: !finished
+              ? "cancelled"
+              : status >= 500
+                ? "server_error"
+                : status >= 400
+                  ? "client_error"
+                  : "success",
+            completion: finished ? "response_finished" : "connection_closed",
+            headers_sent: response.headersSent,
+            duration_ms: Math.round((performance.now() - started) * 100) / 100,
+          }),
+        );
+      };
+
       response.once("finish", log);
-      response.once("close", () => {
-        if (!response.writableFinished) status = 499;
-        log();
-      });
+      response.once("close", log);
     }
 
     // Native Requests made by SSR/serverFetch have no Node response. They are not incoming traffic.
-    let response: Response;
-
     if (path === "/health/live" || path === "/health/ready") {
       const healthy = path === "/health/live" || (await ready());
 
-      response = new Response(
-        request.method === "HEAD" ? null : healthy ? "ok\n" : "unavailable\n",
-        {
-          status: healthy ? 200 : 503,
-          headers: {
-            "Cache-Control": "no-store",
-            "Content-Type": "text/plain",
-            "X-Content-Type-Options": "nosniff",
-          },
+      return new Response(request.method === "HEAD" ? null : healthy ? "ok\n" : "unavailable\n", {
+        status: healthy ? 200 : 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "Content-Type": "text/plain",
+          "X-Content-Type-Options": "nosniff",
         },
-      );
-    } else response = await next(request);
-    status = response.status;
+      });
+    }
+
+    const response = await next(request);
+
+    // Read the Fetch response before Nitro writes its headers to Node. SSR can fan out into
+    // many calls, so an SSR page never borrows an ID from an individual internal request.
+    if (node.success && (route === "rpc" || route === "storage")) {
+      const header = response.headers.get("x-request-id");
+
+      if (header !== null && /^[0-9a-f]{64}$/.test(header)) upstreamId = header;
+    }
 
     return response;
   };

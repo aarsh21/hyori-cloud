@@ -99,11 +99,19 @@ impl From<sea_orm::DbErr> for ApiError {
     fn from(error: sea_orm::DbErr) -> Self {
         // SQL text, messages, constraints and values can contain private data; log only SQLSTATE.
         let sqlstate = database_sqlstate(&error);
-        tracing::error!(
-            category = "database",
-            sqlstate = sqlstate.as_deref().unwrap_or("none"),
-            "database operation failed"
-        );
+        if !crate::observability::record_failure(crate::observability::Failure {
+            category: "database",
+            operation: None,
+            status: None,
+            sqlstate: sqlstate.as_deref().map(str::to_owned),
+        }) {
+            tracing::error!(
+                category = "database",
+                sqlstate = sqlstate.as_deref().unwrap_or("none"),
+                request_id = crate::observability::request_id().as_deref(),
+                "database operation failed"
+            );
+        }
         if sqlstate.as_deref() == Some("HC001") {
             return Self::new(ErrorCode::QuotaExceeded, "Storage quota exceeded");
         }

@@ -29,6 +29,7 @@ COPY apps/media-worker ./apps/media-worker
 COPY crates/storage ./crates/storage
 # The server compiles these editor authorities in with include_str!.
 COPY tooling/artcraft/manifest.json tooling/artcraft/runtime-deckcraft-v2.json tooling/artcraft/runtime-native-v3*.json ./tooling/artcraft/
+ARG HYORI_BUILD_COMMIT
 # Dropping target keeps this per-commit layer small in the build cache.
 RUN icu_version="$(pkg-config --modversion icu-uc)" \
     && CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS}" RUST_ICU_MAJOR_VERSION_NUMBER="${icu_version%%.*}" cargo build --release --locked --bin hyori-server \

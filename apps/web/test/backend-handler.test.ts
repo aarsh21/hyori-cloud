@@ -1,4 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
+import { once } from "node:events";
+import { createServer, get } from "node:http";
+import { z } from "zod";
 import { createWebBackendHandler } from "../src/server/backend-handler";
 import { withOperations } from "../src/server/operations";
 
@@ -83,6 +86,82 @@ test("internal SSR fetches do not create additional incoming access records", as
   expect(lines).toEqual([]);
 });
 
+test("incoming access records link only backend responses and distinguish a truncated stream", async () => {
+  const backendId = "1".repeat(64);
+  const callerId = "2".repeat(64);
+  const lines: string[] = [];
+
+  const host = withOperations(
+    () => new Response("body", { headers: { "x-request-id": backendId } }),
+    undefined,
+    (line) => lines.push(line),
+  );
+
+  const gateway = createServer(async (incoming, outgoing) => {
+    const url = new URL(incoming.url ?? "/", "http://localhost");
+
+    const response = await host(
+      Object.assign(new Request(url, { headers: { "x-request-id": callerId } }), {
+        runtime: { node: { res: outgoing } },
+      }),
+    );
+
+    // srvx writes Fetch headers with writeHead instead of caching them via setHeader.
+    outgoing.writeHead(response.status, Object.fromEntries(response.headers));
+
+    if (url.pathname.startsWith("/api/storage/")) outgoing.write("partial stream");
+    else outgoing.end(await response.text());
+  });
+
+  try {
+    gateway.listen(0, "127.0.0.1");
+    await once(gateway, "listening");
+    const { port } = z.object({ port: z.number() }).parse(gateway.address());
+    const base = `http://127.0.0.1:${port}`;
+
+    for (const path of ["/api/rpc", "/private-page"]) {
+      const response = await fetch(`${base}${path}`);
+      expect(await response.text()).toBe("body");
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      get(`${base}/api/storage/files/private-file?q=private-query`, (response) => {
+        response.once("data", () => response.destroy());
+        response.once("close", resolve);
+        response.once("error", reject);
+      }).once("error", reject);
+    });
+
+    for (let attempt = 0; attempt < 100 && lines.length < 3; attempt++) await Bun.sleep(10);
+
+    const events = lines.map((line) => JSON.parse(line));
+    expect(events).toHaveLength(3);
+    expect(events[0]).toMatchObject({
+      route: "rpc",
+      request_id: backendId,
+      status: 200,
+      completion: "response_finished",
+    });
+    expect(events[1]).toMatchObject({ route: "page", request_id_source: "web", status: 200 });
+    expect(events[1].request_id).not.toBe(backendId);
+    expect(events[2]).toMatchObject({
+      route: "storage",
+      request_id: backendId,
+      completion: "connection_closed",
+      headers_sent: true,
+      status: 499,
+      outcome: "cancelled",
+    });
+
+    for (const marker of [callerId, "private-page", "private-file", "private-query"]) {
+      expect(lines.join("\n")).not.toContain(marker);
+    }
+  } finally {
+    gateway.closeAllConnections();
+    gateway.close();
+  }
+});
+
 test("readiness coalesces concurrent probes and reuses both outcomes for one second", async () => {
   let calls = 0;
   let hanging = false;
@@ -146,15 +225,21 @@ function request(host = "cloud.example.test", extra: HeadersInit = {}) {
 }
 
 test("maps the preserved public Host over a private HTTP hop without trusting forwarding headers", async () => {
+  const backendId = "1".repeat(64);
+
   const backendUrl = serve(async (incoming) => {
     expect(incoming.headers.get("host")).toBe("cloud.example.test");
     expect(incoming.headers.get("origin")).toBe(origin);
     expect(incoming.headers.has("forwarded")).toBe(false);
     expect(incoming.headers.has("x-forwarded-host")).toBe(false);
     expect(incoming.headers.has("x-forwarded-proto")).toBe(false);
+    expect(incoming.headers.has("x-request-id")).toBe(false);
     expect(await incoming.json()).toEqual({ operation: "auth.status", input: {} });
 
-    return Response.json({ ok: true, value: { initialized: false, user: null } });
+    return Response.json(
+      { ok: true, value: { initialized: false, user: null } },
+      { headers: { "x-request-id": backendId } },
+    );
   });
 
   const handler = createWebBackendHandler({ origin, backendUrl, production: true });
@@ -164,10 +249,12 @@ test("maps the preserved public Host over a private HTTP hop without trusting fo
       Forwarded: "host=attacker.test;proto=http",
       "X-Forwarded-Host": "attacker.test",
       "X-Forwarded-Proto": "http",
+      "X-Request-Id": "2".repeat(64),
     }),
   );
 
   expect(response.status).toBe(200);
+  expect(response.headers.get("x-request-id")).toBe(backendId);
 });
 
 test("fails closed on authority, cross-origin and missing cookie-write evidence", async () => {

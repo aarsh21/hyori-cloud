@@ -1,9 +1,15 @@
+#[path = "support/upload_disconnect.rs"]
+mod disconnect;
+#[path = "support/storage.rs"]
+mod storage;
 mod support;
+use disconnect::{ObservedServer, StorageGate, signal};
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::json;
 use std::{
+    collections::HashSet,
     io::Write,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, atomic::Ordering},
     time::Duration,
 };
 use support::{Postgres, TestServer};
@@ -21,11 +27,14 @@ impl Write for Log {
 }
 
 #[tokio::test]
-#[ignore = "isolated PostgreSQL; captures actual HTTP request logs and metrics"]
+#[ignore = "isolated PostgreSQL and RustFS; captures actual HTTP request logs and metrics"]
 async fn request_logs_and_metric_labels_never_include_request_secrets() {
     let bytes = Arc::new(Mutex::new(Vec::new()));
     let writer = Log(bytes.clone());
     tracing_subscriber::fmt()
+        .json()
+        .with_current_span(false)
+        .with_span_list(false)
         .with_ansi(false)
         .with_env_filter("hyori_server=info")
         .with_writer(move || writer.clone())
@@ -42,6 +51,7 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
     let query = "private-observability-query";
     let token = "a123456789abcdefa123456789abcdefa123456789abcdefa123456789abcdefabc";
     let supplied_id = "private-observability-request-id";
+    let custom_method = "PRIVATE-OBSERVABILITY-METHOD";
     let setup = server.rpc("auth.setup", json!({"email":email,"password":password,"name":name,"setupToken":pg.config.setup_token}), None).await;
     setup.value();
     assert!(setup.cookie.is_some());
@@ -98,11 +108,21 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
     assert_ne!(generated, supplied_id);
     let unknown = server
         .client
-        .get(format!("{}/{file}?q={query}", server.url))
+        .request(
+            reqwest::Method::from_bytes(custom_method.as_bytes()).unwrap(),
+            format!("{}/{file}?q={query}", server.url),
+        )
         .send()
         .await
         .unwrap();
     assert_eq!(unknown.status(), 404);
+    let note = server
+        .client
+        .get(format!("{}/api/storage/notes/{file}?q={query}", server.url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(note.status(), 400); // missing required fence, rejected by the framework
     let malformed = server
         .client
         .post(format!("{}/api/rpc", server.url))
@@ -135,6 +155,9 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
         metrics.contains("hyori_requests_total{operation=\"rpc.unknown\",status_class=\"4xx\"} 1")
     );
     assert!(
+        metrics.contains("hyori_requests_total{operation=\"storage.note\",status_class=\"4xx\"} 1")
+    );
+    assert!(
         metrics.contains("hyori_admission_wait_seconds_count{lane=\"rpc\",outcome=\"admitted\"} 5")
     );
     for metric in [
@@ -148,34 +171,58 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
         assert!(metrics.contains(metric), "missing {metric}");
     }
     let logs = String::from_utf8(bytes.lock().unwrap().clone()).unwrap();
-    let requests: Vec<_> = logs
+    let events: Vec<serde_json::Value> = logs
         .lines()
-        .filter(|line| line.contains("request completed"))
+        .map(|line| serde_json::from_str(line).expect("one JSON object per log line"))
+        .collect();
+    let requests: Vec<_> = events
+        .iter()
+        .filter(|line| line["target"] == "hyori_server::request")
         .collect();
     assert_eq!(
         requests.len(),
-        9,
+        10,
         "exactly one line for every HTTP request: {logs}"
     );
-    assert!(
+    let fields = |operation: &str| {
         requests
             .iter()
-            .any(|line| line.contains("files.createFolder") && line.contains("198.51.100.42"))
-    );
-    assert!(requests.iter().any(|line| line.contains("storage.file")
-        && line.contains("service.unavailable")
-        && line.contains(&generated)));
-    for line in requests {
-        for field in [
-            "operation=",
-            "status=",
-            "error_code=",
-            "duration_seconds=",
-            "request_id=",
-            "client_address=",
-        ] {
-            assert!(line.contains(field), "missing {field}: {line}");
+            .find(|line| line["fields"]["operation"] == operation)
+            .map(|line| &line["fields"])
+            .unwrap_or_else(|| panic!("missing event for {operation}"))
+    };
+    let folder_event = fields("files.createFolder");
+    assert_eq!(folder_event["method"], "POST");
+    assert_eq!(folder_event["client_address"], "198.51.100.42");
+    assert_eq!(folder_event["status"], 200);
+    assert_eq!(folder_event["outcome"], "success");
+    let file_event = fields("storage.file");
+    assert_eq!(file_event["request_id"], generated);
+    assert_eq!(file_event["status"], 503);
+    assert_eq!(file_event["outcome"], "server_error");
+    assert_eq!(file_event["error_code"], "service.unavailable");
+    assert_eq!(fields("unknown")["method"], "OTHER");
+    let note_event = fields("storage.note");
+    assert_eq!(note_event["method"], "GET");
+    assert_eq!(note_event["status"], 400);
+    assert_eq!(note_event["outcome"], "client_error");
+    assert_eq!(note_event["error_code"], "none");
+
+    let mut request_ids = HashSet::new();
+    for line in &requests {
+        let fields = &line["fields"];
+        assert!(line["timestamp"].as_str().is_some());
+        assert_eq!(fields["event"], "http.request.completed");
+        assert_eq!(fields["completion"], "response_headers");
+        assert_eq!(fields["service"], "hyori-server");
+        assert_eq!(fields["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(fields["environment"], "development");
+        assert!(fields["duration_seconds"].as_f64().unwrap() >= 0.0);
+        for key in ["commit_hash", "region", "instance_id"] {
+            assert!(fields[key].as_str().is_some_and(|value| !value.is_empty()));
         }
+        let request_id = fields["request_id"].as_str().unwrap();
+        assert!(!request_id.is_empty() && request_ids.insert(request_id));
     }
     for secret in [
         email,
@@ -186,6 +233,7 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
         query,
         token,
         supplied_id,
+        custom_method,
         &credential,
         &pg.config.setup_token,
     ] {
@@ -258,6 +306,7 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
             .any(|line| line.starts_with("hyori_media_jobs{"))
     );
     drop(held);
+    transfer_events(&server, &credential, &bytes).await;
     pg.stop();
     let offline = scrape().await;
     assert!(offline.contains("hyori_ready 0\n"));
@@ -267,4 +316,148 @@ async fn request_logs_and_metric_labels_never_include_request_secrets() {
             .lines()
             .any(|line| line.starts_with("hyori_media_jobs{"))
     );
+}
+
+async fn transfer_events(metadata: &TestServer, credential: &str, bytes: &Mutex<Vec<u8>>) {
+    let start = bytes.lock().unwrap().len();
+    let records = || {
+        let bytes = bytes.lock().unwrap();
+        std::str::from_utf8(&bytes[start..])
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap()["fields"].clone())
+            .collect::<Vec<_>>()
+    };
+    let secret = "private-editor-save-id";
+    metadata
+        .rpc(
+            "editors.prepareSave",
+            json!({
+                "sessionId":"private-editor-session", "saveId":secret, "expectedRevision":"0",
+                "name":"private-editor-file.pdf", "size":3, "sha256":"a".repeat(64),
+                "intent":"replace", "saveMode":"automatic"
+            }),
+            Some(credential),
+        )
+        .await
+        .error(503, "service.unavailable");
+    let editor = records()
+        .into_iter()
+        .find(|event| event["operation"] == "editors.prepareSave")
+        .unwrap();
+    assert_eq!(editor["transfer_kind"], "editor_save");
+    assert_eq!(editor["editor_intent"], "replace");
+    assert_eq!(editor["editor_save_mode"], "automatic");
+
+    let fs = storage::RustFs::start().await;
+    let gate = StorageGate::start(fs.config.endpoint.clone()).await;
+    let mut config = (*metadata.state.config).clone();
+    config.storage = Some(hyori_storage::StorageConfig {
+        endpoint: gate.endpoint.clone(),
+        ..fs.config.clone()
+    });
+    let server = TestServer::start(config).await;
+    let upload = server.rpc("uploads.begin", json!({
+        "parentId":null,"name":"private-upload-name.bin","size":3,"mimeType":"application/octet-stream",
+    }), Some(credential)).await.value()["uploadId"].as_str().unwrap().to_owned();
+    let path = format!("/api/storage/uploads/{upload}/1");
+    let put = || {
+        server
+            .client
+            .put(format!("{}{path}", server.url))
+            .header("host", "localhost:3001")
+            .header("origin", &server.state.config.origin)
+            .header("cookie", credential)
+            .body("abc")
+    };
+
+    gate.mode.store(3, Ordering::SeqCst);
+    let (response, ()) = tokio::join!(put().send(), async {
+        signal(&gate.reached).await;
+        gate.release.notify_one();
+    });
+    let response = response.unwrap();
+    assert_eq!(response.status(), 503);
+    let attended_id = response.headers()["x-request-id"].to_str().unwrap();
+    let events = records();
+    let attended: Vec<_> = events
+        .iter()
+        .filter(|event| event["request_id"] == attended_id)
+        .collect();
+    assert_eq!(
+        attended.len(),
+        1,
+        "request-bound failure must not log twice"
+    );
+    assert_eq!(attended[0]["failure_category"], "storage");
+    assert_eq!(attended[0]["failure_operation"], "part");
+    assert_eq!(attended[0]["failure_status"], 503);
+    assert_eq!(attended[0]["transfer_kind"], "new_file");
+    assert_eq!(attended[0]["transfer_replay"], false);
+
+    let mut observed = ObservedServer::start(server.state.clone()).await;
+    gate.mode.store(3, Ordering::SeqCst);
+    let socket = observed.request("PUT", &path, credential, b"abc").await;
+    signal(&gate.reached).await;
+    socket.shutdown(std::net::Shutdown::Both).unwrap();
+    drop(socket);
+    signal(&observed.ended).await;
+    let cancelled: Vec<_> = records()
+        .into_iter()
+        .filter(|event| event["outcome"] == "cancelled")
+        .collect();
+    assert_eq!(cancelled.len(), 1);
+    let cancelled = &cancelled[0];
+    assert_eq!(cancelled["operation"], "storage.upload");
+    assert_eq!(cancelled["completion"], "before_headers");
+    assert!(cancelled.get("status").is_none());
+    gate.release.notify_one();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let response = put().send().await.unwrap();
+            if response.status() == 200 {
+                break;
+            }
+            assert_eq!(response.status(), 409, "lease may still be releasing");
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let replay = put().send().await.unwrap();
+    assert_eq!(replay.status(), 200);
+    let replay_id = replay.headers()["x-request-id"].to_str().unwrap();
+    let events = records();
+    let late = events
+        .iter()
+        .filter(|event| event["request_id"] == cancelled["request_id"])
+        .collect::<Vec<_>>();
+    assert_eq!(
+        late.len(),
+        2,
+        "the late worker failure must be separate, not lost"
+    );
+    assert_eq!(late[1]["message"], "storage operation failed");
+    assert_eq!(
+        events
+            .iter()
+            .find(|event| event["request_id"] == replay_id)
+            .unwrap()["transfer_replay"],
+        true
+    );
+    observed.stop_accepting().await;
+    let logs = bytes.lock().unwrap();
+    let logs = std::str::from_utf8(&logs[start..]).unwrap();
+    for private in [
+        upload.as_str(),
+        secret,
+        "private-upload-name.bin",
+        "private-editor-file.pdf",
+        "private-editor-session",
+    ] {
+        assert!(
+            !logs.contains(private),
+            "private transfer metadata must not be logged"
+        );
+    }
 }

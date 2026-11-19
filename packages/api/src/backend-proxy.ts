@@ -105,6 +105,8 @@ export function createBackendProxy(config: BackendProxyConfig) {
       );
 
     const headers = endToEndHeaders(request.headers);
+    // Correlation IDs are issued by the private backend, never provided by the public caller.
+    headers.delete("x-request-id");
 
     for (const name of request.headers.keys())
       if (

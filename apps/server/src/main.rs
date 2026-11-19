@@ -1,3 +1,5 @@
+mod logging;
+
 use hyori_server::{AppState, config::Config, router};
 
 #[tokio::main]
@@ -5,13 +7,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if std::env::args().nth(1).as_deref() == Some("--health") {
         return health().await;
     }
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "hyori_server=info".into()),
-        )
-        .try_init()?;
     let config = Config::from_env()?;
+    logging::init(config.secure_cookies)?;
     let bind = config.bind;
     let state = AppState::connect(config).await?;
     let listener = tokio::net::TcpListener::bind(bind).await?;

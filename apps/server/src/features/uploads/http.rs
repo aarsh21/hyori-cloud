@@ -424,6 +424,7 @@ fn relay<A: Send + 'static>(
     let (sender, receiver) = tokio::sync::mpsc::channel(DOWNLOAD_BUFFER);
     let finished = Arc::new(AtomicBool::new(false));
     let complete = finished.clone();
+    let request_id = crate::observability::request_id();
     tokio::spawn(async move {
         let _admission = admission;
         let deadline = tokio::time::Instant::now() + DOWNLOAD_DEADLINE;
@@ -439,7 +440,8 @@ fn relay<A: Send + 'static>(
             };
             if let Err(error) = &item {
                 crate::observability::storage_error();
-                tracing::error!(category = "storage", %error, "storage stream failed");
+                tracing::error!(category = "storage", request_id = request_id.as_deref(),
+                    %error, "storage stream failed");
             }
             let failed = item.is_err();
             let sent = tokio::time::timeout_at(until(), sender.send(item)).await;
