@@ -42,6 +42,32 @@ const LATER = "HYORILATER";
 /** A conflict is off screen entirely: nothing here may capture it, including on failure. */
 const NEVER_CAPTURED = { captureFailure: false };
 
+// Playwright considers a fully transparent dialog visible. In Chromium with a composited
+// editor, the initial click at its future button position can still reach the canvas.
+// Wait for the real popup, then send one ordinary pointer click; never retry a save.
+async function clickDialogButton(dialog: Locator, name: string) {
+  const popup = await dialog.elementHandle();
+
+  try {
+    await dialog
+      .page()
+      .waitForFunction(
+        (element) =>
+          !element.hasAttribute("data-starting-style") && getComputedStyle(element).opacity === "1",
+        popup,
+        { timeout: 15_000 },
+      );
+    await dialog.getByRole("button", { name, exact: true }).click();
+  } finally {
+    await popup.dispose();
+  }
+}
+
+async function requestNativeCopy(page: Page) {
+  await barButton(page, "Save a copy").click();
+  await clickDialogButton(page.getByRole("dialog", { name: "Save a copy" }), "Continue");
+}
+
 const savedRequest = (run: CoreRun, operation: string) =>
   run.front.trace
     .filter((record) => record.operation === operation)
@@ -97,6 +123,7 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
 
     const traceStart = run.front.trace.length;
 
+    await newer.bringToFront();
     await editDocument(newer, item, newerTop, THEIRS);
     await saveWithKeyboard(run, newer);
 
@@ -105,6 +132,11 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
     await closeEditor(newer);
 
     const theirs = await downloadRow(newer, name);
+    assertHoldsEdit(item, theirs, THEIRS);
+
+    // Real users switch tabs to type. In a background tab Chromium can deliver the keys
+    // to the canvas before Grid opens its cell input, losing letters before any save.
+    await stale.bringToFront();
 
     // Word keeps its caret, so it can go on typing after the refused save took its snapshot: what
     // it typed then is only in the editor, and Download my version has to hold it too.
@@ -162,7 +194,7 @@ async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext,
 
     const confirmation = stale.getByRole("alertdialog", { name: "Leave your version behind?" });
 
-    await confirmation.getByRole("button", { name: "Reopen without it" }).click();
+    await clickDialogButton(confirmation, "Reopen without it");
     await waitForEditor(stale, "All changes saved");
     assert.deepEqual(
       sha256Of(await downloadRow(newer, name)),
@@ -332,7 +364,7 @@ async function unsavedWorkChecks(
 
     const confirmation = page.getByRole("alertdialog");
 
-    await confirmation.getByRole("button", { name: "Keep editing" }).click();
+    await clickDialogButton(confirmation, "Keep editing");
     await confirmation.waitFor({ state: "detached" });
     await barStatus(page, unsaved).waitFor();
   });
@@ -364,7 +396,7 @@ async function unsavedWorkChecks(
     const completed = operationCount(front, "editors.completeSave");
 
     await barButton(page, "Close").click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Discard changes" }).click();
+    await clickDialogButton(page.getByRole("alertdialog"), "Discard changes");
     await rowIn(page, name).waitFor();
     assert.equal(new URL(page.url()).pathname, folderPath, "where Close went");
     assert.equal(operationCount(front, "editors.completeSave"), completed, "saves");
@@ -422,11 +454,7 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
 
     if (native) {
       await item.edit(page, top, COPIED);
-      await barButton(page, "Save a copy").click();
-      await page
-        .getByRole("dialog", { name: "Save a copy" })
-        .getByRole("button", { name: "Continue" })
-        .click();
+      await requestNativeCopy(page);
     } else {
       await editDocument(page, item, top, COPIED);
       await page.keyboard.press("Control+s");
@@ -444,7 +472,7 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
     // the destination to actually unmount, rather than just disappearing from accessibility.
     const destination = page.getByRole("dialog", { name: /^Save “.*” to…$/, includeHidden: true });
 
-    await destination.getByRole("button", { name: "Cancel" }).click();
+    await clickDialogButton(destination, "Cancel");
 
     if (native) {
       await destination.waitFor({ state: "detached" });
@@ -459,17 +487,13 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
     const completed = operationCount(front, "editors.completeSave", 200);
 
     if (native) {
-      await barButton(page, "Save a copy").click();
-      await page
-        .getByRole("dialog", { name: "Save a copy" })
-        .getByRole("button", { name: "Continue" })
-        .click();
+      await requestNativeCopy(page);
       await page.getByRole("heading", { name: /^Save “.*” to…$/ }).waitFor({ timeout: 30_000 });
     } else await barButton(page, "Retry save").click();
 
     const dialog = page.getByRole("dialog");
 
-    await dialog.getByRole("button", { name: copies }).click();
+    await clickDialogButton(dialog, copies);
     await dialog.getByText(copies).first().waitFor();
     await dialog.getByRole("button", { name: "Save here" }).click();
     await dialog.waitFor({ state: "detached" });
@@ -488,11 +512,26 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
     assert.match(copyName, /\.deckcraft$/, "the copy's name");
   });
 
+  if (native) {
+    await report.check("a second PPTX copy asks again before writing anywhere", async () => {
+      const prepares = operationCount(front, "editors.prepareSave");
+
+      await requestNativeCopy(page);
+      const destination = page.getByRole("dialog", { name: /^Save “.*” to…$/ });
+      await clickDialogButton(destination, "Cancel");
+      await destination.waitFor({ state: "detached" });
+      await barStatus(page, "Save a copy to keep changes").waitFor();
+      assert.equal(operationCount(front, "editors.prepareSave"), prepares, "saves attempted");
+    });
+  } else {
+    report.unverified("repeat PPTX saves", "The legacy editor's repeat-save flow was not tested.");
+  }
+
   await report.check("the PPTX is untouched, with no new version", async () => {
     if (native) {
       // A copy doesn't make the original clean: its edits live in the copy, so closing asks.
       await barButton(page, "Close").click();
-      await page.getByRole("alertdialog").getByRole("button", { name: "Discard changes" }).click();
+      await clickDialogButton(page.getByRole("alertdialog"), "Discard changes");
       await page.locator('[data-slot="hosted-document"]').waitFor({ state: "detached" });
     } else await closeEditor(page);
 
@@ -517,11 +556,6 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
     );
     await closeEditor(page);
   });
-
-  report.unverified(
-    "repeat PPTX saves",
-    "Each ordinary save of a PPTX asks again: it's documented behavior, not adopted as a workflow.",
-  );
 
   await context.close();
 }
@@ -614,23 +648,27 @@ async function wordSaveAsControl(page: Page, top: number) {
   return (await browse.count()) === 0 ? null : browse.first();
 }
 
-async function wordSaveAsCopy(run: CoreRun, page: Page, browse: Locator) {
+async function wordSaveAsCopy(run: CoreRun, page: Page, legacyBrowse: Locator | null) {
   const { front } = run;
   const completed = operationCount(front, "editors.completeSave", 200);
 
-  await browse.click();
+  if (legacyBrowse === null) await requestNativeCopy(page);
+  else await legacyBrowse.click();
 
   const dialog = page.getByRole("dialog");
 
   await dialog.getByRole("heading", { name: /^Save “.*” to…$/ }).waitFor({ timeout: 30_000 });
-  await dialog.getByRole("button", { name: "Save here" }).click();
+  await clickDialogButton(dialog, "Save here");
   await untilOperation(front, "editors.completeSave", completed + 1);
 
   const prepared = front.trace.findLast((record) => record.operation === "editors.prepareSave");
 
   assert.match(prepared?.rpcBody ?? "", /"intent":"save-as"/, "what Word's Save As asked for");
 
-  return /"name":"([^"]+)"/.exec(prepared?.rpcBody ?? "")?.[1] ?? null;
+  const copyName = /"name":"([^"]+)"/.exec(prepared?.rpcBody ?? "")?.[1];
+  assert.ok(copyName, "Word's Save As must name the file the viewer will download");
+
+  return copyName;
 }
 
 const READ_ONLY_FILES = [
@@ -686,9 +724,10 @@ async function readOnly(run: CoreRun, cases: EditorCases) {
       },
     );
 
-    const browse = await wordSaveAsControl(reader, top).catch(() => null);
+    const native = await inNativeEditor(run, reader);
+    const browse = native ? null : await wordSaveAsControl(reader, top).catch(() => null);
 
-    if (browse === null) {
+    if (!native && browse === null) {
       report.unverified(
         "a read-only Word document's Save As makes a copy",
         "No Browse… control could be found in the editor without looking at it.",
@@ -764,18 +803,13 @@ async function readOnly(run: CoreRun, cases: EditorCases) {
       await cases.deckFromPptx.edit(secondReader, top, COPIED);
 
       // A protocol 2 editor offers the copy itself; a legacy one asks on Ctrl+S.
-      if (await inNativeEditor(run, secondReader)) {
-        await barButton(secondReader, "Save a copy").click();
-        await secondReader
-          .getByRole("dialog", { name: "Save a copy" })
-          .getByRole("button", { name: "Continue" })
-          .click();
-      } else await secondReader.keyboard.press("Control+s");
+      if (await inNativeEditor(run, secondReader)) await requestNativeCopy(secondReader);
+      else await secondReader.keyboard.press("Control+s");
 
       const dialog = secondReader.getByRole("dialog");
 
       await dialog.getByRole("heading", { name: /^Save “.*” to…$/ }).waitFor({ timeout: 30_000 });
-      await dialog.getByRole("button", { name: "Save here" }).click();
+      await clickDialogButton(dialog, "Save here");
       await untilOperation(front, "editors.completeSave", completed + 1);
       await dialog.waitFor({ state: "detached" });
 
@@ -827,10 +861,14 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
     // as soon as there's an edit, and that save, like Ctrl+S's, has to arrive too late.
     const release = run.front.hold((record) => record.operation === "editors.prepareSave");
 
-    await editDocument(member.page, cases.word, top, MINE);
-    await stopSharing(page, accountFile, member.accountId);
-    await member.page.keyboard.press("Control+s");
-    release();
+    try {
+      await editDocument(member.page, cases.word, top, MINE);
+      await stopSharing(page, accountFile, member.accountId);
+      await member.page.keyboard.press("Control+s");
+    } finally {
+      release();
+    }
+
     await member.page
       .getByText("You no longer have access to this file")
       .waitFor({ timeout: 60_000 });
@@ -857,13 +895,37 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
     const top = await waitForEditor(visitor, "All changes saved");
     const before = sha256Of(await downloadRow(page, linkFile));
 
+    const traceStart = run.front.trace.length;
     const release = run.front.hold((record) => record.operation === "editors.prepareSave");
 
-    await editDocument(visitor, cases.word, top, MINE);
-    await revokeLink(page, linkFile);
-    await visitor.keyboard.press("Control+s");
-    release();
-    await visitor.getByText("You no longer have access to this file").waitFor({ timeout: 60_000 });
+    try {
+      await editDocument(visitor, cases.word, top, MINE);
+      await revokeLink(page, linkFile);
+      await visitor.keyboard.press("Control+s");
+    } finally {
+      release();
+    }
+
+    await barStatus(visitor, /^(Access ended|Session ended)$/).waitFor({ timeout: 60_000 });
+
+    const attempts = run.front.trace
+      .slice(traceStart)
+      .filter((r) => r.operation === "editors.prepareSave");
+
+    assert.ok(
+      attempts.length > 0 && attempts.every((r) => r.status === 403 || r.status === 404),
+      "every save must reach the server and be refused after revocation",
+    );
+    // Maintenance removes dead link sessions. The server then reports a missing session (404),
+    // not a live session whose access was revoked (403). Both must offer local recovery.
+    const missing = attempts[0]?.status === 404;
+    await barStatus(visitor, missing ? "Session ended" : "Access ended").waitFor();
+    await cover(visitor)
+      .getByText(
+        missing ? "This editing session has ended" : "You no longer have access to this file",
+        { exact: true },
+      )
+      .waitFor();
 
     const work = await downloadBytes(visitor, () =>
       visitor.locator("main").getByRole("button", { name: "Download my version" }).click(),
@@ -871,6 +933,7 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
 
     assertHoldsEdit(cases.word, work, MINE);
     assert.equal(sha256Of(await downloadRow(page, linkFile)), before, "the owner's file");
+    await assertEarlierVersions(page, linkFile, 0);
   });
 
   await visitorContext.close();

@@ -138,15 +138,10 @@ export async function waitForEditor(
   assert.ok(frame, "the editor frame has no browsing context");
 
   // These recipes belong only to the unchanged legacy engines, not the new native chrome.
-  // Measure the real inner viewport instead of assuming Hyori's header is still 44px tall.
+  // The child may observe a resize after the parent. Don't apply a second correction from
+  // its stale viewport; wait for the measured dimensions before sending canvas coordinates.
   await page.setViewportSize({ width: 1280, height: 800 + Math.round(box.y) });
-  const inner = await frame.evaluate(() => ({ width: innerWidth, height: innerHeight }));
-
-  if (inner.height !== 800) {
-    const viewport = page.viewportSize();
-    assert.ok(viewport);
-    await page.setViewportSize({ width: 1280, height: viewport.height + 800 - inner.height });
-  }
+  await frame.waitForFunction(() => innerWidth === 1280 && innerHeight === 800);
 
   assert.deepEqual(
     await frame.evaluate(() => ({ width: innerWidth, height: innerHeight })),
@@ -244,6 +239,17 @@ export async function saveWithKeyboard(run: CoreRun, page: Page) {
 export async function closeEditor(page: Page) {
   await barButton(page, "Close").click();
   await page.locator('[data-slot="hosted-document"]').waitFor({ state: "detached" });
+  // DOM detachment precedes the replacement view's first paint. An immediate Chromium
+  // pointer command can stall before it dispatches any event to the new page.
+  await page
+    .getByRole("main")
+    .first()
+    .evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
 }
 
 export function downloadRow(page: Page, name: string) {
