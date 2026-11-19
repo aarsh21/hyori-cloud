@@ -6,12 +6,52 @@ pub use diagnostics::{Diagnostic, Reason, Stage, rejection_reason};
 use serde::{Deserialize, Serialize};
 pub const PATH: &str = "/v1/derive";
 pub const DECODER_PATH: &str = "/v1/decoder";
+pub const CAPTURE_PATH: &str = "/v1/capture";
+pub const CAPTURE_HEADER: &str = "x-hyori-capture";
+pub const MAX_CAPTURE: usize = 512;
+pub const CAPTURE_IMAGE_PREFIX: u64 = 1024 * 1024;
 pub const MAX_INPUT: u64 = 64 * 1024 * 1024;
 pub const MAX_OUTPUT: usize = 256 * 1024;
 pub const MAX_PIXELS: u64 = 40_000_000;
 pub const MAX_DURATION: f64 = 120.0;
 pub const EDGE: u32 = 384;
 pub const RECIPE: i32 = 1;
+
+/// Only normalized fields cross the worker boundary. No raw EXIF/format tags are returned.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
+pub struct CaptureMetadata {
+    pub time: Option<CaptureTime>,
+    pub location: Option<CaptureLocation>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct CaptureTime {
+    pub local: chrono::NaiveDateTime,
+    pub offset_minutes: Option<i32>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct CaptureLocation {
+    pub latitude: f64,
+    pub longitude: f64,
+}
+
+impl CaptureMetadata {
+    pub fn validated(mut self) -> Self {
+        use chrono::{Datelike, Timelike};
+        self.time = self.time.filter(|time| {
+            (1..=9999).contains(&time.local.year()) && time.local.nanosecond() < 1_000_000_000
+        });
+        if let Some(time) = &mut self.time {
+            time.offset_minutes = time.offset_minutes.filter(|v| (-1439..=1439).contains(v));
+        }
+        self.location = self.location.filter(|point| {
+            (-90.0..=90.0).contains(&point.latitude) && (-180.0..=180.0).contains(&point.longitude)
+        });
+        self
+    }
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Failure {

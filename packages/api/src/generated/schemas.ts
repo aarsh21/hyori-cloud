@@ -340,6 +340,22 @@ export const ItemInput = Schema.Struct({ "id": Id });
 
 export type ItemInput = typeof ItemInput.Type;
 
+export const LibraryInput = Schema.Struct({ "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)) });
+
+export type LibraryInput = typeof LibraryInput.Type;
+
+export const MediaDerivative = exclusiveUnion(Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("unavailable"), Schema.String) }), Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("queued"), Schema.String) }), Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("processing"), Schema.String) }), Schema.Struct({ "height": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(384)), "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("ready"), Schema.String), "url": Schema.String, "width": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(384)) }), Schema.Struct({ "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("unsupported"), Schema.String) }), Schema.Struct({ "canRetry": Schema.Boolean, "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("failed"), Schema.String) }));
+
+export type MediaDerivative = typeof MediaDerivative.Type;
+
+export const PhotoDateSource = intersection(Schema.Union(Schema.Literal("capture"), Schema.Literal("upload")), Schema.String);
+
+export type PhotoDateSource = typeof PhotoDateSource.Type;
+
+export const LibraryItem = Schema.Struct({ "access": Access, "createdAt": Schema.String, "dateSource": PhotoDateSource, "derivative": Schema.optional(MediaDerivative), "id": Id, "kind": FileKind, "mimeType": Schema.String, "name": Name, "ownerId": Id, "parentId": Schema.Union(Id, Schema.Null), "previewUrl": Schema.String, "size": Bytes, "timelineDate": Schema.String, "trashedAt": Schema.Union(Schema.String, Schema.Null), "updatedAt": Schema.String });
+
+export type LibraryItem = typeof LibraryItem.Type;
+
 export const ListFiles = Schema.Struct({ "after": Schema.optional(Timestamp), "before": Schema.optional(Timestamp), "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)), "limit": Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(100))), "maxSize": Schema.optional(Bytes), "minSize": Schema.optional(Bytes), "parentId": Schema.optional(Schema.Union(Id, Schema.Null)), "search": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255))), "sort": Schema.optional(Schema.Union(FileSort, Schema.Null)), "type": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 128))), "view": Schema.optional(FilesView) });
 
 export type ListFiles = typeof ListFiles.Type;
@@ -347,10 +363,6 @@ export type ListFiles = typeof ListFiles.Type;
 export const ListVersions = Schema.Struct({ "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)), "id": Id });
 
 export type ListVersions = typeof ListVersions.Type;
-
-export const MediaDerivative = exclusiveUnion(Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("unavailable"), Schema.String) }), Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("queued"), Schema.String) }), Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("processing"), Schema.String) }), Schema.Struct({ "height": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(384)), "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("ready"), Schema.String), "url": Schema.String, "width": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(384)) }), Schema.Struct({ "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("unsupported"), Schema.String) }), Schema.Struct({ "canRetry": Schema.Boolean, "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(Schema.Literal("failed"), Schema.String) }));
-
-export type MediaDerivative = typeof MediaDerivative.Type;
 
 export const MediaIdentity = Schema.Struct({ "kind": DerivativeKind, "sourceRevision": Bytes });
 
@@ -411,6 +423,22 @@ export type PendingUploadsInput = typeof PendingUploadsInput.Type;
 export const PermanentDeletion = Schema.Struct({ "freedBytes": Bytes, "items": Bytes });
 
 export type PermanentDeletion = typeof PermanentDeletion.Type;
+
+export const PhotoCapture = Schema.Struct({ "localDateTime": Schema.String, "offsetMinutes": Schema.Union(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(-2147483648, 2147483647)), Schema.Null) });
+
+export type PhotoCapture = typeof PhotoCapture.Type;
+
+export const PhotoLocation = Schema.Struct({ "latitude": Schema.Number.pipe(Schema.finite()), "longitude": Schema.Number.pipe(Schema.finite()) });
+
+export type PhotoLocation = typeof PhotoLocation.Type;
+
+export const PhotoDetails = Schema.Struct({ "capture": Schema.Union(PhotoCapture, Schema.Null), "location": Schema.Union(PhotoLocation, Schema.Null) });
+
+export type PhotoDetails = typeof PhotoDetails.Type;
+
+export const PhotoLibrary = Schema.Struct({ "items": Schema.Array(LibraryItem), "nextCursor": Schema.Union(Schema.String, Schema.Null) });
+
+export type PhotoLibrary = typeof PhotoLibrary.Type;
 
 export const PhotoSources = Schema.Struct({ "allMyFiles": Schema.Boolean, "folderIds": Schema.Array(Id).pipe(Schema.maxItems(100)) });
 

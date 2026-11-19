@@ -5,7 +5,12 @@ fn main() {
     // Tokenize instead of hashing text: comments, documentation and rustfmt cannot cause a wave.
     // Keep unrelated protocol/diagnostic/UI/server changes out of the decoder identity.
     let mut hash = Sha256::new();
-    for path in ["src/decode.rs", "src/lib.rs", "src/main.rs"] {
+    for path in [
+        "src/decode.rs",
+        "src/capture.rs",
+        "src/lib.rs",
+        "src/main.rs",
+    ] {
         println!("cargo:rerun-if-changed={path}");
         let source = std::fs::read_to_string(path).expect("decoder source");
         let mut syntax = syn::parse_file(&source).expect("valid decoder Rust");
@@ -29,7 +34,12 @@ fn main() {
             syntax.items.retain(|item| match item {
                 syn::Item::Const(item) => matches!(
                     item.ident.to_string().as_str(),
-                    "MAX_INPUT" | "MAX_OUTPUT" | "MAX_PIXELS" | "MAX_DURATION" | "EDGE"
+                    "MAX_INPUT"
+                        | "MAX_OUTPUT"
+                        | "MAX_PIXELS"
+                        | "MAX_DURATION"
+                        | "CAPTURE_IMAGE_PREFIX"
+                        | "EDGE"
                 ),
                 syn::Item::Enum(item) => item.ident == "Format",
                 syn::Item::Impl(item) => item.self_ty.to_token_stream().to_string() == "Format",

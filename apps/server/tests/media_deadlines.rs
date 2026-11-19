@@ -86,7 +86,9 @@ async fn decoder_deadlines_exhaust_three_attempts_without_poisoning_infrastructu
             let client = client.clone();
             let busy = busy.clone();
             async move {
-                if request.method() == axum::http::Method::POST {
+                if request.method() == axum::http::Method::POST
+                    && request.uri().path() == hyori_media_worker::PATH
+                {
                     let stage = match request.headers().get("x-hyori-media-type").and_then(|v| v.to_str().ok()) {
                         Some("image/png") => Some("probe"),
                         Some("image/webp") => Some("encode"),
@@ -229,12 +231,13 @@ async fn decoder_deadlines_exhaust_three_attempts_without_poisoning_infrastructu
     drop(server);
     let server = TestServer::start(pg.config.clone()).await;
     for _ in 0..10 {
-        assert!(
-            !jobs::run_once(&server.state).await.unwrap(),
+        jobs::run_once(&server.state).await.unwrap();
+        assert_eq!(
+            snapshot(&server).await,
+            completed,
             "same-fingerprint discovery must not repair a decoder verdict"
         );
     }
-    assert_eq!(snapshot(&server).await, completed);
     println!(
         "DEADLINE same-fingerprint restart: two failed/3/deadline rows unchanged; survivor ready/1"
     );

@@ -288,6 +288,24 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
         assert!(webp_dimensions(&output).is_some());
         worker.decode_output(&output);
     }
+    for original in [
+        include_bytes!("fixtures/media/capture.jpg").as_slice(),
+        include_bytes!("fixtures/media/capture-piexif.jpg").as_slice(),
+    ] {
+        let response = client
+            .post("http://localhost/v1/capture")
+            .header("x-hyori-media-type", "image/jpeg")
+            .body(original.to_vec())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            response.json::<Value>().await.unwrap(),
+            json!({"time":{"local":"2018-07-04T23:32:10","offset_minutes":null},
+                   "location":{"latitude":-33.75,"longitude":151.125}}),
+        );
+    }
     let oriented = include_bytes!("fixtures/media/oriented.jpg");
     let response = client
         .post("http://localhost/v1/derive")

@@ -1,6 +1,6 @@
 # Hyori isolated media worker
 
-This executable is the only Hyori process that launches media decoders. The application backend streams an immutable original over a private Unix socket; the worker returns a small normalized WebP. The injected Unix HTTP adapter lives at the app composition boundary in `apps/server/src/media_worker.rs`, not inside a domain feature or browser graph. It receives **no PostgreSQL, RustFS/S3, session or authentication credentials**, has no network interface except loopback, and never accepts a URL, filename, command or argument list from a caller.
+This executable is the only Hyori process that launches media decoders and parses original capture metadata. The application backend streams immutable bytes over a private Unix socket; the worker returns a small normalized WebP and optionally capture metadata. The injected Unix HTTP adapter lives at the app composition boundary in `apps/server/src/media_worker.rs`, not inside a domain feature or browser graph. It receives **no PostgreSQL, RustFS/S3, session or authentication credentials**, has no network interface except loopback, and never accepts a URL, filename, command or argument list from a caller.
 
 ## Protective budgets, not performance claims
 
@@ -78,6 +78,8 @@ Omitting `HYORI_MEDIA_WORKER_SOCKET` disables new processing. Original uploads/d
 
 The executable/library owns protocol constants in `src/lib.rs`. `POST /v1/derive` over the private Unix socket carries raw original bytes, exact Content-Length and `x-hyori-media-type` from server-owned file metadata. It returns bounded `image/webp` bytes and dimension headers, or a typed JSON `{error}` code: unsupported, invalidMedia, resourceLimit, timeout, busy or unavailable. The backend also validates normalized 1–256px PNG from an old worker during a rolling upgrade. There is no network listener, user-chosen path, storage endpoint or credential field.
 
+Current workers include a bounded `x-hyori-capture` header on successful derivatives. `POST /v1/capture` uses the same isolation, admission and input gates but omits encoding for metadata-only backfill. A `HEAD` capability check lets older workers keep serving thumbnails. Image metadata inspection considers the first 1 MiB only; video probe output shares the existing 64 KiB bound. The parser returns only a local date/time, optional UTC offset in minutes, and validated GPS coordinates. Oversized video tag output does not by itself prevent a poster. The worker never copies raw tags or coordinates into cached images. `kamadak-exif` 0.6.2 and its `mutate_once` dependency are BSD-2-Clause.
+
 The **product** schemas live in `apps/server/src/features/media/api.rs`, not in a handwritten SDK mirror:
 
 - `media.get({id})` is an authorized safe read.
@@ -154,7 +156,7 @@ Wait for that batch to settle before repeating. Tiles temporarily show preparing
 
 ## Durable processing and storage
 
-`0006_derivatives.sql` stores source-key/recipe jobs and independent exact-key artifact intents. Maintenance discovers at most 32 unprocessed current sources and claims one job per pass, ordered by durable due time with five-minute fenced leases. Queries/refetches do not enqueue jobs, write state or start decoding. Upload commit does not wait for a decoder. Backfill considers current supported media across owned libraries; personal Photos source selection controls visibility, not a separate processing permission or storage import.
+`0006_derivatives.sql` stores source-key/recipe jobs and independent exact-key artifact intents. Maintenance discovers at most 32 unprocessed current sources and claims one job per pass, ordered by durable due time with five-minute fenced leases. Queries/refetches do not enqueue jobs, write state or start decoding. Upload commit does not wait for a decoder. Derivative discovery considers current supported media across owned libraries; the automatic Photos feed does not depend on legacy source selection.
 
 There are three automatic attempts with persisted exponential delay. A reader's Retry allows up to three more decoder verdicts, six in total. An attempt Retry started that fails because storage or the worker is unavailable, or whose lease lapses, is not spent: the job returns to the queue with the same capped 20–640 second backoff as upgrade retries. Invalid/unsupported/over-budget media is terminal unsupported; an exhausted failed job exposes `canRetry: false`. A crashed processing lease can be reclaimed within that budget. This is bounded lifecycle recovery, not an unbounded polling/reprocessing loop. Hourly retained-key reconciliation checks ready-object length/existence: an observed missing or length-invalid cache enters repair within that same budget, while a storage outage merely postpones verification. A failed derived GET or metadata refetch alone never queues repair. Consequently a metadata-ready cache can still encounter a binary storage error before maintenance observes the loss; consumers must retain their image-error state.
 

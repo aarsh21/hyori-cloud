@@ -1203,9 +1203,21 @@ async fn notes_migration_preserves_populated_candidate_database_and_is_repeatabl
     };
     let before = snapshot().await;
     hyori_server::db::migrate(&db).await.unwrap();
-    assert_eq!(snapshot().await, before);
+    let after = snapshot().await;
+    let mut existing = after.clone();
+    let item = existing["items"][0].as_object_mut().unwrap();
+    for added in [
+        "photo_taken_at",
+        "photo_offset_minutes",
+        "photo_latitude",
+        "photo_longitude",
+        "photo_probe_due",
+    ] {
+        assert!(item.remove(added).is_some());
+    }
+    assert_eq!(existing, before);
     hyori_server::db::migrate(&db).await.unwrap();
-    assert_eq!(snapshot().await, before);
+    assert_eq!(snapshot().await, after);
     let versions = db.query_one_raw(hyori_server::db::sql("SELECT array_to_json(array_agg(version ORDER BY version)) AS versions FROM hyori_migrations",vec![])).await.unwrap().unwrap().try_get::<serde_json::Value>("","versions").unwrap();
     let applied: Vec<i64> = versions
         .as_array()
@@ -1216,7 +1228,10 @@ async fn notes_migration_preserves_populated_candidate_database_and_is_repeatabl
     // The merged candidate also supplies sorting and thumbnail migrations 21–23.
     assert_eq!(&applied[..20], &(1..=20).collect::<Vec<_>>());
     assert!(applied.contains(&24));
-    println!("MIGRATION populated 0020 -> 0024 twice: users, items, versions and shares unchanged");
+    assert!(applied.contains(&25));
+    println!(
+        "MIGRATION populated 0020 -> 0025 twice: existing users, items, versions and shares unchanged"
+    );
     pg.stop();
 }
 

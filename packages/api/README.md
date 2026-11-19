@@ -119,24 +119,26 @@ Upload contention follow-up: migration `0007_upload_admission.sql` replaces the 
 
 ### Rust Photos and safe original media
 
-Migration `0004_photos.sql` adds personal source configuration, albums and reference membership. Existing migrations, files, objects, grants and upload inventory are preserved.
+`photos.library` is the automatic library: it includes current, supported media the account owns, wherever it was filed. Uploads into someone else's folder belong to that folder owner. Incoming shares and saved source settings do not feed this timeline. Migration `0025_automatic_photos.sql` adds an owner/date index and nullable metadata fields with no original copies or item rewrite. The index builds take a write lock on `hyori_items`; plan an upgrade window for large databases. The legacy source and album APIs remain unchanged.
 
 ```ts
 const folder = await sdk.rpc.files.createFolder({ parentId: null, name: "Pictures" });
 const media = await sdk.uploads.start({ parentId: folder.id, file }).result;
-await sdk.rpc.photos.setSources({ allMyFiles: false, folderIds: [folder.id] });
-const page = await sdk.rpc.photos.timeline({});
-const next = page.nextCursor ? await sdk.rpc.photos.timeline({ cursor: page.nextCursor }) : null;
+const page = await sdk.rpc.photos.library({});
+const next = page.nextCursor ? await sdk.rpc.photos.library({ cursor: page.nextCursor }) : null;
+const details = await sdk.rpc.photos.details({ id: media.id }); // viewer only
 const album = await sdk.rpc.photos.createAlbum({ name: "Favorites" });
 await sdk.rpc.photos.addToAlbum({ albumId: album.id, fileIds: [media.id] });
 const current = await sdk.rpc.files.get({ id: media.id });
 const original = await sdk.rpc.files.preview({ id: current.id });
 // query.files.get.getOptions({id}) and query.files.preview.getOptions({id}) derive automatically.
-// Photos page.items already contain previewUrl; no per-tile metadata RPC is needed.
+// Items carry thumbnail/poster state and previewUrl for explicit original viewing.
 ```
 
-- Sources require a current account and hold at most 100 folder references. Selection is configuration, never grant authority. Reads omit unavailable/trashed folders without writing configuration; `setSources` deduplicates and reconciles invalid, inaccessible, trashed and nonfolder references without distinguishing private IDs from missing ones. Removing a source never deletes/moves originals. Selected folders include recursive descendants and subsequent uploads. Explicit **All my files** means the requesting account's owned library only, not all incoming shares. Shared sources require current authorization to both the source and media.
-- Timeline is a safe read, ordered by upload-created timestamp descending then stable ID descending (not EXIF capture date). It returns at most 100 items and a `timestamp|id` cursor, with scoped SQL authorization before pagination and one bounded page-role aggregation. Source and membership reads do not enumerate all incoming grants or authorize each tile with a separate request. Supported declared MIME types are JPEG, PNG, WebP, GIF, AVIF, MP4, WebM and QuickTime. Metadata discovery does not attest that a claimed MIME is truthful; the binary gate below rejects unsafe/mismatched bytes.
+- `query.photos.library` and `rpc.photos.library` seek from an opaque cursor, at most 100 items at a time. Each item contains `timelineDate` (a `YYYY-MM-DD` calendar date) and `dateSource` (`capture` or `upload`). Sort is recorded local time or fallback UTC upload time, then ID, descending. Group by the date string, keep server order, and key by file ID: background indexing can move an item on refresh. There are no counts, folder walks, storage reads, or per-item metadata RPCs in a page request.
+- `photos.details({id})` returns nullable `capture` (`localDateTime` and `offsetMinutes`, also nullable when the tag doesn't specify an offset) and nullable `location` (decimal `latitude` and `longitude`). Only the current file owner can read these fields; incoming shares and admin status do not grant access. GPS is never projected into a timeline, derivative image, or log. The underlying original may still contain GPS.
+- Committed JPEG, PNG, WebP, GIF, AVIF, MP4, WebM and QuickTime files can appear before parsing. Binary reads still validate the declared type. Extraction handles EXIF capture tags on supported image containers and the worker's allowlisted video container tags; embedded data beyond the probe's limits may be absent. Replacements clear metadata in the same transaction, and restored originals can be inspected again. Backfill uses the existing worker admission and prioritizes thumbnail jobs; already ready derivatives are not regenerated. A disabled or old worker leaves date fallbacks until a capable worker is available.
+- Legacy `photos.sources`, `setSources` and `photos.timeline({albumId?})` remain available. Source selection is configuration, never grant authority. A legacy timeline is ordered by upload timestamp then ID, returns at most 100 items, and authorizes selected sources and album members independently. Explicit **All my files** in the legacy API is owned-only. Shared sources require current authorization to both the source and media.
 - Albums are personal reference collections, independent of source selection, limited to 100 per account and 1,000 references per album. An add request contains at most 100 IDs and deduplicates membership. Serializable transactions enforce capacities atomically. Album `count` is **stored references**, including references subsequently trashed/revoked; timeline media is current-authorization filtered, so visible count may be smaller. Unknown/other-account albums and invalid, nonmedia or unauthorized members fail generically with `resource.notFound`, without partial additions. Originals are never duplicated. Album rename/delete/removal and sharing are not operations in this slice.
 - `files.get({id})` is a current, authorized, nontrashed `FileEntry` read, including public-link holders. It is not owner-only history and does not rely on an upload-tray snapshot. Admin status grants no file access.
 - `files.preview({id,versionId?})` is a safe metadata query returning `Download` with an application URL `/api/storage/previews/{id}?version=...`, not a storage URL. Unsupported declared types return `input.invalid`. The descriptor is not proof of decodability; GET performs validation. Historical preview metadata and bytes remain owner-only.

@@ -6,8 +6,10 @@ use serde_json::json;
 #[test]
 fn complete_deterministic_catalog() {
     let manifest = manifest().unwrap();
-    assert_eq!(manifest.operations.len(), 66);
+    assert_eq!(manifest.operations.len(), 68);
     for name in [
+        "photos.library",
+        "photos.details",
         "notes.list",
         "notes.get",
         "notes.create",
@@ -92,6 +94,9 @@ fn complete_deterministic_catalog() {
         "PhotoSources",
         "TimelineInput",
         "Timeline",
+        "LibraryInput",
+        "PhotoLibrary",
+        "PhotoDetails",
         "Album",
         "Albums",
         "CreateAlbum",

@@ -1,9 +1,12 @@
+#[path = "support/media_worker.rs"]
+#[allow(dead_code)]
+mod media_worker;
 #[path = "support/storage.rs"]
 mod storage;
 mod support;
-use hyori_server::{auth::random_token, db::sql};
+use hyori_server::{auth::random_token, db::sql, features::media::jobs};
 use sea_orm::ConnectionTrait;
-use serde_json::json;
+use serde_json::{Value, json};
 use support::{Postgres, TestServer};
 
 async fn setup(server: &TestServer) -> (String, String) {
@@ -15,13 +18,17 @@ async fn setup(server: &TestServer) -> (String, String) {
     )
 }
 async fn upload(server: &TestServer, cookie: &str, name: &str, mime: &str, bytes: &[u8]) -> String {
-    let begin = server
-        .rpc(
-            "uploads.begin",
-            json!({"parentId":null,"name":name,"mimeType":mime,"size":bytes.len()}),
-            Some(cookie),
-        )
-        .await;
+    upload_media(
+        server,
+        cookie,
+        json!({"parentId":null,"name":name,"mimeType":mime}),
+        bytes,
+    )
+    .await
+}
+async fn upload_media(server: &TestServer, cookie: &str, mut input: Value, bytes: &[u8]) -> String {
+    input["size"] = json!(bytes.len());
+    let begin = server.rpc("uploads.begin", input, Some(cookie)).await;
     let id = begin.value()["uploadId"].as_str().unwrap();
     let response = server
         .client
@@ -59,6 +66,233 @@ async fn preview(
     }
     request.send().await.unwrap()
 }
+
+#[tokio::test]
+#[ignore = "real PostgreSQL, pinned RustFS, and the isolated media worker"]
+async fn automatic_library_indexes_current_owned_uploads_and_keeps_location_private() {
+    let mut pg = Postgres::start().await;
+    let fs = storage::RustFs::start().await;
+    let worker = media_worker::Worker::start().await;
+    pg.config.storage = Some(fs.config.clone());
+    pg.config.media_worker_socket = Some(worker.socket.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (owner, cookie) = setup(&server).await;
+    let password = random_token();
+    let guest = server
+        .rpc(
+            "admin.createUser",
+            json!({"email":"guest@example.test","name":"Guest","password":password}),
+            Some(&cookie),
+        )
+        .await;
+    let guest_cookie = server
+        .rpc(
+            "auth.login",
+            json!({"email":"guest@example.test","password":password}),
+            None,
+        )
+        .await
+        .credential();
+    let folder = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":null,"name":"Trips"}),
+            Some(&cookie),
+        )
+        .await
+        .value()["id"]
+        .clone();
+    let child = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":folder,"name":"2021"}),
+            Some(&cookie),
+        )
+        .await
+        .value()["id"]
+        .clone();
+    server.rpc("shares.create", json!({"itemId":folder,"recipientId":guest.value()["id"],"role":"contributor","public":false}), Some(&cookie)).await.value();
+    let jpeg = include_bytes!("fixtures/media/capture.jpg");
+    let mov = include_bytes!("fixtures/media/capture.mov");
+    let video = upload(&server, &cookie, "Clip.mov", "video/quicktime", mov).await;
+    let photo = upload_media(
+        &server,
+        &guest_cookie,
+        json!({"parentId":child,"name":"Camera.jpg","mimeType":"image/jpeg"}),
+        jpeg,
+    )
+    .await;
+
+    let initial = server.rpc("photos.library", json!({}), Some(&cookie)).await;
+    let entries = initial.value()["items"].as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0]["id"], photo, "before probing, use upload time");
+    assert!(entries.iter().all(|item| item["ownerId"] == owner
+        && item["dateSource"] == "upload"
+        && item["derivative"]["status"] == "queued"));
+    assert_eq!(
+        server
+            .rpc("photos.sources", json!({}), Some(&cookie))
+            .await
+            .value(),
+        &json!({"allMyFiles": false,"folderIds": []})
+    );
+    assert_eq!(
+        server
+            .rpc("photos.library", json!({}), Some(&guest_cookie))
+            .await
+            .value()["items"],
+        json!([])
+    );
+    server
+        .rpc("photos.library", json!({}), None)
+        .await
+        .error(401, "auth.required");
+    let expected_photo = json!({"capture":{"localDateTime":"2018-07-04T23:32:10","offsetMinutes":null},
+        "location":{"latitude":-33.75,"longitude":151.125}});
+    let expected_video = json!({"capture":{"localDateTime":"2021-01-03T05:00:00","offsetMinutes":330},
+        "location":{"latitude":12.3456,"longitude":-45.6789}});
+    let details = json!({"id":photo});
+    assert_eq!(
+        server
+            .rpc("photos.details", details.clone(), Some(&cookie))
+            .await
+            .value(),
+        &json!({"capture":null,"location":null})
+    );
+
+    assert!(jobs::run_once(&server.state).await.unwrap());
+    assert!(jobs::run_once(&server.state).await.unwrap());
+    let indexed = server
+        .rpc("photos.library", json!({"cursor":null}), Some(&cookie))
+        .await;
+    let entries = indexed.value()["items"].as_array().unwrap();
+    assert_eq!(entries[0]["id"], video);
+    assert_eq!(
+        entries[0]["timelineDate"], "2021-01-03",
+        "keep the recorded calendar day, not the UTC day"
+    );
+    assert_eq!(entries[0]["derivative"]["kind"], "poster");
+    assert_eq!(entries[1]["id"], photo);
+    assert_eq!(entries[1]["timelineDate"], "2018-07-04");
+    assert!(entries.iter().all(|item| item.get("location").is_none()
+        && item["dateSource"] == "capture"
+        && item["derivative"]["status"] == "ready"));
+    assert_eq!(
+        server
+            .rpc("photos.details", details.clone(), Some(&cookie))
+            .await
+            .value(),
+        &expected_photo
+    );
+    assert_eq!(
+        server
+            .rpc("photos.details", json!({"id":video}), Some(&cookie))
+            .await
+            .value(),
+        &expected_video
+    );
+    server
+        .rpc("files.get", details.clone(), Some(&guest_cookie))
+        .await
+        .value();
+    server
+        .rpc("photos.details", details.clone(), Some(&guest_cookie))
+        .await
+        .error(404, "resource.notFound");
+
+    let url = entries[0]["previewUrl"].as_str().unwrap();
+    let response = server
+        .client
+        .get(format!("{}{url}", server.url))
+        .header("host", "localhost:3001")
+        .header("origin", &server.state.config.origin)
+        .header("cookie", &cookie)
+        .header("range", "bytes=101-113")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 206);
+    assert_eq!(
+        response.headers()["content-range"],
+        format!("bytes 101-113/{}", mov.len())
+    );
+    assert_eq!(response.bytes().await.unwrap().as_ref(), &mov[101..114]);
+
+    let ready_url = entries[1]["derivative"]["url"].clone();
+    // Simulate the existing ready cache at upgrade and an interrupted metadata backfill lease.
+    server.state.db.execute_raw(sql("UPDATE hyori_items SET photo_taken_at=NULL,photo_offset_minutes=NULL,
+        photo_latitude=NULL,photo_longitude=NULL,photo_probe_due=now()-interval '1 second' WHERE id=$1", vec![photo.clone().into()])).await.unwrap();
+    drop(server);
+    let server = TestServer::start(pg.config.clone()).await;
+    assert!(jobs::run_once(&server.state).await.unwrap());
+    assert_eq!(
+        server
+            .rpc("photos.details", details.clone(), Some(&cookie))
+            .await
+            .value(),
+        &expected_photo
+    );
+    assert_eq!(
+        server
+            .rpc("media.get", details.clone(), Some(&cookie))
+            .await
+            .value()["url"],
+        ready_url
+    );
+
+    let plain = include_bytes!("fixtures/media/red.jpg");
+    let replaced = upload_media(
+        &server,
+        &cookie,
+        json!({"parentId":child,"name":"Camera.jpg","mimeType":"image/jpeg","replaceId":photo}),
+        plain,
+    )
+    .await;
+    assert_eq!(replaced, photo);
+    assert_eq!(
+        server
+            .rpc("photos.details", details.clone(), Some(&cookie))
+            .await
+            .value(),
+        &json!({"capture":null,"location":null})
+    );
+    let version = server
+        .rpc("files.versions", details.clone(), Some(&cookie))
+        .await
+        .value()["items"][0]["id"]
+        .clone();
+    server
+        .rpc(
+            "files.restoreVersion",
+            json!({"id":photo,"versionId":version}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    for _ in 0..3 {
+        jobs::run_once(&server.state).await.unwrap();
+    }
+    assert_eq!(
+        server
+            .rpc("photos.details", details, Some(&cookie))
+            .await
+            .value(),
+        &expected_photo
+    );
+    server
+        .rpc("files.trash", json!({"id":folder}), Some(&cookie))
+        .await
+        .value();
+    let after = server.rpc("photos.library", json!({}), Some(&cookie)).await;
+    assert_eq!(after.value()["items"].as_array().unwrap().len(), 1);
+    assert_eq!(after.value()["items"][0]["id"], video);
+    server
+        .rpc("photos.details", json!({"id":photo}), Some(&cookie))
+        .await
+        .error(404, "resource.notFound");
+}
+
 #[tokio::test]
 #[ignore = "real PostgreSQL and pinned RustFS original-media HTTP boundary"]
 async fn inline_originals_validate_family_ranges_current_object_and_revocation() {
@@ -330,11 +564,33 @@ async fn personal_sources_albums_scope_reconciliation_and_capacity_are_transacti
         .unwrap()
         .to_owned();
     // Metadata-only bulk fixtures stress exact timestamp ties/caps; the separate SDK harness uploads originals.
-    server.state.db.execute_raw(sql("INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,mime_type,ancestor_ids,created_at)
-        SELECT 'media_'||lpad(n::text,4,'0'),$1,$2,'sample_'||n,'file','image/png',$3,'2026-01-01T00:00:00Z' FROM generate_series(1,1001) n",vec![user.clone().into(),child.into(),json!([folder]).into()])).await.unwrap();
+    server.state.db.execute_raw(sql("INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,mime_type,ancestor_ids,created_at,object_key,photo_taken_at)
+        SELECT 'media_'||lpad(n::text,4,'0'),$1,$2,'sample_'||n,'file','image/png',$3,'2026-01-01T00:00:00Z', 'fixture/'||n,
+        CASE n WHEN 1 THEN timestamp '2026-01-02' WHEN 1001 THEN timestamp '2025-12-31' END FROM generate_series(1,1001) n",vec![user.clone().into(),child.into(),json!([folder]).into()])).await.unwrap();
     assert_eq!(
         server
             .rpc("photos.timeline", json!({}), Some(&cookie))
+            .await
+            .value()["items"],
+        json!([])
+    );
+    let library = server.rpc("photos.library", json!({}), Some(&cookie)).await;
+    assert_eq!(library.value()["items"].as_array().unwrap().len(), 100);
+    assert_eq!(library.value()["items"][0]["id"], "media_0001");
+    assert_eq!(library.value()["items"][0]["timelineDate"], "2026-01-02");
+    assert_eq!(library.value()["items"][1]["dateSource"], "upload");
+    assert_eq!(library.value()["items"][99]["id"], "media_0902");
+    let library_next = server
+        .rpc(
+            "photos.library",
+            json!({"cursor":library.value()["nextCursor"]}),
+            Some(&cookie),
+        )
+        .await;
+    assert_eq!(library_next.value()["items"][0]["id"], "media_0901");
+    assert_eq!(
+        server
+            .rpc("photos.library", json!({}), Some(&admin_cookie))
             .await
             .value()["items"],
         json!([])
@@ -365,6 +621,14 @@ async fn personal_sources_albums_scope_reconciliation_and_capacity_are_transacti
         )
         .await;
     assert_eq!(second.value()["items"][0]["id"], "media_0901");
+    server
+        .rpc(
+            "photos.library",
+            json!({"cursor":first.value()["nextCursor"]}),
+            Some(&cookie),
+        )
+        .await
+        .error(400, "input.invalid");
     server
         .rpc(
             "photos.timeline",

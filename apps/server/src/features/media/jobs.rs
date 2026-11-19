@@ -115,6 +115,13 @@ async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
 }
 /// Claim and process the next due job; false when nothing was due or settled.
 pub(crate) async fn process_next(state: &Arc<AppState>) -> Result<bool, ApiError> {
+    if process_derivative(state).await? {
+        return Ok(true);
+    }
+    super::capture::backfill_next(state).await
+}
+
+async fn process_derivative(state: &Arc<AppState>) -> Result<bool, ApiError> {
     let runnable = state.media_worker.is_some() && state.storage.is_some();
     let revision = if let Some(worker) = &state.media_worker {
         worker.decoder_revision().await
@@ -232,7 +239,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), ErrorBody> {
     if source.size != job.size as u64 {
         return Err(Failure::InvalidMedia.into());
     }
-    let (bytes, mime) = worker
+    let (bytes, mime, capture) = worker
         .derive(&job.mime, source.size, source.body, job.revision.as_deref())
         .await?;
     let (width, height) = if mime == "image/webp" {
@@ -261,6 +268,9 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), ErrorBody> {
             current(tx,&job).await?;
             let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state='ready',size=$2,width=$3,height=$4,cleanup_due=now(),clean_checks=0 WHERE id=$1 AND state='starting'",vec![artifact.clone().into(),(size as i64).into(),(width as i32).into(),(height as i32).into()])).await?;
             if changed.rows_affected()!=1 {return Err(ApiError::conflict().into());}
+            if let Some(capture) = capture {
+                super::capture::record(tx, &job.owner, &job.source, &job.mime, None, capture).await?;
+            }
             tx.execute_raw(sql("UPDATE hyori_media_jobs SET state='ready',artifact_id=$3,failure=NULL,failure_detail=NULL,upgrade_retry=false,lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2",vec![job.id.into(),job.token.into(),artifact.into()])).await?;
             Ok(())
         })}).await.map_err(|_|Failure::Unavailable)

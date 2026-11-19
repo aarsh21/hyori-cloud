@@ -233,7 +233,6 @@ try {
   const pictures = await owner.sdk.rpc.files.createFolder({ parentId: null, name: "Pictures" });
   const nested = await owner.sdk.rpc.files.createFolder({ parentId: pictures.id, name: "Nested" });
   assert.deepEqual(await owner.sdk.rpc.photos.sources({}), { allMyFiles: false, folderIds: [] });
-  await owner.sdk.rpc.photos.setSources({ allMyFiles: false, folderIds: [pictures.id] });
 
   const png = await Bun.file(
     new URL("../apps/server/tests/fixtures/media/red.png", import.meta.url),
@@ -244,6 +243,18 @@ try {
     file: new File([png], "one.png", { type: "image/png" }),
   }).result;
 
+  const library = await owner.sdk.rpc.photos.library({ cursor: null });
+  assert.deepEqual(
+    library.items.map((item) => item.id),
+    [uploaded.id],
+  );
+  assert.equal(library.items[0]?.dateSource, "upload");
+  assert.equal(library.items[0]?.timelineDate, uploaded.createdAt.slice(0, 10));
+  assert.deepEqual(await owner.sdk.rpc.photos.details({ id: uploaded.id }), {
+    capture: null,
+    location: null,
+  });
+  await owner.sdk.rpc.photos.setSources({ allMyFiles: false, folderIds: [pictures.id] });
   assert.equal((await owner.sdk.rpc.files.get({ id: uploaded.id })).id, uploaded.id);
   const timeline = await owner.sdk.rpc.photos.timeline({});
   assert.deepEqual(
@@ -299,6 +310,8 @@ try {
     assert.deepEqual(await response.arrayBuffer(), bytes);
   }
 
+  const outsideSources: string[] = [];
+
   for (const [name, type, bytes] of [
     ["html.png", "image/png", new TextEncoder().encode("<html><script>alert(1)</script>")],
     ["svg.png", "image/png", new TextEncoder().encode("<svg onload='alert(1)'/>")],
@@ -314,6 +327,7 @@ try {
     if (type === "image/svg+xml")
       await assert.rejects(owner.sdk.rpc.files.preview({ id: item.id }), { code: "input.invalid" });
     else {
+      outsideSources.push(item.id);
       const preview = await owner.sdk.rpc.files.preview({ id: item.id });
       assert.equal((await owner.get(preview.url)).status, 400);
       assert.equal((await owner.get(preview.url, "bytes=3-5")).status, 400);
@@ -472,6 +486,30 @@ try {
   assert.equal(second.nextCursor, null);
   const all = [...first.items, ...second.items];
   assert.equal(new Set(all.map((item) => item.id)).size, 103);
+  const ownFirst = await owner.sdk.rpc.photos.library({});
+  assert.equal(ownFirst.items.length, 100);
+  assert.ok(ownFirst.nextCursor);
+  const ownNext = await owner.sdk.rpc.photos.library({ cursor: ownFirst.nextCursor });
+  assert.equal(ownNext.items.length, 7);
+  assert.equal(ownNext.nextCursor, null);
+  const automatic = [...ownFirst.items, ...ownNext.items];
+  assert.deepEqual(
+    automatic.map((item) => item.id).sort(),
+    [...all.map((item) => item.id), ...outsideSources].sort(),
+  );
+
+  for (const [index, item] of automatic.entries()) {
+    assert.equal(item.dateSource, "upload");
+    assert.equal(item.timelineDate, item.createdAt.slice(0, 10));
+    const previous = automatic[index - 1];
+
+    if (previous) {
+      assert.ok(
+        previous.createdAt > item.createdAt ||
+          (previous.createdAt === item.createdAt && previous.id > item.id),
+      );
+    }
+  }
 
   for (let index = 1; index < all.length; index++) {
     const previous = all[index - 1]!;
@@ -504,7 +542,7 @@ try {
   await owner.sdk.rpc.photos.setSources({ allMyFiles: true, folderIds: [] });
   assert.equal((await owner.sdk.rpc.photos.timeline({})).items.length, 100);
   console.log(
-    "Real Rust -> web proxy -> public vanilla SDK Photos: synthetic uploads in eight formats, recursive sources/new media, 103-item pagination, personal albums, restart, revocation/trash/admin privacy, current files.get, safe original bytes/headers/ranges and active-content/mismatch rejection passed. No thumbnail, browser, decoder-fidelity or performance claim.",
+    "Real Rust -> web proxy -> public vanilla SDK Photos: 107-item automatic library, 103-item folder timeline, synthetic uploads in eight formats, albums, restart, revocation/trash/admin privacy, safe original byte ranges and MIME validation passed. No thumbnail, browser, decoder-fidelity or performance claim.",
   );
 } finally {
   for (const sdk of clients) sdk.dispose();

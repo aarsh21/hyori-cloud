@@ -26,7 +26,7 @@ See `../README.md` for development setup.
 - These roles are the permission controls, not presets over a custom permission system. Do not introduce a Custom mode or per-capability toggles. Individual file/folder deletion is owner-only: no sharing role, including Editor, grants permission to delete. Admin deletion of an entire account and its owned files is a separate administrative exception, described below. Moves and resharing still need role-level policies.
 - Shared-folder permissions apply recursively to existing contents, subfolders, and future uploads. Inheritance applies to both account-specific shares and public links and does not grant deletion rights. How inherited access combines with direct item shares remains to be defined.
 - New files uploaded into a shared folder belong to that folder's owner, not the contributor. Record upload attribution separately from ownership: identify the uploader when authenticated, and mark anonymous link uploads as anonymous rather than inventing an account identity. Uploading does not confer deletion rights.
-- A dedicated Photos view over the same underlying file library, not a separate storage/import system. Files and Photos reference the same originals and preserve the same ownership and access rules. Photo sources use the confirmed folder-selection model below; organization and presentation remain to be defined.
+- A dedicated Photos view over the same underlying file library, not a separate storage/import system. Files and Photos reference the same originals and preserve the same ownership and access rules. Photos discovers media across owned files without requiring folder selection.
 - Browser-based document editing in v1 through all four selected ArtCraft apps: **WordCraft**, **GridCraft**, **DeckCraft**, and **PdfCraft** (https://getartcraft.com/apps). Simultaneous collaboration across these apps and the planned Notes feature follows the approved staged rollout below; all-five co-editing is not a launch blocker. Browser integration and supported formats must be validated for each app. Preserve safe existing editing until each collaborative adapter is ready; prevent silent overwrites.
 
 This establishes the product areas, not their detailed feature contracts or implementation feasibility. Calendars, contacts, and a general third-party app ecosystem have not been requested for v1.
@@ -96,20 +96,19 @@ This establishes the product areas, not their detailed feature contracts or impl
 - Require explicit confirmation for account-and-data deletion. Revoke the deleted account's access and its issued shares, prevent further writes under that account, and track cleanup of metadata, originals, and derived media without granting the admin browsing access.
 - Quota accounting/enforcement, quota reductions below current usage, and account-deletion retention/recovery behavior still need design. This is application-level privacy, not protection against direct server/database/storage access; end-to-end encryption is not established by this policy.
 
-### Photos sources — confirmed
+### Automatic Photos — confirmed 2026-11-19
 
-- Each user chooses source folders during Photos setup. Suggest an existing `Pictures` folder when present rather than silently including the entire library.
-- Include supported images and videos recursively from selected folders and their subfolders. New media uploaded there appears automatically once discovered/processed.
-- Let users add or remove source folders later, and offer an explicit **All my files** selection for users who prefer automatic discovery across their own library.
-- Source selection is personal presentation configuration, not an access grant. Shared-folder sources expose only media the user is currently authorized to access; revoked access must also disappear from Photos.
-- Removing a source only removes its media from that user's Photos view; it does not delete or move the underlying files. Deleting an original affects both Files and Photos and remains owner-only.
-- Use the same originals, with derived thumbnails/previews for browsing.
+- Open directly to the library, even on first visit. Discover supported photos and videos among active files the person owns, including contributions uploaded into their folders. No folder picker, import, or setup is required. Incoming shares are not added to the automatic library. Saved source settings remain available to older clients but do not filter this library. Albums and shared-file access are unchanged.
+- Show committed files immediately, newest first by the camera’s recorded time when available or upload time otherwise. Prepare thumbnails, video posters, and metadata in the background using the same originals. Show exact GPS only to the owner on request in item details, never in the timeline or to share recipients. Sharing an original does not strip GPS tags embedded in that file.
+- Start with JPEG, PNG, WebP, GIF, AVIF, MP4, WebM and QuickTime under the existing media safety limits. Files can appear even when a thumbnail cannot be generated.
+- After the automatic library and screen ship, prioritize HEIC and posters for long or large phone videos. Add a clear signal when previews are unavailable because the media worker isn't running, and show the camera model and original dimensions in the viewer’s info panel when known.
+- Rationale: the Space approved opening Photos directly to the library instead of making users guess which folders to select. Ownership rules remain the same as Files; allowing automatic discovery does not create grants.
 
 ### Photos features — confirmed
 
 V1 includes timeline browsing, albums, and a full-screen photo/video viewer. This is sufficient for the initial Photos release; automatic phone backup, face grouping, and map browsing are not launch requirements.
 
-Detailed timeline ordering, album membership/sharing, and supported media formats remain to be specified. Albums reference the existing media rather than duplicate originals; they must respect the library's authorization rules.
+Albums reference the existing media rather than duplicate originals; they must respect the library's authorization rules. Detailed album membership and sharing remain to be specified.
 
 ### File recovery — confirmed
 
@@ -180,7 +179,7 @@ ArtCraft is the user's selected integration direction; changing it requires disc
 The product-scope grilling is finished. Resolve these follow-ups during contract design and implementation with explicit, reasonable defaults; record the rationale. Ask the user only when a choice materially changes scope, security, or data-loss behavior. Resource sizing remains deferred as agreed.
 
 1. **Audience — confirmed:** The first release must serve individual self-hosters, families/small private groups, and teams/organizations. Required capabilities for each audience remain to be defined.
-2. **Product boundary — confirmed:** Files, sharing, Photos, Notes and shared document editing belong in v1. Photos uses the same underlying file library and source-selection rules above; timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1. Still define detailed album/timeline behavior and media formats. Integrate WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser, upgrading co-editing in stages with Notes first. Still validate per-app integration, exact file-format support, native collaboration adapters, migration from revision-fenced saves, and engine-specific conflict/recovery policies.
+2. **Product boundary — confirmed:** Files, sharing, Photos, Notes and shared document editing belong in v1. Photos uses the same underlying file library and automatic discovery rules above; timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1. Still define detailed album behavior. Integrate WordCraft, GridCraft, DeckCraft, and PdfCraft in the browser, upgrading co-editing in stages with Notes first. Still validate per-app integration, exact file-format support, native collaboration adapters, migration from revision-fenced saves, and engine-specific conflict/recovery policies.
 3. **Deployment — direction and target confirmed:** Use the Deployment target section above. RustFS is settled, and detailed resource tuning is deferred rather than blocking discovery. Installation, upgrades, and operational burden still need definition. Managed hosting is a possible later offering, not authorization for SaaS infrastructure in v1.
 4. **Access and trust — core policies confirmed:** Use the sharing rules, Authentication section, and Administration and storage limits section above as the authoritative requirements. Public links have the password, expiry, and revocation controls specified above. Still define secure bootstrap access, password policy, invite lifecycle, recovery, combined direct/inherited access, moves, resharing, detailed link-session/expiry behavior, quota accounting/enforcement, account-deletion retention, and at-rest encryption/key management. E2EE is deferred as specified in Data protection.
 5. **File workload — detailed sizing deferred:** Library size, files per folder, largest file, and simultaneous transfers remain unspecified. Revisit capacity scenarios later; do not block current feature discovery on resource sizing.
@@ -314,17 +313,19 @@ Validate capabilities against the selected versions and official documentation b
 - **Rationale:** The user explicitly selected one underlying file library.
 - **Scope consequence:** Reference the same original files and preserve their ownership and sharing rules across both views. Photo-specific organization does not duplicate original files or independently grant access. Derived thumbnails/previews are compatible with this model; the subsequent source-selection decision resolves discovery scope, while album behavior and timeline details remain open.
 
-### 2026-11-04: user-selected Photos source folders
+### 2026-11-04: user-selected Photos source folders (superseded on 2026-11-19)
 
-- **Decision:** Use the recommended folder picker during Photos setup, suggest an existing `Pictures` folder, include subfolders and future uploads, and allow sources to be changed later. Offer an explicit All my files convenience selection.
+This is a historical decision. [Automatic Photos](#automatic-photos--confirmed-2026-11-19) replaces the folder picker; there is no setup step for the current library.
+
+- **Former decision:** Users chose source folders during Photos setup, with `Pictures` suggested if present. Sources included subfolders and future uploads, and **All my files** was an opt-in.
 - **Rationale:** After the explanation of selected-folder behavior and its tradeoffs, the user explicitly accepted the recommendation.
-- **Scope consequence:** Treat sources as per-user view configuration over existing files, preserve current authorization, and distinguish removing a source from deleting originals. The subsequent Photos feature decision establishes the initial presentation scope.
+- **Legacy behavior:** Saved sources are per-user view configuration for older clients, not access grants. Removing a saved source does not delete the originals.
 
 ### 2026-11-04: Photos v1 feature boundary
 
 - **Decision:** Timeline browsing, albums, and a full-screen photo/video viewer are sufficient for v1.
 - **Rationale:** The user explicitly accepted this baseline as enough for the first release.
-- **Scope consequence:** Include these three features in launch planning. Automatic phone backup, face grouping, and map browsing are not launch requirements. Album sharing, timeline ordering, and supported media formats still need detailed contracts.
+- **Scope consequence:** Include these three features in launch planning. Automatic phone backup, face grouping, and map browsing are not launch requirements. At the time, album sharing, timeline ordering, and supported media formats were still open.
 
 ### 2026-11-04: four ArtCraft apps in the browser and SurrealDB backend (backend choice superseded on 2026-11-05)
 

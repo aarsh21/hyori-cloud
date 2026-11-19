@@ -6,12 +6,13 @@ use crate::{
     features::{
         auth::api::{Done, Id, Name},
         files::{db::Item, policy, preview::preview_url, service::FilesService},
+        media::{api::MediaDerivative, service::describe_page},
         photos::{api::*, db},
     },
     rpc::RequestContext,
     wire::Nullable,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use sea_orm::{ConnectionTrait, Statement};
 use std::sync::Arc;
 
@@ -29,6 +30,10 @@ const TIMELINE_PAGE: &str = "i.kind='file' AND i.trashed_at IS NULL
 const VISIBLE: &str = "(i.owner_id=$1 OR i.id=ANY(ARRAY(SELECT item_id FROM eligible))
     OR i.ancestor_ids ?| ARRAY(SELECT item_id FROM eligible))";
 const TIMELINE_ORDER: &str = "ORDER BY i.created_at DESC,i.id DESC LIMIT 101";
+// Literal predicates allow PostgreSQL to prove the partial index applies to prepared statements.
+const LIBRARY_MEDIA: &str = "kind='file' AND trashed_at IS NULL AND object_key IS NOT NULL AND mime_type IN
+    ('image/jpeg','image/png','image/webp','image/gif','image/avif','video/mp4','video/webm','video/quicktime')";
+const LIBRARY_TIME: &str = "coalesce(photo_taken_at, created_at AT TIME ZONE 'UTC')";
 
 pub(crate) struct PhotosService {
     files: FilesService,
@@ -62,6 +67,89 @@ impl PhotosService {
                 Ok(PhotoSources { all_my_files: input.all_my_files, folder_ids })
             })
         }).await
+    }
+    pub async fn library(&self, input: LibraryInput) -> Result<PhotoLibrary, ApiError> {
+        let cursor = library_cursor(input.cursor.as_ref().and_then(|value| value.0.as_deref()))?;
+        let media_enabled = self.media_enabled;
+        self.files.run(move |tx, actor| {
+            let cursor = cursor.clone();
+            Box::pin(async move {
+                let mut values = vec![actor.require_user()?.into()];
+                let seek = if let Some((date_time, id)) = cursor {
+                    values.extend([date_time.into(), id.into()]);
+                    format!(" AND ({LIBRARY_TIME},id)<($2,$3)")
+                } else {
+                    String::new()
+                };
+                let mut rows = tx.query_all_raw(sql(&format!(
+                    "SELECT id,owner_id,parent_id,name,kind,size,mime_type,object_key,uploaded_by,ancestor_ids,
+                            revision,trash_root,trashed_at,created_at,updated_at,
+                            photo_taken_at IS NOT NULL AS captured,{LIBRARY_TIME} AS timeline_time
+                     FROM hyori_items WHERE owner_id=$1 AND {LIBRARY_MEDIA}{seek}
+                     ORDER BY timeline_time DESC,id DESC LIMIT 101"), values)).await?;
+                let next_cursor = if rows.len() > 100 {
+                    let boundary = &rows[99];
+                    let time: NaiveDateTime = boundary.try_get("", "timeline_time")?;
+                    let id: String = boundary.try_get("", "id")?;
+                    Some(format!("library1|{}|{id}", time.format("%Y-%m-%dT%H:%M:%S%.f")))
+                } else {
+                    None
+                };
+                rows.truncate(100);
+                let mut dates = Vec::with_capacity(rows.len());
+                let mut items = Vec::with_capacity(rows.len());
+                for row in rows {
+                    let time: NaiveDateTime = row.try_get("", "timeline_time")?;
+                    let captured: bool = row.try_get("", "captured")?;
+                    dates.push((time.date(), captured));
+                    items.push(Item::from_row(row)?);
+                }
+                // Ownership is the scope; incoming share-role resolution is neither needed nor used.
+                let derivatives = describe_page(tx, &items, media_enabled).await?;
+                Ok(PhotoLibrary {
+                    items: items.iter().zip(derivatives).zip(dates).map(|((item, derivative), (date, captured))| LibraryItem {
+                        item: timeline_item(item, &actor, derivative),
+                        timeline_date: date.to_string(),
+                        date_source: if captured { PhotoDateSource::Capture } else { PhotoDateSource::Upload },
+                    }).collect(),
+                    next_cursor: Nullable(next_cursor),
+                })
+            })
+        }).await
+    }
+    pub async fn details(&self, id: Id) -> Result<PhotoDetails, ApiError> {
+        self.files
+            .run(move |tx, actor| {
+                let id = id.0.clone();
+                Box::pin(async move {
+                    let row = tx
+                        .query_one_raw(sql(
+                            &format!(
+                    "SELECT photo_taken_at,photo_offset_minutes,photo_latitude,photo_longitude
+                     FROM hyori_items WHERE owner_id=$1 AND id=$2 AND {LIBRARY_MEDIA}"),
+                            vec![actor.require_user()?.into(), id.into()],
+                        ))
+                        .await?
+                        .ok_or_else(ApiError::not_found)?;
+                    let time: Option<NaiveDateTime> = row.try_get("", "photo_taken_at")?;
+                    let offset = row.try_get("", "photo_offset_minutes")?;
+                    let latitude: Option<f64> = row.try_get("", "photo_latitude")?;
+                    let longitude: Option<f64> = row.try_get("", "photo_longitude")?;
+                    Ok(PhotoDetails {
+                        capture: Nullable(time.map(|time| PhotoCapture {
+                            local_date_time: time.format("%Y-%m-%dT%H:%M:%S%.f").to_string(),
+                            offset_minutes: Nullable(offset),
+                        })),
+                        location: Nullable(latitude.zip(longitude).map(|(latitude, longitude)| {
+                            PhotoLocation {
+                                latitude,
+                                longitude,
+                            }
+                        })),
+                    })
+                })
+            })
+            .await
     }
     pub async fn timeline(&self, input: TimelineInput) -> Result<Timeline, ApiError> {
         let cursor = timeline_cursor(input.cursor.as_ref().and_then(|value| value.0.as_deref()))?;
@@ -100,18 +188,12 @@ impl PhotosService {
                     };
                     rows.truncate(100);
                     policy::load_roles(tx, &actor, &mut rows).await?;
-                    let derivatives =
-                        crate::features::media::service::describe_page(tx, &rows, media_enabled)
-                            .await?;
+                    let derivatives = describe_page(tx, &rows, media_enabled).await?;
                     Ok(Timeline {
                         items: rows
                             .iter()
                             .zip(derivatives)
-                            .map(|(item, derivative)| TimelineItem {
-                                file: policy::project(item, &actor),
-                                preview_url: preview_url(&item.id, None, item.revision),
-                                derivative: Some(derivative),
-                            })
+                            .map(|(item, derivative)| timeline_item(item, &actor, derivative))
                             .collect(),
                         next_cursor: Nullable(next_cursor),
                         breadcrumbs: vec![],
@@ -161,6 +243,17 @@ impl PhotosService {
                 Ok(Done { success: true })
             })
         }).await
+    }
+}
+fn timeline_item(
+    item: &Item,
+    actor: &policy::ProductActor,
+    derivative: MediaDerivative,
+) -> TimelineItem {
+    TimelineItem {
+        file: policy::project(item, actor),
+        preview_url: preview_url(&item.id, None, item.revision),
+        derivative: Some(derivative),
     }
 }
 enum TimelineScope<'a> {
@@ -223,4 +316,24 @@ fn timeline_cursor(cursor: Option<&str>) -> Result<Option<(DateTime<Utc>, String
         return Err(ApiError::invalid());
     }
     Ok(Some((date, id.to_owned())))
+}
+
+fn library_cursor(cursor: Option<&str>) -> Result<Option<(NaiveDateTime, String)>, ApiError> {
+    let Some(cursor) = cursor else {
+        return Ok(None);
+    };
+    if cursor.len() > 200 {
+        return Err(ApiError::invalid());
+    }
+    let (time, id) = cursor
+        .strip_prefix("library1|")
+        .and_then(|value| value.split_once('|'))
+        .ok_or_else(ApiError::invalid)?;
+    let time = NaiveDateTime::parse_from_str(time, "%Y-%m-%dT%H:%M:%S%.f")
+        .map_err(|_| ApiError::invalid())?;
+    let id = policy::cursor(Some(id))?;
+    if id.is_empty() {
+        return Err(ApiError::invalid());
+    }
+    Ok(Some((time, id.to_owned())))
 }

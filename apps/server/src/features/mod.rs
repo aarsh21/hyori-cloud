@@ -50,6 +50,7 @@ pub mod admin {
 }
 pub mod media {
     pub mod api;
+    pub(crate) mod capture;
     pub mod cleanup;
     pub(crate) mod http;
     pub mod jobs;

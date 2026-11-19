@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+mod capture;
 mod decode;
 mod identity;
 mod isolation;
@@ -11,7 +12,9 @@ use axum::{
     routing::{get, post},
 };
 use futures_util::StreamExt;
-use hyori_media_worker::{ErrorBody, Failure, Format, MAX_INPUT, webp_dimensions};
+use hyori_media_worker::{
+    CAPTURE_HEADER, CAPTURE_PATH, ErrorBody, Failure, Format, MAX_INPUT, webp_dimensions,
+};
 use std::{
     os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
     path::PathBuf,
@@ -62,6 +65,7 @@ async fn process(
         .map_err(|_| Error(Failure::Timeout.into()))?
 }
 async fn derive(request: Request<Body>) -> Result<Response, Error> {
+    let capture_only = request.uri().path() == CAPTURE_PATH;
     let headers = request.headers();
     if headers.get_all("content-length").iter().count() != 1
         || headers.contains_key("transfer-encoding")
@@ -107,7 +111,13 @@ async fn derive(request: Request<Body>) -> Result<Response, Error> {
     }
     file.flush().await?;
     drop(file);
-    let output = decode::derive(directory.path(), format)
+    if capture_only {
+        let metadata = decode::capture(directory.path(), format)
+            .await
+            .map_err(Error)?;
+        return Ok(axum::Json(metadata).into_response());
+    }
+    let (output, metadata) = decode::derive(directory.path(), format)
         .await
         .map_err(Error)?;
     let (width, height) = webp_dimensions(&output).ok_or(Error(Failure::InvalidMedia.into()))?;
@@ -117,6 +127,10 @@ async fn derive(request: Request<Body>) -> Result<Response, Error> {
         .header("content-length", output.len())
         .header("x-hyori-width", width)
         .header("x-hyori-height", height)
+        .header(
+            CAPTURE_HEADER,
+            serde_json::to_string(&metadata).map_err(|_| Error(Failure::Unavailable.into()))?,
+        )
         .header("cache-control", "no-store")
         .header("x-content-type-options", "nosniff")
         .body(Body::from(output))
@@ -152,6 +166,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app =
         Router::new()
             .route(hyori_media_worker::PATH, post(process))
+            .route(
+                CAPTURE_PATH,
+                post(process).head(|| async { StatusCode::NO_CONTENT }),
+            )
             .route(
                 hyori_media_worker::DECODER_PATH,
                 get(|State(worker): State<Arc<Worker>>| async move {

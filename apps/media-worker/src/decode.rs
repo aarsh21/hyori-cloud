@@ -1,6 +1,7 @@
+use crate::capture::{self, VideoTags};
 use hyori_media_worker::{
-    ErrorBody, Failure, Format, MAX_DURATION, MAX_OUTPUT, MAX_PIXELS, Reason, Stage,
-    rejection_reason, webp_dimensions,
+    CaptureMetadata, ErrorBody, Failure, Format, MAX_DURATION, MAX_OUTPUT, MAX_PIXELS, Reason,
+    Stage, rejection_reason, webp_dimensions,
 };
 use serde::Deserialize;
 use std::{path::Path, process::Stdio, time::Duration};
@@ -111,30 +112,69 @@ struct Stream {
 #[derive(Deserialize)]
 struct ProbeFormat {
     duration: Option<String>,
+    #[serde(default)]
+    tags: VideoTags,
 }
 
-pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, ErrorBody> {
+async fn probe(directory: &Path, format: Format, tags: bool) -> Result<Probe, ErrorBody> {
     let mut probe = Command::new("/usr/bin/ffprobe");
     probe.current_dir(directory);
     input(&mut probe, format);
     probe.args([
         "-show_entries",
-        "stream=width,height,codec_type:format=duration",
+        if tags {
+            "stream=width,height,codec_type:format=duration:format_tags=creation_time,com.apple.quicktime.creationdate,location,com.apple.quicktime.location.ISO6709"
+        } else {
+            "stream=width,height,codec_type:format=duration"
+        },
         "-of",
         "json",
         "source",
     ]);
-    let info: Probe = serde_json::from_slice(&command(probe, 64 * 1024, 10, Stage::Probe).await?)
-        .map_err(|_| {
+    serde_json::from_slice(&command(probe, 64 * 1024, 10, Stage::Probe).await?).map_err(|_| {
         ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::InvalidProbe)
-    })?;
-    let visual = info
-        .streams
-        .iter()
-        .find(|s| s.codec_type == "video")
-        .ok_or_else(|| {
-            ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::MissingVisual)
-        })?;
+    })
+}
+
+impl Probe {
+    fn visual(&self) -> Result<&Stream, ErrorBody> {
+        self.streams
+            .iter()
+            .find(|s| s.codec_type == "video")
+            .ok_or_else(|| {
+                ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::MissingVisual)
+            })
+    }
+}
+
+pub async fn capture(directory: &Path, format: Format) -> Result<CaptureMetadata, ErrorBody> {
+    if format.is_video() {
+        let info = probe(directory, format, true).await?;
+        info.visual()?;
+        Ok(info.format.tags.normalized())
+    } else {
+        Ok(capture::image(directory).await)
+    }
+}
+
+pub async fn derive(
+    directory: &Path,
+    format: Format,
+) -> Result<(Vec<u8>, CaptureMetadata), ErrorBody> {
+    let tags = format.is_video();
+    let info = match probe(directory, format, tags).await {
+        // Oversized user-controlled tags must not take away an otherwise valid poster.
+        Err(error)
+            if tags
+                && error
+                    .diagnostic
+                    .is_some_and(|d| matches!(d.reason, Reason::OutputLimit)) =>
+        {
+            probe(directory, format, false).await?
+        }
+        result => result?,
+    };
+    let visual = info.visual()?;
     let (width, height) = visual.width.zip(visual.height).ok_or_else(|| {
         ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Probe, Reason::InvalidProbe)
     })?;
@@ -207,5 +247,10 @@ pub async fn derive(directory: &Path, format: Format) -> Result<Vec<u8>, ErrorBo
     webp_dimensions(&bytes).ok_or_else(|| {
         ErrorBody::diagnostic(Failure::InvalidMedia, Stage::Encode, Reason::InvalidOutput)
     })?;
-    Ok(bytes)
+    let metadata = if format.is_video() {
+        info.format.tags.normalized()
+    } else {
+        capture::image(directory).await
+    };
+    Ok((bytes, metadata))
 }

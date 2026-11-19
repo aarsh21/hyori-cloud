@@ -260,14 +260,23 @@ export type Invite = Contract.Invite;
 export const ItemInput: z.ZodMiniType<Contract.ItemInput> = z.object({ "id": Id });
 export type ItemInput = Contract.ItemInput;
 
+export const LibraryInput: z.ZodMiniType<Contract.LibraryInput> = z.object({ "cursor": z.optional(z.union([z.string(), z.null()])) });
+export type LibraryInput = Contract.LibraryInput;
+
+export const MediaDerivative: z.ZodMiniType<Contract.MediaDerivative> = exclusiveUnion(z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unavailable"), z.string()) }), z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("queued"), z.string()) }), z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("processing"), z.string()) }), z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)), "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)) }), z.object({ "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unsupported"), z.string()) }), z.object({ "canRetry": z.boolean(), "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("failed"), z.string()) }));
+export type MediaDerivative = Contract.MediaDerivative;
+
+export const PhotoDateSource: z.ZodMiniType<Contract.PhotoDateSource> = intersection(z.literal(["capture","upload"]), z.string());
+export type PhotoDateSource = Contract.PhotoDateSource;
+
+export const LibraryItem: z.ZodMiniType<Contract.LibraryItem> = z.object({ "access": Access, "createdAt": z.string(), "dateSource": PhotoDateSource, "derivative": z.optional(MediaDerivative), "id": Id, "kind": FileKind, "mimeType": z.string(), "name": Name, "ownerId": Id, "parentId": z.union([Id, z.null()]), "previewUrl": z.string(), "size": Bytes, "timelineDate": z.string(), "trashedAt": z.union([z.string(), z.null()]), "updatedAt": z.string() });
+export type LibraryItem = Contract.LibraryItem;
+
 export const ListFiles: z.ZodMiniType<Contract.ListFiles> = z.object({ "after": z.optional(Timestamp), "before": z.optional(Timestamp), "cursor": z.optional(z.union([z.string(), z.null()])), "limit": z.optional(z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(100))), "maxSize": z.optional(Bytes), "minSize": z.optional(Bytes), "parentId": z.optional(z.union([Id, z.null()])), "search": z.optional(z.string().check(z.refine((value) => Array.from(value).length <= 255))), "sort": z.optional(z.union([FileSort, z.null()])), "type": z.optional(z.string().check(z.refine((value) => Array.from(value).length <= 128))), "view": z.optional(FilesView) });
 export type ListFiles = Contract.ListFiles;
 
 export const ListVersions: z.ZodMiniType<Contract.ListVersions> = z.object({ "cursor": z.optional(z.union([z.string(), z.null()])), "id": Id });
 export type ListVersions = Contract.ListVersions;
-
-export const MediaDerivative: z.ZodMiniType<Contract.MediaDerivative> = exclusiveUnion(z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unavailable"), z.string()) }), z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("queued"), z.string()) }), z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("processing"), z.string()) }), z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)), "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)) }), z.object({ "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unsupported"), z.string()) }), z.object({ "canRetry": z.boolean(), "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("failed"), z.string()) }));
-export type MediaDerivative = Contract.MediaDerivative;
 
 export const MediaIdentity: z.ZodMiniType<Contract.MediaIdentity> = z.object({ "kind": DerivativeKind, "sourceRevision": Bytes });
 export type MediaIdentity = Contract.MediaIdentity;
@@ -313,6 +322,18 @@ export type PendingUploadsInput = Contract.PendingUploadsInput;
 
 export const PermanentDeletion: z.ZodMiniType<Contract.PermanentDeletion> = z.object({ "freedBytes": Bytes, "items": Bytes });
 export type PermanentDeletion = Contract.PermanentDeletion;
+
+export const PhotoCapture: z.ZodMiniType<Contract.PhotoCapture> = z.object({ "localDateTime": z.string(), "offsetMinutes": z.union([z.int().check(z.gte(-2147483648), z.lte(2147483647)), z.null()]) });
+export type PhotoCapture = Contract.PhotoCapture;
+
+export const PhotoLocation: z.ZodMiniType<Contract.PhotoLocation> = z.object({ "latitude": z.number(), "longitude": z.number() });
+export type PhotoLocation = Contract.PhotoLocation;
+
+export const PhotoDetails: z.ZodMiniType<Contract.PhotoDetails> = z.object({ "capture": z.union([PhotoCapture, z.null()]), "location": z.union([PhotoLocation, z.null()]) });
+export type PhotoDetails = Contract.PhotoDetails;
+
+export const PhotoLibrary: z.ZodMiniType<Contract.PhotoLibrary> = z.object({ "items": z.array(LibraryItem), "nextCursor": z.union([z.string(), z.null()]) });
+export type PhotoLibrary = Contract.PhotoLibrary;
 
 export const PhotoSources: z.ZodMiniType<Contract.PhotoSources> = z.object({ "allMyFiles": z.boolean(), "folderIds": z.array(Id).check(z.maxLength(100)) });
 export type PhotoSources = Contract.PhotoSources;
