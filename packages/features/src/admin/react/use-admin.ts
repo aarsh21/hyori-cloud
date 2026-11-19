@@ -5,7 +5,9 @@ import { useCursorPages } from "#features/shared/react/use-cursor-pages.ts";
 export function useAdminUsers() {
   const { query, rpc } = useClientSDK();
 
-  return useCursorPages(query.admin.users, rpc.admin.users, {});
+  return useCursorPages(query.admin.users, rpc.admin.users, {}, undefined, (pages) =>
+    pages.some((page) => page.items.some((user) => user.status === "deleting")) ? 5000 : false,
+  );
 }
 
 export function useCreateUser() {
