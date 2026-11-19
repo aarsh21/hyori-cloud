@@ -13,11 +13,33 @@ function SelectTrigger({
   className,
   children,
   placeholder,
+  onKeyUp,
   ...props
 }: SelectPrimitive.Trigger.Props & { placeholder?: string }) {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
+      onKeyUp={(event) => {
+        onKeyUp?.(event);
+
+        if (
+          event.defaultPrevented ||
+          event.baseUIHandlerPrevented ||
+          !["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)
+        )
+          return;
+        const trigger = event.currentTarget;
+        const listId = trigger.getAttribute("aria-controls");
+
+        // Base UI schedules opening focus for the next frame. Give the active option
+        // the keyboard on key release so a quick Home or End doesn't land on the trigger.
+        if (listId && trigger === trigger.ownerDocument.activeElement) {
+          trigger.ownerDocument
+            .getElementById(listId)
+            ?.querySelector<HTMLElement>('[role="option"][tabindex="0"]')
+            ?.focus({ preventScroll: true });
+        }
+      }}
       className={cn(
         "inline-flex h-8 min-w-0 items-center justify-between gap-1.5 rounded-lg border border-input bg-card px-2.5 text-[13px] whitespace-nowrap shadow-(--shadow-control) transition-[background-color,border-color,box-shadow] duration-150 outline-none select-none hover:bg-accent focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 data-disabled:pointer-events-none data-disabled:opacity-50 data-popup-open:bg-accent coarse:h-11",
         className,
