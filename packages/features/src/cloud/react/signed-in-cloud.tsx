@@ -1,16 +1,21 @@
-import { Suspense } from "@hyori-cloud/lib/react";
+import { Suspense, useEffect } from "@hyori-cloud/lib/react";
 import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { CloudContent } from "#features/cloud/react/cloud-content.tsx";
-import { lazyScreen, loadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.ts";
+import { scheduleIdleCloudPreload } from "#features/cloud/react/idle-preload.ts";
+import {
+  lazyScreen,
+  loadEditorScreen,
+  loadUploadTray,
+} from "#features/cloud/react/cloud-screen-loaders.ts";
 import { CloudShell } from "#features/cloud/react/cloud-shell.tsx";
 import { FocusFallback } from "#features/cloud/react/focus-fallback.tsx";
-import { UploadTray } from "#features/uploads/react/upload-tray.tsx";
 import { UploadsProvider } from "#features/uploads/react/uploads-provider.tsx";
 
 const EditorScreen = lazyScreen(loadEditorScreen, (module) => module.EditorScreen);
+const UploadTray = lazyScreen(loadUploadTray, (module) => module.UploadTray);
 
 type SignedInLocation = Exclude<
   CloudLocation,
@@ -31,6 +36,11 @@ function filesFolderPath(parentId: string | null) {
  */
 export function SignedInCloud({ location }: { location: SignedInLocation }) {
   const user = useCurrentUser();
+
+  // Once the app has painted, whatever is left of the wire goes to the other sections' code.
+  useEffect(() => {
+    scheduleIdleCloudPreload(user.role === "admin");
+  }, [user.role]);
 
   return (
     // Interrupted uploads belong to one account. Changing accounts must not carry them across.
@@ -55,7 +65,9 @@ function SignedInLocationScreen({ location }: { location: SignedInLocation }) {
           />
         </Suspense>
         {/* Starts as one line over the document, still there to expand, retry, or clear. */}
-        <UploadTray defaultCollapsed floating />
+        <Suspense fallback={null}>
+          <UploadTray defaultCollapsed floating />
+        </Suspense>
       </>
     );
   }

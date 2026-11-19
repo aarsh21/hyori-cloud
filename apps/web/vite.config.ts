@@ -28,7 +28,24 @@ export default defineConfig(({ command }) => ({
               rolldownOptions: {
                 output: {
                   // Compress the already-eager graph together; screens and closed dialogs stay lazy.
-                  codeSplitting: { groups: [{ name: "initial", tags: ["$initial"] }] },
+                  codeSplitting: {
+                    groups: [
+                      { name: "initial", tags: ["$initial"] },
+                      {
+                        // Automatic chunking leaves a long tail of one- and two-KB chunks shared
+                        // between screens — single icons, hooks, dialog primitives — and each one
+                        // is a request the first Files load pays for. Small modules that at least
+                        // two chunks share merge into one chunk per set of importers instead, so
+                        // each screen still loads only the code it uses. Larger modules stay where
+                        // they are, so React, the menus and the file browser keep their own.
+                        name: "shared",
+                        minShareCount: 2,
+                        maxModuleSize: 4096,
+                        entriesAware: true,
+                        entriesAwareMergeThreshold: 16384,
+                      },
+                    ],
+                  },
                 },
               },
             },

@@ -8,6 +8,14 @@ import { observeDeliveryHydration, waitForDeliveryHydration } from "./delivery-h
 
 const origin = new URL(process.env.HYORI_DELIVERY_ORIGIN!).origin;
 
+/** The speed budgets ask for the p75 of 5 fresh-context runs per profile. */
+const RUNS = z.coerce
+  .number()
+  .int()
+  .min(1)
+  .max(20)
+  .parse(process.env.HYORI_DELIVERY_RUNS ?? 5);
+
 const state = z
   .object({ email: z.string(), password: z.string() })
   .parse(
@@ -26,13 +34,20 @@ const browser = await chromium.launch({
   headless: true,
 });
 
-const results: { mobile: boolean; run: number; section: string; usableMs: number }[] = [];
+const results: {
+  mobile: boolean;
+  run: number;
+  section: string;
+  usableMs: number;
+  /** Photos only: until the first tile's thumbnail is loaded and decoded. */
+  thumbnailMs?: number;
+}[] = [];
 
 try {
   for (const mobile of [false, true]) {
     if (process.argv[3] && process.argv[3] !== (mobile ? "mobile" : "desktop")) continue;
 
-    for (let run = 0; run < 3; run++) {
+    for (let run = 0; run < RUNS; run++) {
       const context = await browser.newContext({
         viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 800 },
         deviceScaleFactor: 2,
@@ -76,12 +91,33 @@ try {
           const start = performance.now();
           await link.click();
 
-          if (section === "Photos")
+          let thumbnailMs: number | undefined;
+
+          if (section === "Photos") {
             await page
               .getByRole("button", { name: /^photo-\d+\.png/ })
               .first()
               .waitFor();
-          else if (section === "Shared")
+
+            // Past the tile to the photo someone actually sees: the first thumbnail loaded and
+            // decoded. Derivatives may still be generating when the tile itself is already there.
+            await page
+              .waitForFunction(() => {
+                const image = document.querySelector<HTMLImageElement>(
+                  'img[data-slot="media-tile-image"]',
+                );
+
+                return image !== null && image.complete && image.naturalWidth > 0;
+              })
+              .then(() =>
+                page.evaluate(() =>
+                  document
+                    .querySelector<HTMLImageElement>('img[data-slot="media-tile-image"]')!
+                    .decode(),
+                ),
+              );
+            thumbnailMs = performance.now() - start;
+          } else if (section === "Shared")
             await page.getByText("Nothing shared with you yet", { exact: true }).waitFor();
           else await page.getByText("Delivery files", { exact: true }).waitFor();
 
@@ -89,8 +125,12 @@ try {
           page.off("domcontentloaded", navigated);
 
           if (documentNavigation) throw new Error(`${section} reloaded the document`);
-          results.push({ mobile, run, section, usableMs });
-          console.log(JSON.stringify(results.at(-1)));
+
+          const entry: (typeof results)[number] = { mobile, run, section, usableMs };
+
+          if (thumbnailMs !== undefined) entry.thumbnailMs = thumbnailMs;
+          results.push(entry);
+          console.log(JSON.stringify(entry));
           await page.waitForLoadState("networkidle");
         }
       } finally {
@@ -100,6 +140,31 @@ try {
   }
 
   await writeFile(process.argv[2]!, JSON.stringify(results, null, 2));
+
+  // One line per profile and section, so a budget can be read straight off the run.
+  for (const mobile of [false, true]) {
+    for (const section of ["Photos", "Shared", "Files"]) {
+      const runs = results.filter(
+        (result) => result.mobile === mobile && result.section === section,
+      );
+
+      const times = runs.flatMap((result) => [result.usableMs]).sort((a, b) => a - b);
+
+      if (times.length)
+        console.log(
+          `${mobile ? "phone" : "desktop"} ${section}: p50 ${times[Math.floor(times.length / 2)]!.toFixed(0)} ms, p75 ${times[Math.ceil(0.75 * (times.length - 1))]!.toFixed(0)} ms, max ${times.at(-1)!.toFixed(0)} ms over ${times.length} runs`,
+        );
+
+      const thumbnails = runs
+        .flatMap((result) => (result.thumbnailMs !== undefined ? [result.thumbnailMs] : []))
+        .sort((a, b) => a - b);
+
+      if (thumbnails.length)
+        console.log(
+          `${mobile ? "phone" : "desktop"} ${section} thumbnail: p50 ${thumbnails[Math.floor(thumbnails.length / 2)]!.toFixed(0)} ms, p75 ${thumbnails[Math.ceil(0.75 * (thumbnails.length - 1))]!.toFixed(0)} ms, max ${thumbnails.at(-1)!.toFixed(0)} ms over ${thumbnails.length} runs`,
+        );
+    }
+  }
 } finally {
   await browser.close();
 }

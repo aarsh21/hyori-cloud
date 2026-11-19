@@ -103,6 +103,7 @@ export const loadAlbumsScreen = chunk(() => import("#features/photos/react/album
 export const loadAlbumScreen = chunk(() => import("#features/photos/react/album-screen.tsx"));
 export const loadAdminScreen = chunk(() => import("#features/admin/react/admin-screen.tsx"));
 export const loadEditorScreen = chunk(() => import("#features/editors/react/editor-screen.tsx"));
+export const loadUploadTray = chunk(() => import("#features/uploads/react/upload-tray.tsx"));
 
 function ignoreLoadFailure() {
   // A preload is only a head start. If the code really is unavailable, rendering the screen fails
@@ -164,6 +165,9 @@ export function preloadCloudLocation(location: CloudLocation) {
   }
 
   requests.push(loadCloudShell());
+  // Any signed-in screen can surface the tray the moment an upload starts, so a location's
+  // head start covers it too. Cheap for sections already carrying their own preload.
+  requests.push(loadUploadTray());
 
   return Promise.all(requests).then(() => {}, ignoreLoadFailure);
 }

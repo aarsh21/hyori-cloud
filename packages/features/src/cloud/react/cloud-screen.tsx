@@ -17,6 +17,7 @@ import {
   loadPublicShareScreen,
   preloadCloudLocation,
 } from "#features/cloud/react/cloud-screen-loaders.ts";
+import { useCloudDataPrefetch } from "#features/cloud/react/cloud-data-prefetch.ts";
 
 const SignedInCloud = lazyScreen(loadCloudShell, (module) => module.SignedInCloud);
 const InviteScreen = lazyScreen(loadInviteScreen, (module) => module.InviteScreen);
@@ -43,11 +44,18 @@ export function CloudScreen({
   navigationGuard?: NavigationGuard;
 }) {
   const location = parseCloudPath(path);
+  const prefetchData = useCloudDataPrefetch();
 
   return (
     <CloudNavigationProvider
       location={location}
-      onNavigate={onNavigate}
+      onNavigate={(nextPath) => {
+        // A confirmed visit starts its first page here, beside the screen code it will need,
+        // rather than after the destination mounts. Hover and focus may have started it
+        // already; TanStack deduplicates, so this only adds work the visit wants.
+        prefetchData(parseCloudPath(nextPath));
+        onNavigate(nextPath);
+      }}
       navigationGuard={navigationGuard}
     >
       <CloudLocationScreen />

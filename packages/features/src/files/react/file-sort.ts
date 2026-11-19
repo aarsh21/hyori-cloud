@@ -18,7 +18,8 @@ const KEY = "hyori-file-sort";
 const listeners = new Set<() => void>();
 let unstored: FileSort | null = null;
 
-function readSort(): FileSort {
+/** The stored sort, for callers outside React that need the key the Files screen will use. */
+export function readSort(): FileSort {
   if (unstored !== null) return unstored;
 
   try {

@@ -1,21 +1,26 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 import { FileText, Plus, Search, Star } from "@hyori-cloud/lib/icons";
-import { useDeferredValue, useState } from "@hyori-cloud/lib/react";
+import { Suspense, useDeferredValue, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { NoteListItem, NoteWorkspace } from "@hyori-cloud/ui/components/note-workspace";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
+import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { Text } from "@hyori-cloud/ui/components/text";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
+import { lazyScreen, loadNoteDocument } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
-import { NoteDocument } from "#features/notes/react/note-document.tsx";
 import { useCreateNote, useNotes } from "#features/notes/react/use-notes.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 
 type Note = OutputOf<RPC["notes"]["get"]>;
+
+// The editor is by far the heaviest code in the product, so only a note actually opening pays
+// for it; the screen itself, and the section's preload, stay light.
+const NoteDocument = lazyScreen(loadNoteDocument, (module) => module.NoteDocument);
 
 export function NotesScreen({ noteId }: { noteId: string | null }) {
   const user = useCurrentUser();
@@ -157,13 +162,21 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
           }
         />
       ) : (
-        <NoteDocument
-          key={noteId}
-          id={noteId}
-          accountId={user.id}
-          autoFocus={createdId === noteId}
-          onNewChild={() => newNote(noteId)}
-        />
+        <Suspense
+          fallback={
+            <div className="flex min-h-0 flex-1 items-center justify-center">
+              <Spinner />
+            </div>
+          }
+        >
+          <NoteDocument
+            key={noteId}
+            id={noteId}
+            accountId={user.id}
+            autoFocus={createdId === noteId}
+            onNewChild={() => newNote(noteId)}
+          />
+        </Suspense>
       )}
     </NoteWorkspace>
   );
