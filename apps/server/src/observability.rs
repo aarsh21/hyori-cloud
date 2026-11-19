@@ -7,7 +7,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use sea_orm::{ConnectionTrait, TransactionTrait};
+use sea_orm::ConnectionTrait;
 use std::{
     collections::BTreeMap,
     fmt::Write,
@@ -272,7 +272,7 @@ async fn media_counts(
     state: &AppState,
 ) -> Result<Vec<(&'static str, i64)>, crate::error::ApiError> {
     // Bound work in PostgreSQL too: dropping an HTTP future alone is not a SQL work budget.
-    let tx = state.db.begin().await?;
+    let tx = crate::db::begin_owned(&state.db, None).await?;
     tx.execute_unprepared("SET TRANSACTION READ ONLY; SET LOCAL statement_timeout = '1500ms'; SET LOCAL lock_timeout = '500ms'").await?;
     let jobs = tx
         .query_all_raw(crate::db::sql(

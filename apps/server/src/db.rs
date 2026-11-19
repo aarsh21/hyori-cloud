@@ -3,8 +3,8 @@ use crate::{
     error::ApiError,
 };
 use sea_orm::{
-    ConnectionTrait, Database, DatabaseConnection, DatabaseTransaction, DbBackend, Statement,
-    TransactionTrait,
+    ConnectionTrait, Database, DatabaseConnection, DatabaseTransaction, DbBackend, IsolationLevel,
+    Statement, TransactionTrait,
 };
 use sha2::{Digest, Sha256};
 
@@ -41,8 +41,30 @@ pub async fn connect(config: &Config) -> Result<DatabaseConnection, ApiError> {
         .sqlx_logging(false);
     Database::connect(options).await.map_err(Into::into)
 }
+
+pub(crate) async fn begin_owned(
+    db: &DatabaseConnection,
+    isolation: Option<IsolationLevel>,
+) -> Result<DatabaseTransaction, ApiError> {
+    // SQLx 0.8.6 records transaction depth only after receiving the BEGIN reply. If the
+    // request drops mid-BEGIN, rollback-on-drop at depth zero does nothing. Let this task
+    // finish the handshake: an abandoned result then drops a fully owned transaction.
+    // The request still owns all domain work and the decision to commit.
+    let db = db.clone();
+    tokio::spawn(async move { db.begin_with_config(isolation, None).await })
+        .await
+        .map_err(|error| {
+            tracing::error!(
+                panicked = error.is_panic(),
+                "database transaction begin task failed"
+            );
+            ApiError::unavailable()
+        })?
+        .map_err(Into::into)
+}
+
 pub async fn begin(db: &DatabaseConnection) -> Result<DatabaseTransaction, ApiError> {
-    let tx = db.begin().await?;
+    let tx = begin_owned(db, None).await?;
     tx.execute_unprepared("SET LOCAL statement_timeout = '10s'; SET LOCAL lock_timeout = '5s'; SET LOCAL idle_in_transaction_session_timeout = '30s'").await?;
     Ok(tx)
 }
@@ -74,9 +96,7 @@ where
     F: for<'a> Fn(&'a DatabaseTransaction) -> DomainFuture<'a, T>,
 {
     for attempt in 0..4 {
-        let tx = db
-            .begin_with_config(Some(sea_orm::IsolationLevel::Serializable), None)
-            .await?;
+        let tx = begin_owned(db, Some(IsolationLevel::Serializable)).await?;
         tx.execute_unprepared("SET LOCAL statement_timeout = '10s'; SET LOCAL lock_timeout = '5s'; SET LOCAL idle_in_transaction_session_timeout = '30s'").await?;
         let result = match operation(&tx).await {
             Ok(value) => tx.commit().await.map(|()| value).map_err(DomainError::from),
