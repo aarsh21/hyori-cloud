@@ -21,12 +21,14 @@ import { editorContentSecurityPolicy } from "./editor-csp.ts";
  * RustFS, the Rust server, the built web host and a same-origin gateway that serves the editor
  * bundle the way docs/editor-deployment.md asks Caddy to. Each service runs one role:
  *
- *   bun scripts/dev-stack.ts db|storage|server|web|gateway
+ *   bun scripts/dev-stack.ts db|storage|media|server|web|gateway
  *
  * State and generated credentials live in HYORI_DEV_HOME (default ~/hyori-dev), never in the repo.
  * Without native PostgreSQL or RustFS binaries, db and storage run the deployment's pinned images
  * in Docker instead, keeping their data in the `hyori-dev-pg` and `hyori-dev-rustfs` volumes.
- * Not a deployment recipe: TLS terminates at Amp's portal, and there is no isolated media worker.
+ * The optional Docker media role uses the deployment's isolation limits. Start it before restarting
+ * the server to enable thumbnails through its private socket. TLS terminates at Amp's portal;
+ * this development stack is not a production deployment recipe.
  */
 const PORTS = { db: 25432, storage: 29000, server: 23003, web: 23001 } as const;
 const ROOT = resolve(import.meta.dir, "..");
@@ -213,6 +215,38 @@ function storage() {
   });
 }
 
+function media() {
+  const uid = process.getuid?.();
+  const gid = process.getgid?.();
+
+  if (!uid || gid === undefined) throw new Error("The media worker requires a nonroot Unix user.");
+
+  const directory = join(HOME, "media-socket");
+  const image = "hyori-media-worker:dev";
+
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+
+  if (spawnSync("docker", ["image", "inspect", image], { stdio: "ignore" }).status !== 0) {
+    execFileSync("docker", ["build", "-f", "apps/media-worker/Dockerfile", "-t", image, "."], {
+      cwd: ROOT,
+      stdio: "inherit",
+    });
+  }
+
+  container(
+    "hyori-dev-media-worker",
+    ["--init", "--network=none", "--read-only", "--cap-drop=ALL"]
+      .concat(["--security-opt=no-new-privileges", `--user=${uid}:${gid}`, "--cpus=1"])
+      .concat(["--memory=512m", "--memory-swap=512m", "--pids-limit=64"])
+      .concat([
+        "--tmpfs",
+        `/scratch:rw,noexec,nosuid,nodev,size=96m,uid=${uid},gid=${gid},mode=0700`,
+      ])
+      .concat(["--mount", `type=bind,source=${directory},target=/run/hyori-media`, image]),
+    {},
+  );
+}
+
 /** The pinned editor bundle named by a committed receipt, when it has been built on this host. */
 function editorBundle() {
   const receipt = z
@@ -255,6 +289,10 @@ function server() {
     env.HYORI_EDITOR_ASSETS_DIR = bundle.directory;
     env.HYORI_EDITOR_ASSETS_MANIFEST_SHA256 = bundle.manifestSha256;
   }
+
+  const mediaSocket = join(HOME, "media-socket/worker.sock");
+
+  if (existsSync(mediaSocket)) env.HYORI_MEDIA_WORKER_SOCKET = mediaSocket;
 
   console.log(`Setup token: ${setup}`);
   run(join(ROOT, "target/release/hyori-server"), [], env);
@@ -444,6 +482,9 @@ switch (process.argv[2]) {
   case "storage":
     storage();
     break;
+  case "media":
+    media();
+    break;
   case "server":
     server();
     break;
@@ -454,5 +495,5 @@ switch (process.argv[2]) {
     gateway();
     break;
   default:
-    throw new Error("Pass one of: db, storage, server, web, gateway");
+    throw new Error("Pass one of: db, storage, media, server, web, gateway");
 }
