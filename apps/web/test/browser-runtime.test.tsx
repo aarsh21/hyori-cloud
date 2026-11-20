@@ -84,13 +84,8 @@ function fakeHttp() {
         return Response.json({ ok: true, value: folder });
       }
 
-      case "photos.sources":
-        return Response.json({ ok: true, value: { allMyFiles: true, folderIds: [] } });
-      case "photos.timeline":
-        return Response.json({
-          ok: true,
-          value: { items: [], folder: null, breadcrumbs: [], nextCursor: null },
-        });
+      case "photos.library":
+        return Response.json({ ok: true, value: { items: [], nextCursor: null } });
       default:
         throw new Error(`Unscripted operation: ${request.operation}`);
     }
@@ -121,7 +116,7 @@ function PhotosConsumer() {
   const sdkClient = useClientSDK();
   const queryClient = useQueryClient();
   const files = useQuery(sdkClient.query.files.list.getOptions({ parentId: null }));
-  const sources = useQuery(sdkClient.query.photos.sources.getOptions({}));
+  const sources = useQuery(sdkClient.query.photos.library.getOptions({}));
 
   seen.set("photos", { sdkClient, queryClient });
 
@@ -202,7 +197,7 @@ test("actual app root shares SDK/cache across features, invalidation and real ro
 
     expect(sharedQuery?.getObserversCount()).toBe(2);
     const fileReads = api.calls.filter((operation) => operation === "files.list").length;
-    const sourceReads = api.calls.filter((operation) => operation === "photos.sources").length;
+    const sourceReads = api.calls.filter((operation) => operation === "photos.library").length;
 
     await act(async () => {
       fireEvent.click(within(document.body).getAllByRole("button", { name: "New folder" })[0]!);
@@ -222,7 +217,7 @@ test("actual app root shares SDK/cache across features, invalidation and real ro
     expect(api.calls.filter((operation) => operation === "files.list").length).toBeGreaterThan(
       fileReads,
     );
-    expect(api.calls.filter((operation) => operation === "photos.sources").length).toBeGreaterThan(
+    expect(api.calls.filter((operation) => operation === "photos.library").length).toBeGreaterThan(
       sourceReads,
     );
     const readsAfterMutation = api.calls.filter((operation) => operation === "files.list").length;
@@ -248,7 +243,7 @@ test("actual app root shares SDK/cache across features, invalidation and real ro
       await router.navigate({ to: "/$", params: { _splat: "photos" } });
     });
     await waitFor(() => {
-      expect(document.body.textContent).toContain("No photos found yet");
+      expect(document.body.textContent).toContain("No photos yet");
       expect(seen.size).toBe(2);
     });
     expect(router.state.location.pathname).toBe("/photos");

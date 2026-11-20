@@ -201,8 +201,6 @@ export async function runTrayReachScenarios(run: CoreRun) {
     SELECT 'tray_reach_'||n, 'tray-reach-'||n||'@example.test', 'Reach member '||n, 'user', 10000000000
     FROM generate_series(1,32) n`);
 
-  await sdk.rpc.photos.setSources({ allMyFiles: false, folderIds: [library.id] });
-
   const share = await sdk.rpc.shares.create({
     itemId: library.id,
     public: true,

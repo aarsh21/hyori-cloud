@@ -5,18 +5,22 @@ import type { Refreshable } from "#features/shared/react/refreshable.ts";
 import { timelineRefreshDelay } from "#features/photos/photo-derivative.ts";
 import { useCursorPages } from "#features/shared/react/use-cursor-pages.ts";
 
-export function usePhotoSources(): Refreshable<ResourceOf<Query["photos"]["sources"]>> {
-  const { query } = useClientSDK();
+/** Everyone's whole library: media the server discovered that this account owns. */
+export function usePhotoLibrary() {
+  const { query, rpc } = useClientSDK();
 
-  return useQuery(query.photos.sources.getOptions({}));
+  return useCursorPages(
+    query.photos.library,
+    rpc.photos.library,
+    {},
+    undefined,
+    timelineRefreshDelay,
+  );
 }
 
-export function useSetPhotoSources() {
-  const { mutation } = useClientSDK();
+export type PhotoLibrary = ReturnType<typeof usePhotoLibrary>;
 
-  return useMutation(mutation.photos.setSources.mutationOptions());
-}
-
+/** One album's own ordering, kept separate from the library feed's contract. */
 export function usePhotoTimeline(albumId?: string) {
   const { query, rpc } = useClientSDK();
 

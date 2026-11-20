@@ -3,10 +3,20 @@ import { PageBody, PageSection } from "@hyori-cloud/ui/components/app-shell";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { Skeleton } from "@hyori-cloud/ui/components/skeleton";
 import { SectionHeading } from "@hyori-cloud/ui/components/text";
+import { localDateInputValue } from "#features/shared/format.ts";
 import { thumbnailProgressSummary } from "#features/photos/photo-derivative.ts";
+import type { PhotoItem } from "#features/photos/photo-derivative.ts";
 import { PhotoTimeline } from "#features/photos/react/photo-timeline.tsx";
 import { PhotosBar } from "#features/photos/react/photos-bar.tsx";
 import { useAlbums, usePhotoTimeline } from "#features/photos/react/use-photos.ts";
+
+/**
+ * An album holds no timeline dates of its own; its items group by the day they were uploaded, in
+ * the order the album's own feed keeps.
+ */
+function albumDayKey(item: PhotoItem): string {
+  return localDateInputValue(new Date(item.createdAt));
+}
 
 export function AlbumScreen({ albumId }: { albumId: string }) {
   const timeline = usePhotoTimeline(albumId);
@@ -27,6 +37,7 @@ export function AlbumScreen({ albumId }: { albumId: string }) {
           </SectionHeading>
           <PhotoTimeline
             timeline={timeline}
+            dayKeyOf={albumDayKey}
             empty={
               <RegionState
                 icon={<Images />}

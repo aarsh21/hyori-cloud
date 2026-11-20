@@ -5,9 +5,9 @@ import type { CoreRun } from "./scenarios-core.ts";
 import { downloadBytes, hydrated, rowMenu, uploadFiles } from "./page-actions.ts";
 import { createLink, revokeLink } from "./scenarios-sharing.ts";
 import {
-  chooseSources,
   closeViewer,
   createFolder,
+  openPhotos,
   tile,
   tileSelector,
   waitForTrayIdle,
@@ -113,7 +113,7 @@ export async function runPhoneCompletionScenarios(run: CoreRun) {
         ]),
       ]);
       await waitForTrayIdle(run, page, 2);
-      await chooseSources(run, page, photo);
+      await openPhotos(page, photo);
       await run.report.check("phone: worker exhaustion exposes a real Retry control", async () => {
         await retry(photo).waitFor({ timeout: 240_000 });
         await retry(video).waitFor({ timeout: 240_000 });

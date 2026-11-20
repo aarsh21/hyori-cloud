@@ -56,16 +56,14 @@ export async function loadCloudPage(
         );
 
       break;
-    case "photos": {
-      const sources = await queryClient.fetchQuery(sdkClient.query.photos.sources.getOptions({}));
-
-      if (sources.allMyFiles || sources.folderIds.length > 0)
-        await queryClient.prefetchInfiniteQuery(
-          cursorPagesOptions(sdkClient.query.photos.timeline, sdkClient.rpc.photos.timeline, {}),
-        );
+    case "photos":
+      // The library is everyone's own media as the server discovers it, so the first document
+      // can carry its newest day without any configuration read.
+      await queryClient.prefetchInfiniteQuery(
+        cursorPagesOptions(sdkClient.query.photos.library, sdkClient.rpc.photos.library, {}),
+      );
 
       break;
-    }
 
     case "notes":
     case "editor":

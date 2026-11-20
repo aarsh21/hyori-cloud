@@ -245,21 +245,13 @@ async function seedLibrary(run: CoreRun, page: Page) {
   await waitForTrayIdle(run, page, files.length);
 }
 
-export async function chooseSources(run: CoreRun, page: Page, expectedTile = "red.png") {
-  const { report } = run;
-
+/**
+ * Opens Photos, where the library needs no setup: media this account owns is already there, wherever
+ * in Files it lives.
+ */
+export async function openPhotos(page: Page, expectedTile = "red.png") {
   await page.getByRole("link", { name: "Photos" }).first().click();
-  await page.getByRole("heading", { name: "Choose what appears in Photos" }).waitFor();
-  await page.getByText("Suggested").waitFor();
-  await report.shot(page, "photos-setup-desktop");
-
-  await report.check("the suggested folder can be chosen, and its media appears", async () => {
-    // By its name: listings come back in no meaningful order yet.
-    await page.getByRole("listitem").filter({ hasText: "Pictures" }).getByRole("checkbox").click();
-    await page.getByRole("button", { name: "Show my photos" }).click();
-    await page.getByRole("button", { name: "Sources" }).waitFor();
-    await tile(page, expectedTile).waitFor();
-  });
+  await tile(page, expectedTile).waitFor();
 }
 
 /**
@@ -779,8 +771,7 @@ async function longTimeline(run: CoreRun, context: BrowserContext, page: Page) {
     peakInFlightTileMedia: front.peakInFlightTileMedia(),
     protocol: atTop[0]?.protocol ?? "none",
     megabytes: Math.round(atTop.reduce((sum, record) => sum + record.bytes, 0) / 1024 / 1024),
-    timelineRequests: front.records.filter((record) => record.operation === "photos.timeline")
-      .length,
+    libraryRequests: front.records.filter((record) => record.operation === "photos.library").length,
   });
 
   await report.check("no tile load is refused at the top of a long timeline", () => {
@@ -874,14 +865,14 @@ async function thumbnailProgress({ report, front, stack }: CoreRun, page: Page) 
   front.resetCounters();
   await page.waitForTimeout(seconds * 1000);
 
-  const timelineReads = front.records.filter(({ operation }) => operation === "photos.timeline");
+  const libraryReads = front.records.filter(({ operation }) => operation === "photos.library");
 
   report.observe("thumbnails arriving while a timeline is open", {
     seconds,
     finished: ready() - readyBefore,
     stillWaiting: waiting(),
-    timelineReads: timelineReads.length,
-    timelineReadBytes: timelineReads.reduce((sum, record) => sum + record.bytes, 0),
+    libraryReads: libraryReads.length,
+    libraryReadBytes: libraryReads.reduce((sum, record) => sum + record.bytes, 0),
   });
 }
 
@@ -937,7 +928,11 @@ async function neighbourPreload(run: CoreRun, context: BrowserContext, page: Pag
   await saving.close();
 }
 
-async function sharedSources(run: CoreRun) {
+/**
+ * A folder shared with someone else never joins their library: Photos reads only what each account
+ * owns, and the share stays where it was made, in Shared with me.
+ */
+async function sharedFolderStaysOutOfLibrary(run: CoreRun) {
   const { report, media } = run;
   const { context: ownerContext, page: owner } = await ownerPage(run);
   const email = "tala@example.test";
@@ -973,22 +968,17 @@ async function sharedSources(run: CoreRun) {
   await shareDialog.getByRole("list", { name: "People with access" }).waitFor();
   await report.shot(owner, "share-dialog-person");
 
-  await friend.getByRole("link", { name: "Photos" }).first().click();
-  await friend.getByRole("button", { name: "Shared with me" }).click();
-  await friend.getByText("Holiday").waitFor();
-  await report.shot(friend, "photos-sources-shared");
-
-  await report.check("someone can source Photos from a folder shared with them", async () => {
-    await friend.getByRole("checkbox").first().click();
-    await friend.getByRole("button", { name: "Show my photos" }).click();
-    await tile(friend, "beach.png").waitFor();
-
-    // Its thumbnail may still be waiting, or disabled without a worker; the viewer below
-    // proves the shared original itself is readable.
+  await report.check("media shared with someone stays out of their library", async () => {
+    await friend.getByRole("link", { name: "Photos" }).first().click();
+    await friend.getByText("No photos yet").waitFor();
+    assert.equal(await tile(friend, "beach.png").count(), 0, "shared media in the library");
   });
 
-  await tile(friend, "beach.png").click();
-  await friend.locator('[data-slot="lightbox"] img').waitFor();
+  await report.shot(friend, "photos-shared-not-in-library");
+
+  // The share itself stays reachable where it was made, and its media opens from there.
+  await friend.getByRole("button", { name: "Shared with me" }).click();
+  await friend.getByRole("link", { name: "Holiday" }).waitFor();
 
   await shareDialog.getByRole("button", { name: "Remove" }).click();
   await shareDialog
@@ -998,12 +988,8 @@ async function sharedSources(run: CoreRun) {
 
   await report.check("after the share ends, a reload shows nothing of it", async () => {
     await friend.reload();
-    await friend
-      .getByText("No photos found yet")
-      .or(friend.getByText("Choose what appears in Photos"))
-      .first()
-      .waitFor();
-    assert.equal(await tile(friend, "beach.png").count(), 0, "tiles still shown");
+    await friend.getByText("No photos yet").waitFor();
+    assert.equal(await tile(friend, "beach.png").count(), 0, "shared media still shown");
   });
 
   await friendContext.close();
@@ -1015,7 +1001,7 @@ async function ownLibrary(run: CoreRun, freshImage: boolean) {
   const { context, page } = await ownerPage(run);
 
   await seedLibrary(run, page);
-  await chooseSources(run, page);
+  await openPhotos(page);
   await tilesAndViewer(run, page);
   await ranges(run, page);
   await report.shot(page, "photos-timeline-after-viewing");
@@ -1029,5 +1015,7 @@ export async function runPhotoScenarios(run: CoreRun, { freshImage }: { freshIma
   await run.report.scenario("Photos: own library, formats, ranges, identity, long timeline", () =>
     ownLibrary(run, freshImage),
   );
-  await run.report.scenario("Photos: shared sources and revocation", () => sharedSources(run));
+  await run.report.scenario("Photos: a shared folder stays out of the library", () =>
+    sharedFolderStaysOutOfLibrary(run),
+  );
 }

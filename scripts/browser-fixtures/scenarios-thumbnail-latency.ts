@@ -5,7 +5,7 @@ import type { Page } from "playwright-core";
 import { uploadFiles } from "./page-actions.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { ownerPage } from "./scenarios-core.ts";
-import { chooseSources, createFolder, tileSelector, waitForTrayIdle } from "./scenarios-photos.ts";
+import { createFolder, openPhotos, tileSelector, waitForTrayIdle } from "./scenarios-photos.ts";
 
 const BATCHES = [1, 8, 24];
 const SAMPLE_MS = 1000;
@@ -157,7 +157,7 @@ export async function runThumbnailLatencyObservation(run: CoreRun, artifacts: st
 
         await uploadFiles(page, first);
         await waitForTrayIdle(run, page, 1);
-        await chooseSources(run, page, "latency-setup.png");
+        await openPhotos(page, "latency-setup.png");
       }
 
       await page.getByRole("link", { name: "Files" }).first().click();

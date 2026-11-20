@@ -18,7 +18,13 @@ import { useRetryThumbnail } from "#features/photos/react/use-photos.ts";
  * takes keyboard focus or the tile's place with it. Tiles carry their state from the one timeline
  * read and make no requests of their own, except a retry someone asks for.
  */
-export function PhotoTile({ item, onOpen }: { item: PhotoItem; onOpen: (id: string) => void }) {
+export function PhotoTile({
+  item,
+  onOpen,
+}: {
+  item: PhotoItem;
+  onOpen: (id: string, origin: DOMRect | null) => void;
+}) {
   const [entered, ref] = useEnteredViewport<HTMLLIElement>("0px");
   const retry = useRetryThumbnail();
   const { derivative } = item;
@@ -30,7 +36,11 @@ export function PhotoTile({ item, onOpen }: { item: PhotoItem; onOpen: (id: stri
 
   return (
     <MediaTileFrame ref={ref} itemKey={item.id}>
-      <MediaTileButton label={photoTileLabel(item, status)} onClick={() => onOpen(item.id)}>
+      <MediaTileButton
+        label={photoTileLabel(item, status)}
+        // The tile's own rect flies the viewer out of it, the same for a tap and a keyboard open.
+        onClick={() => onOpen(item.id, ref.current?.getBoundingClientRect() ?? null)}
+      >
         <PhotoTileContent item={item} entered={entered} caption={caption} />
       </MediaTileButton>
       {canRetry ? (

@@ -1,83 +1,73 @@
-import { Images, SlidersHorizontal } from "@hyori-cloud/lib/icons";
-import { useState } from "@hyori-cloud/lib/react";
+import { Images, Upload } from "@hyori-cloud/lib/icons";
+import { useRef } from "@hyori-cloud/lib/react";
 import { PageBody, PageSection } from "@hyori-cloud/ui/components/app-shell";
 import { Button } from "@hyori-cloud/ui/components/button";
-import { MediaGridSkeleton } from "@hyori-cloud/ui/components/media-grid";
+import { DropZone, FilePicker } from "@hyori-cloud/ui/components/file-picker";
+import type { FilePickerHandle } from "@hyori-cloud/ui/components/file-picker";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { thumbnailProgressSummary } from "#features/photos/photo-derivative.ts";
-import { PhotoSourcesDialog } from "#features/photos/react/photo-sources-dialog.tsx";
+import { PhotoInfoPanel } from "#features/photos/react/photo-info.tsx";
 import { PhotoTimeline } from "#features/photos/react/photo-timeline.tsx";
 import { PhotosBar } from "#features/photos/react/photos-bar.tsx";
-import { PhotosSetup } from "#features/photos/react/photos-setup.tsx";
-import type { PhotoSourcesValue } from "#features/photos/react/source-selection.tsx";
-import { usePhotoSources, usePhotoTimeline } from "#features/photos/react/use-photos.ts";
-import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
+import { usePhotoLibrary } from "#features/photos/react/use-photos.ts";
+import { useUploadQueue } from "#features/uploads/react/uploads-provider.tsx";
 
+/**
+ * The photo library needs no setup: media you own appears here as the server discovers it, wherever
+ * in your files it lives, grouped by the day it was taken. Uploading from this screen lands in the
+ * top of your files and joins the timeline the same way.
+ */
 export function PhotosScreen() {
-  const sources = usePhotoSources();
+  const timeline = usePhotoLibrary();
+  const queue = useUploadQueue();
+  const picker = useRef<FilePickerHandle>(null);
 
-  if (sources.data === undefined) {
-    return (
-      <>
-        <PhotosBar />
-        <PageBody>
-          <PageSection>
-            <QueryWaiting resource={sources} pending={<MediaGridSkeleton />} />
-          </PageSection>
-        </PageBody>
-      </>
-    );
+  function addFiles(files: File[]) {
+    queue.add(files, null);
   }
 
-  const configured = sources.data.allMyFiles || sources.data.folderIds.length > 0;
-
-  if (!configured) {
-    return (
-      <>
-        <PhotosBar />
-        <PhotosSetup />
-      </>
-    );
+  function upload() {
+    picker.current?.open();
   }
-
-  return <PhotosLibrary saved={sources.data} />;
-}
-
-function PhotosLibrary({ saved }: { saved: PhotoSourcesValue }) {
-  const [sourcesOpen, setSourcesOpen] = useState(false);
-  const timeline = usePhotoTimeline();
 
   return (
     <>
       <PhotosBar
         status={thumbnailProgressSummary(timeline.data?.pages ?? [])}
         actions={
-          <Button variant="ghost" onClick={() => setSourcesOpen(true)}>
-            <SlidersHorizontal aria-hidden />
-            Sources
+          <Button onClick={upload}>
+            <Upload aria-hidden />
+            Upload
           </Button>
         }
       />
-      <PageBody>
-        <PageSection>
-          <PhotoTimeline
-            timeline={timeline}
-            empty={
-              <RegionState
-                icon={<Images />}
-                title="No photos found yet"
-                description="New images and videos in your sources appear here automatically."
-                action={
-                  <Button variant="outline" onClick={() => setSourcesOpen(true)}>
-                    Change sources
-                  </Button>
-                }
-              />
-            }
-          />
-        </PageSection>
-      </PageBody>
-      <PhotoSourcesDialog saved={saved} open={sourcesOpen} onOpenChange={setSourcesOpen} />
+      <FilePicker accept="image/*,video/*" onFiles={addFiles} ref={picker} />
+      <DropZone label="Drop to upload to Files" onFiles={addFiles}>
+        <PageBody>
+          <PageSection>
+            <PhotoTimeline
+              timeline={timeline}
+              // The server names the day each item was taken, as the timeline groups them.
+              dayKeyOf={(item) => item.timelineDate}
+              scrubber
+              viewerInfo={(item) => <PhotoInfoPanel item={item} />}
+              empty={
+                <RegionState
+                  icon={<Images />}
+                  title="No photos yet"
+                  description="Photos and videos you upload appear here automatically."
+                  action={
+                    <Button onClick={upload}>
+                      <Upload aria-hidden />
+                      Upload photos
+                    </Button>
+                  }
+                />
+              }
+            />
+          </PageSection>
+        </PageBody>
+      </DropZone>
     </>
   );
 }

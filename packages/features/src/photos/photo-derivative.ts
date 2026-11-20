@@ -2,6 +2,8 @@ import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 
 export type PhotoItem = OutputOf<RPC["photos"]["timeline"]>["items"][number];
 
+export type LibraryItem = OutputOf<RPC["photos"]["library"]>["items"][number];
+
 export type MediaDerivative = NonNullable<PhotoItem["derivative"]>;
 
 type DerivativeFailure = Extract<MediaDerivative, { status: "failed" }>["failure"];

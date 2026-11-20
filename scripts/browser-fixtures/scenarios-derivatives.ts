@@ -7,9 +7,9 @@ import { rowMenu, signIn, uploadFiles } from "./page-actions.ts";
 import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import {
-  chooseSources,
   closeViewer,
   createFolder,
+  openPhotos,
   stageState,
   tile,
   tileSelector,
@@ -152,7 +152,7 @@ async function outageAndRetry(run: CoreRun, page: Page) {
 
   await uploadFiles(page, files);
   await waitForTrayIdle(run, page, files.length);
-  await chooseSources(run, page, CLIP);
+  await openPhotos(page, CLIP);
   front.resetCounters();
   await page.reload();
   await tile(page, CLIP).waitFor();

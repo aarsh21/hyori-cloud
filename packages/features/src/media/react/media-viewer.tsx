@@ -1,6 +1,7 @@
 import type { FileEntry } from "@hyori-cloud/client-sdk";
-import { Download } from "@hyori-cloud/lib/icons";
+import { Download, Info } from "@hyori-cloud/lib/icons";
 import type { ReactNode } from "@hyori-cloud/lib/react";
+import { useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
   Lightbox,
@@ -36,20 +37,36 @@ function preloadableUrl(item: MediaItem | undefined) {
     : [];
 }
 
-/** `items` are the media in view. Stepping updates only the selected ID the owner already holds. */
-export function MediaViewer({
+/**
+ * `items` are the media in view. Stepping updates only the selected ID the owner already holds. The
+ * item type is left to the owner, so a screen with richer items — a timeline's thumbnails, say — can
+ * offer them through `info` and `thumbnailOf` without re-listing them here.
+ */
+export function MediaViewer<Item extends MediaItem>({
   items,
   itemId,
   open,
   onOpenChange,
   onSelect,
+  origin,
+  info,
+  thumbnailOf,
+  notice,
   actions,
 }: {
-  items: readonly MediaItem[];
+  items: readonly Item[];
   itemId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (id: string) => void;
+  /** The tile the viewer opened from, so the media can grow out of it. */
+  origin?: DOMRect | null;
+  /** Renders the details panel for the open item. Providing it adds the panel's control and key. */
+  info?: (item: Item) => ReactNode;
+  /** A tile's thumbnail for the open item, holding the frame while the original decodes. */
+  thumbnailOf?: (item: Item) => string | null | undefined;
+  /** Feedback about an action, over the stage like the download's. */
+  notice?: ReactNode;
   actions?: ReactNode;
 }) {
   const index = items.findIndex((item) => item.id === itemId);
@@ -57,10 +74,16 @@ export function MediaViewer({
   const previous = items[index - 1];
   const next = items[index + 1];
   const download = useDownloadFile();
+  const [infoOpen, setInfoOpen] = useState(false);
 
   usePreloadImages(open ? [...preloadableUrl(previous), ...preloadableUrl(next)] : []);
 
   if (item === undefined) return null;
+
+  const placeholder =
+    thumbnailOf === undefined || !item.mimeType.startsWith("image/")
+      ? null
+      : (thumbnailOf(item) ?? null);
 
   return (
     <Lightbox
@@ -70,10 +93,23 @@ export function MediaViewer({
         onOpenChange(nextOpen);
       }}
       title={item.name}
+      subtitle={`${index + 1} of ${items.length}`}
       onPrevious={previous ? () => onSelect(previous.id) : undefined}
       onNext={next ? () => onSelect(next.id) : undefined}
+      onInfoToggle={info === undefined ? undefined : () => setInfoOpen((value) => !value)}
+      origin={origin}
+      panel={info === undefined || !infoOpen ? undefined : info(item)}
       actions={
         <>
+          {info === undefined ? null : (
+            <LightboxAction
+              aria-label="Details"
+              aria-pressed={infoOpen}
+              onClick={() => setInfoOpen((value) => !value)}
+            >
+              <Info aria-hidden />
+            </LightboxAction>
+          )}
           {actions}
           {item.access.canDownload ? (
             <LightboxAction
@@ -92,7 +128,8 @@ export function MediaViewer({
         </>
       }
     >
-      <MediaStage key={item.id} item={item} active={open} />
+      <MediaStage key={item.id} item={item} active={open} placeholder={placeholder} />
+      {notice ?? null}
       {download.error !== null && download.variables.id === item.id ? (
         <DownloadFailure
           error={download.error}
@@ -136,7 +173,15 @@ function DownloadFailure({
  * asking for the preview again tells apart lost access, which can be recovered, from a file this
  * browser can't decode, which can't.
  */
-function MediaStage({ item, active }: { item: MediaItem; active: boolean }) {
+function MediaStage({
+  item,
+  active,
+  placeholder,
+}: {
+  item: MediaItem;
+  active: boolean;
+  placeholder: string | null;
+}) {
   const requested = <RequestedMedia item={item} active={active} />;
 
   if (item.previewUrl === undefined) return requested;
@@ -144,7 +189,12 @@ function MediaStage({ item, active }: { item: MediaItem; active: boolean }) {
   return item.mimeType.startsWith("video/") ? (
     <LightboxVideo src={item.previewUrl} label={item.name} fallback={requested} />
   ) : (
-    <LightboxImage src={item.previewUrl} alt={item.name} fallback={requested} />
+    <LightboxImage
+      src={item.previewUrl}
+      alt={item.name}
+      placeholder={placeholder}
+      fallback={requested}
+    />
   );
 }
 

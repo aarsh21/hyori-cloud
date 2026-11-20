@@ -37,6 +37,11 @@ export function formatDate(iso: string): string {
   return dateFormat.format(new Date(iso));
 }
 
+/** A day within the year it's shown beside: "Nov 3", never carrying the year itself. */
+export function formatDay(date: Date): string {
+  return dayFormat.format(date);
+}
+
 function localMidnight(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
@@ -87,4 +92,44 @@ export function localDateInputValue(date: Date): string {
 
 export function isMediaType(mimeType: string): boolean {
   return mimeType.startsWith("image/") || mimeType.startsWith("video/");
+}
+
+const MEDIA_FORMAT_NAMES = new Map([
+  ["3gpp", "3GP"],
+  ["avif", "AVIF"],
+  ["bmp", "BMP"],
+  ["gif", "GIF"],
+  ["heic", "HEIC"],
+  ["heif", "HEIF"],
+  ["jpeg", "JPEG"],
+  ["mp4", "MP4"],
+  ["mpeg", "MP3"],
+  ["png", "PNG"],
+  ["quicktime", "QuickTime"],
+  ["svg+xml", "SVG"],
+  ["tiff", "TIFF"],
+  ["webm", "WebM"],
+  ["webp", "WebP"],
+  ["x-matroska", "Matroska"],
+]);
+
+/**
+ * A person-readable type for detail rows: "JPEG photo", "MP4 video". Media keeps its everyday
+ * format name; anything else stays the MIME string, because an invented label for an unknown type
+ * reads worse than the raw value.
+ */
+export function formatMediaType(mimeType: string): string {
+  const slash = mimeType.indexOf("/");
+
+  if (slash < 0) return mimeType;
+
+  const family = mimeType.slice(0, slash);
+  const subtype = mimeType.slice(slash + 1);
+
+  if (family !== "image" && family !== "video" && family !== "audio") return mimeType;
+
+  const format = MEDIA_FORMAT_NAMES.get(subtype) ?? subtype.toUpperCase();
+  const noun = family === "image" ? "photo" : family;
+
+  return `${format} ${noun}`;
 }

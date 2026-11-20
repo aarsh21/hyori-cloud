@@ -4,7 +4,7 @@ import { z } from "zod";
 import { uploadFiles } from "./page-actions.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { ownerPage } from "./scenarios-core.ts";
-import { chooseSources, createFolder, waitForTrayIdle } from "./scenarios-photos.ts";
+import { createFolder, openPhotos, waitForTrayIdle } from "./scenarios-photos.ts";
 import { audit, PHONE } from "./scenarios-touch.ts";
 
 const TimelineReply = z.looseObject({
@@ -20,7 +20,7 @@ type Identity = { readonly kind: "thumbnail" | "poster"; readonly sourceRevision
 const thumbnail: Identity = { kind: "thumbnail", sourceRevision: 1 };
 const poster: Identity = { kind: "poster", sourceRevision: 1 };
 
-/** One of each state a timeline item can report, assigned by name. Real files, injected states. */
+/** One of each state a library item can report, assigned by name. Real files, injected states. */
 function injectStates(body: string) {
   const reply = TimelineReply.parse(JSON.parse(body));
   const stillUrl = reply.value.items.find((item) => item.name === "red.png")?.previewUrl ?? "";
@@ -141,9 +141,9 @@ export async function runThumbnailStateScenario(run: CoreRun) {
     await createFolder(page, "Pictures");
     await uploadFiles(page, files);
     await waitForTrayIdle(run, page, files.length);
-    await chooseSources(run, page);
+    await openPhotos(page);
 
-    front.rewriteReplies((record) => record.operation === "photos.timeline", injectStates);
+    front.rewriteReplies((record) => record.operation === "photos.library", injectStates);
     // Leave first, so images the previous page was still loading can't count against this one.
     await page.goto("about:blank");
     await page.waitForTimeout(300);

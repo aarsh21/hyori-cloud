@@ -1,6 +1,9 @@
 import { describe, expect } from "bun:test";
+import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 import type { MediaDerivative, PhotoItem } from "#features/photos/photo-derivative.ts";
 import { CloudNavigationProvider } from "#features/cloud/react/cloud-navigation.tsx";
+import { formatMonth, localDateInputValue } from "#features/shared/format.ts";
+import { UploadsProvider } from "#features/uploads/react/uploads-provider.tsx";
 import { AlbumScreen } from "#features/photos/react/album-screen.tsx";
 import { PhotoTile } from "#features/photos/react/photo-tile.tsx";
 import { PhotosScreen } from "#features/photos/react/photos-screen.tsx";
@@ -23,29 +26,37 @@ import {
 const ORIGINAL = "/api/storage/previews/original_1?revision=3";
 const THUMBNAIL = "/api/storage/derivatives/photo_1/artifact_1?revision=3";
 
-function withDerivative(item: PhotoItem, derivative: MediaDerivative | undefined): PhotoItem {
-  return derivative === undefined ? item : { ...item, derivative };
+/** A library item, the feed the screen reads; its superset also stands in for timeline items. */
+type LibraryPhoto = OutputOf<RPC["photos"]["library"]>["items"][number];
+
+function dayKeyAt(days: number): string {
+  const now = new Date();
+
+  return localDateInputValue(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days));
 }
 
-function photo(derivative?: MediaDerivative, overrides: Partial<PhotoItem> = {}): PhotoItem {
-  return withDerivative(
-    {
-      ...fileEntry({ id: "photo_1", name: "one.png", mimeType: "image/png" }),
-      previewUrl: ORIGINAL,
-      ...overrides,
-    },
-    derivative,
-  );
+const TODAY = dayKeyAt(0);
+const YESTERDAY = dayKeyAt(-1);
+
+function photo(derivative?: MediaDerivative, overrides: Partial<LibraryPhoto> = {}): LibraryPhoto {
+  return {
+    ...fileEntry({ id: "photo_1", name: "one.png", mimeType: "image/png" }),
+    previewUrl: ORIGINAL,
+    timelineDate: TODAY,
+    dateSource: "upload",
+    ...overrides,
+    ...(derivative === undefined ? null : { derivative }),
+  };
 }
 
-function clip(derivative?: MediaDerivative): PhotoItem {
-  return withDerivative(
-    {
-      ...fileEntry({ id: "clip_1", name: "clip.mp4", mimeType: "video/mp4" }),
-      previewUrl: "/api/storage/previews/clip_1?revision=1",
-    },
-    derivative,
-  );
+function clip(derivative?: MediaDerivative): LibraryPhoto {
+  return {
+    ...fileEntry({ id: "clip_1", name: "clip.mp4", mimeType: "video/mp4" }),
+    previewUrl: "/api/storage/previews/clip_1?revision=1",
+    timelineDate: TODAY,
+    dateSource: "upload",
+    ...(derivative === undefined ? null : { derivative }),
+  };
 }
 
 function ready(url = THUMBNAIL, sourceRevision = 3): MediaDerivative {
@@ -64,8 +75,22 @@ function timelinePage(items: readonly PhotoItem[]) {
   return { items, nextCursor: null, breadcrumbs: [], folder: null };
 }
 
+function libraryPage(items: readonly LibraryPhoto[]) {
+  return { items, nextCursor: null };
+}
+
+/**
+ * An album-style feed: the same view the screen reads, over the feed that carries no timeline dates
+ * of its own, so its days come from each item's own timestamp.
+ */
 function MountedTimeline() {
-  return <PhotoTimeline timeline={usePhotoTimeline()} empty={<p>No photos</p>} />;
+  return (
+    <PhotoTimeline
+      timeline={usePhotoTimeline()}
+      dayKeyOf={(item) => localDateInputValue(new Date(item.createdAt))}
+      empty={<p>No photos</p>}
+    />
+  );
 }
 
 describe("photo tiles with server thumbnails", () => {
@@ -510,12 +535,15 @@ describe("the timeline with server thumbnails", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "one.png" }));
 
+    // The tile's thumbnail may hold the frame while the original decodes, but only invisibly:
+    // the presented image is the original, and it's also the one a screen reader would find.
     await waitFor(() => {
       const shown = screen
         .getAllByRole("dialog")
         .flatMap((dialog) => [...dialog.querySelectorAll("img")]);
 
-      expect(shown.map((image) => image.getAttribute("src"))).toEqual([ORIGINAL]);
+      expect(shown.map((image) => image.getAttribute("aria-hidden"))).toEqual(["true", null]);
+      expect(shown.map((image) => image.getAttribute("src"))).toEqual([THUMBNAIL, ORIGINAL]);
     });
   });
 
@@ -569,7 +597,6 @@ describe("the timeline with server thumbnails", () => {
 
 describe("the bar's summary of a backlog", () => {
   const QUEUED: MediaDerivative = { status: "queued", kind: "thumbnail", sourceRevision: 1 };
-  const SOURCES = { allMyFiles: true, folderIds: [] };
 
   const named = (index: number, derivative: MediaDerivative) =>
     photo(derivative, { id: `photo_${index}`, name: `${index}.png` });
@@ -577,16 +604,16 @@ describe("the bar's summary of a backlog", () => {
   function screenAt(section: "photos") {
     return (
       <CloudNavigationProvider location={{ section }} onNavigate={() => {}}>
-        <PhotosScreen />
+        <UploadsProvider scope="photos-test">
+          <PhotosScreen />
+        </UploadsProvider>
       </CloudNavigationProvider>
     );
   }
 
   test("one line in the bar, and every waiting tile keeps its state in its label alone", async () => {
     const api = createFakeApi({
-      "photos.sources": () => SOURCES,
-      "photos.timeline": () =>
-        timelinePage([named(1, QUEUED), named(2, QUEUED), named(3, ready())]),
+      "photos.library": () => libraryPage([named(1, QUEUED), named(2, QUEUED), named(3, ready())]),
     });
 
     mount(screenAt("photos"), api);
@@ -596,31 +623,26 @@ describe("the bar's summary of a backlog", () => {
     expect(screen.getByRole("button", { name: "2.png. Preparing thumbnail." })).toBeTruthy();
     expect(screen.queryByText("Preparing thumbnail")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
-    expect(api.calls.map((call) => call.operation).toSorted()).toEqual([
-      "photos.sources",
-      "photos.timeline",
-    ]);
+    expect(api.calls.map((call) => call.operation)).toEqual(["photos.library"]);
   });
 
   test("it counts only what's loaded, even when the server has more pages", async () => {
     const api = createFakeApi({
-      "photos.sources": () => SOURCES,
-      "photos.timeline": () => ({ ...timelinePage([named(1, QUEUED)]), nextCursor: "more" }),
+      "photos.library": () => ({ ...libraryPage([named(1, QUEUED)]), nextCursor: "more" }),
     });
 
     mount(screenAt("photos"), api);
 
     expect(await screen.findByText("Preparing a thumbnail for 1 of 1 loaded item")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Load more" })).toBeTruthy();
-    expect(api.callsTo("photos.timeline")).toHaveLength(1);
+    expect(api.callsTo("photos.library")).toHaveLength(1);
   });
 
   test("it follows the timeline's own reads, and leaves when nothing is on its way", async () => {
     let items = [named(1, QUEUED), named(2, QUEUED)];
 
     const api = createFakeApi({
-      "photos.sources": () => SOURCES,
-      "photos.timeline": () => timelinePage(items),
+      "photos.library": () => libraryPage(items),
     });
 
     const view = mount(screenAt("photos"), api);
@@ -641,9 +663,8 @@ describe("the bar's summary of a backlog", () => {
 
   test("failures stay on their own tiles, and aren't counted as waiting", async () => {
     const api = createFakeApi({
-      "photos.sources": () => SOURCES,
-      "photos.timeline": () =>
-        timelinePage([
+      "photos.library": () =>
+        libraryPage([
           named(1, QUEUED),
           named(2, {
             status: "failed",
@@ -666,17 +687,16 @@ describe("the bar's summary of a backlog", () => {
     const pending = deferred<object>();
 
     const api = createFakeApi({
-      "photos.sources": () => SOURCES,
-      "photos.timeline": () => pending.promise,
+      "photos.library": () => pending.promise,
     });
 
     mount(screenAt("photos"), api);
 
-    await waitFor(() => expect(api.callsTo("photos.timeline")).toHaveLength(1));
+    await waitFor(() => expect(api.callsTo("photos.library")).toHaveLength(1));
     expect(screen.queryByText(/loaded item/)).toBeNull();
 
     await act(async () => {
-      pending.resolve(timelinePage([photo()]));
+      pending.resolve(libraryPage([photo()]));
       await pending.promise;
     });
 
@@ -699,5 +719,63 @@ describe("the bar's summary of a backlog", () => {
 
     expect(await screen.findByText("Preparing a thumbnail for 1 of 1 loaded item")).toBeTruthy();
     expect(api.callsTo("photos.timeline")[0]?.input).toMatchObject({ albumId: "a" });
+  });
+});
+
+describe("the library's days", () => {
+  function screenAt() {
+    return (
+      <CloudNavigationProvider location={{ section: "photos" }} onNavigate={() => {}}>
+        <UploadsProvider scope="photos-days-test">
+          <PhotosScreen />
+        </UploadsProvider>
+      </CloudNavigationProvider>
+    );
+  }
+
+  test("a photo groups by the day it was taken, not the day it was uploaded", async () => {
+    const imported = photo(undefined, {
+      // Uploaded weeks after it was taken; the timeline must keep the camera's day.
+      createdAt: "2026-11-04T00:00:00Z",
+      timelineDate: "2025-12-24",
+      dateSource: "capture",
+    });
+
+    mount(screenAt(), createFakeApi({ "photos.library": () => libraryPage([imported]) }));
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Dec 24, 2025" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 3, name: "December 2025" })).toBeTruthy();
+  });
+
+  test("recent days read as Today and Yesterday, and a month is named once", async () => {
+    const thisMonth = formatMonth(`${TODAY}T00:00:00`);
+
+    mount(
+      screenAt(),
+      createFakeApi({
+        "photos.library": () =>
+          libraryPage([
+            photo(undefined, { id: "today_1", name: "today.png", timelineDate: TODAY }),
+            photo(undefined, { id: "yesterday_1", name: "yesterday.png", timelineDate: YESTERDAY }),
+          ]),
+      }),
+    );
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Today" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Yesterday" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: thisMonth })).toBeTruthy();
+  });
+
+  test("an empty library says so, without reading anything else", async () => {
+    const api = createFakeApi({ "photos.library": () => libraryPage([]) });
+
+    mount(screenAt(), api);
+
+    expect(await screen.findByText("No photos yet")).toBeTruthy();
+    expect(
+      screen.getByText("Photos and videos you upload appear here automatically."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload photos" })).toBeTruthy();
+    expect(api.calls.map((call) => call.operation)).toEqual(["photos.library"]);
   });
 });
