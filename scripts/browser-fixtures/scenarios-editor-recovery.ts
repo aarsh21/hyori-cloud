@@ -560,9 +560,9 @@ async function deckCopyFromPptx(run: CoreRun, cases: EditorCases) {
   await context.close();
 }
 
-type Member = { readonly context: BrowserContext; readonly page: Page; readonly accountId: string };
+type Member = { readonly context: BrowserContext; readonly page: Page; readonly email: string };
 
-/** A real second account, created by the admin, whose ID is read where they'd read it themselves. */
+/** A real second account, created by the admin, that the owner finds by searching their email. */
 async function createMember(run: CoreRun, label: string) {
   const { context: adminContext, page: admin } = await ownerPage(run);
   const name = `${label} Reader`;
@@ -578,43 +578,35 @@ async function createMember(run: CoreRun, label: string) {
 
   await signIn(page, email, password);
   await page.getByText("No files yet").waitFor();
-  await page.getByRole("button", { name: new RegExp(name) }).click();
-  await page.getByRole("menuitem", { name: "Your account ID" }).click();
 
-  const dialog = page.getByRole("dialog");
-  const accountId = await dialog.getByRole("textbox", { name: "Account ID" }).inputValue();
-
-  await dialog.getByRole("button", { name: "Done" }).click();
-  await dialog.waitFor({ state: "detached" });
-
-  return { context, page, accountId } satisfies Member;
+  return { context, page, email } satisfies Member;
 }
 
-async function shareWith(page: Page, item: string, accountId: string, role: "Viewer" | "Editor") {
+async function shareWith(page: Page, item: string, email: string, role: "Viewer" | "Editor") {
   await rowMenu(page, item, "Share…");
 
   const dialog = page.getByRole("dialog");
-
-  await dialog.getByPlaceholder("Account ID").fill(accountId);
 
   if (role === "Editor") {
     await dialog.getByRole("combobox", { name: "Role for this person" }).click();
     await page.getByRole("option", { name: /^Editor/ }).click();
   }
 
-  await dialog.getByRole("button", { name: "Add", exact: true }).click();
-  await dialog.getByText(accountId).waitFor();
+  await dialog.getByRole("combobox", { name: "Add people by name or email" }).fill(email);
+  // The suggestion popup renders through a portal, outside the dialog's DOM.
+  await page.getByRole("option", { name: new RegExp(email) }).click();
+  await dialog.getByRole("button", { name: "Remove", exact: true }).waitFor();
   await dialog.getByRole("button", { name: "Done" }).click();
   await dialog.waitFor({ state: "detached" });
 }
 
-async function stopSharing(page: Page, item: string, accountId: string) {
+async function stopSharing(page: Page, item: string) {
   await rowMenu(page, item, "Share…");
 
   const dialog = page.getByRole("dialog");
 
   await dialog.getByRole("button", { name: "Remove" }).click();
-  await dialog.getByText(accountId).waitFor({ state: "detached" });
+  await dialog.getByRole("button", { name: "Remove" }).waitFor({ state: "detached" });
   await dialog.getByRole("button", { name: "Done" }).click();
   await dialog.waitFor({ state: "detached" });
 }
@@ -694,7 +686,7 @@ async function readOnly(run: CoreRun, cases: EditorCases) {
   await page.goto(`${run.origin}${folderPath}`, { waitUntil: "domcontentloaded" });
 
   for (const name of READ_ONLY_FILES) {
-    await shareWith(page, name, member.accountId, "Viewer");
+    await shareWith(page, name, member.email, "Viewer");
   }
 
   const unchanged = new Map<string, string>();
@@ -850,7 +842,7 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
 
   const accountFile = "access-account.docx";
 
-  await shareWith(page, accountFile, member.accountId, "Editor");
+  await shareWith(page, accountFile, member.email, "Editor");
 
   const original = sha256Of(await downloadRow(page, accountFile));
 
@@ -863,7 +855,7 @@ async function accessEnds(run: CoreRun, cases: EditorCases) {
 
     try {
       await editDocument(member.page, cases.word, top, MINE);
-      await stopSharing(page, accountFile, member.accountId);
+      await stopSharing(page, accountFile);
       await member.page.keyboard.press("Control+s");
     } finally {
       release();

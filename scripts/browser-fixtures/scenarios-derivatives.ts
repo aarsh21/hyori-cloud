@@ -388,7 +388,7 @@ async function authorization(
   owner: Page,
   stranger: Page,
   thumbnailUrl: string,
-  accountId: string,
+  strangerEmail: string,
 ) {
   const { report } = run;
 
@@ -403,16 +403,18 @@ async function authorization(
 
   const dialog = owner.getByRole("dialog");
 
-  await dialog.getByLabel("Account ID").fill(accountId);
-  await dialog.getByRole("button", { name: "Add" }).click();
-  await dialog.getByRole("list", { name: "People with access" }).waitFor();
+  await dialog
+    .getByRole("combobox", { name: "Add people by name or email" })
+    .fill(strangerEmail);
+  await dialog.getByRole("option", { name: new RegExp(strangerEmail) }).click();
+  await dialog.getByRole("list", { name: "Who has access" }).waitFor();
 
   await report.check("sharing the folder lets them read it", async () => {
     assert.equal(await statusOf(stranger, thumbnailUrl), 200);
   });
 
   await dialog.getByRole("button", { name: "Remove" }).click();
-  await dialog.getByRole("list", { name: "People with access" }).waitFor({ state: "detached" });
+  await dialog.getByRole("button", { name: "Remove" }).waitFor({ state: "detached" });
   await dialog.getByRole("button", { name: "Done" }).click();
 
   await report.check("ending the share ends that, for the URL they already have", async () => {
@@ -459,13 +461,6 @@ export async function runDerivativeScenarios(run: CoreRun) {
     const owner = await signedInAccount(run, dana.name, dana.email, dana.password);
     const stranger = await signedInAccount(run, omar.name, omar.email, omar.password);
 
-    await stranger.page.getByRole("button", { name: new RegExp(omar.name) }).click();
-    await stranger.page.getByRole("menuitem", { name: "Your account ID" }).click();
-
-    const accountId = await stranger.page.getByRole("textbox", { name: "Account ID" }).inputValue();
-
-    await stranger.page.getByRole("button", { name: "Done" }).click();
-
     await outageAndRetry(run, owner.page);
 
     const { thumbnailUrl } = await realResults(run, owner.page, {
@@ -473,7 +468,7 @@ export async function runDerivativeScenarios(run: CoreRun) {
       clip: statSync(`${media.directory}/${CLIP}`).size,
     });
 
-    await authorization(run, owner.page, stranger.page, thumbnailUrl, accountId);
+    await authorization(run, owner.page, stranger.page, thumbnailUrl, omar.email);
     await stranger.context.close();
     await owner.context.close();
   });

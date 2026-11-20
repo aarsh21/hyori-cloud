@@ -320,7 +320,7 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
       });
 
       const viewer = await openPage(run, viewerContext, new URL(link.url).pathname);
-      await viewer.getByRole("button", { name: "Open shared item" }).click();
+      await viewer.getByRole("button", { name: "Open" }).click();
       await saved(viewer);
       assert.equal(await viewer.locator(".bn-editor").getAttribute("contenteditable"), "false");
       assert.equal(

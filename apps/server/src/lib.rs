@@ -78,6 +78,7 @@ impl AppState {
         features::admin::api::bind(&mut rpc).map_err(contract_failure)?;
         features::files::api::bind(&mut rpc).map_err(contract_failure)?;
         features::shares::api::bind(&mut rpc).map_err(contract_failure)?;
+        features::users::api::bind(&mut rpc).map_err(contract_failure)?;
         features::uploads::api::bind(&mut rpc).map_err(contract_failure)?;
         features::photos::api::bind(&mut rpc).map_err(contract_failure)?;
         features::media::api::bind(&mut rpc).map_err(contract_failure)?;

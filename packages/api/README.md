@@ -39,6 +39,12 @@ Sign-in checks passwords in its own lane of 16 places. When every place is taken
 
 Each backend process holds at most `HYORI_DATABASE_MAX_CONNECTIONS` PostgreSQL connections (8 to 1024; default 48, a quarter of the 128 RPC slots plus the 16 upload operations). Keep the sum across replicas below PostgreSQL's `max_connections`.
 
+### People and account sharing
+
+- `users.search({query})` returns `{items: UserIdentity[]}`, where `UserIdentity` is only `{id,name,email}`. Any active signed-in account can search, but results never include the caller or inactive accounts. Search trims whitespace and accepts 1–100 characters. Case-insensitive matching is literal: use a name/email prefix for short or punctuation-heavy queries, or a substring when the query contains at least three consecutive letters or numbers. Responses have at most ten matches. The shared per-account budget is 240 searches per 15 minutes; hitting it returns `auth.rateLimited` (429). Admin account creation and deletion invalidate the SDK's `users` query scope.
+- `shares.list({itemId})` returns `Share.recipient` alongside the existing `recipientId`. The recipient is null for public links or inactive accounts. `shares.update({id,role})` returns the updated `Share` and invalidates `shares`, `files`, `photos` and `media`. Only the item owner can change the role. Missing, revoked and public shares return `resource.notFound`; to change a public link role, revoke it and create another.
+- Migration `0025_user_directory.sql` adds indexes and the PostgreSQL `pg_trgm` extension. Custom database deployments must have `pg_trgm` available; if the application database role cannot install trusted extensions, have the database administrator install it into the Hyori database before starting the upgraded backend.
+
 ### Password change and administrator recovery
 
 The Rust API and generated SDK support `auth.changePassword({currentPassword,newPassword})`, `admin.createPasswordReset({userId})`, and `auth.resetPassword({token,newPassword})`. The account menu and Users screens consume them. Change returns `{success:true}`, replaces only the session account's credential, ends its other sessions, and cancels unused reset links. Its per-account budget is 10 attempts per 15 minutes, independent of sign-in and shared across the account's sessions; failed attempts survive rollback. New passwords follow account creation's 12–1024 Unicode-scalar policy and the existing bounded password hasher.

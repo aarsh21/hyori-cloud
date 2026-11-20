@@ -472,7 +472,11 @@ export const ResolveShare = Schema.Struct({ "token": Schema.String.pipe(Schema.f
 
 export type ResolveShare = typeof ResolveShare.Type;
 
-export const Share = Schema.Struct({ "expiresAt": Schema.Union(Schema.String, Schema.Null), "id": Id, "itemId": Id, "passwordProtected": Schema.Boolean, "public": Schema.Boolean, "recipientId": Schema.Union(Id, Schema.Null), "revokedAt": Schema.Union(Schema.String, Schema.Null), "role": ShareRole, "url": Schema.Union(Schema.String, Schema.Null) });
+export const UserIdentity = Schema.Struct({ "email": Schema.String, "id": Id, "name": Schema.String });
+
+export type UserIdentity = typeof UserIdentity.Type;
+
+export const Share = Schema.Struct({ "expiresAt": Schema.Union(Schema.String, Schema.Null), "id": Id, "itemId": Id, "passwordProtected": Schema.Boolean, "public": Schema.Boolean, "recipient": Schema.Union(UserIdentity, Schema.Null), "recipientId": Schema.Union(Id, Schema.Null), "revokedAt": Schema.Union(Schema.String, Schema.Null), "role": ShareRole, "url": Schema.Union(Schema.String, Schema.Null) });
 
 export type Share = typeof Share.Type;
 
@@ -487,6 +491,10 @@ export type RestoreNoteCheckpoint = typeof RestoreNoteCheckpoint.Type;
 export const RestoreVersion = Schema.Struct({ "id": Id, "versionId": Id });
 
 export type RestoreVersion = typeof RestoreVersion.Type;
+
+export const SearchUsers = Schema.Struct({ "query": Schema.String });
+
+export type SearchUsers = typeof SearchUsers.Type;
 
 export const SetQuota = Schema.Struct({ "quotaBytes": Bytes, "userId": Id });
 
@@ -528,6 +536,10 @@ export const UnlockShare = Schema.Struct({ "password": Schema.String.pipe(Schema
 
 export type UnlockShare = typeof UnlockShare.Type;
 
+export const UpdateShare = Schema.Struct({ "id": Id, "role": ShareRole });
+
+export type UpdateShare = typeof UpdateShare.Type;
+
 export const UploadInput = Schema.Struct({ "uploadId": Id });
 
 export type UploadInput = typeof UploadInput.Type;
@@ -547,6 +559,10 @@ export type UploadState = typeof UploadState.Type;
 export const UploadStatus = Schema.Struct({ "chunkSize": Bytes, "fileId": Schema.Union(Id, Schema.Null), "parts": Schema.Array(AcknowledgedPart), "state": UploadState, "totalParts": Bytes, "uploadId": Id });
 
 export type UploadStatus = typeof UploadStatus.Type;
+
+export const UserSearchResults = Schema.Struct({ "items": Schema.Array(UserIdentity) });
+
+export type UserSearchResults = typeof UserSearchResults.Type;
 
 export const UsersInput = Schema.Struct({ "cursor": Schema.optional(Schema.Union(Schema.String, Schema.Null)) });
 

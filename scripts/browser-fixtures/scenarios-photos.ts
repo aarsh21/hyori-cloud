@@ -948,12 +948,6 @@ async function sharedFolderStaysOutOfLibrary(run: CoreRun) {
 
   await signIn(friend, email, password);
   await friend.getByText("No files yet").waitFor();
-  await friend.getByRole("button", { name: /Tala Moana/ }).click();
-  await friend.getByRole("menuitem", { name: "Your account ID" }).click();
-
-  const accountId = await friend.getByRole("textbox", { name: "Account ID" }).inputValue();
-
-  await friend.getByRole("button", { name: "Done" }).click();
 
   await owner.getByRole("link", { name: "Files" }).first().click();
   await createFolder(owner, "Holiday");
@@ -965,9 +959,10 @@ async function sharedFolderStaysOutOfLibrary(run: CoreRun) {
 
   const shareDialog = owner.getByRole("dialog");
 
-  await shareDialog.getByLabel("Account ID").fill(accountId);
-  await shareDialog.getByRole("button", { name: "Add" }).click();
-  await shareDialog.getByRole("list", { name: "People with access" }).waitFor();
+  await shareDialog.getByRole("combobox", { name: "Add people by name or email" }).fill(email);
+  // The suggestion popup renders through a portal, outside the dialog's DOM.
+  await owner.getByRole("option", { name: new RegExp(email) }).click();
+  await shareDialog.getByRole("button", { name: "Remove" }).waitFor();
   await report.shot(owner, "share-dialog-person");
 
   await report.check("media shared with someone stays out of their library", async () => {
@@ -998,9 +993,7 @@ async function sharedFolderStaysOutOfLibrary(run: CoreRun) {
   await friend.getByText("No photos yet").waitFor();
 
   await shareDialog.getByRole("button", { name: "Remove" }).click();
-  await shareDialog
-    .getByRole("list", { name: "People with access" })
-    .waitFor({ state: "detached" });
+  await shareDialog.getByRole("button", { name: "Remove" }).waitFor({ state: "detached" });
   await shareDialog.getByRole("button", { name: "Done" }).click();
 
   await report.check("after the share ends, a reload shows nothing of it", async () => {

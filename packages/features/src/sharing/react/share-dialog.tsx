@@ -19,8 +19,8 @@ import {
   useAccessRecovery,
 } from "#features/shared/react/access-recovery.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
-import { AccountShares } from "#features/sharing/react/account-shares.tsx";
 import { LinkShares } from "#features/sharing/react/link-shares.tsx";
+import { PeopleAccess } from "#features/sharing/react/people-access.tsx";
 import { useItemShares } from "#features/sharing/react/use-shares.ts";
 
 export function ShareDialog({
@@ -42,7 +42,7 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>Share “{entry.name}”</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -104,10 +104,7 @@ function ShareDialogBody({
       {shares.error === null ? null : (
         <RefreshFailure error={shares.error} onRetry={() => shares.refetch()} />
       )}
-      <AccountShares
-        itemId={entry.id}
-        shares={shares.data.items.filter((share) => !share.public)}
-      />
+      <PeopleAccess entry={entry} shares={shares.data.items.filter((share) => !share.public)} />
       <LinkShares
         itemId={entry.id}
         itemName={entry.name}

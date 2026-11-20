@@ -55,7 +55,7 @@ export async function runPhoneCompletionScenarios(run: CoreRun) {
       await run.report.check(
         "phone: anonymous password-free viewer link downloads exact bytes",
         async () => {
-          await guest.getByRole("button", { name: "Open shared item", exact: true }).tap();
+          await guest.getByRole("button", { name: "Open", exact: true }).tap();
           await guest.getByRole("heading", { name: file, exact: true }).waitFor();
           assert.deepEqual(
             await downloadBytes(guest, () =>

@@ -7,16 +7,12 @@ import {
 } from "@hyori-cloud/ui/components/dropdown-menu";
 import { toast } from "@hyori-cloud/ui/components/sonner";
 import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
-import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { useLogout } from "#features/auth/react/use-logout.ts";
 import { AccountMenuItems } from "#features/cloud/react/account-menu-items.tsx";
 import { describeCloudError } from "#features/shared/cloud-error.ts";
 
 const loadPassword = async () =>
   (await import("#features/auth/react/change-password-dialog.tsx")).ChangePasswordDialog;
-
-const loadAccountId = async () =>
-  (await import("#features/cloud/react/account-id-dialog.tsx")).AccountIdDialog;
 
 const loadPendingUploads = async () =>
   (await import("#features/uploads/react/pending-uploads-dialog.tsx")).PendingUploadsDialog;
@@ -36,10 +32,8 @@ export function AccountMenuRoot({
   align: MenuContentProps["align"];
   className?: string;
 }) {
-  const user = useCurrentUser();
   const logout = useLogout();
   // Unopened dialogs load nothing. Once opened, retain their normal closing/focus lifecycle.
-  const [accountIdOpen, setAccountIdOpen] = useState<boolean>();
   const [changePasswordOpen, setChangePasswordOpen] = useState<boolean>();
   const [pendingUploadsOpen, setPendingUploadsOpen] = useState<boolean>();
 
@@ -72,22 +66,12 @@ export function AccountMenuRoot({
         >
           <AccountMenuItems
             signingOut={logout.isPending}
-            onShowAccountId={() => setAccountIdOpen(true)}
             onChangePassword={() => setChangePasswordOpen(true)}
             onShowPendingUploads={() => setPendingUploadsOpen(true)}
             onSignOut={signOut}
           />
         </DropdownMenuContent>
       </DropdownMenu>
-      {accountIdOpen !== undefined ? (
-        <DeferredDialog
-          load={loadAccountId}
-          title="Account ID"
-          open={accountIdOpen}
-          onClose={() => setAccountIdOpen(false)}
-          props={{ accountId: user.id, open: accountIdOpen, onOpenChange: setAccountIdOpen }}
-        />
-      ) : null}
       {changePasswordOpen !== undefined ? (
         <DeferredDialog
           load={loadPassword}

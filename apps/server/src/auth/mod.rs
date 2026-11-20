@@ -407,7 +407,7 @@ impl AuthAdapter {
     /// Fixed-window attempt counter: refuses once `key` has more than `attempts` this window.
     pub async fn rate_limit(
         &self,
-        db: &DatabaseConnection,
+        db: &impl ConnectionTrait,
         key: &str,
         attempts: i32,
     ) -> Result<(), ApiError> {

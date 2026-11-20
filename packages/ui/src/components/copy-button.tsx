@@ -70,7 +70,8 @@ function CopyButton({
 
 /**
  * A value people need to take elsewhere. It stays visible and selectable, because the clipboard API
- * is unavailable on plain-HTTP self-hosted installs and the value must never be unreachable.
+ * is unavailable on plain-HTTP self-hosted installs and the value must never be unreachable. The
+ * input clips long values, so its title carries the whole thing on hover.
  */
 function CopyField({ value, label }: { value: string; label: string }) {
   return (
@@ -79,6 +80,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
         readOnly
         value={value}
         aria-label={label}
+        title={value}
         onFocus={(event) => event.target.select()}
         className="min-w-0 flex-1 tabular-nums"
       />

@@ -85,7 +85,7 @@ try {
       assert.equal(headers["sec-fetch-site"], "cross-site");
 
       if (publicLink) {
-        const consent = page.getByRole("button", { name: "Open shared item", exact: true });
+        const consent = page.getByRole("button", { name: "Open", exact: true });
         await waitForDeliveryHydration(consent);
         assert.equal(await page.locator('[data-slot="app-shell"]').count(), 0);
         await consent.click();

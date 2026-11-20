@@ -555,6 +555,7 @@ describe("a public link to a single file", () => {
     itemId: SHARED.id,
     role: "editor",
     recipientId: null,
+    recipient: null,
     public: true,
     expiresAt: null,
     passwordProtected: false,
@@ -567,7 +568,7 @@ describe("a public link to a single file", () => {
 
     api.handlers["shares.resolve"] = () => ({ share: SHARE, item, requiresPassword: false });
     mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
 
     return api;
   }
@@ -605,7 +606,7 @@ describe("a public link to a single file", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Clear" }));
     await waitFor(() => expect(screen.queryByLabelText("Uploaded")).toBeNull());
 
-    expect(screen.getByText("10 B")).toBeTruthy();
+    expect(screen.getByText("10 B · Can edit")).toBeTruthy();
     expect(screen.queryByText("7 B")).toBeNull();
   });
 

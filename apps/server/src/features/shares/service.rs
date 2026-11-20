@@ -14,6 +14,7 @@ use crate::{
             capability::{self, Capability},
             db::ShareRecord,
         },
+        users::{api::UserIdentity, service::active_identity},
     },
     rpc::{GRANT_COOKIE_PREFIX, RequestContext, RpcResult},
     wire::Nullable,
@@ -65,13 +66,18 @@ impl SharesService {
                     policy::authorize(tx, &actor, &input.item_id.0, Action::Owner, false).await?;
                     let items = tx
                         .query_all_raw(sql(
-                            "SELECT * FROM hyori_shares WHERE item_id=$1 AND revoked_at IS NULL
-                 ORDER BY id LIMIT 100",
+                            "SELECT s.*, u.id AS active_recipient_id, u.name, u.email FROM hyori_shares s
+                             LEFT JOIN hyori_users u ON u.id=s.recipient_id AND u.status='active'
+                             WHERE s.item_id=$1 AND s.revoked_at IS NULL ORDER BY s.id LIMIT 100",
                             vec![input.item_id.0.into()],
                         ))
                         .await?
                         .into_iter()
-                        .map(|row| ShareRecord::from_row(row).map(|s| s.project(None)))
+                        .map(|row| {
+                            let recipient = row.try_get::<Option<String>>("", "active_recipient_id")?
+                                .map(|id| UserIdentity::from_row(&row, id)).transpose()?;
+                            Ok(ShareRecord::from_row(&row)?.project(None, recipient))
+                        })
                         .collect::<db::DomainResult<_>>()?;
                     Ok(SharesList { items })
                 })
@@ -114,10 +120,11 @@ impl SharesService {
             Box::pin(async move {
                 let item = policy::authorize(tx, &actor, &id, Action::Owner, false).await?;
                 if expiry.is_some_and(|expiry| expiry <= Utc::now()) { return Err(ApiError::invalid().into()); }
-                if let Some(recipient) = &recipient_id
-                    && (recipient == &item.owner_id || tx.query_one_raw(sql("SELECT id FROM hyori_users WHERE id=$1 AND status='active'", vec![recipient.clone().into()])).await?.is_none()) {
-                    return Err(ApiError::invalid().into());
-                }
+                let recipient = match &recipient_id {
+                    Some(id) if id == &item.owner_id => return Err(ApiError::invalid().into()),
+                    Some(id) => Some(active_identity(tx, id).await?.ok_or_else(ApiError::invalid)?),
+                    None => None,
+                };
                 let existing = tx.query_all_raw(sql("SELECT recipient_id FROM hyori_shares WHERE item_id=$1 AND revoked_at IS NULL
                  ORDER BY id LIMIT 100", vec![id.clone().into()])).await?;
                 if existing.len() >= 100 { return Err(ApiError::conflict().into()); }
@@ -126,9 +133,33 @@ impl SharesService {
                 }
                 let share = ShareRecord {id: random_token(), item_id: id, issuer_id: item.owner_id, recipient_id, public: input.public, role, token_digest: token.as_deref().map(digest), password_hash, expires_at: expiry, revoked_at: None};
                 share.insert(tx).await?;
-                Ok(share.project(token.map(|token| format!("{origin}/share/{token}"))))
+                Ok(share.project(token.map(|token| format!("{origin}/share/{token}")), recipient))
             })
         }).await
+    }
+    pub async fn update(&self, input: UpdateShare) -> Result<Share, ApiError> {
+        self.files()
+            .run(move |tx, actor| {
+                let input = input.clone();
+                Box::pin(async move {
+                    let mut share = ShareRecord::get(tx, &input.id.0).await?;
+                    let recipient_id = share
+                        .recipient_id
+                        .as_deref()
+                        .filter(|_| share.revoked_at.is_none())
+                        .ok_or_else(ApiError::not_found)?;
+                    policy::authorize(tx, &actor, &share.item_id, Action::Owner, false).await?;
+                    tx.execute_raw(sql(
+                        "UPDATE hyori_shares SET role=$2 WHERE id=$1",
+                        vec![input.id.0.into(), policy::role_name(&input.role).into()],
+                    ))
+                    .await?;
+                    let recipient = active_identity(tx, recipient_id).await?;
+                    share.role = input.role;
+                    Ok(share.project(None, recipient))
+                })
+            })
+            .await
     }
     pub async fn revoke(&self, input: ShareInput) -> Result<Done, ApiError> {
         self.files()
@@ -197,7 +228,7 @@ impl SharesService {
                     if share.password_hash.is_some() && !password_valid && existing.is_none() {
                         return Ok((
                             ResolvedShare {
-                                share: share.project(None),
+                                share: share.project(None, None),
                                 item: Nullable(None),
                                 requires_password: true,
                             },
@@ -220,7 +251,7 @@ impl SharesService {
                     });
                     Ok((
                         ResolvedShare {
-                            share: share.project(None),
+                            share: share.project(None, None),
                             item: Nullable(Some(policy::project(&item, &actor))),
                             requires_password: false,
                         },

@@ -5,6 +5,7 @@ use crate::{
         auth::api::Id,
         files::{api::ShareRole, policy},
         shares::api::Share,
+        users::api::UserIdentity,
     },
     wire::Nullable,
 };
@@ -25,7 +26,7 @@ pub(crate) struct ShareRecord {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 impl ShareRecord {
-    pub fn from_row(row: QueryResult) -> DomainResult<Self> {
+    pub fn from_row(row: &QueryResult) -> DomainResult<Self> {
         Ok(Self {
             id: row.try_get("", "id")?,
             item_id: row.try_get("", "item_id")?,
@@ -41,7 +42,7 @@ impl ShareRecord {
     }
     pub async fn get(tx: &DatabaseTransaction, id: &str) -> DomainResult<Self> {
         Self::from_row(
-            tx.query_one_raw(sql(
+            &tx.query_one_raw(sql(
                 "SELECT * FROM hyori_shares WHERE id=$1",
                 vec![id.into()],
             ))
@@ -50,14 +51,15 @@ impl ShareRecord {
         )
     }
     pub async fn by_token(tx: &DatabaseTransaction, digest: &str) -> DomainResult<Self> {
-        Self::from_row(tx.query_one_raw(sql("SELECT s.* FROM hyori_shares s JOIN hyori_users u ON u.id=s.issuer_id AND u.status='active' WHERE s.token_digest=$1 AND s.public AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())", vec![digest.into()])).await?.ok_or_else(ApiError::denied)?)
+        Self::from_row(&tx.query_one_raw(sql("SELECT s.* FROM hyori_shares s JOIN hyori_users u ON u.id=s.issuer_id AND u.status='active' WHERE s.token_digest=$1 AND s.public AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())", vec![digest.into()])).await?.ok_or_else(ApiError::denied)?)
     }
-    pub fn project(&self, url: Option<String>) -> Share {
+    pub fn project(&self, url: Option<String>, recipient: Option<UserIdentity>) -> Share {
         Share {
             id: Id(self.id.clone()),
             item_id: Id(self.item_id.clone()),
             role: self.role.clone(),
             recipient_id: Nullable(self.recipient_id.clone().map(Id)),
+            recipient: Nullable(recipient),
             public: self.public,
             expires_at: Nullable(self.expires_at.map(|t| t.to_rfc3339())),
             password_protected: self.password_hash.is_some(),

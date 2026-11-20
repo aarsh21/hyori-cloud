@@ -55,6 +55,7 @@ for (const kind of ["file", "folder"] as const) {
       itemId: item.id,
       role: "viewer",
       recipientId: null,
+      recipient: null,
       public: true,
       expiresAt: null,
       passwordProtected: true,
@@ -71,7 +72,7 @@ for (const kind of ["file", "folder"] as const) {
     mount(<CloudScreen path="/share/example" onNavigate={() => {}} />, api);
     await selectDark();
     expect(api.calls).toHaveLength(0);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     const password = await screen.findByLabelText("Password");
     expect(screen.getByRole("button", { name: "Appearance" })).toBeTruthy();
     fireEvent.change(password, { target: { value: "example-password" } });

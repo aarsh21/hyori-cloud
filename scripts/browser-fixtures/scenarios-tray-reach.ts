@@ -344,7 +344,7 @@ export async function runTrayReachScenarios(run: CoreRun) {
           await context.clearCookies();
           await page.goto(shareUrl);
           await hydrated(page);
-          await page.getByRole("button", { name: "Open shared item", exact: true }).click();
+          await page.getByRole("button", { name: "Open", exact: true }).click();
           await page.getByRole("heading", { name: library.name, exact: true }).waitFor();
           await uploadFiles(page, run.media.bytes(`${label}-public-complete.bin`, 127));
           await uploadsTray(page).getByLabel("Uploaded").waitFor();

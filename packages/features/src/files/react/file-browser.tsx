@@ -69,6 +69,8 @@ type FileBrowserProps = {
   foreignRoot?: { readonly label: string; readonly path: string };
   /** Whether new items can be created at the root, which has no folder entry to carry access. */
   rootCanUpload: boolean;
+  /** Muted context beside the location, such as the access a public link grants. Hidden on phones. */
+  titleMeta?: ReactNode;
   actions?: ReactNode;
   folderPath: (folderId: string | null) => string;
   empty: (actions: { upload?: () => void; createFolder?: () => void }) => ReactNode;
@@ -95,6 +97,7 @@ export function FileBrowser({
   rootFolderId = null,
   foreignRoot,
   rootCanUpload,
+  titleMeta,
   actions,
   folderPath,
   empty,
@@ -149,6 +152,11 @@ export function FileBrowser({
               ancestors={crumbs.slice(0, -1).filter((crumb) => crumb.id !== rootFolderId)}
               folderPath={folderPath}
             />
+            {titleMeta === undefined ? null : (
+              <div className="hidden min-w-0 self-center truncate text-[13px] text-muted-foreground md:block">
+                {titleMeta}
+              </div>
+            )}
             <PageBarActions className="order-last w-full md:order-none md:ml-0 md:w-auto">
               <SearchField
                 key={parentId}

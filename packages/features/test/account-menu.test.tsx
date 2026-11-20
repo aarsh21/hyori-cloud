@@ -35,7 +35,7 @@ afterEach(() => {
   Reflect.deleteProperty(navigator, "clipboard");
 });
 
-describe("account ID", () => {
+describe("clipboard", () => {
   test("copying rejects instead of throwing when the clipboard API doesn't exist", async () => {
     expect(navigator.clipboard).toBeUndefined();
 
@@ -43,39 +43,6 @@ describe("account ID", () => {
 
     expect(attempt).toBeInstanceOf(Promise);
     await expect(attempt).rejects.toBeInstanceOf(TypeError);
-  });
-
-  test("stays readable and reports failure when the clipboard API doesn't exist (plain HTTP)", async () => {
-    expect(navigator.clipboard).toBeUndefined();
-    mount(<AccountSurface />, createFakeApi({}));
-
-    await openAccountMenu();
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Your account ID" }));
-
-    const field = await screen.findByRole<HTMLInputElement>("textbox", { name: "Account ID" });
-    expect(field.value).toBe(SIGNED_IN_USER.id);
-
-    fireEvent.click(screen.getByRole("button", { name: /Copy/ }));
-
-    expect(await screen.findByText("Can’t copy")).toBeTruthy();
-    expect(field.value).toBe(SIGNED_IN_USER.id);
-  });
-
-  test("copies the literal ID, not a URL resolved from it", async () => {
-    const written: string[] = [];
-
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText: async (text: string) => void written.push(text) },
-    });
-    mount(<AccountSurface />, createFakeApi({}));
-
-    await openAccountMenu();
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Your account ID" }));
-    await screen.findByRole("textbox", { name: "Account ID" });
-    fireEvent.click(screen.getByRole("button", { name: /Copy/ }));
-
-    await waitFor(() => expect(written).toEqual([SIGNED_IN_USER.id]));
   });
 });
 

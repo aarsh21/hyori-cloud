@@ -25,6 +25,7 @@ export type {
   ShareRole,
   UploadStatus,
   User,
+  UserIdentity,
 } from "#client-sdk/domain-types";
 
 export type {

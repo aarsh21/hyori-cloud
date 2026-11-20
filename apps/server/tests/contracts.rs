@@ -6,10 +6,12 @@ use serde_json::json;
 #[test]
 fn complete_deterministic_catalog() {
     let manifest = manifest().unwrap();
-    assert_eq!(manifest.operations.len(), 68);
+    assert_eq!(manifest.operations.len(), 70);
     for name in [
         "photos.library",
         "photos.details",
+        "users.search",
+        "shares.update",
         "notes.list",
         "notes.get",
         "notes.create",
@@ -78,10 +80,14 @@ fn complete_deterministic_catalog() {
         "SharesListInput",
         "SharesList",
         "CreateShare",
+        "UpdateShare",
         "ShareInput",
         "ResolveShare",
         "UnlockShare",
         "ResolvedShare",
+        "SearchUsers",
+        "UserSearchResults",
+        "UserIdentity",
         "AdminUser",
         "UsersList",
         "UsersInput",

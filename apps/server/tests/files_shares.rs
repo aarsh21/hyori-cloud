@@ -101,6 +101,214 @@ async fn seed_file(server: &TestServer, owner: &Account, parent: &str, name: &st
 
 #[tokio::test]
 #[ignore = "real HTTP and unique loopback PostgreSQL; metadata only, no RustFS"]
+async fn directory_search_and_account_share_role_changes() {
+    let pg = Postgres::start().await;
+    let server = TestServer::start(pg.config.clone()).await;
+    let admin = setup(&server, &pg.config).await;
+    let owner = account(&server, &admin, "owner").await;
+    let member = account(&server, &admin, "member").await;
+    let root = folder(&server, &owner.cookie, None, "Shared folder").await;
+
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_users SET name='Élodie Martin' WHERE id=$1",
+            vec![member.id.clone().into()],
+        ))
+        .await
+        .unwrap();
+    let identity = json!({"id":member.id,"name":"Élodie Martin","email":"member@example.test"});
+    for query in ["  mArTiN ", "EMBER@EX", " Él "] {
+        let reply = server
+            .rpc("users.search", json!({"query":query}), Some(&owner.cookie))
+            .await;
+        assert_eq!(reply.value(), &json!({"items":[identity]}));
+    }
+    for query in ["OWNER", "%", "mem_er"] {
+        let reply = server
+            .rpc("users.search", json!({"query":query}), Some(&owner.cookie))
+            .await;
+        assert_eq!(reply.value(), &json!({"items":[]}));
+    }
+    for query in [" \t ".to_owned(), "é".repeat(101)] {
+        server
+            .rpc("users.search", json!({"query":query}), Some(&owner.cookie))
+            .await
+            .error(400, "input.invalid");
+    }
+    server
+        .rpc("users.search", json!({"query":"member"}), None)
+        .await
+        .error(401, "auth.required");
+    server.state.db.execute_unprepared("INSERT INTO hyori_users (id,name,email,role,quota_bytes) SELECT 'fixture-'||n,'Cap fixture '||n,'fixture-'||n||'@example.test','user',0 FROM generate_series(1,11) n").await.unwrap();
+    let capped = server
+        .rpc(
+            "users.search",
+            json!({"query":"cap fixture"}),
+            Some(&owner.cookie),
+        )
+        .await;
+    assert_eq!(capped.value()["items"].as_array().unwrap().len(), 10);
+
+    let account_share = share(&server, &owner, &root, &member, "viewer").await;
+    let public_share = server
+        .rpc(
+            "shares.create",
+            json!({"itemId":root,"public":true,"role":"viewer"}),
+            Some(&owner.cookie),
+        )
+        .await;
+    let public_id = public_share.value()["id"].as_str().unwrap();
+    assert_eq!(public_share.value().get("recipient"), Some(&Value::Null));
+    let listed = server
+        .rpc("shares.list", json!({"itemId":root}), Some(&owner.cookie))
+        .await;
+    let listed = listed.value()["items"].as_array().unwrap();
+    assert_eq!(listed.len(), 2);
+    for item in listed {
+        if item["id"] == account_share {
+            assert_eq!(item["recipient"], identity);
+        } else {
+            assert_eq!(item["id"], public_id);
+            assert_eq!(item.get("recipient"), Some(&Value::Null));
+        }
+    }
+
+    let promote = json!({"id":account_share,"role":"contributor"});
+    for caller in [&member.cookie, &admin.cookie] {
+        server
+            .rpc("shares.update", promote.clone(), Some(caller))
+            .await
+            .error(403, "access.denied");
+    }
+    for id in [public_id, "missing-share"] {
+        server
+            .rpc(
+                "shares.update",
+                json!({"id":id,"role":"editor"}),
+                Some(&owner.cookie),
+            )
+            .await
+            .error(404, "resource.notFound");
+    }
+    let updated = server
+        .rpc("shares.update", promote, Some(&owner.cookie))
+        .await;
+    assert_eq!(updated.value()["id"], account_share);
+    assert_eq!(updated.value()["recipient"], identity);
+    assert_eq!(updated.value()["role"], "contributor");
+    folder(
+        &server,
+        &member.cookie,
+        Some(&root),
+        "Allowed after promotion",
+    )
+    .await;
+    let downgrade = json!({"id":account_share,"role":"viewer"});
+    server
+        .rpc("shares.update", downgrade.clone(), Some(&owner.cookie))
+        .await
+        .value();
+    server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":root,"name":"Denied after downgrade"}),
+            Some(&member.cookie),
+        )
+        .await
+        .error(403, "access.denied");
+
+    // Keep the share row visible while simulating the account deletion transition.
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_users SET status='deleting' WHERE id=$1",
+            vec![member.id.clone().into()],
+        ))
+        .await
+        .unwrap();
+    let listed = server
+        .rpc("shares.list", json!({"itemId":root}), Some(&owner.cookie))
+        .await;
+    let former = listed.value()["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == account_share)
+        .unwrap();
+    assert_eq!(former["recipientId"], member.id);
+    assert_eq!(former.get("recipient"), Some(&Value::Null));
+    let inactive = server
+        .rpc(
+            "users.search",
+            json!({"query":"Martin"}),
+            Some(&owner.cookie),
+        )
+        .await;
+    assert_eq!(inactive.value(), &json!({"items":[]}));
+    server
+        .rpc(
+            "users.search",
+            json!({"query":"admin"}),
+            Some(&member.cookie),
+        )
+        .await
+        .error(401, "auth.required");
+
+    server
+        .rpc(
+            "shares.revoke",
+            json!({"id":account_share}),
+            Some(&owner.cookie),
+        )
+        .await
+        .value();
+    server
+        .rpc("shares.update", downgrade, Some(&owner.cookie))
+        .await
+        .error(404, "resource.notFound");
+
+    // Start one below the budget and spend the last search, then retry in a different session.
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_rate_limits SET attempts=239 WHERE key_digest=$1",
+            vec![digest(&format!("users-search:{}", owner.id)).into()],
+        ))
+        .await
+        .unwrap();
+    let query = json!({"query":"admin"});
+    server
+        .rpc("users.search", query.clone(), Some(&owner.cookie))
+        .await
+        .value();
+    let other_session = server
+        .rpc(
+            "auth.login",
+            json!({"email":"owner@example.test","password":"correct horse battery staple"}),
+            None,
+        )
+        .await;
+    other_session.value();
+    server
+        .rpc(
+            "users.search",
+            query.clone(),
+            Some(&other_session.credential()),
+        )
+        .await
+        .error(429, "auth.rateLimited");
+    server
+        .rpc("users.search", query, Some(&admin.cookie))
+        .await
+        .value();
+}
+
+#[tokio::test]
+#[ignore = "real HTTP and unique loopback PostgreSQL; metadata only, no RustFS"]
 async fn files_shares_postgres_http_parity() {
     let pg = Postgres::start().await;
     let server = TestServer::start(pg.config.clone()).await;

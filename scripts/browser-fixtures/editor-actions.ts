@@ -42,7 +42,7 @@ export async function openSharedItem(run: CoreRun, context: BrowserContext, path
   const page = await openPage(run, context, path);
 
   await hydrated(page);
-  await page.getByRole("button", { name: "Open shared item" }).click();
+  await page.getByRole("button", { name: "Open" }).click();
 
   return page;
 }

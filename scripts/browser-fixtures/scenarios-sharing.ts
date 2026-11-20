@@ -16,10 +16,14 @@ export async function createLink(page: Page, itemName: string, role: "Viewer" | 
 
   const dialog = page.getByRole("dialog");
 
-  await dialog.getByRole("button", { name: "Create link" }).click();
-  await dialog.getByRole("combobox", { name: /Anyone with the link can/ }).click();
-  await page.getByRole("option", { name: new RegExp(`^${role}`) }).click();
-  await dialog.getByRole("button", { name: "Create link" }).click();
+  if (role === "Viewer") {
+    await dialog.getByRole("button", { name: "Copy link" }).click();
+  } else {
+    await dialog.getByRole("button", { name: "Link settings" }).click();
+    await dialog.getByRole("combobox", { name: /Anyone with the link can/ }).click();
+    await page.getByRole("option", { name: new RegExp(`^${role}`) }).click();
+    await dialog.getByRole("button", { name: "Create new link" }).click();
+  }
 
   const field = dialog.getByRole("textbox", { name: "Public link" });
 
@@ -67,7 +71,7 @@ async function publicFile(run: CoreRun) {
   const visitor = await openPage(run, visitorContext, new URL(url).pathname);
 
   await hydrated(visitor);
-  await visitor.getByRole("button", { name: "Open shared item" }).click();
+  await visitor.getByRole("button", { name: "Open" }).click();
   await visitor.getByRole("heading", { name }).waitFor();
   await report.shot(visitor, "public-file-desktop");
 
@@ -185,7 +189,7 @@ async function publicViewer(run: CoreRun) {
   const visitor = await openPage(run, visitorContext, new URL(url).pathname);
 
   await hydrated(visitor);
-  await visitor.getByRole("button", { name: "Open shared item" }).click();
+  await visitor.getByRole("button", { name: "Open" }).click();
   await visitor.getByRole("button", { name: /^one\.png/ }).click();
 
   const lightbox = visitor.locator('[data-slot="lightbox"]');

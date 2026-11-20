@@ -1,4 +1,4 @@
-import type { FileEntry } from "@hyori-cloud/client-sdk";
+import type { FileEntry, ShareRole } from "@hyori-cloud/client-sdk";
 import { Download, FolderOpen, Upload } from "@hyori-cloud/lib/icons";
 import { lazy, Suspense, useState } from "@hyori-cloud/lib/react";
 import { AppMain, AppShell } from "@hyori-cloud/ui/components/app-shell";
@@ -35,15 +35,27 @@ const ReplaceFileDialog = lazy(async () => ({
   default: (await loadReplaceFileDialog()).ReplaceFileDialog,
 }));
 
+/** What a visitor may do through this link, in the words the public page shows. */
+const LINK_ACCESS_LABELS: Record<ShareRole, string> = {
+  viewer: "View only",
+  contributor: "Can upload",
+  editor: "Can edit",
+};
+
 export function PublicSharedItem({
   token,
   folderId,
+  role,
   item,
 }: {
   token: string;
   folderId: string | null;
+  /** The access this link grants, from the share the link resolved to. */
+  role: ShareRole;
   item: FileEntry;
 }) {
+  const access = LINK_ACCESS_LABELS[role];
+
   if (item.mimeType === "application/vnd.hyori.note")
     return (
       <AppShell className="md:p-2">
@@ -58,7 +70,7 @@ export function PublicSharedItem({
       </AppShell>
     );
 
-  if (item.kind === "file") return <PublicSharedFile item={item} />;
+  if (item.kind === "file") return <PublicSharedFile item={item} access={access} />;
 
   return (
     <AppShell className="md:p-2">
@@ -70,6 +82,7 @@ export function PublicSharedItem({
           rootSearchScope="this folder"
           rootFolderId={item.id}
           rootCanUpload={false}
+          titleMeta={access}
           actions={
             <AppearanceMenu>
               <ShortcutPreferenceMenuItems />
@@ -90,7 +103,7 @@ export function PublicSharedItem({
   );
 }
 
-function PublicSharedFile({ item }: { item: FileEntry }) {
+function PublicSharedFile({ item, access }: { item: FileEntry; access: string }) {
   const file = useCurrentFile(item);
   const refresh = () => void file.refetch();
 
@@ -105,7 +118,12 @@ function PublicSharedFile({ item }: { item: FileEntry }) {
           onRetry={refresh}
         />
       ) : (
-        <SharedFileContent file={file.data} error={file.error} onRefresh={refresh} />
+        <SharedFileContent
+          file={file.data}
+          error={file.error}
+          onRefresh={refresh}
+          access={access}
+        />
       )}
       <UploadTray floating />
     </FocusLayout>
@@ -151,10 +169,12 @@ function SharedFileContent({
   file,
   error,
   onRefresh,
+  access,
 }: {
   file: FileEntry;
   error: CloudError | null;
   onRefresh: () => void;
+  access: string;
 }) {
   const download = useDownloadFile();
   const [replacing, setReplacing] = useState(false);
@@ -164,7 +184,7 @@ function SharedFileContent({
       <FocusLayoutHeader>
         <Heading className="wrap-anywhere">{file.name}</Heading>
         <Text tone="muted" numeric>
-          {formatBytes(file.size)}
+          {formatBytes(file.size)} · {access}
         </Text>
       </FocusLayoutHeader>
       {error === null ? null : <RefreshFailure error={error} onRetry={onRefresh} />}

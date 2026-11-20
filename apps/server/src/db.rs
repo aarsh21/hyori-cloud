@@ -210,6 +210,10 @@ pub async fn migrate(db: &DatabaseConnection) -> Result<(), ApiError> {
             25_i32,
             include_str!("../migrations/0025_automatic_photos.sql"),
         ),
+        (
+            26_i32,
+            include_str!("../migrations/0026_user_directory.sql"),
+        ),
     ] {
         let checksum = hex::encode(Sha256::digest(source.as_bytes()));
         let old = tx

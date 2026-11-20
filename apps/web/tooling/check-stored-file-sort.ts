@@ -277,9 +277,9 @@ try {
       { expected },
     );
     await page.goto(`${origin}${state.publicPath}`);
-    await page.getByRole("button", { name: "Open shared item", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Open", exact: true }).waitFor();
     assert.equal(requests.length, 0);
-    await page.getByRole("button", { name: "Open shared item", exact: true }).tap();
+    await page.getByRole("button", { name: "Open", exact: true }).tap();
     await page.locator("[data-item-key]").first().waitFor();
     await page.waitForTimeout(250);
     assert(requests.length > 0);

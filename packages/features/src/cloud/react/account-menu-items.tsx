@@ -1,4 +1,4 @@
-import { KeyRound, Link2, LogOut, UploadCloud, Users } from "@hyori-cloud/lib/icons";
+import { KeyRound, LogOut, UploadCloud, Users } from "@hyori-cloud/lib/icons";
 import { AppAccountSummary } from "@hyori-cloud/ui/components/app-account";
 import { AppearanceMenuItems } from "@hyori-cloud/ui/components/appearance-menu-items";
 import {
@@ -15,13 +15,11 @@ import { formatUsage } from "#features/shared/format.ts";
 /** The menu closes on selection, so anything that outlives a click is owned by AccountMenuRoot. */
 export function AccountMenuItems({
   signingOut,
-  onShowAccountId,
   onChangePassword,
   onShowPendingUploads,
   onSignOut,
 }: {
   signingOut: boolean;
-  onShowAccountId: () => void;
   onChangePassword: () => void;
   onShowPendingUploads: () => void;
   onSignOut: () => void;
@@ -41,10 +39,6 @@ export function AccountMenuItems({
         </DropdownMenuLabel>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={onShowAccountId}>
-        <Link2 />
-        Your account ID
-      </DropdownMenuItem>
       <DropdownMenuItem onClick={onChangePassword}>
         <KeyRound />
         Change password…

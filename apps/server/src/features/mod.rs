@@ -42,6 +42,10 @@ pub mod shares {
     pub(crate) mod db;
     pub(crate) mod service;
 }
+pub mod users {
+    pub mod api;
+    pub(crate) mod service;
+}
 pub mod admin {
     pub mod api;
     pub mod purge;

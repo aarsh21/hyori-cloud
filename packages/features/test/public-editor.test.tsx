@@ -55,6 +55,7 @@ function share(item: FileEntry | null, role = "editor") {
       itemId: "folder_s",
       role,
       recipientId: null,
+      recipient: null,
       public: true,
       expiresAt: null,
       passwordProtected: item === null,
@@ -120,7 +121,7 @@ function mountAt(initial: string, api: FakeApi) {
 }
 
 async function openLink() {
-  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
 }
 
 function frame(container: HTMLElement) {
@@ -162,7 +163,7 @@ describe("the editor under a public link", () => {
 
     mountAt("/share/token_1/edit/file_s", api);
 
-    expect(await screen.findByRole("button", { name: "Open shared item" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Open" })).toBeTruthy();
     expect(screen.queryByText(/Sign in/i)).toBeNull();
     expect(api.callsTo("auth.status")).toHaveLength(0);
     expect(api.callsTo("editors.open")).toHaveLength(0);
@@ -219,7 +220,7 @@ describe("the editor under a public link", () => {
     await waitFor(() => expect(frame(view.container)).not.toBeNull());
     await waitFor(() => expect(api.callsTo("editors.open")).toHaveLength(1));
     expect(api.callsTo("shares.resolve")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "Open shared item" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open" })).toBeNull();
   });
 
   test("many rows in a folder share one availability read", async () => {
@@ -423,7 +424,7 @@ describe("leaving the editor under a link", () => {
     go("/share/token_2/edit/file_s");
 
     await waitFor(() => expect(frame(view.container)).toBeNull());
-    expect(await screen.findByRole("button", { name: "Open shared item" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Open" })).toBeTruthy();
   });
 });
 

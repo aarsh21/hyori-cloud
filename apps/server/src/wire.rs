@@ -156,6 +156,7 @@ pub fn manifest() -> ContractResult<Manifest> {
     crate::features::files::api::register(&mut m)?;
     crate::features::uploads::api::register(&mut m)?;
     crate::features::shares::api::register(&mut m)?;
+    crate::features::users::api::register(&mut m)?;
     crate::features::admin::api::register(&mut m)?;
     crate::features::photos::api::register(&mut m)?;
     crate::features::media::api::register(&mut m)?;

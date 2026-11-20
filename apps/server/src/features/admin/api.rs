@@ -96,7 +96,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         CreateUser,
         User,
         "mutation",
-        ["admin"],
+        ["admin", "users"],
         false
     );
     crate::operation!(
@@ -123,7 +123,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         DeleteUser,
         PurgeResult,
         "mutation",
-        ["admin", "shares", "files", "photos", "media"],
+        ["admin", "users", "shares", "files", "photos", "media"],
         false
     );
     Ok(())

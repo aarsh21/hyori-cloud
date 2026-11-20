@@ -29,6 +29,7 @@ const SHARE = {
   itemId: SHARED_FOLDER.id,
   role: "viewer",
   recipientId: null,
+  recipient: null,
   public: true,
   expiresAt: null,
   passwordProtected: false,
@@ -50,7 +51,7 @@ function publicApi() {
 async function openLinkIn(api: ReturnType<typeof publicApi>) {
   const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
 
-  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
   await screen.findByText("map.png");
 
   return view;
@@ -73,13 +74,13 @@ test("a refused first open explains the dead link without offering to open it ag
 
   mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
   expect(api.callsTo("shares.resolve")).toHaveLength(0);
-  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
 
   await screen.findByRole("heading", { name: "This link no longer works" });
   expect(screen.getByRole("alert").textContent).toContain("This link no longer works");
   expect(screen.getByText(/The link may have ended, or the address may be wrong/)).toBeTruthy();
   expect(screen.getByText(/Ask the person who shared it to send a new link/)).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Open shared item|Try again/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Open$|Try again/ })).toBeNull();
 });
 
 test("a temporary first-open failure can be retried without reloading", async () => {
@@ -89,7 +90,7 @@ test("a temporary first-open failure can be retried without reloading", async ()
   };
 
   mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
 
   const retry = await screen.findByRole("button", { name: "Try again" });
   expect(screen.queryByText("This link no longer works")).toBeNull();
@@ -108,12 +109,12 @@ test("changing the public-link token resets the previous link's open state", asy
   });
 
   const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-  fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
   await screen.findByRole("heading", { name: INSIDE.name });
   view.rerender(<CloudScreen path="/share/token_2" onNavigate={() => {}} />);
 
   expect(screen.queryByRole("heading", { name: INSIDE.name }) === null).toBe(true);
-  expect(screen.getByRole("button", { name: "Open shared item" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Open" })).toBeTruthy();
   expect(api.callsTo("shares.resolve")).toHaveLength(1);
 });
 
@@ -156,7 +157,7 @@ describe("a public link whose grant stopped working", () => {
 
     await waitFor(() => expect(api.callsTo("shares.resolve")).toHaveLength(2));
     expect(screen.getByText("map.png")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Open shared item" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open" })).toBeNull();
 
     answer.resolve(OPENED);
     await waitFor(() =>
@@ -169,7 +170,7 @@ describe("a public link whose grant stopped working", () => {
 
     failListingWith(api, "auth.required");
     mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
 
     const reopen = await screen.findByRole("button", { name: "Open link again" });
 
@@ -194,15 +195,13 @@ describe("a public link whose grant stopped working", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Open link again" }));
 
     await screen.findByRole("heading", { name: "This link no longer works" });
-    expect(
-      screen.queryByRole("button", { name: /Try again|Open link again|Open shared item/ }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /Try again|Open link again|^Open$/ })).toBeNull();
     expect(screen.queryByText("map.png")).toBeNull();
     view.rerender(null);
     api.handlers["shares.resolve"] = () => OPENED;
     api.handlers["files.list"] = listing;
     mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
 
     expect(await screen.findByText("map.png")).toBeTruthy();
   });
@@ -214,7 +213,7 @@ describe("a public link whose grant stopped working", () => {
     api.handlers["shares.unlock"] = () => OPENED;
     const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.change(await screen.findByLabelText("Password"), { target: { value: "hunter22!" } });
     fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
     await screen.findByText("map.png");
@@ -238,7 +237,7 @@ describe("a public link whose grant stopped working", () => {
     api.handlers["shares.resolve"] = () => LOCKED;
     api.handlers["shares.unlock"] = () => OPENED;
     const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.change(await screen.findByLabelText("Password"), { target: { value: "hunter22!" } });
     fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
     await screen.findByText("map.png");
@@ -351,7 +350,7 @@ describe("a public link whose grant stopped working", () => {
     view.rerender(<CloudScreen path="/share/token_1/folder_t" onNavigate={() => {}} />);
     await screen.findByText("This folder is empty");
 
-    expect(screen.queryByRole("button", { name: "Open shared item" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open" })).toBeNull();
     expect(screen.getByText("held.bin")).toBeTruthy();
     expect(api.callsTo("shares.resolve")).toHaveLength(1);
     expect(api.callsTo("uploads.begin")).toHaveLength(1);
@@ -379,11 +378,11 @@ describe("a public link whose grant stopped working", () => {
     };
 
     const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.click(await screen.findByRole("button", { name: /^shared\.txt/ }));
     await screen.findByRole("button", { name: "Open link again" });
     view.rerender(<CloudScreen path="/share/token_2" onNavigate={() => {}} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     await screen.findByRole("button", { name: /^shared\.txt/ });
     expect(screen.queryByRole("button", { name: "Open link again" })).toBeNull();
     expect(screen.queryByText("Your access through this link has ended")).toBeNull();
@@ -413,7 +412,7 @@ describe("a public link whose grant stopped working", () => {
     };
 
     const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.click(await screen.findByRole("button", { name: /^first\.txt/ }));
     fireEvent.click(screen.getByRole("button", { name: /^second\.txt/ }));
     await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(2));
@@ -442,7 +441,7 @@ describe("a public link whose grant stopped working", () => {
     });
 
     mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.click(await screen.findByRole("button", { name: "Download" }));
     fireEvent.click(await screen.findByRole("button", { name: "Open link again" }));
 
@@ -469,7 +468,7 @@ describe("a public link whose grant stopped working", () => {
 
       const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
 
-      fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Open" }));
       await screen.findByRole("heading", { name: FILE.name });
 
       return { api, view };
@@ -482,7 +481,7 @@ describe("a public link whose grant stopped working", () => {
       await view.refetchActive();
 
       await screen.findByRole("heading", { name: "renamed.pdf" });
-      expect(screen.getByText("4 KB")).toBeTruthy();
+      expect(screen.getByText("4 KB · View only")).toBeTruthy();
     });
 
     test("a brief failure keeps the file on screen and usable", async () => {

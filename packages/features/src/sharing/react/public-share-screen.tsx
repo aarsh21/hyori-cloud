@@ -119,8 +119,8 @@ function PublicShareAccess({
       <FocusLayout footer={<AppearanceMenu />}>
         <Wordmark />
         <FocusLayoutHeader>
-          <Heading>Someone shared something with you</Heading>
-          <Text tone="muted">Open it to see what it is. No account needed.</Text>
+          <Heading>Open shared files</Heading>
+          <Text tone="muted">Shared from Hyori Cloud. No account needed.</Text>
         </FocusLayoutHeader>
         <MutationFailure error={resolve.error} />
         <Button
@@ -129,7 +129,7 @@ function PublicShareAccess({
           pendingLabel="Opening…"
           onClick={() => resolve.mutate({ token })}
         >
-          {resolve.error === null ? "Open shared item" : "Try again"}
+          {resolve.error === null ? "Open" : "Try again"}
         </Button>
       </FocusLayout>
     );
@@ -172,7 +172,12 @@ function PublicShareAccess({
   return (
     <AccessRecoveryProvider value={recoveryPolicy}>
       {editingFileId === null ? (
-        <PublicSharedItem token={token} folderId={folderId} item={resolved.item} />
+        <PublicSharedItem
+          token={token}
+          folderId={folderId}
+          role={resolved.share.role}
+          item={resolved.item}
+        />
       ) : (
         <PublicEditor token={token} fileId={editingFileId} item={resolved.item} />
       )}

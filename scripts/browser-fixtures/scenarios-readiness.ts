@@ -61,8 +61,13 @@ async function lifecycle(run: CoreRun, phone: boolean) {
       await uploadFiles(page, source);
       await clearUploads(page);
       await menu(page, `readiness-${size}.bin`, "Rename…");
-      await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill(name);
-      await page.getByRole("dialog").getByLabel("Name", { exact: true }).press("Enter");
+      const field = page.getByRole("dialog").getByLabel("Name", { exact: true });
+      // The dialog selects the name's stem on focus so the extension survives
+      // typing, and Playwright's fill can race that selection into replacing
+      // only the stem. Select all first so the typed name wins every time.
+      await field.press("ControlOrMeta+a");
+      await field.pressSequentially(name);
+      await field.press("Enter");
       await page.getByRole("dialog").waitFor({ state: "detached" });
       const bytes = await downloadBytes(page, () => menu(page, name, "Download"));
       assert.deepEqual(bytes, readFileSync(source));
@@ -192,12 +197,6 @@ async function accountSharing(run: CoreRun, phone: boolean) {
     const recipient = await openPage(run, recipientContext);
     await signIn(recipient, email, password);
     await recipient.getByText("No files yet").waitFor();
-    await enter(
-      recipient.getByRole("button", { name: phone ? "Account" : new RegExp(`Aya ${size}`) }),
-    );
-    await enter(recipient.getByRole("menuitem", { name: "Your account ID" }));
-    const accountId = await recipient.getByRole("textbox", { name: "Account ID" }).inputValue();
-    await enter(recipient.getByRole("dialog").getByRole("button", { name: "Done", exact: true }));
     await page.goto(run.origin);
     const folderName = `Role test ${size}`;
     await folder(page, folderName);
@@ -220,10 +219,12 @@ async function accountSharing(run: CoreRun, phone: boolean) {
         async () => {
           await menu(page, folderName, "Share…");
           const dialog = page.getByRole("dialog");
-          await dialog.getByLabel("Account ID", { exact: true }).fill(accountId);
           await enter(dialog.getByRole("combobox", { name: "Role for this person" }));
           await enter(page.getByRole("option", { name: new RegExp(`^${role}`) }));
-          await enter(dialog.getByRole("button", { name: "Add", exact: true }));
+          await dialog.getByRole("combobox", { name: "Add people by name or email" }).fill(email);
+          // The suggestion popup renders through a portal, outside the dialog's DOM.
+          await page.getByRole("option", { name: new RegExp(`Aya ${size}`) }).waitFor();
+          await enter(dialog.getByRole("combobox", { name: "Add people by name or email" }));
           await dialog.getByRole("button", { name: "Remove", exact: true }).waitFor();
           await enter(dialog.getByRole("button", { name: "Done", exact: true }));
           await recipient.goto(`${run.origin}/shared`);
@@ -312,13 +313,17 @@ async function links(run: CoreRun, phone: boolean) {
     await folder(page, name);
     await menu(page, name, "Share…");
     const dialog = page.getByRole("dialog");
-    await enter(dialog.getByRole("button", { name: "Create link", exact: true }));
+    await enter(dialog.getByRole("button", { name: "Link settings", exact: true }));
     await enter(dialog.getByRole("combobox", { name: /Anyone with the link can/ }));
     await enter(page.getByRole("option", { name: /^Contributor/ }));
     await dialog.getByLabel("Password (optional)", { exact: true }).fill("review share password");
-    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-    await dialog.getByLabel("Expires (optional)").fill(tomorrow);
-    await enter(dialog.getByRole("button", { name: "Create link", exact: true }));
+    await enter(dialog.getByRole("combobox", { name: "Expires", exact: true }));
+    await enter(page.getByRole("option", { name: /^Custom/ }));
+    const tomorrow = new Date(Date.now() + 86_400_000);
+    const tomorrowLabel = new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(tomorrow);
+    await dialog.getByRole("button", { name: /^Expiry date/ }).click();
+    await page.getByRole("button", { name: tomorrowLabel, exact: true }).click();
+    await enter(dialog.getByRole("button", { name: "Create new link", exact: true }));
     const url = await dialog.getByRole("textbox", { name: "Public link" }).inputValue();
     await report.shot(page, `readiness-${size}-password-expiry-link`);
     await enter(dialog.getByRole("button", { name: "Done", exact: true }));
@@ -327,7 +332,7 @@ async function links(run: CoreRun, phone: boolean) {
     await report.check(
       `${size}: password link denies a wrong password and unlocks with the right one`,
       async () => {
-        await enter(guest.getByRole("button", { name: "Open shared item" }));
+        await enter(guest.getByRole("button", { name: "Open" }));
         await guest.getByRole("heading", { name: "This link needs a password" }).waitFor();
         await guest.getByLabel("Password", { exact: true }).fill("wrong password");
         await enter(guest.getByRole("button", { name: "Unlock", exact: true }));

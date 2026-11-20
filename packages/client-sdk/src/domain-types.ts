@@ -1,7 +1,14 @@
 import type * as API from "@hyori-cloud/api/rpc";
 import type { Schema } from "@hyori-cloud/lib/effect";
 
-export type { ApiError, FileEntry, ShareRole, UploadStatus, User } from "@hyori-cloud/api/rpc";
+export type {
+  ApiError,
+  FileEntry,
+  ShareRole,
+  UploadStatus,
+  User,
+  UserIdentity,
+} from "@hyori-cloud/api/rpc";
 
 export type AuthStatus = Schema.Schema.Type<typeof API.AuthStatus>;
 

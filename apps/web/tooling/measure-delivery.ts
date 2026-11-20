@@ -401,7 +401,7 @@ if (process.argv[2] === "seed") {
             }
 
             if (screen === "share") {
-              const gate = page.getByRole("button", { name: "Open shared item", exact: true });
+              const gate = page.getByRole("button", { name: "Open", exact: true });
               const firstFile = page.getByRole("button", { name: /^document-\d+\.txt/ }).first();
 
               const opened = await Promise.race([

@@ -200,17 +200,37 @@ try {
   await member.rpc.files.createFolder({ parentId: null, name: "Private-only" });
   assert.deepEqual((await admin.rpc.files.list({ search: "Private-only" })).items, []);
 
+  const {
+    items: [recipient],
+  } = await admin.rpc.users.search({ query: "  EMBER  " });
+
+  assert.deepEqual(recipient, { id: joined.id, name: joined.name, email: joined.email });
+  assert.ok(recipient);
+
   const direct = await admin.rpc.shares.create({
     itemId: folder.id,
     role: "viewer",
-    recipientId: joined.id,
+    recipientId: recipient.id,
     public: false,
   });
 
+  assert.deepEqual(
+    (await admin.rpc.shares.list({ itemId: folder.id })).items[0]?.recipient,
+    recipient,
+  );
   assert.equal((await member.rpc.files.list({ view: "shared" })).items[0]?.id, folder.id);
   await assert.rejects(member.rpc.files.createFolder({ parentId: folder.id, name: "Denied" }), {
     code: "access.denied",
   });
+  const updated = await admin.rpc.shares.update({ id: direct.id, role: "contributor" });
+  assert.deepEqual(updated, { ...direct, role: "contributor" });
+
+  const memberFolder = await member.rpc.files.createFolder({
+    parentId: folder.id,
+    name: "Member contribution",
+  });
+
+  assert.equal(memberFolder.ownerId, first.id);
 
   const link = await admin.rpc.shares.create({
     itemId: folder.id,
@@ -318,7 +338,7 @@ try {
     "0",
   );
   process.stdout.write(
-    "PASS real Rust/PostgreSQL -> streaming web proxy -> public vanilla SDK auth/invite/private-folder/sharing/revocation/trash/logout/outage/process-restart lifecycle and runtime authentication cleanup.\n",
+    "PASS real Rust/PostgreSQL -> streaming web proxy -> public vanilla SDK auth/invite/private folders/people search/share creation and role changes/revocation/trash/logout/outage/process restart and runtime authentication cleanup.\n",
   );
 } finally {
   for (const sdk of clients) sdk.dispose();

@@ -132,7 +132,7 @@ try {
     const page = await context.newPage();
     const response = await page.goto(`${origin}/share/deliberately-invalid-guard-token`);
     assert.ok(response);
-    assert.match(await response.text(), /Open shared item/);
+    assert.match(await response.text(), /Open shared files/);
     assert.equal(await page.locator('input[type="password"],form').count(), 0);
     console.log("PASS public-share document contains consent only, no password form");
   } finally {

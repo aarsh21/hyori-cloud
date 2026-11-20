@@ -145,6 +145,7 @@ describe("the document's primary target", () => {
           itemId: folder.id,
           role: "editor",
           recipientId: null,
+          recipient: null,
           public: true,
           expiresAt: null,
           passwordProtected: false,
@@ -159,7 +160,7 @@ describe("the document's primary target", () => {
     });
 
     mount(<CloudScreen path="/share/click_token" onNavigate={(path) => paths.push(path)} />, api);
-    fireEvent.click(await screen.findByRole("button", { name: "Open shared item" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     const target = await documentTarget();
 
     await waitFor(() => expect(api.callsTo("editors.available")).toHaveLength(1));
