@@ -31,8 +31,16 @@ pub(crate) const MEDIA: [&str; 8] = [
     "video/quicktime",
 ];
 const HEADER_LIMIT: u64 = 4096;
+const PDF_MAGIC: &[u8] = b"%PDF-";
+const INLINE_TEXT: &str = "text/plain; charset=utf-8";
+
+/// Quick preview renders documents inline as well as media, but only formats with an app-side
+/// renderer: HTML and SVG never go inline, and an ambiguous declared type has to prove its bytes.
 pub(crate) fn supported(mime: &str) -> bool {
     MEDIA.contains(&mime)
+        || matches!(mime, "application/pdf" | "application/json" | "application/octet-stream")
+        || mime.starts_with("text/")
+            && mime != "text/html"
 }
 /// Revision is a cache identity, never authorization or permission to select older current bytes.
 pub(crate) fn preview_url(id: &str, version: Option<&str>, revision: i64) -> String {
@@ -104,8 +112,7 @@ pub(crate) async fn get(
     })
     .await
     .map_err(|_| ApiError::unavailable())??;
-    let mime = detected_type(&bytes, descriptor.size as u64)
-        .filter(|mime| *mime == descriptor.mime_type)
+    let mime = inline_mime(&descriptor.mime_type, &bytes, descriptor.size as u64)
         .ok_or_else(ApiError::invalid)?;
     stream_content(
         storage,
@@ -116,6 +123,24 @@ pub(crate) async fn get(
         "inline",
     )
     .await
+}
+
+/// The type actually served inline. A declared media type must still sniff to that exact type; a
+/// PDF or text document serves as the format Quick preview renders, never as markup. Anything the
+/// app has no renderer for — HTML, SVG, executable bytes — fails closed to a download.
+fn inline_mime(declared: &str, bytes: &[u8], size: u64) -> Option<&'static str> {
+    if MEDIA.contains(&declared) {
+        return detected_type(bytes, size).filter(|mime| *mime == declared);
+    }
+    if (declared == "application/pdf" || declared == "application/octet-stream")
+        && bytes.starts_with(PDF_MAGIC)
+    {
+        return Some("application/pdf");
+    }
+    let textual = matches!(declared, "application/json" | "application/octet-stream")
+        || (declared.starts_with("text/") && declared != "text/html");
+
+    (textual && !bytes.contains(&0)).then_some(INLINE_TEXT)
 }
 
 /// Fail closed on unsupported/ambiguous headers. Never use a filename or supplied MIME to sniff.
@@ -234,6 +259,31 @@ mod tests {
         );
     }
     #[test]
+    fn quick_preview_supports_documents_but_not_markup_or_executables() {
+        for mime in MEDIA {
+            assert!(supported(mime));
+        }
+        for mime in [
+            "application/pdf",
+            "application/json",
+            "application/octet-stream",
+            "text/plain",
+            "text/csv",
+            "text/markdown",
+        ] {
+            assert!(supported(mime));
+        }
+        for mime in [
+            "text/html",
+            "image/svg+xml",
+            "audio/mpeg",
+            "application/msword",
+            "application/zip",
+        ] {
+            assert!(!supported(mime));
+        }
+    }
+    #[test]
     fn active_unknown_and_truncated_content_is_not_inline_media() {
         for bytes in [
             b"<html><script>alert(1)</script>".as_slice(),
@@ -245,6 +295,41 @@ mod tests {
             b"RIFF\0\0\0\0WEBP",
         ] {
             assert_eq!(detected_type(bytes, bytes.len() as u64), None);
+        }
+    }
+    #[test]
+    fn declared_media_still_has_to_sniff_to_its_exact_type() {
+        let png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\0\0\0\0\0\0\0\0\0".as_slice();
+
+        assert_eq!(inline_mime("image/png", png, png.len() as u64), Some("image/png"));
+        assert_eq!(inline_mime("image/jpeg", png, png.len() as u64), None);
+        assert_eq!(inline_mime("image/svg+xml", png, png.len() as u64), None);
+    }
+    #[test]
+    fn documents_serve_inline_only_in_their_renderable_format() {
+        for declared in ["application/pdf", "application/octet-stream"] {
+            assert_eq!(inline_mime(declared, b"%PDF-1.7\n%", 11), Some("application/pdf"));
+        }
+
+        // A declared PDF with other bytes is a mislabelled file, not a preview.
+        assert_eq!(inline_mime("application/pdf", b"hello", 5), None);
+
+        for declared in ["text/plain", "text/csv", "text/markdown", "application/json"] {
+            assert_eq!(inline_mime(declared, b"a,b\n1,2", 8), Some("text/plain; charset=utf-8"));
+        }
+
+        // Text is served inert, so markup bytes are still safe; HTML itself is never inline.
+        assert_eq!(
+            inline_mime("text/plain", b"<script>alert(1)</script>", 24),
+            Some("text/plain; charset=utf-8")
+        );
+        assert_eq!(inline_mime("text/html", b"plain enough", 12), None);
+        assert_eq!(inline_mime("application/msword", b"plain enough", 12), None);
+    }
+    #[test]
+    fn binary_bytes_do_not_serve_as_text() {
+        for declared in ["text/plain", "application/json", "application/octet-stream"] {
+            assert_eq!(inline_mime(declared, b"pro\0gram", 8), None);
         }
     }
     #[test]

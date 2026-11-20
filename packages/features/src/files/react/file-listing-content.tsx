@@ -17,6 +17,7 @@ import {
 } from "@hyori-cloud/ui/components/item-collection";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { ItemActionMenuScope } from "@hyori-cloud/ui/components/item-action-menu";
+import { isAppShortcut } from "@hyori-cloud/ui/lib/browser";
 import { VirtualItems } from "@hyori-cloud/ui/components/virtual-items";
 import { useFileActionPending, useFileActions } from "#features/files/react/file-actions.tsx";
 import { preloadFileDialogs } from "#features/files/react/file-dialog-loaders.ts";
@@ -77,6 +78,13 @@ export function FileListingContent({
     if (event.key === "Delete" && entry.access.canDelete) {
       event.preventDefault();
       actions.trash(entry);
+    }
+
+    // Space previews a file from the keyboard, the way a click now does. The native activation of
+    // a focused row would have to be suppressed either way, so folders keep their own key.
+    if (event.key === " " && entry.kind === "file" && isAppShortcut(event.nativeEvent)) {
+      event.preventDefault();
+      actions.openFile(entry);
     }
   }
 

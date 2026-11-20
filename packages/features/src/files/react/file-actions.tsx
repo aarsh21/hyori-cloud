@@ -26,7 +26,8 @@ export type FileDialog =
   | { readonly kind: "move"; readonly entry: FileEntry }
   | { readonly kind: "share"; readonly id: string }
   | { readonly kind: "versions"; readonly id: string }
-  | { readonly kind: "viewer"; readonly id: string };
+  | { readonly kind: "viewer"; readonly id: string }
+  | { readonly kind: "preview"; readonly id: string };
 
 export type OpenFileDialog = {
   readonly dialog: FileDialog;
@@ -62,6 +63,7 @@ function dialogTitle(dialog: FileDialog) {
     case "createFolder":
       return "New folder";
     case "viewer":
+    case "preview":
       return "Preview";
     case "replace":
     case "share":
@@ -132,8 +134,10 @@ export function FileActionsProvider({
     openDialog,
     download: downloadOnce,
     openFile(entry) {
+      // Media opens in the viewer; every other file opens in Quick preview, where download stays
+      // one action away instead of being what a click silently does.
       if (isMediaType(entry.mimeType)) openDialog({ kind: "viewer", id: entry.id });
-      else downloadOnce(entry.id);
+      else openDialog({ kind: "preview", id: entry.id });
     },
     trash(entry) {
       if (isTrashing(entry.id)) return;

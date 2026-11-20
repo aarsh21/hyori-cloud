@@ -8,6 +8,7 @@ import { preloadEditorScreen } from "#features/cloud/react/cloud-screen-loaders.
 import { useOpenInEditor } from "#features/editors/react/use-open-in-editor.ts";
 import { AvailableEditorsContext } from "#features/editors/react/use-available-editors.ts";
 import { useFileActions } from "#features/files/react/file-actions.tsx";
+import { preloadFileDialogs } from "#features/files/react/file-dialog-loaders.ts";
 import { useFolderPath } from "#features/files/react/folder-path.tsx";
 
 /** The primary target opens an available editor, then falls back to preview or download. */
@@ -23,6 +24,9 @@ export function FileEntryTarget({ entry, children }: { entry: FileEntry; childre
 
   // A document on screen may be opened next, and touch gives no hover or focus to preload on.
   usePreloadWhenIdle(openEditor === null || openEditor === undefined ? null : preloadEditorScreen);
+
+  // With no editor, the next action is a click or a Space into the preview or viewer frame.
+  usePreloadWhenIdle(openEditor === null ? preloadFileDialogs : null);
 
   if (entry.kind === "folder") {
     return (

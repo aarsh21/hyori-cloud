@@ -37,6 +37,7 @@ export type NoteEditorControl = {
   markdown(): string;
   json(): string;
   appendMarkdown(text: string): void;
+  focus(): void;
 };
 
 /** Owned BlockNote adapter. The live Y.Doc is the content, not a React value/onChange mirror. */
@@ -75,6 +76,7 @@ export function NoteEditor({
         if (editor.isEmpty) editor.replaceBlocks(editor.document, blocks);
         else editor.insertBlocks(blocks, editor.document[editor.document.length - 1]!, "after");
       },
+      focus: () => editor.focus(),
     }),
     [editor],
   );

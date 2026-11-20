@@ -1,6 +1,6 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 import { FileText, Plus, Search, Star } from "@hyori-cloud/lib/icons";
-import { useDeferredValue, useState } from "@hyori-cloud/lib/react";
+import { useDeferredValue, useEffect, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { NoteListItem, NoteWorkspace } from "@hyori-cloud/ui/components/note-workspace";
@@ -26,12 +26,21 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
   const notes = useNotes({ search: deferredSearch, favorites, trash: false, cursor });
   const create = useCreateNote();
   const { navigatePath } = useCloudNavigation();
+  // The note created last opens ready to type. The flag holds until its note is left, because the
+  // document mounts a network round-trip after the route reaches it; a later visit to the same
+  // note is not treated as the one that was just created.
+  const [createdId, setCreatedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (createdId !== null && noteId !== createdId) setCreatedId(null);
+  }, [noteId, createdId]);
 
   function newNote(parentId: string | null = null) {
     create.mutate(
       { parentId },
       {
         onSuccess(note) {
+          setCreatedId(note.file.id);
           navigatePath(formatCloudPath({ section: "notes", noteId: note.file.id }));
         },
       },
@@ -155,6 +164,7 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
           key={noteId}
           id={noteId}
           accountId={user.id}
+          autoFocus={createdId === noteId}
           onNewChild={() => newNote(noteId)}
         />
       )}

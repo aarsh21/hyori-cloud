@@ -32,11 +32,14 @@ function listFolder({ parentId, search }: RequestInput) {
   return fileList(items, folder, [{ id: folder.id, name: folder.name }]);
 }
 
-function signedInApi() {
-  return createFakeApi({
-    "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
-    "files.list": listFolder,
-  });
+function signedInApi(fileContent?: (url: string) => Response) {
+  return createFakeApi(
+    {
+      "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
+      "files.list": listFolder,
+    },
+    fileContent,
+  );
 }
 
 function searchBox(name: RegExp = /Search this folder/) {
@@ -408,19 +411,31 @@ describe("row actions", () => {
     api.handlers["files.download"] = ({ id }) =>
       id === ROADMAP.id ? first.promise : second.promise;
     renderAt("/folders/folder_a", api);
-    fireEvent.click(await screen.findByRole("button", { name: /^roadmap\.pdf/ }));
-    fireEvent.click(screen.getByRole("button", { name: /^notes\.txt/ }));
+
+    // Downloads now start from each row's menu, one deliberate action each.
+    fireEvent.click(await screen.findByRole("button", { name: "Actions for roadmap.pdf" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download" }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Actions for notes.txt" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download" }));
+
     await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(2));
     first.reject(new ApiFailure("service.unavailable"));
     expect(await screen.findByText("Hyori can’t reach its services")).toBeTruthy();
     second.resolve({ url: "#", name: NOTES.name, size: 7, mimeType: NOTES.mimeType });
   });
 
-  test("double-clicking a document sends one request and shows progress on the row", async () => {
+  test("double-clicking a document opens one preview, and its download is one request", async () => {
     const answer = deferred<object>();
     const api = signedInApi();
-
     api.handlers["files.download"] = () => answer.promise;
+    api.handlers["files.preview"] = ({ id }) => ({
+      url: "#",
+      name: id === ROADMAP.id ? ROADMAP.name : NOTES.name,
+      size: 7,
+      mimeType: "text/plain",
+    });
+
     renderAt("/folders/folder_a", api);
 
     const row = await screen.findByRole("button", { name: /^notes\.txt/ });
@@ -428,13 +443,57 @@ describe("row actions", () => {
     fireEvent.click(row);
     fireEvent.click(row);
 
+    // One preview for a double click, and no silent download came with it.
+    await waitFor(() => expect(api.callsTo("files.preview")).toHaveLength(1));
+    expect(api.callsTo("files.download")).toHaveLength(0);
+
+    fireEvent.click(await screen.findByRole("button", { name: `Download ${NOTES.name}` }));
+
     await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(1));
-    expect(await screen.findByRole("status", { name: "Working on notes.txt" })).toBeTruthy();
+    // The dialog hides the listing from the accessibility tree, so the row's own feedback is
+    // asserted on the DOM rather than through role queries.
+    await waitFor(() =>
+      expect(
+        document.querySelector('[role="status"][aria-label="Working on notes.txt"]'),
+      ).not.toBeNull(),
+    );
     expect(row.closest('[aria-busy="true"]')).not.toBeNull();
 
     answer.resolve({ url: "#", name: NOTES.name, size: 7, mimeType: NOTES.mimeType });
     await waitFor(() => expect(row.closest('[aria-busy="true"]')).toBeNull());
     expect(api.callsTo("files.download")).toHaveLength(1);
+  });
+
+  test("a type the server won't inline becomes a card with the download, not an error", async () => {
+    const api = signedInApi();
+    api.handlers["files.preview"] = () => {
+      throw new ApiFailure("input.invalid");
+    };
+
+    renderAt("/folders/folder_a", api);
+
+    fireEvent.click(await screen.findByRole("button", { name: /^roadmap\.pdf/ }));
+
+    expect(await screen.findByText("This file can’t be previewed.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Download roadmap.pdf" })).toBeTruthy();
+  });
+
+  test("a pdf whose bytes the server refuses shows the card instead of the frame's error", async () => {
+    const api = signedInApi(() => new Response("not a pdf", { status: 400 }));
+    api.handlers["files.preview"] = () => ({
+      url: "/api/storage/previews/file_1?revision=0",
+      name: ROADMAP.name,
+      size: 41,
+      mimeType: "application/pdf",
+    });
+    renderAt("/folders/folder_a", api);
+
+    fireEvent.click(await screen.findByRole("button", { name: /^roadmap\.pdf/ }));
+
+    expect(await screen.findByText("This file can’t be previewed.")).toBeTruthy();
+    expect(document.querySelector("iframe")).toBeNull();
+    expect(screen.getByRole("button", { name: "Download roadmap.pdf" })).toBeTruthy();
   });
 
   test("repeated Delete presses trash once and report only success", async () => {
@@ -620,16 +679,21 @@ describe("file action failure ownership", () => {
     };
 
     renderAt("/folders/folder_a", api);
-    const row = await screen.findByRole("button", { name: /^notes\.txt/ });
-    fireEvent.click(row);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Actions for notes.txt" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download" }));
     await screen.findByText("Hyori can’t reach its services");
+
     api.handlers["files.download"] = () => ({
       url: "#",
       name: NOTES.name,
       size: NOTES.size,
       mimeType: NOTES.mimeType,
     });
-    fireEvent.click(row);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions for notes.txt" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download" }));
     await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(2));
     expect(screen.queryByText("Hyori can’t reach its services")).toBeNull();
   });

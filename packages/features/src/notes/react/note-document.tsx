@@ -3,7 +3,7 @@ import { createCollaborationSession } from "@hyori-cloud/client-sdk/collaboratio
 import { createBrowserCollaborationJournal } from "@hyori-cloud/client-sdk/browser";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { ArrowLeft, Ellipsis, FileText, Plus, Share2, Star } from "@hyori-cloud/lib/icons";
-import { useRef, useState } from "@hyori-cloud/lib/react";
+import { useEffect, useRef, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
   Dialog,
@@ -52,11 +52,14 @@ type Note = OutputOf<RPC["notes"]["get"]>;
 export function NoteDocument({
   id,
   accountId,
+  autoFocus = false,
   onNewChild,
   closePath = "/notes",
 }: {
   id: string;
   accountId?: string;
+  /** True only for the mount that follows creating this note, so the caret lands in the editor. */
+  autoFocus?: boolean;
   onNewChild?: () => void;
   closePath?: string;
 }) {
@@ -87,6 +90,7 @@ export function NoteDocument({
       <NoteAttempt
         key={`${id}:${attempt}`}
         note={note.data}
+        autoFocus={autoFocus}
         trash={trash}
         accountId={accountId}
         closePath={closePath}
@@ -102,6 +106,7 @@ export function NoteDocument({
 
 function NoteAttempt({
   note,
+  autoFocus,
   trash,
   accountId,
   onNewChild,
@@ -109,6 +114,7 @@ function NoteAttempt({
   onReopen,
 }: {
   note: Note;
+  autoFocus: boolean;
   trash: ReturnType<typeof useTrashFile>;
   accountId?: string | undefined;
   onNewChild?: (() => void) | undefined;
@@ -144,6 +150,16 @@ function NoteAttempt({
   const [trashOpen, setTrashOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const favorite = useFavoriteNote();
+
+  // A note the user just created opens with the caret in its editor, so the first words typed are
+  // the note and not a shortcut on the button that made it. The mount snapshot keeps this to the
+  // one opening that follows creation, never a later visit to the same note.
+  const shouldFocus = useRef(autoFocus).current;
+  const editorMounted = state.document !== null && session.awareness !== null;
+
+  useEffect(() => {
+    if (shouldFocus && editorMounted) control.current?.focus();
+  }, [shouldFocus, editorMounted]);
 
   useDocumentKeydown((event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s" && !event.altKey) {

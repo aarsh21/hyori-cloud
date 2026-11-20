@@ -7,6 +7,7 @@
   "exports": {
     "./globals.css": "./src/styles/globals.css",
     "./font.css": "./src/styles/font.css",
+    "./mono.css": "./src/styles/mono-font.css",
     "./theme": "./src/theme.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",
@@ -21,6 +22,7 @@
     "@blocknote/core": "0.55.0",
     "@blocknote/react": "0.55.0",
     "@blocknote/shadcn": "0.55.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@shadcn/react": "^0.3.1",
     "class-variance-authority": "^0.7.1",

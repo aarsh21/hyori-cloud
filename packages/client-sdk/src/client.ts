@@ -50,6 +50,14 @@ export function createClient(options: ClientOptions = {}) {
         return { metadata, stream: response.body };
       },
     },
+    previews: {
+      /**
+       * Inline bytes at a URL `files.preview` handed out, through the transport the session
+       * already owns. Range headers are the caller's bound on what streams in.
+       */
+      fetch: (url: string, options?: { headers?: Record<string, string>; signal?: AbortSignal }) =>
+        transport.request(url, { headers: options?.headers, signal: options?.signal }),
+    },
     dispose: () => {
       editors.dispose();
       uploads.dispose();

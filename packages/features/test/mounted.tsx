@@ -59,12 +59,16 @@ type Handlers = Record<string, (input: RequestInput) => object | string | Promis
  */
 const ALWAYS_ANSWERED = new Map([["editors.close", () => ({ success: true })]]);
 
-export function createFakeApi(handlers: Handlers) {
+export function createFakeApi(
+  handlers: Handlers,
+  /** The canned answer to a file-bytes GET, so a test can script what a content URL returns. */
+  fileContent: (url: string) => Response = () => new Response("file bytes"),
+) {
   const calls: { readonly operation: string; readonly input: RequestInput }[] = [];
 
-  const fetch: FetchCapability = async (_url, init) => {
+  const fetch: FetchCapability = async (url, init) => {
     // A file's bytes, not an operation: the SDK asked for a URL an operation gave it.
-    if (init?.body === undefined || init.body === null) return new Response("file bytes");
+    if (init?.body === undefined || init.body === null) return fileContent(String(url));
 
     // A part's bytes on their way to a storage URL, which isn't an operation either.
     if (init.method === "PUT") return new Response(null, { status: 200 });

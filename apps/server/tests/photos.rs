@@ -301,7 +301,7 @@ async fn inline_originals_validate_family_ranges_current_object_and_revocation()
     pg.config.storage = Some(fs.config.clone());
     let server = TestServer::start(pg.config.clone()).await;
     let (_, cookie) = setup(&server).await;
-    let fixtures: [(&str, &str, &[u8]); 8] = [
+    let fixtures: [(&str, &str, &[u8]); 9] = [
         (
             "red.png",
             "image/png",
@@ -341,6 +341,13 @@ async fn inline_originals_validate_family_ranges_current_object_and_revocation()
             "red.mov",
             "video/quicktime",
             include_bytes!("fixtures/media/red.mov"),
+        ),
+        // The document side of Quick preview: a PDF serves inline with the same header
+        // guarantees as media, so an iframe can never run what it embeds.
+        (
+            "one.pdf",
+            "application/pdf",
+            include_bytes!("fixtures/media/one.pdf"),
         ),
     ];
     for (name, mime, bytes) in fixtures {
@@ -422,6 +429,14 @@ async fn inline_originals_validate_family_ranges_current_object_and_revocation()
         ),
         ("pdf.webp", "image/webp", b"%PDF-1.7"),
         ("actual.svg", "image/svg+xml", b"<svg/>"),
+        // Declared documents that are not what they claim: a "PDF" of HTML bytes and HTML
+        // itself never serve inline, whatever their name or upload type said.
+        (
+            "spoof.pdf",
+            "application/pdf",
+            b"<!DOCTYPE html><script>alert(1)</script>".as_slice(),
+        ),
+        ("report.html", "text/html", b"<html><body>not a preview</body></html>"),
     ] {
         let id = upload(&server, &cookie, name, mime, bytes).await;
         assert_eq!(

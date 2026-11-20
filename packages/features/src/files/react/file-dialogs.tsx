@@ -3,6 +3,7 @@ import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
 import type { FileDialog, OpenFileDialog } from "#features/files/react/file-actions.tsx";
 import { CreateFolderDialog } from "#features/files/react/create-folder-dialog.tsx";
 import { RenameDialog } from "#features/files/react/rename-dialog.tsx";
+import { QuickPreview, isPreviewItem } from "#features/files/react/quick-preview.tsx";
 import { MediaViewer } from "#features/media/react/media-viewer.tsx";
 import {
   loadMoveDialog,
@@ -104,6 +105,16 @@ export function FileDialogs({
           open={open}
           onOpenChange={onOpenChange}
           onSelect={(id) => onSelect({ kind: "viewer", id })}
+        />
+      );
+    case "preview":
+      return (
+        <QuickPreview
+          items={entries.filter(isPreviewItem)}
+          itemId={entry.id}
+          open={open}
+          onOpenChange={onOpenChange}
+          onSelect={(id) => onSelect({ kind: "preview", id })}
         />
       );
   }

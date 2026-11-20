@@ -164,6 +164,15 @@ function Lightbox({
                 onNext();
               }
 
+              // Space closes, but never while it would activate a control someone has focused.
+              if (
+                event.key === " " &&
+                element.closest("button,a,input,select,textarea,video,[contenteditable]") === null
+              ) {
+                event.preventDefault();
+                onOpenChange(false);
+              }
+
               if (
                 onInfoToggle !== undefined &&
                 (event.key === "i" || event.key === "I") &&

@@ -18,6 +18,15 @@ const DOCUMENT = fileEntry({ id: "doc_click_1", name: "Synthetic brief.docx" });
 const OTHER = fileEntry({ id: "doc_click_2", name: "Synthetic notes.txt" });
 const WORD = { app: "wordcraft", version: "0.14.0", inputExtensions: [".docx"] };
 
+function previewFor(entry: typeof DOCUMENT) {
+  return {
+    url: `/synthetic-preview/${entry.id}`,
+    name: entry.name,
+    size: entry.size,
+    mimeType: entry.mimeType,
+  };
+}
+
 function setup(apps: readonly (typeof WORD)[] = [WORD]) {
   const paths: string[] = [];
 
@@ -25,6 +34,7 @@ function setup(apps: readonly (typeof WORD)[] = [WORD]) {
     "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
     "files.list": () => fileList([DOCUMENT, OTHER]),
     "editors.available": () => ({ apps }),
+    "files.preview": ({ id }) => previewFor(id === DOCUMENT.id ? DOCUMENT : OTHER),
     "files.download": () => ({
       url: "/synthetic-download",
       name: DOCUMENT.name,
@@ -75,15 +85,20 @@ describe("the document's primary target", () => {
     expect(paths).toEqual([]);
   });
 
-  test("the server disabling the editor preserves the download fallback", async () => {
+  test("the server disabling the editor still previews, download one action away", async () => {
     const { api, paths } = setup([]);
     const target = await documentTarget();
 
     await waitFor(() => expect(api.callsTo("editors.available")).toHaveLength(1));
     fireEvent.click(target);
 
-    await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(1));
     expect(paths).toEqual([]);
+    expect(api.callsTo("files.download")).toHaveLength(0);
+    expect(await screen.findByRole("heading", { name: DOCUMENT.name })).toBeTruthy();
+    expect(await screen.findByText("file bytes")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: `Download ${DOCUMENT.name}` }));
+    await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(1));
   });
 
   test("an early click cannot download while server capabilities are unresolved", async () => {
@@ -104,7 +119,7 @@ describe("the document's primary target", () => {
     expect(paths).toEqual(["/edit/doc_click_1"]);
   });
 
-  test("unsupported files still download even when an editor is available", async () => {
+  test("unsupported files preview when an editor is available, download one action away", async () => {
     const { api, paths } = setup();
 
     const target = await screen.findByRole("button", { name: new RegExp(`^${OTHER.name}`) });
@@ -112,8 +127,13 @@ describe("the document's primary target", () => {
     await waitFor(() => expect(target.getAttribute("aria-disabled") === "true").toBe(false));
     fireEvent.click(target);
 
-    await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(1));
     expect(paths).toEqual([]);
+    expect(api.callsTo("files.download")).toHaveLength(0);
+    expect(await screen.findByRole("heading", { name: OTHER.name })).toBeTruthy();
+    expect(await screen.findByText("file bytes")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: `Download ${OTHER.name}` }));
+    await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(1));
   });
 
   test("many primary targets share one availability request", async () => {

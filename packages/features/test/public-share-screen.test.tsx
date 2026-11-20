@@ -14,6 +14,7 @@ import {
   VIEWER_ACCESS,
   waitFor,
 } from "#features-test/mounted.tsx";
+import type { RequestInput } from "#features-test/mounted.tsx";
 
 const SHARED_FOLDER = folderEntry({ id: "folder_s", name: "Trip", access: VIEWER_ACCESS });
 
@@ -373,6 +374,12 @@ describe("a public link whose grant stopped working", () => {
 
     const api = publicApi();
     api.handlers["files.list"] = () => fileList([document], SHARED_FOLDER, []);
+    api.handlers["files.preview"] = () => ({
+      url: "#",
+      name: document.name,
+      size: document.size,
+      mimeType: document.mimeType,
+    });
     api.handlers["files.download"] = () => {
       throw new ApiFailure("auth.required");
     };
@@ -380,6 +387,7 @@ describe("a public link whose grant stopped working", () => {
     const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
     fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.click(await screen.findByRole("button", { name: /^shared\.txt/ }));
+    fireEvent.click(await screen.findByRole("button", { name: `Download ${document.name}` }));
     await screen.findByRole("button", { name: "Open link again" });
     view.rerender(<CloudScreen path="/share/token_2" onNavigate={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: "Open" }));
@@ -405,8 +413,16 @@ describe("a public link whose grant stopped working", () => {
       access: VIEWER_ACCESS,
     });
 
+    const preview = ({ id }: RequestInput) => ({
+      url: "#",
+      name: id === first.id ? first.name : second.name,
+      size: 7,
+      mimeType: "text/plain",
+    });
+
     const api = publicApi();
     api.handlers["files.list"] = () => fileList([first, second], SHARED_FOLDER, []);
+    api.handlers["files.preview"] = preview;
     api.handlers["files.download"] = ({ id }) => {
       throw new ApiFailure(id === first.id ? "auth.required" : "access.denied");
     };
@@ -414,7 +430,12 @@ describe("a public link whose grant stopped working", () => {
     const view = mount(<CloudScreen path="/share/token_1" onNavigate={() => {}} />, api);
     fireEvent.click(await screen.findByRole("button", { name: "Open" }));
     fireEvent.click(await screen.findByRole("button", { name: /^first\.txt/ }));
-    fireEvent.click(screen.getByRole("button", { name: /^second\.txt/ }));
+    fireEvent.click(await screen.findByRole("button", { name: `Download ${first.name}` }));
+
+    // Stepping to the next file shows its own failure; download stays one action away throughout.
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(await screen.findByRole("button", { name: `Download ${second.name}` }));
+
     await waitFor(() => expect(api.callsTo("files.download")).toHaveLength(2));
     await waitFor(() =>
       expect(screen.queryByRole("status", { name: "Working on second.txt" })).toBeNull(),
@@ -425,6 +446,11 @@ describe("a public link whose grant stopped working", () => {
       expect(screen.queryByRole("button", { name: "Open link again" })).toBeNull(),
     );
     expect(screen.queryByText("Your access through this link has ended")).toBeNull();
+
+    // The preview stays open, so recovering the link keeps the file one action away.
+    expect(screen.getByRole("button", { name: `Download ${second.name}` })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close viewer" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByRole("button", { name: /^first\.txt/ })).toBeTruthy();
     expect(api.callsTo("shares.resolve")).toHaveLength(2);
     expect(view.container.querySelector('[role="alert"]')).toBeNull();
