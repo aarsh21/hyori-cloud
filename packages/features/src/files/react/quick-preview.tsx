@@ -2,7 +2,7 @@ import type { FileEntry } from "@hyori-cloud/client-sdk";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { Download } from "@hyori-cloud/lib/icons";
 import { useQuery } from "@hyori-cloud/lib/query";
-import { useContext, useEffect, useRef } from "@hyori-cloud/lib/react";
+import { useContext, useRef } from "@hyori-cloud/lib/react";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Checkbox } from "@hyori-cloud/ui/components/checkbox";
@@ -14,6 +14,7 @@ import {
   LightboxPending,
 } from "@hyori-cloud/ui/components/lightbox";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
+import { useFocusWhenActive } from "@hyori-cloud/ui/hooks/use-focus-when-active";
 import { cn } from "@hyori-cloud/ui/lib/utils";
 import { AvailableEditorsContext } from "#features/editors/react/use-available-editors.ts";
 import { useOpenInEditor } from "#features/editors/react/use-open-in-editor.ts";
@@ -337,7 +338,7 @@ function usePreviewText(url: string | undefined, entry: FileEntry, enabled: bool
   const { previews } = useClientSDK();
 
   return useQuery({
-    queryKey: ["files", "preview-text", entry.id],
+    queryKey: ["files", "preview-text", entry.id, entry.size, url],
     enabled: enabled && url !== undefined,
     queryFn: async (): Promise<PreviewText> => {
       try {
@@ -362,7 +363,7 @@ function usePreviewProbe(url: string | undefined, entry: FileEntry, enabled: boo
   const { previews } = useClientSDK();
 
   return useQuery({
-    queryKey: ["files", "preview-probe", entry.id],
+    queryKey: ["files", "preview-probe", entry.id, url],
     enabled: enabled && url !== undefined,
     queryFn: async (): Promise<"ok" | "unavailable" | "network"> => {
       try {
@@ -412,10 +413,8 @@ function PreviewSheet({
 }) {
   const region = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Keyboard readers land in the document, not back on the rows behind the overlay.
-    if (scroll) region.current?.focus({ preventScroll: true });
-  }, [scroll]);
+  // Keyboard readers land in the document, not back on the rows behind the overlay.
+  useFocusWhenActive(scroll, () => region.current?.focus({ preventScroll: true }));
 
   return (
     <div

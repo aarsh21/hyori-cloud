@@ -22,6 +22,7 @@ const profile = createArchitectureConfig({
       "packages/ui/src/hooks/use-document-keydown.ts",
       "packages/ui/src/hooks/use-dispose-on-unmount.ts",
       "packages/ui/src/hooks/use-entered-viewport.ts",
+      "packages/ui/src/hooks/use-focus-when-active.ts",
       "packages/ui/src/hooks/use-lazy-image-source.ts",
       "packages/ui/src/hooks/use-preload-images.ts",
       "packages/ui/src/hooks/use-preload-when-idle.ts",

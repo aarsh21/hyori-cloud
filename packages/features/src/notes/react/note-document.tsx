@@ -3,7 +3,7 @@ import { createCollaborationSession } from "@hyori-cloud/client-sdk/collaboratio
 import { createBrowserCollaborationJournal } from "@hyori-cloud/client-sdk/browser";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { ArrowLeft, Ellipsis, FileText, Plus, Share2, Star } from "@hyori-cloud/lib/icons";
-import { useEffect, useRef, useState } from "@hyori-cloud/lib/react";
+import { useRef, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
   Dialog,
@@ -29,6 +29,7 @@ import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { Textarea } from "@hyori-cloud/ui/components/textarea";
 import { useDisposeOnUnmount } from "@hyori-cloud/ui/hooks/use-dispose-on-unmount";
 import { useDocumentKeydown } from "@hyori-cloud/ui/hooks/use-document-keydown";
+import { useFocusWhenActive } from "@hyori-cloud/ui/hooks/use-focus-when-active";
 import { useStoreValue } from "@hyori-cloud/ui/hooks/use-store-value";
 import { saveBytesAsDownload } from "@hyori-cloud/ui/lib/browser";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
@@ -157,9 +158,7 @@ function NoteAttempt({
   const shouldFocus = useRef(autoFocus).current;
   const editorMounted = state.document !== null && session.awareness !== null;
 
-  useEffect(() => {
-    if (shouldFocus && editorMounted) control.current?.focus();
-  }, [shouldFocus, editorMounted]);
+  useFocusWhenActive(shouldFocus && editorMounted, () => control.current?.focus());
 
   useDocumentKeydown((event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s" && !event.altKey) {

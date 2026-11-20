@@ -1,6 +1,6 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 import { FileText, Plus, Search, Star } from "@hyori-cloud/lib/icons";
-import { useDeferredValue, useEffect, useState } from "@hyori-cloud/lib/react";
+import { useDeferredValue, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { NoteListItem, NoteWorkspace } from "@hyori-cloud/ui/components/note-workspace";
@@ -26,14 +26,10 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
   const notes = useNotes({ search: deferredSearch, favorites, trash: false, cursor });
   const create = useCreateNote();
   const { navigatePath } = useCloudNavigation();
-  // The note created last opens ready to type. The flag holds until its note is left, because the
-  // document mounts a network round-trip after the route reaches it; a later visit to the same
-  // note is not treated as the one that was just created.
+  // The note created last opens ready to type. The flag is dropped when the list navigates
+  // elsewhere, because the document mounts a network round-trip after the route reaches it; a
+  // later visit from the list is not treated as the one that was just created.
   const [createdId, setCreatedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (createdId !== null && noteId !== createdId) setCreatedId(null);
-  }, [noteId, createdId]);
 
   function newNote(parentId: string | null = null) {
     create.mutate(
@@ -122,6 +118,7 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
                     notes={notes.data.items}
                     current={noteId}
                     flatten={search !== "" || favorites || cursor !== undefined}
+                    onLeave={() => setCreatedId(null)}
                   />
                 )}
                 {notes.data.nextCursor !== null && (
@@ -176,10 +173,12 @@ function NoteTree({
   notes,
   current,
   flatten,
+  onLeave,
 }: {
   notes: readonly Note[];
   current: string | null;
   flatten: boolean;
+  onLeave: () => void;
 }) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const { navigatePath } = useCloudNavigation();
@@ -218,7 +217,11 @@ function NoteTree({
                 })
               }
               href={formatCloudPath({ section: "notes", noteId: id })}
-              onNavigate={navigatePath}
+              onNavigate={(path) => {
+                // Leaving for another note ends the visit that creation started.
+                onLeave();
+                navigatePath(path);
+              }}
             />
             {expanded && !flatten && rows(id, depth + 1)}
           </div>
