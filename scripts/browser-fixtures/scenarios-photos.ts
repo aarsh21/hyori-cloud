@@ -979,9 +979,23 @@ async function sharedFolderStaysOutOfLibrary(run: CoreRun) {
   await report.shot(friend, "photos-shared-not-in-library");
 
   // The share itself stays reachable where it was made, and its media opens from there.
-  await friend.getByRole("link", { name: "Files" }).first().click();
-  await friend.getByRole("button", { name: "Shared with me" }).click();
-  await friend.getByRole("link", { name: "Holiday" }).waitFor();
+  await friend.getByRole("link", { name: "Shared", exact: true }).first().click();
+  await friend.getByRole("heading", { name: "Shared with me", exact: true }).waitFor();
+  await friend.getByRole("link", { name: "Holiday" }).click();
+  await friend.getByRole("button", { name: /^beach\.png/ }).click();
+
+  await report.check("the shared original opens from Shared", async () => {
+    await friend.waitForFunction(() => {
+      const image = document.querySelector<HTMLImageElement>('[data-slot="lightbox"] img');
+
+      return image !== null && image.complete && image.naturalWidth > 0;
+    });
+  });
+
+  await report.shot(friend, "photos-shared-original-opens");
+
+  await friend.goto(`${run.origin}/photos`);
+  await friend.getByText("No photos yet").waitFor();
 
   await shareDialog.getByRole("button", { name: "Remove" }).click();
   await shareDialog
