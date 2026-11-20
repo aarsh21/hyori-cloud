@@ -30,9 +30,15 @@ RUN CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS}" cargo build --release --locked -p hyo
 
 FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS runtime
 ARG FFMPEG_PACKAGE_VERSION=7:7.1.5-0+deb13u1
+ARG VIPS_PACKAGE_VERSION=8.16.1-1+deb13u2
+ARG HEIF_PACKAGE_VERSION=1.23.6-2~deb13u1
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg="${FFMPEG_PACKAGE_VERSION}" \
+       libvips-tools="${VIPS_PACKAGE_VERSION}" libheif1="${HEIF_PACKAGE_VERSION}" \
+       libheif-plugin-libde265="${HEIF_PACKAGE_VERSION}" \
     && mkdir -p /usr/share/hyori-media \
+    && ln -s "$(dpkg -L libheif-plugin-libde265 | sed -n '/\/libheif-libde265\.so$/p')" /usr/share/hyori-media/libheif-hevc.so \
+    && test -f /usr/share/hyori-media/libheif-hevc.so \
     && dpkg-query -W > /usr/share/hyori-media/packages.txt \
     && ffmpeg -version > /usr/share/hyori-media/ffmpeg-version.txt \
     && rm -rf /var/lib/apt/lists/* \

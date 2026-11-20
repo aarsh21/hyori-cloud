@@ -200,6 +200,10 @@ export const DerivativeKind = intersection(Schema.Union(Schema.Literal("thumbnai
 
 export type DerivativeKind = typeof DerivativeKind.Type;
 
+export const DisplayPreview = exclusiveUnion(Schema.Struct({ "status": intersection(Schema.Literal("unavailable"), Schema.String) }), Schema.Struct({ "status": intersection(Schema.Literal("queued"), Schema.String) }), Schema.Struct({ "status": intersection(Schema.Literal("processing"), Schema.String) }), Schema.Struct({ "height": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(2560)), "status": intersection(Schema.Literal("ready"), Schema.String), "url": Schema.String, "width": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(2560)) }), Schema.Struct({ "status": intersection(Schema.Literal("failed"), Schema.String) }));
+
+export type DisplayPreview = typeof DisplayPreview.Type;
+
 export const Done = Schema.Struct({ "success": intersection(Schema.Literal(true), Schema.Boolean) });
 
 export type Done = typeof Done.Type;
@@ -368,7 +372,7 @@ export const PhotoDateSource = intersection(Schema.Union(Schema.Literal("capture
 
 export type PhotoDateSource = typeof PhotoDateSource.Type;
 
-export const LibraryItem = Schema.Struct({ "access": Access, "createdAt": Schema.String, "dateSource": PhotoDateSource, "derivative": Schema.optional(MediaDerivative), "id": Id, "kind": FileKind, "mimeType": Schema.String, "name": Name, "ownerId": Id, "parentId": Schema.Union(Id, Schema.Null), "previewUrl": Schema.String, "size": Bytes, "timelineDate": Schema.String, "trashedAt": Schema.Union(Schema.String, Schema.Null), "updatedAt": Schema.String });
+export const LibraryItem = Schema.Struct({ "access": Access, "createdAt": Schema.String, "dateSource": PhotoDateSource, "derivative": Schema.optional(MediaDerivative), "displayPreview": Schema.optional(DisplayPreview), "id": Id, "kind": FileKind, "mimeType": Schema.String, "name": Name, "ownerId": Id, "parentId": Schema.Union(Id, Schema.Null), "previewUrl": Schema.String, "size": Bytes, "timelineDate": Schema.String, "trashedAt": Schema.Union(Schema.String, Schema.Null), "updatedAt": Schema.String });
 
 export type LibraryItem = typeof LibraryItem.Type;
 
@@ -416,6 +420,10 @@ export const NoteListInput = Schema.Struct({ "cursor": Schema.optional(Schema.Un
 
 export type NoteListInput = typeof NoteListInput.Type;
 
+export const OriginalDimensions = Schema.Struct({ "height": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(0)), "width": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(0)) });
+
+export type OriginalDimensions = typeof OriginalDimensions.Type;
+
 export const UserIdentity = Schema.Struct({ "email": Schema.String, "id": Id, "name": Schema.String });
 
 export type UserIdentity = typeof UserIdentity.Type;
@@ -460,6 +468,10 @@ export const PermanentDeletion = Schema.Struct({ "freedBytes": Bytes, "items": B
 
 export type PermanentDeletion = typeof PermanentDeletion.Type;
 
+export const PhotoCamera = Schema.Struct({ "make": Schema.Union(Schema.String, Schema.Null), "model": Schema.Union(Schema.String, Schema.Null) });
+
+export type PhotoCamera = typeof PhotoCamera.Type;
+
 export const PhotoCapture = Schema.Struct({ "localDateTime": Schema.String, "offsetMinutes": Schema.Union(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(-2147483648, 2147483647)), Schema.Null) });
 
 export type PhotoCapture = typeof PhotoCapture.Type;
@@ -468,11 +480,15 @@ export const PhotoLocation = Schema.Struct({ "latitude": Schema.Number.pipe(Sche
 
 export type PhotoLocation = typeof PhotoLocation.Type;
 
-export const PhotoDetails = Schema.Struct({ "capture": Schema.Union(PhotoCapture, Schema.Null), "location": Schema.Union(PhotoLocation, Schema.Null) });
+export const PhotoDetails = Schema.Struct({ "camera": Schema.optional(Schema.Union(PhotoCamera, Schema.Null)), "capture": Schema.Union(PhotoCapture, Schema.Null), "location": Schema.Union(PhotoLocation, Schema.Null), "originalDimensions": Schema.optional(Schema.Union(OriginalDimensions, Schema.Null)) });
 
 export type PhotoDetails = typeof PhotoDetails.Type;
 
-export const PhotoLibrary = Schema.Struct({ "items": Schema.Array(LibraryItem), "nextCursor": Schema.Union(Schema.String, Schema.Null) });
+export const PreviewWorker = intersection(Schema.Union(Schema.Literal("available"), Schema.Literal("unavailable")), Schema.String);
+
+export type PreviewWorker = typeof PreviewWorker.Type;
+
+export const PhotoLibrary = Schema.Struct({ "items": Schema.Array(LibraryItem), "nextCursor": Schema.Union(Schema.String, Schema.Null), "previewWorker": Schema.optional(PreviewWorker) });
 
 export type PhotoLibrary = typeof PhotoLibrary.Type;
 
@@ -544,7 +560,7 @@ export const SharesListInput = Schema.Struct({ "itemId": Id });
 
 export type SharesListInput = typeof SharesListInput.Type;
 
-export const TimelineItem = Schema.Struct({ "access": Access, "createdAt": Schema.String, "derivative": Schema.optional(MediaDerivative), "id": Id, "kind": FileKind, "mimeType": Schema.String, "name": Name, "ownerId": Id, "parentId": Schema.Union(Id, Schema.Null), "previewUrl": Schema.String, "size": Bytes, "trashedAt": Schema.Union(Schema.String, Schema.Null), "updatedAt": Schema.String });
+export const TimelineItem = Schema.Struct({ "access": Access, "createdAt": Schema.String, "derivative": Schema.optional(MediaDerivative), "displayPreview": Schema.optional(DisplayPreview), "id": Id, "kind": FileKind, "mimeType": Schema.String, "name": Name, "ownerId": Id, "parentId": Schema.Union(Id, Schema.Null), "previewUrl": Schema.String, "size": Bytes, "trashedAt": Schema.Union(Schema.String, Schema.Null), "updatedAt": Schema.String });
 
 export type TimelineItem = typeof TimelineItem.Type;
 

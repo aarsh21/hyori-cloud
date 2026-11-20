@@ -102,10 +102,13 @@ impl UploadsService {
             return Err(ApiError::invalid());
         }
         let name = files::normalize_name(&input.name.0)?;
-        let mime = if input.mime_type.is_empty() {
-            "application/octet-stream".to_owned()
-        } else {
-            input.mime_type.clone()
+        let mime = match input.mime_type.as_str() {
+            "" | "application/octet-stream" => match name.rsplit_once('.') {
+                Some((_, suffix)) if suffix.eq_ignore_ascii_case("heic") => "image/heic".into(),
+                Some((_, suffix)) if suffix.eq_ignore_ascii_case("heif") => "image/heif".into(),
+                _ => "application/octet-stream".into(),
+            },
+            _ => input.mime_type.clone(),
         };
         if !mime.is_ascii() || mime.bytes().any(|b| b.is_ascii_control()) {
             return Err(ApiError::invalid());

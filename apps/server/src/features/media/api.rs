@@ -48,8 +48,25 @@ pub enum MediaDerivative {
         can_retry: bool,
     },
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum DisplayPreview {
+    Unavailable,
+    Queued,
+    Processing,
+    Ready {
+        url: String,
+        #[schemars(range(min = 1, max = 2560))]
+        width: u32,
+        #[schemars(range(min = 1, max = 2560))]
+        height: u32,
+    },
+    Failed,
+}
+
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
-    crate::schemas!(m; DerivativeKind,DerivativeFailure,MediaIdentity,MediaDerivative);
+    crate::schemas!(m; DerivativeKind,DerivativeFailure,MediaIdentity,MediaDerivative,DisplayPreview);
     crate::operation!(
         m,
         "media.get",

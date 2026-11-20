@@ -2,6 +2,7 @@ use crate::{
     features::{
         auth::api::{Done, Empty, Id, Name},
         files::api::{Breadcrumb, FileEntry, ItemInput},
+        media::api::{DisplayPreview, MediaDerivative},
     },
     wire::{Manifest, Nullable},
 };
@@ -12,8 +13,11 @@ crate::wire_struct!(TimelineItem {
     file: FileEntry,
     preview_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(with = "crate::features::media::api::MediaDerivative")]
-    derivative: Option<crate::features::media::api::MediaDerivative>
+    #[schemars(with = "MediaDerivative")]
+    derivative: Option<MediaDerivative>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "DisplayPreview")]
+    display_preview: Option<DisplayPreview>
 });
 crate::wire_struct!(Timeline { items: Vec<TimelineItem>, breadcrumbs: Vec<Breadcrumb>, next_cursor: Nullable<String>, folder: Nullable<FileEntry> });
 crate::wire_struct!(LibraryInput {
@@ -27,13 +31,32 @@ crate::wire_struct!(LibraryItem {
     timeline_date: String,
     date_source: PhotoDateSource
 });
-crate::wire_struct!(PhotoLibrary { items: Vec<LibraryItem>, next_cursor: Nullable<String> });
+crate::wire_enum!(PreviewWorker { Available => "available", Unavailable => "unavailable" });
+crate::wire_struct!(PhotoLibrary {
+    items: Vec<LibraryItem>,
+    next_cursor: Nullable<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "PreviewWorker")]
+    preview_worker: Option<PreviewWorker>
+});
 crate::wire_struct!(PhotoCapture { local_date_time: String, offset_minutes: Nullable<i32> });
 crate::wire_struct!(PhotoLocation {
     latitude: f64,
     longitude: f64
 });
-crate::wire_struct!(PhotoDetails { capture: Nullable<PhotoCapture>, location: Nullable<PhotoLocation> });
+crate::wire_struct!(PhotoCamera { make: Nullable<String>, model: Nullable<String> });
+crate::wire_struct!(OriginalDimensions {
+    width: u32,
+    height: u32
+});
+crate::wire_struct!(PhotoDetails {
+    capture: Nullable<PhotoCapture>,
+    location: Nullable<PhotoLocation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    camera: Option<Nullable<PhotoCamera>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    original_dimensions: Option<Nullable<OriginalDimensions>>
+});
 crate::wire_struct!(Album {
     id: Id,
     name: Name,

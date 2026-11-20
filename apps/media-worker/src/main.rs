@@ -13,7 +13,9 @@ use axum::{
 };
 use futures_util::StreamExt;
 use hyori_media_worker::{
-    CAPTURE_HEADER, CAPTURE_PATH, ErrorBody, Failure, Format, MAX_INPUT, webp_dimensions,
+    CAPTURE_HEADER, CAPTURE_PATH, CAPTURE_VERSION, CAPTURE_VERSION_HEADER, DISPLAY_PATH, ErrorBody,
+    Failure, Format, MAX_INPUT, SAMPLED_PATH, SOURCE_SIZE_HEADER, VIDEO_SAMPLE_HEAD,
+    VIDEO_SAMPLE_TAIL, display_dimensions, webp_dimensions,
 };
 use std::{
     os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
@@ -21,7 +23,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncSeekExt, AsyncWriteExt, SeekFrom};
 
 struct Worker {
     admission: tokio::sync::Semaphore,
@@ -66,6 +68,8 @@ async fn process(
 }
 async fn derive(request: Request<Body>) -> Result<Response, Error> {
     let capture_only = request.uri().path() == CAPTURE_PATH;
+    let sample = request.uri().path() == SAMPLED_PATH;
+    let display = request.uri().path() == DISPLAY_PATH;
     let headers = request.headers();
     if headers.get_all("content-length").iter().count() != 1
         || headers.contains_key("transfer-encoding")
@@ -83,6 +87,23 @@ async fn derive(request: Request<Body>) -> Result<Response, Error> {
         .and_then(|v| v.to_str().ok())
         .and_then(Format::from_mime)
         .ok_or(Error(Failure::Unsupported.into()))?;
+    if display && !matches!(format, Format::Heic) {
+        return Err(Error(Failure::Unsupported.into()));
+    }
+    let source_size = if sample || (capture_only && headers.contains_key(SOURCE_SIZE_HEADER)) {
+        if !format.is_video() || length != VIDEO_SAMPLE_HEAD + VIDEO_SAMPLE_TAIL {
+            return Err(Error(Failure::InvalidMedia.into()));
+        }
+        Some(
+            headers
+                .get(SOURCE_SIZE_HEADER)
+                .and_then(|v| v.to_str().ok()?.parse::<u64>().ok())
+                .filter(|v| *v > MAX_INPUT && *v <= format.max_source())
+                .ok_or(Error(Failure::ResourceLimit.into()))?,
+        )
+    } else {
+        None
+    };
     let directory = tempfile::Builder::new()
         .prefix("media-")
         .tempdir_in("/scratch")?;
@@ -99,12 +120,25 @@ async fn derive(request: Request<Body>) -> Result<Response, Error> {
         .map_err(|_| Error(Failure::Timeout.into()))?
     {
         let chunk = chunk.map_err(|_| Error(Failure::InvalidMedia.into()))?;
+        let received = length - remaining;
         remaining = remaining
             .checked_sub(chunk.len() as u64)
             .ok_or(Error(Failure::ResourceLimit.into()))?;
         let copy = chunk.len().min(4096 - header.len());
         header.extend_from_slice(&chunk[..copy]);
-        file.write_all(&chunk).await?;
+        if let Some(total) = source_size
+            && received <= VIDEO_SAMPLE_HEAD
+            && length - remaining > VIDEO_SAMPLE_HEAD
+        {
+            let (head, tail) = chunk.split_at((VIDEO_SAMPLE_HEAD - received) as usize);
+            file.write_all(head).await?;
+            // Preserve container offsets for a trailing MP4/MOV index without filling the gap.
+            file.seek(SeekFrom::Start(total - VIDEO_SAMPLE_TAIL))
+                .await?;
+            file.write_all(tail).await?;
+        } else {
+            file.write_all(&chunk).await?;
+        }
     }
     if remaining != 0 || !format.accepts_header(&header) {
         return Err(Error(Failure::InvalidMedia.into()));
@@ -117,20 +151,33 @@ async fn derive(request: Request<Body>) -> Result<Response, Error> {
             .map_err(Error)?;
         return Ok(axum::Json(metadata).into_response());
     }
-    let (output, metadata) = decode::derive(directory.path(), format)
-        .await
-        .map_err(Error)?;
-    let (width, height) = webp_dimensions(&output).ok_or(Error(Failure::InvalidMedia.into()))?;
-    Response::builder()
+    let (output, metadata, dimensions) = if display {
+        let output = decode::heic_display(directory.path())
+            .await
+            .map_err(Error)?;
+        let dimensions = display_dimensions(&output);
+        (output, None, dimensions)
+    } else {
+        let (output, metadata) = decode::derive(directory.path(), format)
+            .await
+            .map_err(Error)?;
+        let dimensions = webp_dimensions(&output);
+        (output, Some(metadata), dimensions)
+    };
+    let (width, height) = dimensions.ok_or(Error(Failure::InvalidMedia.into()))?;
+    let mut response = Response::builder()
         .status(200)
         .header("content-type", "image/webp")
         .header("content-length", output.len())
         .header("x-hyori-width", width)
-        .header("x-hyori-height", height)
-        .header(
+        .header("x-hyori-height", height);
+    if let Some(metadata) = metadata {
+        response = response.header(
             CAPTURE_HEADER,
             serde_json::to_string(&metadata).map_err(|_| Error(Failure::Unavailable.into()))?,
-        )
+        );
+    }
+    response
         .header("cache-control", "no-store")
         .header("x-content-type-options", "nosniff")
         .body(Body::from(output))
@@ -166,9 +213,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app =
         Router::new()
             .route(hyori_media_worker::PATH, post(process))
+            .route(SAMPLED_PATH, post(process))
+            .route(DISPLAY_PATH, post(process))
             .route(
                 CAPTURE_PATH,
-                post(process).head(|| async { StatusCode::NO_CONTENT }),
+                post(process).head(|| async {
+                    (
+                        StatusCode::NO_CONTENT,
+                        [(CAPTURE_VERSION_HEADER, CAPTURE_VERSION.to_string())],
+                    )
+                }),
             )
             .route(
                 hyori_media_worker::DECODER_PATH,

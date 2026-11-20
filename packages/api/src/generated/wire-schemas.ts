@@ -155,6 +155,9 @@ export type DerivativeFailure = Contract.DerivativeFailure;
 export const DerivativeKind: z.ZodMiniType<Contract.DerivativeKind> = intersection(z.literal(["thumbnail","poster"]), z.string());
 export type DerivativeKind = Contract.DerivativeKind;
 
+export const DisplayPreview: z.ZodMiniType<Contract.DisplayPreview> = exclusiveUnion(z.object({ "status": intersection(z.literal("unavailable"), z.string()) }), z.object({ "status": intersection(z.literal("queued"), z.string()) }), z.object({ "status": intersection(z.literal("processing"), z.string()) }), z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(2560)), "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(2560)) }), z.object({ "status": intersection(z.literal("failed"), z.string()) }));
+export type DisplayPreview = Contract.DisplayPreview;
+
 export const Done: z.ZodMiniType<Contract.Done> = z.object({ "success": intersection(z.literal(true), z.boolean()) });
 export type Done = Contract.Done;
 
@@ -281,7 +284,7 @@ export type MediaDerivative = Contract.MediaDerivative;
 export const PhotoDateSource: z.ZodMiniType<Contract.PhotoDateSource> = intersection(z.literal(["capture","upload"]), z.string());
 export type PhotoDateSource = Contract.PhotoDateSource;
 
-export const LibraryItem: z.ZodMiniType<Contract.LibraryItem> = z.object({ "access": Access, "createdAt": z.string(), "dateSource": PhotoDateSource, "derivative": z.optional(MediaDerivative), "id": Id, "kind": FileKind, "mimeType": z.string(), "name": Name, "ownerId": Id, "parentId": z.union([Id, z.null()]), "previewUrl": z.string(), "size": Bytes, "timelineDate": z.string(), "trashedAt": z.union([z.string(), z.null()]), "updatedAt": z.string() });
+export const LibraryItem: z.ZodMiniType<Contract.LibraryItem> = z.object({ "access": Access, "createdAt": z.string(), "dateSource": PhotoDateSource, "derivative": z.optional(MediaDerivative), "displayPreview": z.optional(DisplayPreview), "id": Id, "kind": FileKind, "mimeType": z.string(), "name": Name, "ownerId": Id, "parentId": z.union([Id, z.null()]), "previewUrl": z.string(), "size": Bytes, "timelineDate": z.string(), "trashedAt": z.union([z.string(), z.null()]), "updatedAt": z.string() });
 export type LibraryItem = Contract.LibraryItem;
 
 export const ListFiles: z.ZodMiniType<Contract.ListFiles> = z.object({ "after": z.optional(Timestamp), "before": z.optional(Timestamp), "cursor": z.optional(z.union([z.string(), z.null()])), "limit": z.optional(z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(100))), "maxSize": z.optional(Bytes), "minSize": z.optional(Bytes), "parentId": z.optional(z.union([Id, z.null()])), "search": z.optional(z.string().check(z.refine((value) => Array.from(value).length <= 255))), "sort": z.optional(z.union([FileSort, z.null()])), "type": z.optional(z.string().check(z.refine((value) => Array.from(value).length <= 128))), "view": z.optional(FilesView) });
@@ -317,6 +320,9 @@ export type NoteList = Contract.NoteList;
 export const NoteListInput: z.ZodMiniType<Contract.NoteListInput> = z.object({ "cursor": z.optional(z.union([Id, z.null()])), "favorites": z.optional(z.boolean()), "search": z.optional(z.union([z.string().check(z.refine((value) => Array.from(value).length <= 255)), z.null()])), "trash": z.optional(z.boolean()) });
 export type NoteListInput = Contract.NoteListInput;
 
+export const OriginalDimensions: z.ZodMiniType<Contract.OriginalDimensions> = z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(0)), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(0)) });
+export type OriginalDimensions = Contract.OriginalDimensions;
+
 export const UserIdentity: z.ZodMiniType<Contract.UserIdentity> = z.object({ "email": z.string(), "id": Id, "name": z.string() });
 export type UserIdentity = Contract.UserIdentity;
 
@@ -350,16 +356,22 @@ export type PendingUploadsInput = Contract.PendingUploadsInput;
 export const PermanentDeletion: z.ZodMiniType<Contract.PermanentDeletion> = z.object({ "freedBytes": Bytes, "items": Bytes });
 export type PermanentDeletion = Contract.PermanentDeletion;
 
+export const PhotoCamera: z.ZodMiniType<Contract.PhotoCamera> = z.object({ "make": z.union([z.string(), z.null()]), "model": z.union([z.string(), z.null()]) });
+export type PhotoCamera = Contract.PhotoCamera;
+
 export const PhotoCapture: z.ZodMiniType<Contract.PhotoCapture> = z.object({ "localDateTime": z.string(), "offsetMinutes": z.union([z.int().check(z.gte(-2147483648), z.lte(2147483647)), z.null()]) });
 export type PhotoCapture = Contract.PhotoCapture;
 
 export const PhotoLocation: z.ZodMiniType<Contract.PhotoLocation> = z.object({ "latitude": z.number(), "longitude": z.number() });
 export type PhotoLocation = Contract.PhotoLocation;
 
-export const PhotoDetails: z.ZodMiniType<Contract.PhotoDetails> = z.object({ "capture": z.union([PhotoCapture, z.null()]), "location": z.union([PhotoLocation, z.null()]) });
+export const PhotoDetails: z.ZodMiniType<Contract.PhotoDetails> = z.object({ "camera": z.optional(z.union([PhotoCamera, z.null()])), "capture": z.union([PhotoCapture, z.null()]), "location": z.union([PhotoLocation, z.null()]), "originalDimensions": z.optional(z.union([OriginalDimensions, z.null()])) });
 export type PhotoDetails = Contract.PhotoDetails;
 
-export const PhotoLibrary: z.ZodMiniType<Contract.PhotoLibrary> = z.object({ "items": z.array(LibraryItem), "nextCursor": z.union([z.string(), z.null()]) });
+export const PreviewWorker: z.ZodMiniType<Contract.PreviewWorker> = intersection(z.literal(["available","unavailable"]), z.string());
+export type PreviewWorker = Contract.PreviewWorker;
+
+export const PhotoLibrary: z.ZodMiniType<Contract.PhotoLibrary> = z.object({ "items": z.array(LibraryItem), "nextCursor": z.union([z.string(), z.null()]), "previewWorker": z.optional(PreviewWorker) });
 export type PhotoLibrary = Contract.PhotoLibrary;
 
 export const PhotoSources: z.ZodMiniType<Contract.PhotoSources> = z.object({ "allMyFiles": z.boolean(), "folderIds": z.array(Id).check(z.maxLength(100)) });
@@ -413,7 +425,7 @@ export type SharesList = Contract.SharesList;
 export const SharesListInput: z.ZodMiniType<Contract.SharesListInput> = z.object({ "itemId": Id });
 export type SharesListInput = Contract.SharesListInput;
 
-export const TimelineItem: z.ZodMiniType<Contract.TimelineItem> = z.object({ "access": Access, "createdAt": z.string(), "derivative": z.optional(MediaDerivative), "id": Id, "kind": FileKind, "mimeType": z.string(), "name": Name, "ownerId": Id, "parentId": z.union([Id, z.null()]), "previewUrl": z.string(), "size": Bytes, "trashedAt": z.union([z.string(), z.null()]), "updatedAt": z.string() });
+export const TimelineItem: z.ZodMiniType<Contract.TimelineItem> = z.object({ "access": Access, "createdAt": z.string(), "derivative": z.optional(MediaDerivative), "displayPreview": z.optional(DisplayPreview), "id": Id, "kind": FileKind, "mimeType": z.string(), "name": Name, "ownerId": Id, "parentId": z.union([Id, z.null()]), "previewUrl": z.string(), "size": Bytes, "trashedAt": z.union([z.string(), z.null()]), "updatedAt": z.string() });
 export type TimelineItem = Contract.TimelineItem;
 
 export const Timeline: z.ZodMiniType<Contract.Timeline> = z.object({ "breadcrumbs": z.array(Breadcrumb), "folder": z.union([FileEntry, z.null()]), "items": z.array(TimelineItem), "nextCursor": z.union([z.string(), z.null()]) });

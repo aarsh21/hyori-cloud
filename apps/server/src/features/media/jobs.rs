@@ -7,9 +7,14 @@ use crate::{
         files::{db::Item, preview::MEDIA},
         media::service,
     },
+    media_worker::WorkerInput,
 };
-use hyori_media_worker::{ErrorBody, Failure, RECIPE, Reason, png_dimensions, webp_dimensions};
-use hyori_storage::{Bytes, PartRef};
+use futures_util::StreamExt;
+use hyori_media_worker::{
+    DISPLAY_RECIPE, ErrorBody, Failure, Format, MAX_INPUT, RECIPE, Reason, VIDEO_SAMPLE_HEAD,
+    VIDEO_SAMPLE_TAIL, display_dimensions, png_dimensions, webp_dimensions,
+};
+use hyori_storage::{Bytes, ObjectStorage, PartRef};
 use sea_orm::{ConnectionTrait, QueryResult};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
@@ -20,6 +25,7 @@ struct Job {
     source: String,
     size: i64,
     mime: String,
+    recipe: i32,
     token: String,
     attempts: i32,
     upgrade_retry: bool,
@@ -33,6 +39,7 @@ impl Job {
             source: row.try_get("", "source_key")?,
             size: row.try_get("", "source_size")?,
             mime: row.try_get("", "source_mime")?,
+            recipe: row.try_get("", "recipe")?,
             token: row.try_get("", "lease_token")?,
             attempts: row.try_get("", "attempts")?,
             upgrade_retry: row.try_get("", "upgrade_retry")?,
@@ -87,16 +94,17 @@ async fn discover(state: &Arc<AppState>) -> Result<(), ApiError> {
     let candidates = state.db.query_all_raw(sql("SELECT i.id FROM hyori_items i
         WHERE i.id>$3 AND i.id<=$4 AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
         AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
-        AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
-        ORDER BY i.id",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.clone().into(),last.clone().into()])).await?
+        AND (NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
+             OR (i.mime_type IN ('image/heic','image/heif') AND NOT EXISTS(
+                 SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$5)))
+        ORDER BY i.id",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),after.clone().into(),last.clone().into(),DISPLAY_RECIPE.into()])).await?
         .into_iter().map(|row| row.try_get::<String>("", "id")).collect::<Result<Vec<_>, _>>()?;
     if !candidates.is_empty() {
         db::domain(&state.db,|tx|{let ids=serde_json::json!(candidates);Box::pin(async move {
             let items=tx.query_all_raw(sql("SELECT i.* FROM hyori_items i JOIN hyori_users u ON u.id=i.owner_id AND u.status='active'
-                WHERE i.id IN (SELECT jsonb_array_elements_text($3::jsonb)) AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
+                WHERE i.id IN (SELECT jsonb_array_elements_text($2::jsonb)) AND i.kind='file' AND i.trashed_at IS NULL AND i.object_key IS NOT NULL
                 AND i.mime_type IN (SELECT jsonb_array_elements_text($1::jsonb))
-                AND NOT EXISTS(SELECT 1 FROM hyori_media_jobs j WHERE j.source_key=i.object_key AND j.recipe=$2)
-                ORDER BY i.id FOR KEY SHARE OF u",vec![serde_json::json!(MEDIA).into(),RECIPE.into(),ids.into()])).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
+                ORDER BY i.id FOR KEY SHARE OF u",vec![serde_json::json!(MEDIA).into(),ids.into()])).await?.into_iter().map(Item::from_row).collect::<DomainResult<Vec<_>>>()?;
             service::enqueue_many(tx,&items).await?;
             Ok(())
         })}).await?;
@@ -229,20 +237,84 @@ async fn process_derivative(state: &Arc<AppState>) -> Result<bool, ApiError> {
     }
     Ok(true)
 }
+pub(super) async fn read_source(
+    storage: &ObjectStorage,
+    key: &str,
+    mime: &str,
+    size: u64,
+    length: u64,
+) -> Result<WorkerInput, ErrorBody> {
+    let format = Format::from_mime(mime).ok_or(Failure::Unsupported)?;
+    if size == 0 || size > format.max_source() {
+        return Err(Failure::ResourceLimit.into());
+    }
+    if size > MAX_INPUT {
+        // The worker receives just two immutable ranges, with their original offsets implicit.
+        // WebM normally needs the head; MOV/MP4 can carry the index at either end.
+        let head = storage
+            .read(key, Some(&format!("bytes=0-{}", VIDEO_SAMPLE_HEAD - 1)))
+            .await
+            .map_err(|_| Failure::Unavailable)?;
+        let tail = storage
+            .read(
+                key,
+                Some(&format!("bytes={}-{}", size - VIDEO_SAMPLE_TAIL, size - 1)),
+            )
+            .await
+            .map_err(|_| Failure::Unavailable)?;
+        if head.size != VIDEO_SAMPLE_HEAD
+            || tail.size != VIDEO_SAMPLE_TAIL
+            || [head.content_range, tail.content_range]
+                .iter()
+                .any(|range| {
+                    range
+                        .as_deref()
+                        .and_then(|range| range.rsplit_once('/'))
+                        .and_then(|(_, size)| size.parse::<u64>().ok())
+                        != Some(size)
+                })
+        {
+            return Err(Failure::Unavailable.into());
+        }
+        return Ok(WorkerInput {
+            size: VIDEO_SAMPLE_HEAD + VIDEO_SAMPLE_TAIL,
+            body: Box::pin(head.body.chain(tail.body)),
+            sampled_source_size: Some(size),
+        });
+    }
+    let range = (length < size).then(|| format!("bytes=0-{}", length - 1));
+    let source = storage
+        .read(key, range.as_deref())
+        .await
+        .map_err(|_| Failure::Unavailable)?;
+    if source.size != length {
+        return Err(Failure::Unavailable.into());
+    }
+    Ok(WorkerInput {
+        size: length,
+        body: source.body,
+        sampled_source_size: None,
+    })
+}
+
 async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), ErrorBody> {
     let storage = state.storage.as_ref().ok_or(Failure::Unavailable)?;
     let worker = state.media_worker.as_ref().ok_or(Failure::Unavailable)?;
-    let source = storage
-        .read(&job.source, None)
-        .await
-        .map_err(|_| Failure::Unavailable)?;
-    if source.size != job.size as u64 {
-        return Err(Failure::InvalidMedia.into());
-    }
+    let source = read_source(
+        storage,
+        &job.source,
+        &job.mime,
+        job.size as u64,
+        job.size as u64,
+    )
+    .await?;
+    let display = job.recipe == DISPLAY_RECIPE;
     let (bytes, mime, capture) = worker
-        .derive(&job.mime, source.size, source.body, job.revision.as_deref())
+        .derive(&job.mime, source, job.revision.as_deref(), display)
         .await?;
-    let (width, height) = if mime == "image/webp" {
+    let (width, height) = if display {
+        display_dimensions(&bytes)
+    } else if mime == "image/webp" {
         webp_dimensions(&bytes)
     } else {
         png_dimensions(&bytes)
@@ -254,7 +326,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), ErrorBody> {
     let key = format!("owners/{}/derivatives/{artifact}{extension}", job.owner);
     db::domain(&state.db,|tx|{let (job,artifact,key)=(job.clone(),artifact.clone(),key.clone());Box::pin(async move {
         current(tx,&job).await?;
-        tx.execute_raw(sql("INSERT INTO hyori_media_artifacts(id,job_id,owner_id,object_key,state) VALUES ($1,$2,$3,$4,'starting')",vec![artifact.into(),job.id.into(),job.owner.into(),key.into()])).await?;
+        tx.execute_raw(sql("INSERT INTO hyori_media_artifacts(id,job_id,owner_id,object_key,state,recipe) VALUES ($1,$2,$3,$4,'starting',$5)",vec![artifact.into(),job.id.into(),job.owner.into(),key.into(),job.recipe.into()])).await?;
         Ok(())
     })}).await.map_err(|_|Failure::Unavailable)?;
     let publish=async {
@@ -264,7 +336,7 @@ async fn process(state: &Arc<AppState>, job: &Job) -> Result<(), ErrorBody> {
         let size=bytes.len() as u64;
         let etag=storage.part(&key,&multipart,1,size,Box::pin(futures_util::stream::once(async move{Ok(Bytes::from(bytes))}))).await.map_err(|_|Failure::Unavailable)?;
         storage.complete(&key,&multipart,&[PartRef{part_number:1,etag}],size).await.map_err(|_|Failure::Unavailable)?;
-        db::domain(&state.db,|tx|{let (job,artifact)=(job.clone(),artifact.clone());Box::pin(async move {
+        db::domain(&state.db,|tx|{let (job,artifact,capture)=(job.clone(),artifact.clone(),capture.clone());Box::pin(async move {
             current(tx,&job).await?;
             let changed=tx.execute_raw(sql("UPDATE hyori_media_artifacts SET state='ready',size=$2,width=$3,height=$4,cleanup_due=now(),clean_checks=0 WHERE id=$1 AND state='starting'",vec![artifact.clone().into(),(size as i64).into(),(width as i32).into(),(height as i32).into()])).await?;
             if changed.rows_affected()!=1 {return Err(ApiError::conflict().into());}

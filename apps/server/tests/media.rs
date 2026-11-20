@@ -302,8 +302,9 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
         assert_eq!(response.status(), 200);
         assert_eq!(
             response.json::<Value>().await.unwrap(),
-            json!({"time":{"local":"2018-07-04T23:32:10","offset_minutes":null},
-                   "location":{"latitude":-33.75,"longitude":151.125}}),
+            json!({"version":2,"time":{"local":"2018-07-04T23:32:10","offset_minutes":null},
+                   "location":{"latitude":-33.75,"longitude":151.125},"camera":null,
+                   "dimensions":{"width":16,"height":16}}),
         );
     }
     let oriented = include_bytes!("fixtures/media/oriented.jpg");
@@ -327,10 +328,6 @@ async fn isolated_worker_decodes_eight_formats_strips_metadata_and_enforces_boun
         (
             "image/png",
             include_bytes!("fixtures/media/over-pixels.png").as_slice(),
-        ),
-        (
-            "video/mp4",
-            include_bytes!("fixtures/media/over-duration.mp4").as_slice(),
         ),
     ] {
         let response = client

@@ -36,14 +36,21 @@ fn main() {
                     item.ident.to_string().as_str(),
                     "MAX_INPUT"
                         | "MAX_OUTPUT"
+                        | "MAX_DISPLAY_OUTPUT"
                         | "MAX_PIXELS"
-                        | "MAX_DURATION"
+                        | "VIDEO_SAMPLE_HEAD"
+                        | "VIDEO_SAMPLE_TAIL"
+                        | "MAX_VIDEO_SIZE"
                         | "CAPTURE_IMAGE_PREFIX"
                         | "EDGE"
+                        | "DISPLAY_EDGE"
                 ),
                 syn::Item::Enum(item) => item.ident == "Format",
                 syn::Item::Impl(item) => item.self_ty.to_token_stream().to_string() == "Format",
-                syn::Item::Fn(item) => item.sig.ident == "webp_dimensions",
+                syn::Item::Fn(item) => matches!(
+                    item.sig.ident.to_string().as_str(),
+                    "webp_dimensions" | "display_dimensions" | "webp_dimensions_within"
+                ),
                 _ => false,
             });
         }

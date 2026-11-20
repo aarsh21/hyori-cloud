@@ -1212,6 +1212,11 @@ async fn notes_migration_preserves_populated_candidate_database_and_is_repeatabl
         "photo_latitude",
         "photo_longitude",
         "photo_probe_due",
+        "photo_camera_make",
+        "photo_camera_model",
+        "photo_width",
+        "photo_height",
+        "photo_probe_version",
     ] {
         assert!(item.remove(added).is_some());
     }
@@ -1234,8 +1239,9 @@ async fn notes_migration_preserves_populated_candidate_database_and_is_repeatabl
     assert!(applied.contains(&24));
     assert!(applied.contains(&25));
     assert!(applied.contains(&29));
+    assert!(applied.contains(&30));
     println!(
-        "MIGRATION populated 0020 -> 0029 twice: existing users, items, versions and shares unchanged"
+        "MIGRATION populated 0020 -> 0030 twice: existing users, items, versions and shares unchanged"
     );
     pg.stop();
 }

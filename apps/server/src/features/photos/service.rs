@@ -6,9 +6,13 @@ use crate::{
     features::{
         auth::api::{Done, Id, Name},
         files::{db::Item, policy, preview::preview_url, service::FilesService},
-        media::{api::MediaDerivative, service::describe_page},
+        media::{
+            api::{DisplayPreview, MediaDerivative},
+            service::{describe_display_page, describe_page},
+        },
         photos::{api::*, db},
     },
+    media_worker::WorkerClient,
     rpc::RequestContext,
     wire::Nullable,
 };
@@ -32,18 +36,18 @@ const VISIBLE: &str = "(i.owner_id=$1 OR i.id=ANY(ARRAY(SELECT item_id FROM elig
 const TIMELINE_ORDER: &str = "ORDER BY i.created_at DESC,i.id DESC LIMIT 101";
 // Literal predicates allow PostgreSQL to prove the partial index applies to prepared statements.
 const LIBRARY_MEDIA: &str = "kind='file' AND trashed_at IS NULL AND object_key IS NOT NULL AND mime_type IN
-    ('image/jpeg','image/png','image/webp','image/gif','image/avif','video/mp4','video/webm','video/quicktime')";
+    ('image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic','image/heif','video/mp4','video/webm','video/quicktime')";
 const LIBRARY_TIME: &str = "coalesce(photo_taken_at, created_at AT TIME ZONE 'UTC')";
 
 pub(crate) struct PhotosService {
     files: FilesService,
-    media_enabled: bool,
+    worker: Option<WorkerClient>,
 }
 impl PhotosService {
     pub fn new(state: &Arc<AppState>, context: RequestContext) -> Self {
         Self {
             files: FilesService::new(state, context),
-            media_enabled: state.media_worker.is_some(),
+            worker: state.media_worker.clone(),
         }
     }
     pub async fn sources(&self) -> Result<PhotoSources, ApiError> {
@@ -70,8 +74,8 @@ impl PhotosService {
     }
     pub async fn library(&self, input: LibraryInput) -> Result<PhotoLibrary, ApiError> {
         let cursor = library_cursor(input.cursor.as_ref().and_then(|value| value.0.as_deref()))?;
-        let media_enabled = self.media_enabled;
-        self.files.run(move |tx, actor| {
+        let media_enabled = self.worker.is_some();
+        let mut page = self.files.run(move |tx, actor| {
             let cursor = cursor.clone();
             Box::pin(async move {
                 let mut values = vec![actor.require_user()?.into()];
@@ -106,16 +110,23 @@ impl PhotosService {
                 }
                 // Ownership is the scope; incoming share-role resolution is neither needed nor used.
                 let derivatives = describe_page(tx, &items, media_enabled).await?;
+                let displays = describe_display_page(tx, &items, media_enabled).await?;
                 Ok(PhotoLibrary {
-                    items: items.iter().zip(derivatives).zip(dates).map(|((item, derivative), (date, captured))| LibraryItem {
-                        item: timeline_item(item, &actor, derivative),
+                    items: items.iter().zip(derivatives).zip(displays).zip(dates).map(|(((item, derivative), display), (date, captured))| LibraryItem {
+                        item: timeline_item(item, &actor, derivative, display),
                         timeline_date: date.to_string(),
                         date_source: if captured { PhotoDateSource::Capture } else { PhotoDateSource::Upload },
                     }).collect(),
                     next_cursor: Nullable(next_cursor),
+                    preview_worker: None,
                 })
             })
-        }).await
+        }).await?;
+        page.preview_worker = Some(match &self.worker {
+            Some(worker) if worker.available().await => PreviewWorker::Available,
+            _ => PreviewWorker::Unavailable,
+        });
+        Ok(page)
     }
     pub async fn details(&self, id: Id) -> Result<PhotoDetails, ApiError> {
         self.files
@@ -125,7 +136,8 @@ impl PhotosService {
                     let row = tx
                         .query_one_raw(sql(
                             &format!(
-                    "SELECT photo_taken_at,photo_offset_minutes,photo_latitude,photo_longitude
+                    "SELECT photo_taken_at,photo_offset_minutes,photo_latitude,photo_longitude,
+                            photo_camera_make,photo_camera_model,photo_width,photo_height
                      FROM hyori_items WHERE owner_id=$1 AND id=$2 AND {LIBRARY_MEDIA}"),
                             vec![actor.require_user()?.into(), id.into()],
                         ))
@@ -135,6 +147,10 @@ impl PhotosService {
                     let offset = row.try_get("", "photo_offset_minutes")?;
                     let latitude: Option<f64> = row.try_get("", "photo_latitude")?;
                     let longitude: Option<f64> = row.try_get("", "photo_longitude")?;
+                    let make: Option<String> = row.try_get("", "photo_camera_make")?;
+                    let model: Option<String> = row.try_get("", "photo_camera_model")?;
+                    let width: Option<i32> = row.try_get("", "photo_width")?;
+                    let height: Option<i32> = row.try_get("", "photo_height")?;
                     Ok(PhotoDetails {
                         capture: Nullable(time.map(|time| PhotoCapture {
                             local_date_time: time.format("%Y-%m-%dT%H:%M:%S%.f").to_string(),
@@ -146,6 +162,18 @@ impl PhotosService {
                                 longitude,
                             }
                         })),
+                        camera: Some(Nullable((make.is_some() || model.is_some()).then_some(
+                            PhotoCamera {
+                                make: Nullable(make),
+                                model: Nullable(model),
+                            },
+                        ))),
+                        original_dimensions: Some(Nullable(width.zip(height).map(
+                            |(width, height)| OriginalDimensions {
+                                width: width as u32,
+                                height: height as u32,
+                            },
+                        ))),
                     })
                 })
             })
@@ -153,7 +181,7 @@ impl PhotosService {
     }
     pub async fn timeline(&self, input: TimelineInput) -> Result<Timeline, ApiError> {
         let cursor = timeline_cursor(input.cursor.as_ref().and_then(|value| value.0.as_deref()))?;
-        let media_enabled = self.media_enabled;
+        let media_enabled = self.worker.is_some();
         self.files
             .run(move |tx, actor| {
                 let input = input.clone();
@@ -189,11 +217,15 @@ impl PhotosService {
                     rows.truncate(100);
                     policy::load_roles(tx, &actor, &mut rows).await?;
                     let derivatives = describe_page(tx, &rows, media_enabled).await?;
+                    let displays = describe_display_page(tx, &rows, media_enabled).await?;
                     Ok(Timeline {
                         items: rows
                             .iter()
                             .zip(derivatives)
-                            .map(|(item, derivative)| timeline_item(item, &actor, derivative))
+                            .zip(displays)
+                            .map(|((item, derivative), display)| {
+                                timeline_item(item, &actor, derivative, display)
+                            })
                             .collect(),
                         next_cursor: Nullable(next_cursor),
                         breadcrumbs: vec![],
@@ -249,11 +281,13 @@ fn timeline_item(
     item: &Item,
     actor: &policy::ProductActor,
     derivative: MediaDerivative,
+    display_preview: Option<DisplayPreview>,
 ) -> TimelineItem {
     TimelineItem {
         file: policy::project(item, actor),
         preview_url: preview_url(&item.id, None, item.revision),
         derivative: Some(derivative),
+        display_preview,
     }
 }
 enum TimelineScope<'a> {

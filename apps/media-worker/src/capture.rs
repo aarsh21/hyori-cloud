@@ -1,23 +1,18 @@
 use chrono::{DateTime, NaiveDateTime};
 use exif::{Exif, In, Tag, Value};
-use hyori_media_worker::{CAPTURE_IMAGE_PREFIX, CaptureLocation, CaptureMetadata, CaptureTime};
+use hyori_media_worker::{CaptureCamera, CaptureLocation, CaptureMetadata, CaptureTime};
 use serde::Deserialize;
 use std::{io::Cursor, path::Path};
 use tokio::io::AsyncReadExt;
 
-// Bound parser input even for a large original. A tag beyond this prefix is treated as missing.
-pub async fn image(directory: &Path) -> CaptureMetadata {
+// For HEIC the EXIF item can come after the image data. The caller bounds the bytes read.
+pub async fn image(directory: &Path, limit: u64) -> (CaptureMetadata, bool) {
     let Ok(file) = tokio::fs::File::open(directory.join("source")).await else {
-        return CaptureMetadata::default();
+        return Default::default();
     };
     let mut bytes = Vec::new();
-    if file
-        .take(CAPTURE_IMAGE_PREFIX)
-        .read_to_end(&mut bytes)
-        .await
-        .is_err()
-    {
-        return CaptureMetadata::default();
+    if file.take(limit).read_to_end(&mut bytes).await.is_err() {
+        return Default::default();
     }
     // Writers such as piexif omit the next-directory offset in EXIF/GPS subdirectories.
     // Keep fields the parser validated before recoverable errors without reading raw tags ourselves.
@@ -26,7 +21,7 @@ pub async fn image(directory: &Path) -> CaptureMetadata {
         .read_from_container(&mut Cursor::new(bytes))
         .or_else(|error| error.distill_partial_result(|_| {}))
     else {
-        return CaptureMetadata::default();
+        return Default::default();
     };
     let time = ascii(&exif, Tag::DateTimeOriginal)
         .and_then(|date| NaiveDateTime::parse_from_str(date, "%Y:%m:%d %H:%M:%S").ok())
@@ -46,7 +41,23 @@ pub async fn image(directory: &Path) -> CaptureMetadata {
             latitude,
             longitude,
         });
-    CaptureMetadata { time, location }.validated()
+    let rotates = exif
+        .get_field(Tag::Orientation, In::PRIMARY)
+        .and_then(|field| field.value.get_uint(0))
+        .is_some_and(|value| (5..=8).contains(&value));
+    let camera = Some(CaptureCamera {
+        make: ascii(&exif, Tag::Make).map(str::to_owned),
+        model: ascii(&exif, Tag::Model).map(str::to_owned),
+    });
+    (
+        CaptureMetadata {
+            time,
+            location,
+            camera,
+            ..Default::default()
+        },
+        rotates,
+    )
 }
 
 fn ascii(exif: &Exif, tag: Tag) -> Option<&str> {
@@ -108,10 +119,14 @@ pub struct VideoTags {
     #[serde(rename = "com.apple.quicktime.location.ISO6709")]
     quicktime_location: Option<String>,
     location: Option<String>,
+    #[serde(rename = "com.apple.quicktime.make")]
+    make: Option<String>,
+    #[serde(rename = "com.apple.quicktime.model")]
+    model: Option<String>,
 }
 
 impl VideoTags {
-    pub fn normalized(&self) -> CaptureMetadata {
+    pub fn metadata(self) -> CaptureMetadata {
         let time = self
             .quicktime_date
             .as_deref()
@@ -122,7 +137,15 @@ impl VideoTags {
             .as_deref()
             .and_then(iso6709)
             .or_else(|| self.location.as_deref().and_then(iso6709));
-        CaptureMetadata { time, location }.validated()
+        CaptureMetadata {
+            time,
+            location,
+            camera: Some(CaptureCamera {
+                make: self.make,
+                model: self.model,
+            }),
+            ..Default::default()
+        }
     }
 }
 

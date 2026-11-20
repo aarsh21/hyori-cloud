@@ -5,14 +5,20 @@ use std::{
     process::Command,
 };
 
-/// Decoder tokens plus the actual FFmpeg executables and their transitive shared libraries.
+/// Decoder tokens plus the installed decoder executables, HEVC plugin and shared libraries.
 /// Neither package-ledger noise nor image IDs/timestamps participate. Stream library bytes so
 /// startup remains bounded in the isolated worker's memory budget.
 pub fn fingerprint() -> io::Result<String> {
     let mut hash = Sha256::new();
     hash.update(env!("HYORI_DECODER_SOURCE"));
     let mut files = BTreeSet::new();
-    for binary in ["/usr/bin/ffprobe", "/usr/bin/ffmpeg"] {
+    for binary in [
+        "/usr/bin/ffprobe",
+        "/usr/bin/ffmpeg",
+        "/usr/bin/vips",
+        "/usr/bin/vipsheader",
+        "/usr/share/hyori-media/libheif-hevc.so",
+    ] {
         files.insert(binary.to_owned());
         let linked = Command::new("/usr/bin/ldd")
             .arg(binary)

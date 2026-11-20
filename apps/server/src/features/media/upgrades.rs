@@ -1,5 +1,5 @@
 use crate::{AppState, db::sql, error::ApiError};
-use hyori_media_worker::RECIPE;
+use hyori_media_worker::{DISPLAY_RECIPE, RECIPE};
 use sea_orm::ConnectionTrait;
 
 /// A transport failure, busy worker or lost lease says nothing about the input's decodability.
@@ -23,7 +23,7 @@ pub(crate) async fn requeue_page(
     revision: &str,
 ) -> Result<(), ApiError> {
     state.db.execute_raw(sql("WITH candidates AS (
-        SELECT j.id FROM hyori_items i JOIN hyori_media_jobs j ON j.source_key=i.object_key AND j.recipe=$3
+        SELECT j.id FROM hyori_items i JOIN hyori_media_jobs j ON j.source_key=i.object_key AND j.recipe IN ($3,$5)
         WHERE i.id>$1 AND i.id<=$2 AND i.trashed_at IS NULL
           AND (j.state IN ('failed','unsupported') OR (j.state='queued' AND (j.upgrade_retry OR j.upgrade_failures>0)))
           AND (j.decoder_revision IS DISTINCT FROM $4
@@ -33,6 +33,6 @@ pub(crate) async fn requeue_page(
     ) UPDATE hyori_media_jobs j SET state='queued',attempts=0,upgrade_failures=0,failure=NULL,failure_detail=NULL,
         decoder_revision=$4,upgrade_retry=true,due_at=now(),deferred=false,lease_token=NULL,lease_until=NULL
         FROM candidates c WHERE j.id=c.id",
-        vec![after.into(),last.into(),RECIPE.into(),revision.into()])).await?;
+        vec![after.into(),last.into(),RECIPE.into(),revision.into(),DISPLAY_RECIPE.into()])).await?;
     Ok(())
 }

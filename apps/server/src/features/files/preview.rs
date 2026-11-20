@@ -20,12 +20,14 @@ use axum::{
 use futures_util::StreamExt;
 use std::{sync::Arc, time::Duration};
 
-pub(crate) const MEDIA: [&str; 8] = [
+pub(crate) const MEDIA: [&str; 10] = [
     "image/jpeg",
     "image/png",
     "image/webp",
     "image/gif",
     "image/avif",
+    "image/heic",
+    "image/heif",
     "video/mp4",
     "video/webm",
     "video/quicktime",
@@ -127,12 +129,14 @@ pub(crate) async fn get(
     .await
 }
 
-/// The type actually served inline. A declared media type must still sniff to that exact type; a
+/// The type actually served inline. A declared media type must match the detected media; a
 /// PDF or text document serves as the format Quick preview renders, never as markup. Anything the
 /// app has no renderer for — HTML, SVG, executable bytes — fails closed to a download.
 fn inline_mime(declared: &str, bytes: &[u8], size: u64) -> Option<&'static str> {
     if MEDIA.contains(&declared) {
-        return detected_type(bytes, size).filter(|mime| *mime == declared);
+        return detected_type(bytes, size).filter(|mime| {
+            *mime == declared || (*mime == "image/heic" && declared == "image/heif")
+        });
     }
     if (declared == "application/pdf" || declared == "application/octet-stream")
         && bytes.starts_with(PDF_MAGIC)
@@ -183,6 +187,9 @@ fn detected_type(bytes: &[u8], size: u64) -> Option<&'static str> {
             return None;
         }
         let major = &bytes[8..12];
+        if hyori_media_worker::Format::Heic.accepts_header(bytes) {
+            return Some("image/heic");
+        }
         if matches!(major, b"avif" | b"avis")
             || bytes[16..length]
                 .as_chunks::<4>()
@@ -364,6 +371,7 @@ mod tests {
     fn bmff_distinguishes_avif_quicktime_and_mp4() {
         for (brand, mime) in [
             (b"avif", "image/avif"),
+            (b"heic", "image/heic"),
             (b"qt  ", "video/quicktime"),
             (b"isom", "video/mp4"),
         ] {

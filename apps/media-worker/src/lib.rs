@@ -5,23 +5,49 @@ mod diagnostics;
 pub use diagnostics::{Diagnostic, Reason, Stage, rejection_reason};
 use serde::{Deserialize, Serialize};
 pub const PATH: &str = "/v1/derive";
+pub const SAMPLED_PATH: &str = "/v1/derive-sampled";
+pub const DISPLAY_PATH: &str = "/v1/derive-heic-display";
 pub const DECODER_PATH: &str = "/v1/decoder";
 pub const CAPTURE_PATH: &str = "/v1/capture";
 pub const CAPTURE_HEADER: &str = "x-hyori-capture";
-pub const MAX_CAPTURE: usize = 512;
+pub const CAPTURE_VERSION_HEADER: &str = "x-hyori-capture-version";
+pub const CAPTURE_VERSION: u8 = 2;
+pub const SOURCE_SIZE_HEADER: &str = "x-hyori-source-size";
+pub const MAX_CAPTURE: usize = 1024;
 pub const CAPTURE_IMAGE_PREFIX: u64 = 1024 * 1024;
 pub const MAX_INPUT: u64 = 64 * 1024 * 1024;
+pub const VIDEO_SAMPLE_HEAD: u64 = 32 * 1024 * 1024;
+pub const VIDEO_SAMPLE_TAIL: u64 = 16 * 1024 * 1024;
+pub const MAX_VIDEO_SIZE: u64 = 80 * 1024 * 1024 * 1024;
 pub const MAX_OUTPUT: usize = 256 * 1024;
+pub const MAX_DISPLAY_OUTPUT: usize = 2 * 1024 * 1024;
 pub const MAX_PIXELS: u64 = 40_000_000;
-pub const MAX_DURATION: f64 = 120.0;
 pub const EDGE: u32 = 384;
 pub const RECIPE: i32 = 1;
+pub const DISPLAY_EDGE: u32 = 2560;
+pub const DISPLAY_RECIPE: i32 = 2;
 
 /// Only normalized fields cross the worker boundary. No raw EXIF/format tags are returned.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CaptureMetadata {
+    #[serde(default)]
+    pub version: u8,
     pub time: Option<CaptureTime>,
     pub location: Option<CaptureLocation>,
+    pub camera: Option<CaptureCamera>,
+    pub dimensions: Option<CaptureDimensions>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CaptureCamera {
+    pub make: Option<String>,
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct CaptureDimensions {
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -47,6 +73,19 @@ impl CaptureMetadata {
         }
         self.location = self.location.filter(|point| {
             (-90.0..=90.0).contains(&point.latitude) && (-180.0..=180.0).contains(&point.longitude)
+        });
+        self.camera = self.camera.and_then(|camera| {
+            let clean = |value: Option<String>| {
+                let value = value.as_deref()?.trim();
+                (!value.is_empty() && value.len() <= 80 && !value.chars().any(char::is_control))
+                    .then(|| value.to_owned())
+            };
+            let make = clean(camera.make);
+            let model = clean(camera.model);
+            (make.is_some() || model.is_some()).then_some(CaptureCamera { make, model })
+        });
+        self.dimensions = self.dimensions.filter(|size| {
+            size.width > 0 && size.height > 0 && size.width <= 65535 && size.height <= 65535
         });
         self
     }
@@ -76,6 +115,7 @@ pub enum Format {
     Webp,
     Gif,
     Avif,
+    Heic,
     Mp4,
     Webm,
     Quicktime,
@@ -88,6 +128,7 @@ impl Format {
             "image/webp" => Self::Webp,
             "image/gif" => Self::Gif,
             "image/avif" => Self::Avif,
+            "image/heic" | "image/heif" => Self::Heic,
             "video/mp4" => Self::Mp4,
             "video/webm" => Self::Webm,
             "video/quicktime" => Self::Quicktime,
@@ -100,12 +141,19 @@ impl Format {
             Self::Png => "png_pipe",
             Self::Webp => "webp_pipe",
             Self::Gif => "gif",
-            Self::Avif | Self::Mp4 | Self::Quicktime => "mov",
+            Self::Avif | Self::Heic | Self::Mp4 | Self::Quicktime => "mov",
             Self::Webm => "matroska",
         }
     }
     pub fn is_video(self) -> bool {
         matches!(self, Self::Mp4 | Self::Webm | Self::Quicktime)
+    }
+    pub fn max_source(self) -> u64 {
+        if self.is_video() {
+            MAX_VIDEO_SIZE
+        } else {
+            MAX_INPUT
+        }
     }
     pub fn accepts_header(self, b: &[u8]) -> bool {
         match self {
@@ -116,7 +164,7 @@ impl Format {
             Self::Webm => {
                 b.starts_with(b"\x1a\x45\xdf\xa3") && b.windows(7).any(|w| w == b"\x42\x82\x84webm")
             }
-            Self::Avif | Self::Mp4 | Self::Quicktime => {
+            Self::Avif | Self::Heic | Self::Mp4 | Self::Quicktime => {
                 if b.get(4..8) != Some(b"ftyp") {
                     return false;
                 }
@@ -128,14 +176,14 @@ impl Format {
                     return false;
                 }
                 let major = &b[8..12];
+                let compatible = b[16..len].as_chunks::<4>().0;
                 let avif = matches!(major, b"avif" | b"avis")
-                    || b[16..len]
-                        .as_chunks::<4>()
-                        .0
-                        .iter()
-                        .any(|v| matches!(v, b"avif" | b"avis"));
+                    || compatible.iter().any(|v| matches!(v, b"avif" | b"avis"));
+                let hev = |brand: &[u8]| matches!(brand, b"heic" | b"heix" | b"heim" | b"heis");
+                let heic = hev(major) || (major == b"mif1" && compatible.iter().any(|v| hev(v)));
                 match self {
-                    Self::Avif => avif,
+                    Self::Avif => avif && !heic,
+                    Self::Heic => heic && !avif,
                     Self::Quicktime => !avif && major == b"qt  ",
                     Self::Mp4 => {
                         !avif
@@ -162,7 +210,15 @@ impl Format {
 /// The RIFF length, VP8 partition envelope, signature and unscaled geometry are all checked;
 /// animation, lossless, extended headers, metadata, additional chunks and trailing bytes are refused.
 pub fn webp_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
-    if bytes.len() > MAX_OUTPUT
+    webp_dimensions_within(bytes, EDGE, MAX_OUTPUT)
+}
+
+pub fn display_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    webp_dimensions_within(bytes, DISPLAY_EDGE, MAX_DISPLAY_OUTPUT)
+}
+
+fn webp_dimensions_within(bytes: &[u8], edge: u32, max_output: usize) -> Option<(u32, u32)> {
+    if bytes.len() > max_output
         || bytes.len() < 30
         || bytes.get(..4)? != b"RIFF"
         || bytes.get(8..16)? != b"WEBPVP8 "
@@ -193,7 +249,7 @@ pub fn webp_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     let width = u32::from(u16::from_le_bytes(frame[6..8].try_into().ok()?));
     let height = u32::from(u16::from_le_bytes(frame[8..10].try_into().ok()?));
     // Reject scaling bits as well as oversized/zero geometry.
-    (width > 0 && height > 0 && width <= EDGE && height <= EDGE).then_some((width, height))
+    (width > 0 && height > 0 && width <= edge && height <= edge).then_some((width, height))
 }
 
 /// Validate legacy normalized PNG output during a rolling worker upgrade.
@@ -273,9 +329,32 @@ mod tests {
         let riff = (appended.len() - 8) as u32;
         appended[4..8].copy_from_slice(&riff.to_le_bytes());
         assert_eq!(webp_dimensions(&appended), None);
+        assert_eq!(display_dimensions(&appended), None);
         let mut boundary = WEBP.to_vec();
         boundary[26..28].copy_from_slice(&(EDGE as u16).to_le_bytes());
         assert_eq!(webp_dimensions(&boundary), Some((EDGE, 16)));
+        boundary[26..28].copy_from_slice(&2560_u16.to_le_bytes());
+        assert_eq!(webp_dimensions(&boundary), None);
+        assert_eq!(display_dimensions(&boundary), Some((2560, 16)));
+        boundary[26..28].copy_from_slice(&2561_u16.to_le_bytes());
+        assert_eq!(display_dimensions(&boundary), None);
+    }
+    #[test]
+    fn normalized_webp_applies_the_byte_limit_for_each_recipe() {
+        for (length, tile, display) in [
+            (262_144_u32, Some((16, 16)), Some((16, 16))),
+            (262_146, None, Some((16, 16))),
+            (2_097_152, None, Some((16, 16))),
+            (2_097_154, None, None),
+        ] {
+            // Keep the RIFF and VP8 chunk lengths consistent so only the byte cap can reject it.
+            let mut bytes = WEBP.to_vec();
+            bytes.resize(length as usize, 0);
+            bytes[4..8].copy_from_slice(&(length - 8).to_le_bytes());
+            bytes[16..20].copy_from_slice(&(length - 20).to_le_bytes());
+            assert_eq!(webp_dimensions(&bytes), tile, "{length} bytes");
+            assert_eq!(display_dimensions(&bytes), display, "{length} bytes");
+        }
     }
     #[test]
     fn normalized_png_has_bounded_complete_geometry() {

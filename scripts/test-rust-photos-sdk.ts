@@ -250,9 +250,12 @@ try {
   );
   assert.equal(library.items[0]?.dateSource, "upload");
   assert.equal(library.items[0]?.timelineDate, uploaded.createdAt.slice(0, 10));
+  assert.equal(library.previewWorker, "unavailable");
   assert.deepEqual(await owner.sdk.rpc.photos.details({ id: uploaded.id }), {
     capture: null,
     location: null,
+    camera: null,
+    originalDimensions: null,
   });
   await owner.sdk.rpc.photos.setSources({ allMyFiles: false, folderIds: [pictures.id] });
   assert.equal((await owner.sdk.rpc.files.get({ id: uploaded.id })).id, uploaded.id);
