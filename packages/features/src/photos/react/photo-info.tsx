@@ -5,13 +5,25 @@ import { useQuery } from "@hyori-cloud/lib/query";
 import { Skeleton } from "@hyori-cloud/ui/components/skeleton";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
-import type { LibraryItem } from "#features/photos/photo-derivative.ts";
+import type { LibraryItem, PhotoCapture } from "#features/photos/photo-derivative.ts";
 import {
   formatBytes,
   formatDate,
   formatDateTime,
   formatMediaType,
 } from "#features/shared/format.ts";
+
+/**
+ * The date row leads with the enriched capture moment when it's known, falls back to the day the
+ * timeline groups by, and only then to the upload's own moment.
+ */
+function takenValue(item: LibraryItem, capture: PhotoCapture, taken: boolean) {
+  if (capture !== null) return formatDateTime(capture.localDateTime);
+
+  if (taken) return formatDate(`${item.timelineDate}T00:00:00`);
+
+  return formatDateTime(item.createdAt);
+}
 
 /**
  * The viewer's details panel. The rows come from the timeline item itself, so they're complete the
@@ -29,11 +41,7 @@ export function PhotoInfoPanel({ item }: { item: LibraryItem }) {
   return (
     <dl className="flex flex-col gap-3.5 text-[13px]">
       <InfoRow label={taken ? "Date taken" : "Uploaded"}>
-        {capture !== null
-          ? formatDateTime(capture.localDateTime)
-          : taken
-            ? formatDate(`${item.timelineDate}T00:00:00`)
-            : formatDateTime(item.createdAt)}
+        {takenValue(item, capture, taken)}
       </InfoRow>
       <InfoRow label="Size">{formatBytes(item.size)}</InfoRow>
       <InfoRow label="Type">{formatMediaType(item.mimeType)}</InfoRow>
@@ -71,11 +79,17 @@ function ParentFolderRow({ folderId }: { folderId: string }) {
   const { query } = useClientSDK();
   const folder = useQuery(query.files.get.getOptions({ id: folderId }));
 
+  if (folder.data !== undefined) {
+    return (
+      <InfoRow label="Folder">
+        <FolderLink name={folder.data.name} folderId={folderId} />
+      </InfoRow>
+    );
+  }
+
   return (
     <InfoRow label="Folder">
-      {folder.data !== undefined ? (
-        <FolderLink name={folder.data.name} folderId={folderId} />
-      ) : folder.isError ? (
+      {folder.isError ? (
         <span className="text-white/55">Unavailable</span>
       ) : (
         <Skeleton className="h-4 w-24" />

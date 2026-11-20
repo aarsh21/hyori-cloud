@@ -305,10 +305,10 @@ const lightboxStageControlClasses =
 /**
  * Zoom, pan and pinch for one image, written straight to the element's transform: nothing here
  * re-renders per frame. The point under a tap or a pinch midpoint stays under it while scaling,
- * and the image drags only as far as it overflows the stage.
+ * and the image drags only as far as it overflows the stage. The caller owns the zoomed element's
+ * ref; this owns what happens to it.
  */
-function useImageZoom() {
-  const boxRef = React.useRef<HTMLDivElement>(null);
+function useImageZoom(boxRef: React.RefObject<HTMLDivElement | null>) {
   const { open, setZoomed } = React.useContext(ZoomContext);
   const view = React.useRef<ZoomView>({ scale: 1, x: 0, y: 0 });
   const zoomedRef = React.useRef(false);
@@ -527,7 +527,6 @@ function useImageZoom() {
   };
 
   return {
-    boxRef,
     onPointerDown,
     onPointerMove,
     onPointerUp: endPointer,
@@ -553,7 +552,10 @@ function LightboxImage({
 }) {
   const [failedSrc, setFailedSrc] = React.useState<string | null>(null);
   const [decoded, setDecoded] = React.useState(false);
-  const zoom = useImageZoom();
+  const boxRef = React.useRef<HTMLDivElement>(null);
+
+  const { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onDoubleClick } =
+    useImageZoom(boxRef);
 
   if (failedSrc === src) return fallback;
 
@@ -561,13 +563,13 @@ function LightboxImage({
 
   return (
     <div
-      ref={zoom.boxRef}
+      ref={boxRef}
       data-slot="lightbox-zoom"
-      onPointerDown={zoom.onPointerDown}
-      onPointerMove={zoom.onPointerMove}
-      onPointerUp={zoom.onPointerUp}
-      onPointerCancel={zoom.onPointerCancel}
-      onDoubleClick={zoom.onDoubleClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onDoubleClick={onDoubleClick}
       className="relative grid h-full w-full touch-none cursor-zoom-in place-items-center select-none"
     >
       {waiting ? (

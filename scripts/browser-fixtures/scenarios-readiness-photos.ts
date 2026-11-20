@@ -65,15 +65,27 @@ export async function runReadinessPhotoScenarios(run: CoreRun, phone: boolean) {
             }
 
             await run.report.shot(page, `readiness-${size}-photos-ready`);
-            assert.equal(await page.locator('[data-slot="media-tile-badge"]').count(), 1);
+            // The library is automatic, so other scenarios' videos are on the page too: the
+            // poster badge is asserted on this scenario's own pair, not the whole page.
+            assert.equal(
+              await tile(page, video).locator('[data-slot="media-tile-badge"]').count(),
+              1,
+            );
+            assert.equal(
+              await tile(page, image).locator('[data-slot="media-tile-badge"]').count(),
+              0,
+            );
           },
         );
         await run.report.check(
           `${size}: add a viewed photo to an album and reload its membership`,
           async () => {
             await tile(page, image).press("Enter");
+            // The original answers, not the thumbnail holding its frame while it decodes.
             await page.waitForFunction(() => {
-              const img = document.querySelector<HTMLImageElement>('[data-slot="lightbox"] img');
+              const img = document.querySelector<HTMLImageElement>(
+                '[data-slot="lightbox"] [data-slot="lightbox-media"]',
+              );
 
               return img !== null && img.complete && img.naturalWidth === 960;
             });

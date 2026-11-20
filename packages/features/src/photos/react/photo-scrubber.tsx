@@ -1,5 +1,6 @@
+import { useScrollActivity } from "@hyori-cloud/ui/hooks/use-scroll-activity";
 import { cn } from "@hyori-cloud/ui/lib/utils";
-import { useEffect, useRef, useState } from "@hyori-cloud/lib/react";
+import { useRef, useState } from "@hyori-cloud/lib/react";
 
 export type ScrubberMonth = {
   /** `YYYY-MM`, unique per month in timeline order. */
@@ -30,7 +31,35 @@ export function PhotoScrubber({ months }: { months: readonly ScrubberMonth[] }) 
   } | null>(null);
 
   const [dragging, setDragging] = useState(false);
-  const [scrolling, setScrolling] = useState(false);
+
+  // While the page scrolls, the thumb tracks which month is on screen.
+  const scrolling = useScrollActivity(
+    railRef,
+    () => {
+      // A drag is ahead of the scroll it caused; the thumb follows the hand, not the flight.
+      if (draggingRef.current) return;
+
+      const scroller = railRef.current?.closest<HTMLElement>("[data-slot='page-body']");
+
+      if (scroller === null || scroller === undefined) return;
+
+      const bounds = scroller.getBoundingClientRect();
+      let next = 0;
+
+      // The month on screen is the last one whose section top is at or above the fold line.
+      for (const [i, month] of months.entries()) {
+        const section = sectionOf(month.dayKey);
+
+        if (section === null) continue;
+
+        if (section.getBoundingClientRect().top - bounds.top > 48) break;
+        next = i;
+      }
+
+      setIndex(next);
+    },
+    SCROLL_SETTLE_MS,
+  );
 
   const clamp = (candidate: number) => Math.min(months.length - 1, Math.max(0, candidate));
 
@@ -57,59 +86,6 @@ export function PhotoScrubber({ months }: { months: readonly ScrubberMonth[] }) 
     sectionOf(month.dayKey)?.scrollIntoView({ block: "start" });
     setIndex(next);
   }
-
-  // While the page scrolls, the thumb tracks which month is on screen.
-  useEffect(() => {
-    const rail = railRef.current;
-
-    if (rail === null) return;
-
-    const scroller = rail.closest<HTMLElement>("[data-slot='page-body']");
-
-    if (scroller === null) return;
-
-    let frame = 0;
-    let settle = 0;
-
-    const syncFromScroll = () => {
-      frame = 0;
-
-      // A drag is ahead of the scroll it caused; the thumb follows the hand, not the flight.
-      if (draggingRef.current) return;
-
-      const bounds = scroller.getBoundingClientRect();
-      let next = 0;
-
-      // The month on screen is the last one whose section top is at or above the fold line.
-      for (const [i, month] of months.entries()) {
-        const section = sectionOf(month.dayKey);
-
-        if (section === null) continue;
-
-        if (section.getBoundingClientRect().top - bounds.top > 48) break;
-        next = i;
-      }
-
-      setIndex(next);
-    };
-
-    const onScroll = () => {
-      setScrolling(true);
-      window.clearTimeout(settle);
-      settle = window.setTimeout(() => setScrolling(false), SCROLL_SETTLE_MS);
-
-      if (frame === 0) frame = requestAnimationFrame(syncFromScroll);
-    };
-
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      scroller.removeEventListener("scroll", onScroll);
-      window.clearTimeout(settle);
-
-      if (frame !== 0) cancelAnimationFrame(frame);
-    };
-  }, [months]);
 
   const monthAt = (clientY: number) => {
     const rail = railRef.current;

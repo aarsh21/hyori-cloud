@@ -339,12 +339,16 @@ async function realResults(run: CoreRun, page: Page, files: { photo: number; cli
   await report.check("opening a photo shows the original, not its thumbnail", async () => {
     await tile(page, PHOTO).click();
 
-    const stage = await stageState(page);
+    // Closed even when a check fails, so the next check doesn't start under an open viewer.
+    try {
+      const stage = await stageState(page);
 
-    assert.equal(stage.kind, "image");
-    assert.ok(stage.kind === "image" && stage.naturalWidth === 1800, "not the original");
-    assert.match(String(stage.src), /^\/api\/storage\/previews\//);
-    await closeViewer(page);
+      assert.equal(stage.kind, "image");
+      assert.ok(stage.kind === "image" && stage.naturalWidth === 1800, "not the original");
+      assert.match(String(stage.src), /^\/api\/storage\/previews\//);
+    } finally {
+      await closeViewer(page);
+    }
   });
 
   await report.check("opening a video plays the original stream, not its poster", async () => {

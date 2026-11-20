@@ -162,7 +162,9 @@ type StageState =
 export function stageState(page: Page) {
   return page.evaluate(async (): Promise<StageState> => {
     const stage = document.querySelector('[data-slot="lightbox"]');
-    const image = stage?.querySelector("img");
+    // The main image carries its slot; a placeholder thumbnail may sit in front of it while the
+    // original decodes, and must never answer for the photo being shown.
+    const image = stage?.querySelector<HTMLImageElement>('[data-slot="lightbox-media"]');
     const video = stage?.querySelector("video");
     const message = stage?.querySelector('[role="alert"]')?.textContent ?? null;
 
