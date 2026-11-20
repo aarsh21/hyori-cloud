@@ -404,7 +404,8 @@ async function authorization(
   const dialog = owner.getByRole("dialog");
 
   await dialog.getByRole("combobox", { name: "Add people by name or email" }).fill(strangerEmail);
-  await dialog.getByRole("option", { name: new RegExp(strangerEmail) }).click();
+  // The suggestion popup renders through a portal, outside the dialog's DOM.
+  await owner.getByRole("option", { name: new RegExp(strangerEmail) }).click();
   await dialog.getByRole("list", { name: "Who has access" }).waitFor();
 
   await report.check("sharing the folder lets them read it", async () => {
