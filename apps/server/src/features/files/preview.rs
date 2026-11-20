@@ -38,9 +38,11 @@ const INLINE_TEXT: &str = "text/plain; charset=utf-8";
 /// renderer: HTML and SVG never go inline, and an ambiguous declared type has to prove its bytes.
 pub(crate) fn supported(mime: &str) -> bool {
     MEDIA.contains(&mime)
-        || matches!(mime, "application/pdf" | "application/json" | "application/octet-stream")
-        || mime.starts_with("text/")
-            && mime != "text/html"
+        || matches!(
+            mime,
+            "application/pdf" | "application/json" | "application/octet-stream"
+        )
+        || mime.starts_with("text/") && mime != "text/html"
 }
 /// Revision is a cache identity, never authorization or permission to select older current bytes.
 pub(crate) fn preview_url(id: &str, version: Option<&str>, revision: i64) -> String {
@@ -301,21 +303,35 @@ mod tests {
     fn declared_media_still_has_to_sniff_to_its_exact_type() {
         let png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\0\0\0\0\0\0\0\0\0".as_slice();
 
-        assert_eq!(inline_mime("image/png", png, png.len() as u64), Some("image/png"));
+        assert_eq!(
+            inline_mime("image/png", png, png.len() as u64),
+            Some("image/png")
+        );
         assert_eq!(inline_mime("image/jpeg", png, png.len() as u64), None);
         assert_eq!(inline_mime("image/svg+xml", png, png.len() as u64), None);
     }
     #[test]
     fn documents_serve_inline_only_in_their_renderable_format() {
         for declared in ["application/pdf", "application/octet-stream"] {
-            assert_eq!(inline_mime(declared, b"%PDF-1.7\n%", 11), Some("application/pdf"));
+            assert_eq!(
+                inline_mime(declared, b"%PDF-1.7\n%", 11),
+                Some("application/pdf")
+            );
         }
 
         // A declared PDF with other bytes is a mislabelled file, not a preview.
         assert_eq!(inline_mime("application/pdf", b"hello", 5), None);
 
-        for declared in ["text/plain", "text/csv", "text/markdown", "application/json"] {
-            assert_eq!(inline_mime(declared, b"a,b\n1,2", 8), Some("text/plain; charset=utf-8"));
+        for declared in [
+            "text/plain",
+            "text/csv",
+            "text/markdown",
+            "application/json",
+        ] {
+            assert_eq!(
+                inline_mime(declared, b"a,b\n1,2", 8),
+                Some("text/plain; charset=utf-8")
+            );
         }
 
         // Text is served inert, so markup bytes are still safe; HTML itself is never inline.

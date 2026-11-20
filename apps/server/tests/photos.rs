@@ -436,7 +436,11 @@ async fn inline_originals_validate_family_ranges_current_object_and_revocation()
             "application/pdf",
             b"<!DOCTYPE html><script>alert(1)</script>".as_slice(),
         ),
-        ("report.html", "text/html", b"<html><body>not a preview</body></html>"),
+        (
+            "report.html",
+            "text/html",
+            b"<html><body>not a preview</body></html>",
+        ),
     ] {
         let id = upload(&server, &cookie, name, mime, bytes).await;
         assert_eq!(
