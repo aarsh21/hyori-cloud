@@ -17,6 +17,7 @@ export type { FetchCapability } from "#client-sdk/transport";
 export type {
   ApiError,
   AuthStatus,
+  DisplayPreview,
   FileAccess,
   FileEntry,
   FileList,

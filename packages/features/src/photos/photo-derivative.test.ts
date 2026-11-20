@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { MediaDerivative } from "#features/photos/photo-derivative.ts";
+import type { MediaDerivative, PhotoDisplayPreview } from "#features/photos/photo-derivative.ts";
 import {
   photoTileCaption,
   photoTileStatus,
@@ -28,6 +28,23 @@ const FAILED: MediaDerivative = {
 
 const UNSUPPORTED: MediaDerivative = { ...identity, status: "unsupported", failure: "unsupported" };
 
+const DISPLAY_READY: PhotoDisplayPreview = {
+  status: "ready",
+  url: "/display",
+  width: 183,
+  height: 244,
+};
+
+const DISPLAY_QUEUED: PhotoDisplayPreview = { status: "queued" };
+const DISPLAY_PROCESSING: PhotoDisplayPreview = { status: "processing" };
+const DISPLAY_UNAVAILABLE: PhotoDisplayPreview = { status: "unavailable" };
+const DISPLAY_FAILED: PhotoDisplayPreview = { status: "failed" };
+
+/** Photos whose thumbnails are done, with full-size renditions at their own pace behind them. */
+function displayPageOf(...displays: readonly (PhotoDisplayPreview | undefined)[]) {
+  return { items: displays.map((displayPreview) => ({ derivative: READY, displayPreview })) };
+}
+
 describe("how often the timeline looks for finished thumbnails", () => {
   test("it looks while something on screen is on its way", () => {
     expect(timelineRefreshDelay([pageOf(READY, QUEUED)])).toBe(TIMELINE_REFRESH_MS);
@@ -51,6 +68,22 @@ describe("how often the timeline looks for finished thumbnails", () => {
 
     expect(timelineRefreshDelay(pages.slice(0, 3))).toBe(TIMELINE_REFRESH_MS);
     expect(timelineRefreshDelay(pages)).toBe(false);
+  });
+});
+
+describe("a photo's full-size rendition", () => {
+  test("keeps the wait going after its thumbnail, which finishes first", () => {
+    expect(timelineRefreshDelay([displayPageOf(DISPLAY_QUEUED)])).toBe(TIMELINE_REFRESH_MS);
+    expect(timelineRefreshDelay([displayPageOf(DISPLAY_PROCESSING)])).toBe(TIMELINE_REFRESH_MS);
+    expect(timelineRefreshDelay([pageOf(READY), displayPageOf(DISPLAY_QUEUED)])).toBe(
+      TIMELINE_REFRESH_MS,
+    );
+  });
+
+  test("ends it once the rendition is ready or can't be made", () => {
+    expect(timelineRefreshDelay([displayPageOf(DISPLAY_READY)])).toBe(false);
+    expect(timelineRefreshDelay([displayPageOf(DISPLAY_UNAVAILABLE, DISPLAY_FAILED)])).toBe(false);
+    expect(timelineRefreshDelay([displayPageOf(undefined)])).toBe(false);
   });
 });
 

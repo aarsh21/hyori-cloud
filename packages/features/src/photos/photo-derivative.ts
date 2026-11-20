@@ -6,7 +6,15 @@ export type LibraryItem = OutputOf<RPC["photos"]["library"]>["items"][number];
 
 export type PhotoCapture = OutputOf<RPC["photos"]["details"]>["capture"];
 
+export type PhotoCamera = NonNullable<OutputOf<RPC["photos"]["details"]>["camera"]>;
+
+export type OriginalDimensions = NonNullable<
+  OutputOf<RPC["photos"]["details"]>["originalDimensions"]
+>;
+
 export type MediaDerivative = NonNullable<PhotoItem["derivative"]>;
+
+export type PhotoDisplayPreview = NonNullable<PhotoItem["displayPreview"]>;
 
 type DerivativeFailure = Extract<MediaDerivative, { status: "failed" }>["failure"];
 
@@ -20,8 +28,8 @@ const FAILURE_CAPTION: Record<DerivativeFailure, string> = {
   busy: "Server was busy",
 };
 
-function isPreparing(derivative: MediaDerivative | undefined) {
-  return derivative?.status === "queued" || derivative?.status === "processing";
+function isPreparing(preview: MediaDerivative | PhotoDisplayPreview | undefined) {
+  return preview?.status === "queued" || preview?.status === "processing";
 }
 
 /** What a tile's label says about its thumbnail. Nothing here limits viewing the original. */
@@ -58,18 +66,25 @@ export const TIMELINE_REFRESH_MS = 15_000;
 const MAX_REFRESHED_PAGES = 3;
 
 type DerivativePage = {
-  readonly items: readonly { readonly derivative?: MediaDerivative | undefined }[];
+  readonly items: readonly {
+    readonly derivative?: MediaDerivative | undefined;
+    readonly displayPreview?: PhotoDisplayPreview | undefined;
+  }[];
 };
 
 /**
  * Only queued and processing change by waiting, and the server caps their attempts, so this ends.
- * A refresh rereads every loaded page, so a long scrollback waits for its next natural refetch.
+ * A photo's full-size rendition is its own job, so a ready thumbnail can't end the wait while the
+ * display is still coming. A refresh rereads every loaded page, so a long scrollback waits for its
+ * next natural refetch.
  */
 export function timelineRefreshDelay(pages: readonly DerivativePage[]): number | false {
   if (pages.length > MAX_REFRESHED_PAGES) return false;
 
   const preparing = pages.some((page) =>
-    page.items.some(({ derivative }) => isPreparing(derivative)),
+    page.items.some(
+      ({ derivative, displayPreview }) => isPreparing(derivative) || isPreparing(displayPreview),
+    ),
   );
 
   return preparing ? TIMELINE_REFRESH_MS : false;

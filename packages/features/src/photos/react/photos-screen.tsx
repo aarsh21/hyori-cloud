@@ -4,6 +4,7 @@ import { PageBody, PageSection } from "@hyori-cloud/ui/components/app-shell";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { DropZone, FilePicker } from "@hyori-cloud/ui/components/file-picker";
 import type { FilePickerHandle } from "@hyori-cloud/ui/components/file-picker";
+import { Notice } from "@hyori-cloud/ui/components/notice";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { thumbnailProgressSummary } from "#features/photos/photo-derivative.ts";
 import { PhotoInfoPanel } from "#features/photos/react/photo-info.tsx";
@@ -21,6 +22,9 @@ export function PhotosScreen() {
   const timeline = usePhotoLibrary();
   const queue = useUploadQueue();
   const picker = useRef<FilePickerHandle>(null);
+
+  // The server answers for every page alike: whether it generates previews at all.
+  const previewsUnavailable = timeline.data?.pages[0]?.previewWorker === "unavailable";
 
   function addFiles(files: File[]) {
     queue.add(files, null);
@@ -45,6 +49,12 @@ export function PhotosScreen() {
       <DropZone label="Drop to upload to Files" onFiles={addFiles}>
         <PageBody scrollRestorationId="photos">
           <PageSection>
+            {previewsUnavailable ? (
+              <Notice tone="info" title="Previews aren’t available on this server" className="mb-4">
+                Tiles show simple placeholders. Photos and videos still open in full when your
+                browser supports them.
+              </Notice>
+            ) : null}
             <PhotoTimeline
               timeline={timeline}
               // The server names the day each item was taken, as the timeline groups them.

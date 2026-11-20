@@ -1,4 +1,4 @@
-import type { FileEntry } from "@hyori-cloud/client-sdk";
+import type { DisplayPreview, FileEntry } from "@hyori-cloud/client-sdk";
 import { Download, Info } from "@hyori-cloud/lib/icons";
 import type { ReactNode } from "@hyori-cloud/lib/react";
 import { useState } from "@hyori-cloud/lib/react";
@@ -23,8 +23,14 @@ import {
   useAccessRecovery,
 } from "#features/shared/react/access-recovery.tsx";
 
-/** Photos arrive with a ready-to-use URL. Items from a file listing request one when opened. */
-type MediaItem = FileEntry & { readonly previewUrl?: string };
+/**
+ * Photos arrive with a ready-to-use URL. Items from a file listing request one when opened. A
+ * photo this browser can't decode carries a server-made rendition to show instead.
+ */
+type MediaItem = FileEntry & {
+  readonly previewUrl?: string;
+  readonly displayPreview?: DisplayPreview;
+};
 
 // The viewer always shows the full original, never a thumbnail, so speculation has to be bounded.
 const PRELOAD_MAX_BYTES = 8 * 1024 * 1024;
@@ -32,9 +38,17 @@ const PRELOAD_MAX_BYTES = 8 * 1024 * 1024;
 function preloadableUrl(item: MediaItem | undefined) {
   if (item?.previewUrl === undefined) return [];
 
-  return item.mimeType.startsWith("image/") && item.size <= PRELOAD_MAX_BYTES
-    ? [item.previewUrl]
-    : [];
+  if (!item.mimeType.startsWith("image/")) return [];
+
+  // Speculation follows what the stage would show: the rendition when it's ready, the original
+  // otherwise, and nothing for an original this browser can't decode while a rendition is pending.
+  const display = item.displayPreview;
+
+  if (display !== undefined) {
+    return display.status === "ready" && item.size <= PRELOAD_MAX_BYTES ? [display.url] : [];
+  }
+
+  return item.size <= PRELOAD_MAX_BYTES ? [item.previewUrl] : [];
 }
 
 /**
@@ -190,12 +204,32 @@ function MediaStage({
     <LightboxVideo src={item.previewUrl} label={item.name} fallback={requested} />
   ) : (
     <LightboxImage
-      src={item.previewUrl}
+      src={photoStageSrc(item, item.previewUrl, placeholder)}
       alt={item.name}
       placeholder={placeholder}
       fallback={requested}
     />
   );
+}
+
+/**
+ * Where a photo's stage image comes from. A rendition the server made for undecodable formats shows
+ * once it's ready; until then the ready thumbnail stands in, and the timeline's bounded refresh
+ * swaps in the sharp one. Everything else — no rendition offered, or one that couldn't be made —
+ * tries the original, whose honest failure the fallback explains.
+ */
+function photoStageSrc(item: MediaItem, original: string, placeholder: string | null) {
+  const display = item.displayPreview;
+
+  if (display === undefined) return original;
+
+  if (display.status === "ready") return display.url;
+
+  if (placeholder !== null && (display.status === "queued" || display.status === "processing")) {
+    return placeholder;
+  }
+
+  return original;
 }
 
 function RequestedMedia({ item, active }: { item: MediaItem; active: boolean }) {

@@ -84,10 +84,10 @@ function Lightbox({
 
   // Grow from the tile on open, shrink back to it on close. Each is one transform write, so
   // reduced motion is honored by the stylesheet alone: it drops the transition and leaves a cut.
+  // The dialog's stage mounts a frame after open, so an opening effect can find nothing to
+  // transform yet: it retries on later frames instead of consuming the open edge without a grow.
   React.useLayoutEffect(() => {
-    const frame = frameRef.current;
-
-    if (frame === null || origin === undefined || origin === null) {
+    if (origin === undefined || origin === null) {
       wasOpen.current = open;
 
       return;
@@ -95,7 +95,7 @@ function Lightbox({
 
     const tile = origin;
 
-    const transformFromTile = () => {
+    const transformFromTile = (frame: HTMLDivElement) => {
       const rect = frame.getBoundingClientRect();
 
       if (rect.width === 0) return null;
@@ -107,30 +107,49 @@ function Lightbox({
     };
 
     if (open && !wasOpen.current) {
-      const transform = transformFromTile();
+      let handle = 0;
+      let tries = 0;
 
-      if (transform !== null) {
+      const attempt = () => {
+        const frame = frameRef.current;
+        const transform = frame === null ? null : transformFromTile(frame);
+
+        // A stage that never appears leaves the viewer to open plainly.
+        if (transform === null && tries < 10) {
+          tries += 1;
+          handle = requestAnimationFrame(attempt);
+
+          return;
+        }
+
+        wasOpen.current = open;
+
+        if (frame === null || transform === null) return;
+
         // Applied before paint, cleared in the next frame: the transition animates the release.
         frame.style.transitionDuration = "200ms";
         frame.style.transform = transform;
-      }
+        handle = requestAnimationFrame(() => {
+          frame.style.transform = "";
+        });
+      };
 
-      const release = requestAnimationFrame(() => {
-        frame.style.transform = "";
-      });
+      attempt();
 
-      wasOpen.current = open;
-
-      return () => cancelAnimationFrame(release);
+      return () => cancelAnimationFrame(handle);
     }
 
     if (!open && wasOpen.current) {
-      const transform = transformFromTile();
+      const frame = frameRef.current;
 
       // The popup fades over 150ms; a shrink to a tile still on screen matches it home.
-      if (transform !== null) {
-        frame.style.transitionDuration = "150ms";
-        frame.style.transform = transform;
+      if (frame !== null) {
+        const transform = transformFromTile(frame);
+
+        if (transform !== null) {
+          frame.style.transitionDuration = "150ms";
+          frame.style.transform = transform;
+        }
       }
     }
 
@@ -201,7 +220,7 @@ function Lightbox({
               <div
                 role="none"
                 data-slot="lightbox-stage"
-                className="relative grid min-h-0 min-w-0 flex-1 touch-pan-y place-items-center select-none"
+                className="relative grid min-h-0 min-w-0 flex-1 overflow-hidden touch-pan-y place-items-center select-none"
                 onPointerDown={(event) => {
                   livePointers.current += 1;
 

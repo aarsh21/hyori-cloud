@@ -5,7 +5,12 @@ import { useQuery } from "@hyori-cloud/lib/query";
 import { Skeleton } from "@hyori-cloud/ui/components/skeleton";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
-import type { LibraryItem, PhotoCapture } from "#features/photos/photo-derivative.ts";
+import type {
+  LibraryItem,
+  OriginalDimensions,
+  PhotoCamera,
+  PhotoCapture,
+} from "#features/photos/photo-derivative.ts";
 import {
   formatBytes,
   formatDate,
@@ -25,17 +30,30 @@ function takenValue(item: LibraryItem, capture: PhotoCapture, taken: boolean) {
   return formatDateTime(item.createdAt);
 }
 
+/** The camera as one name, tolerating a photo that reports only its make or only its model. */
+function cameraText({ make, model }: PhotoCamera): string {
+  return [make, model].filter((part) => part !== null).join(" ");
+}
+
+/** The pixel size of the original, after the orientation the photo displays with. */
+function dimensionsText({ width, height }: OriginalDimensions): string {
+  return `${width} × ${height}`;
+}
+
 /**
  * The viewer's details panel. The rows come from the timeline item itself, so they're complete the
- * moment the panel opens; the capture time and location are an enrichment of exactly the item being
- * looked at, asked for only while the panel is open. Enrichment that fails leaves the day-level
- * values standing rather than replacing them with an alarm — the photo is still fully there.
+ * moment the panel opens; the capture time, camera, dimensions and location are an enrichment of
+ * exactly the item being looked at, asked for only while the panel is open. Enrichment that fails
+ * leaves the day-level values standing rather than replacing them with an alarm — the photo is
+ * still fully there.
  */
 export function PhotoInfoPanel({ item }: { item: LibraryItem }) {
   const { query } = useClientSDK();
   const details = useQuery(query.photos.details.getOptions({ id: item.id }));
 
   const capture = details.data?.capture ?? null;
+  const camera = details.data?.camera ?? null;
+  const dimensions = details.data?.originalDimensions ?? null;
   const taken = item.dateSource === "capture";
 
   return (
@@ -43,6 +61,10 @@ export function PhotoInfoPanel({ item }: { item: LibraryItem }) {
       <InfoRow label={taken ? "Date taken" : "Uploaded"}>
         {takenValue(item, capture, taken)}
       </InfoRow>
+      {camera !== null ? <InfoRow label="Camera">{cameraText(camera)}</InfoRow> : null}
+      {dimensions !== null ? (
+        <InfoRow label="Dimensions">{dimensionsText(dimensions)}</InfoRow>
+      ) : null}
       <InfoRow label="Size">{formatBytes(item.size)}</InfoRow>
       <InfoRow label="Type">{formatMediaType(item.mimeType)}</InfoRow>
       <FolderRow item={item} />

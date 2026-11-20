@@ -3,6 +3,7 @@ import type { Schema } from "@hyori-cloud/lib/effect";
 
 export type {
   ApiError,
+  DisplayPreview,
   FileEntry,
   ShareRole,
   UploadStatus,
