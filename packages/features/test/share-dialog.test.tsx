@@ -188,9 +188,7 @@ describe("adding a person", () => {
     expect(await screen.findByText("Couldn’t share with mia")).toBeTruthy();
     // The field the user sees keeps the typed text to correct; the name query can't match while
     // the reopened popup hides background content, so assert against the live input itself.
-    expect(screen.getByPlaceholderText<HTMLInputElement>("Name or email").value).toBe(
-      "mia",
-    );
+    expect(screen.getByPlaceholderText<HTMLInputElement>("Name or email").value).toBe("mia");
     expect(api.callsTo("shares.create")[1]?.input).toEqual({
       itemId: ROOT_FILE.id,
       role: "viewer",

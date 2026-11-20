@@ -403,9 +403,7 @@ async function authorization(
 
   const dialog = owner.getByRole("dialog");
 
-  await dialog
-    .getByRole("combobox", { name: "Add people by name or email" })
-    .fill(strangerEmail);
+  await dialog.getByRole("combobox", { name: "Add people by name or email" }).fill(strangerEmail);
   await dialog.getByRole("option", { name: new RegExp(strangerEmail) }).click();
   await dialog.getByRole("list", { name: "Who has access" }).waitFor();
 
