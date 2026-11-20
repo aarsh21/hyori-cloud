@@ -149,6 +149,19 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
 
     if (recording) await Promise.all([pointer(owner), pointer(peer)]);
 
+    // The note is "saved" once each session opens, but a slow runner can still be a beat away
+    // from an editor that accepts input, and keystrokes typed into that gap vanish without a
+    // trace. Each editor is proven interactive only when the other page renders the cursor it
+    // publishes, so both collaboration channels are live before the first keystroke lands.
+    await Promise.all(
+      [owner, peer].map((page) => page.locator("p.bn-inline-content").first().click()),
+    );
+    await Promise.all(
+      [owner, peer].map((page) =>
+        page.locator(".bn-collaboration-cursor__caret").first().waitFor(),
+      ),
+    );
+
     for (let repeat = 1; repeat <= 3; repeat++) {
       await run.report.check(
         `${name} run ${repeat}: concurrent edits and selective undo`,
