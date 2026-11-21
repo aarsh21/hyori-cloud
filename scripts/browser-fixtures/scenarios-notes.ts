@@ -248,9 +248,8 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
     });
 
     const created = await run.report.check(`${name}: create and rename through Notes`, async () => {
-      // The empty state's "New note" shares its name with the sidebar header's, so the first
-      // note always comes from the header: the one control this flow had before the empty
-      // state grew a button of its own.
+      // The first note comes from the sidebar header's New note, the one control this flow
+      // had before the empty state grew its own "Create a note".
       await owner
         .locator("header", { has: owner.getByRole("heading", { name: "Notes", exact: true }) })
         .getByRole("button", { name: "New note", exact: true })

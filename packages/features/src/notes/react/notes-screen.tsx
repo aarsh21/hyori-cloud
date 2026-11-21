@@ -165,7 +165,7 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
           action={
             <Button variant="outline" onClick={() => newNote()} pending={create.isPending}>
               <Plus />
-              New note
+              Create a note
             </Button>
           }
         />
