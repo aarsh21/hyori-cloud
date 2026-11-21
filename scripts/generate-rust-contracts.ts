@@ -112,6 +112,7 @@ const forbiddenNames = new Set([
   "Api",
   "operations",
   "exclusiveUnion",
+  "taggedUnion",
   "intersection",
   "validDateFormat",
   "Number",
@@ -748,8 +749,15 @@ function compileWire(schema: JsonSchema, name?: string): string {
   if (schema.anyOf)
     parts.push(`z.union([${schema.anyOf.map((child) => compileWire(child)).join(", ")}])`);
 
-  if (schema.oneOf)
-    parts.push(`exclusiveUnion(${schema.oneOf.map((child) => compileWire(child)).join(", ")})`);
+  if (schema.oneOf) {
+    const tag = unionTag(schema.oneOf);
+
+    parts.push(
+      tag === null
+        ? `exclusiveUnion(${schema.oneOf.map((child) => compileWire(child)).join(", ")})`
+        : `taggedUnion(${JSON.stringify(tag)}, { ${schema.oneOf.map((child) => `${JSON.stringify(child.properties![tag]!.const)}: ${compileWire(child)}`).join(", ")} })`,
+    );
+  }
 
   if (schema.allOf) parts.push(...schema.allOf.map((child) => compileWire(child)));
 
@@ -850,15 +858,65 @@ function compileWire(schema: JsonSchema, name?: string): string {
   return parts.slice(1).reduce((left, right) => `intersection(${left}, ${right})`, parts[0]!);
 }
 
-const wireCompositionHelpers = `
-// Match the Effect compatibility surface: conjunction/exclusive union validate the original value.
-function intersection<A, B>(left: z.ZodMiniType<A>, right: z.ZodMiniType<B>) {
+/**
+ * A property every member requires as its own distinct string constant, like a status. Exactly
+ * one member can match a value then, and only the one its tag names, so validating that member
+ * alone is the exclusive union's whole answer without trying the others.
+ */
+function unionTag(members: readonly JsonSchema[]): string | null {
+  const first = members[0]?.properties;
+
+  if (first === undefined) return null;
+
+  for (const tag of Object.keys(first)) {
+    const values = members.map((member) => {
+      const property = member.properties?.[tag];
+      const literal = z.string().safeParse(property?.const);
+
+      return member.type === "object" &&
+        member.required?.includes(tag) &&
+        property?.type === "string" &&
+        literal.success
+        ? literal.data
+        : null;
+    });
+
+    if (values.every((value) => value !== null) && new Set(values).size === values.length)
+      return tag;
+  }
+
+  return null;
+}
+
+const wireCompositionHelpers = {
+  intersection: `function intersection<A, B>(left: z.ZodMiniType<A>, right: z.ZodMiniType<B>) {
   return z.custom<A & B>((value) => left.safeParse(value).success && right.safeParse(value).success);
 }
-function exclusiveUnion<const Members extends readonly z.ZodMiniType[]>(...members: Members) {
+`,
+  exclusiveUnion: `function exclusiveUnion<const Members extends readonly z.ZodMiniType[]>(...members: Members) {
   return z.custom<z.infer<Members[number]>>((value) => members.filter((member) => member.safeParse(value).success).length === 1);
 }
-`;
+`,
+  taggedUnion: `function taggedUnion<const Members extends Record<string, z.ZodMiniType>>(tag: string, members: Members) {
+  return z.custom<z.infer<Members[keyof Members]>>((value) => {
+    const key = typeof value === "object" && value !== null ? (value as Record<string, unknown>)[tag] : undefined;
+
+    return typeof key === "string" && Object.hasOwn(members, key) && members[key]!.safeParse(value).success;
+  });
+}
+`,
+};
+
+/** Only the composition helpers the declarations call, so none is emitted unused. */
+function wireHelpers(declarations: readonly string[]) {
+  const used = Object.entries(wireCompositionHelpers).filter(([helper]) =>
+    declarations.some((declaration) => declaration.includes(`${helper}(`)),
+  );
+
+  return used.length
+    ? `\n// Match the Effect compatibility surface: conjunction/exclusive union validate the original value.\n${used.map(([, source]) => source).join("")}`
+    : "";
+}
 
 export function generateRustContracts(manifest: RustContractManifest) {
   // Reject names before Zod's defensive record decoding can discard a prototype key.
@@ -931,7 +989,7 @@ export function generateRustContracts(manifest: RustContractManifest) {
     "schemas.ts": `${header}import { Schema } from "@hyori-cloud/lib/effect";\n${declarations.some((declaration) => declaration.includes("validDateFormat(")) ? dateFormatHelper : ""}${declarations.some((declaration) => declaration.includes("intersection(")) ? intersectionHelper : ""}${declarations.some((declaration) => declaration.includes("exclusiveUnion(")) ? exclusiveUnionHelper : ""}\n${declarations.join("\n\n")}\n`,
     "operations.ts": `${header}import { Rpc, RpcGroup } from "@hyori-cloud/lib/effect/rpc";\n${imports.length ? `import { ${imports.join(", ")} } from "./schemas";\n` : ""}\nexport const operations = [\n${descriptors.join("\n")}\n] as const;\n\nexport const ApiRpc = RpcGroup.make(...operations.map((operation) => operation.rpc));\n\nexport type Api = typeof ApiRpc;\n`,
     "client-operations.ts": `${header}${imports.length ? `import { ${imports.join(", ")} } from "./schemas";\n` : ""}\n// The JSON SDK needs codecs and policy metadata, not Effect RPC handlers or stream machinery.\nexport const operations = [\n${clientDescriptors.join("\n")}\n] as const;\n`,
-    "wire-schemas.ts": `${header}import * as z from "@hyori-cloud/lib/json";\nimport type * as Contract from "./schemas";\n${wireDeclarations.some((declaration) => declaration.includes("validDateFormat(")) ? dateFormatHelper : ""}${wireDeclarations.some((declaration) => /(?:intersection|exclusiveUnion)\(/.test(declaration)) ? wireCompositionHelpers : ""}\n${wireDeclarations.join("\n\n")}\n`,
+    "wire-schemas.ts": `${header}import * as z from "@hyori-cloud/lib/json";\nimport type * as Contract from "./schemas";\n${wireDeclarations.some((declaration) => declaration.includes("validDateFormat(")) ? dateFormatHelper : ""}${wireHelpers(wireDeclarations)}\n${wireDeclarations.join("\n\n")}\n`,
     "wire-operations.ts": `${header}${imports.length ? `import { ${imports.join(", ")} } from "./wire-schemas";\n` : ""}\nexport const operations = [\n${clientDescriptors.join("\n")}\n] as const;\n`,
   };
 }

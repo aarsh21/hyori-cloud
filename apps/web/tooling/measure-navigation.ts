@@ -1,4 +1,4 @@
-/** Same delivery fixture/profile, three fresh-context Files → Photos → Shared → Files trips. */
+/** Same delivery fixture/profile, fresh-context Files → Photos → Shared → Files trips; phones tap. */
 import { chromium } from "playwright-core";
 import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -88,8 +88,21 @@ try {
           let documentNavigation = false;
           const navigated = () => (documentNavigation = true);
           page.on("domcontentloaded", navigated);
-          const start = performance.now();
-          await link.click();
+          let start: number;
+
+          if (mobile) {
+            // A real tap holds about 100 ms between touching down and lifting off, and the section's
+            // prefetch starts on the down. The visit is timed from the lift, when it navigates.
+            const box = (await link.boundingBox())!;
+            const touchPoints = [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }];
+            await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints });
+            await page.waitForTimeout(100);
+            start = performance.now();
+            await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+          } else {
+            start = performance.now();
+            await link.click();
+          }
 
           let thumbnailMs: number | undefined;
 

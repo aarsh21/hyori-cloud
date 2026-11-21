@@ -386,6 +386,23 @@ test("references and allOf/anyOf/oneOf preserve constraints and exclusive matchi
               { type: "object", properties: { right: { type: "string" } }, required: ["right"] },
             ],
           },
+          Tagged: {
+            oneOf: [
+              {
+                type: "object",
+                properties: { status: { type: "string", const: "queued" } },
+                required: ["status"],
+              },
+              {
+                type: "object",
+                properties: {
+                  status: { type: "string", const: "ready" },
+                  url: { type: "string", minLength: 1 },
+                },
+                required: ["status", "url"],
+              },
+            ],
+          },
         },
         operations: [],
       }),
@@ -419,6 +436,25 @@ test("references and allOf/anyOf/oneOf preserve constraints and exclusive matchi
       assert.deepEqual(Schema.decodeUnknownSync(ExclusiveObject)({ left: "x" }), { left: "x" });
       assert.throws(() => Schema.decodeUnknownSync(Exactly)(5));
       assert.deepEqual(Schema.encodeSync(Named)({ id: "ab", name: "Ada" }), { id: "ab", name: "Ada" });
+      // The JSON codecs dispatch a tagged union on its tag and accept and reject exactly as Effect does.
+      import * as wire from "./wire-schemas";
+      import { Tagged } from "./schemas";
+      for (const value of [
+        { status: "queued" },
+        { status: "ready", url: "/a" },
+        { status: "ready" },
+        { status: "ready", url: "" },
+        { status: "failed", url: "/a" },
+        { url: "/a" },
+        { status: ["ready"], url: "/a" },
+        { status: "toString" },
+        null,
+        "ready",
+      ]) assert.equal(wire.Tagged.safeParse(value).success, Schema.is(Tagged)(value), JSON.stringify(value));
+      assert.ok(wire.Tagged.safeParse({ status: "ready", url: "/a" }).success);
+      assert.equal(wire.Tagged.safeParse({ status: "ready" }).success, false);
+      assert.equal(wire.ExclusiveObject.safeParse({ left: "x", right: "y" }).success, false);
+      assert.ok(wire.ExclusiveObject.safeParse({ left: "x" }).success);
     `,
     );
   } finally {

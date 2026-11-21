@@ -78,8 +78,8 @@ export function lazyScreen<Module, Props extends object>(
 /**
  * Every screen is its own chunk, so opening a shared link never downloads the file manager and
  * opening Files never downloads the admin console. Each chunk is requested once, so preloading a
- * screen is free once it has happened, and these only ever fetch code: no private data moves on
- * intent.
+ * screen is free once it has happened. These fetch code only; a section's first page of the user's
+ * own data starts on the same intent from `cloud-data-prefetch.ts`, under the screen's own query.
  */
 export const loadCloudShell = chunk(() => import("#features/cloud/react/signed-in-cloud.tsx"));
 

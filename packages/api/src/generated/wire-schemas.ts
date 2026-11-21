@@ -34,8 +34,12 @@ function validDateFormat(value: string, format: "date" | "date-time") {
 function intersection<A, B>(left: z.ZodMiniType<A>, right: z.ZodMiniType<B>) {
   return z.custom<A & B>((value) => left.safeParse(value).success && right.safeParse(value).success);
 }
-function exclusiveUnion<const Members extends readonly z.ZodMiniType[]>(...members: Members) {
-  return z.custom<z.infer<Members[number]>>((value) => members.filter((member) => member.safeParse(value).success).length === 1);
+function taggedUnion<const Members extends Record<string, z.ZodMiniType>>(tag: string, members: Members) {
+  return z.custom<z.infer<Members[keyof Members]>>((value) => {
+    const key = typeof value === "object" && value !== null ? (value as Record<string, unknown>)[tag] : undefined;
+
+    return typeof key === "string" && Object.hasOwn(members, key) && members[key]!.safeParse(value).success;
+  });
 }
 
 export const Name: z.ZodMiniType<Contract.Name> = z.string().check(z.refine((value) => Array.from(value).length >= 1), z.refine((value) => Array.from(value).length <= 255));
@@ -155,7 +159,7 @@ export type DerivativeFailure = Contract.DerivativeFailure;
 export const DerivativeKind: z.ZodMiniType<Contract.DerivativeKind> = intersection(z.literal(["thumbnail","poster"]), z.string());
 export type DerivativeKind = Contract.DerivativeKind;
 
-export const DisplayPreview: z.ZodMiniType<Contract.DisplayPreview> = exclusiveUnion(z.object({ "status": intersection(z.literal("unavailable"), z.string()) }), z.object({ "status": intersection(z.literal("queued"), z.string()) }), z.object({ "status": intersection(z.literal("processing"), z.string()) }), z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(2560)), "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(2560)) }), z.object({ "status": intersection(z.literal("failed"), z.string()) }));
+export const DisplayPreview: z.ZodMiniType<Contract.DisplayPreview> = taggedUnion("status", { "unavailable": z.object({ "status": intersection(z.literal("unavailable"), z.string()) }), "queued": z.object({ "status": intersection(z.literal("queued"), z.string()) }), "processing": z.object({ "status": intersection(z.literal("processing"), z.string()) }), "ready": z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(2560)), "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(2560)) }), "failed": z.object({ "status": intersection(z.literal("failed"), z.string()) }) });
 export type DisplayPreview = Contract.DisplayPreview;
 
 export const Done: z.ZodMiniType<Contract.Done> = z.object({ "success": intersection(z.literal(true), z.boolean()) });
@@ -278,7 +282,7 @@ export type ItemInput = Contract.ItemInput;
 export const LibraryInput: z.ZodMiniType<Contract.LibraryInput> = z.object({ "cursor": z.optional(z.union([z.string(), z.null()])) });
 export type LibraryInput = Contract.LibraryInput;
 
-export const MediaDerivative: z.ZodMiniType<Contract.MediaDerivative> = exclusiveUnion(z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unavailable"), z.string()) }), z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("queued"), z.string()) }), z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("processing"), z.string()) }), z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)), "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)) }), z.object({ "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unsupported"), z.string()) }), z.object({ "canRetry": z.boolean(), "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("failed"), z.string()) }));
+export const MediaDerivative: z.ZodMiniType<Contract.MediaDerivative> = taggedUnion("status", { "unavailable": z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unavailable"), z.string()) }), "queued": z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("queued"), z.string()) }), "processing": z.object({ "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("processing"), z.string()) }), "ready": z.object({ "height": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)), "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("ready"), z.string()), "url": z.string(), "width": z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(384)) }), "unsupported": z.object({ "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("unsupported"), z.string()) }), "failed": z.object({ "canRetry": z.boolean(), "failure": DerivativeFailure, "kind": DerivativeKind, "sourceRevision": Bytes, "status": intersection(z.literal("failed"), z.string()) }) });
 export type MediaDerivative = Contract.MediaDerivative;
 
 export const PhotoDateSource: z.ZodMiniType<Contract.PhotoDateSource> = intersection(z.literal(["capture","upload"]), z.string());
