@@ -190,6 +190,23 @@ html[data-local-preferences]
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv11", "ss03";
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Taps fire without the double-tap-zoom wait, and holding a control never opens the link callout. */
+  :where(
+    button,
+    a[href],
+    label,
+    summary,
+    [role="button"],
+    [role="menuitem"],
+    [role="option"],
+    [role="tab"]
+  ) {
+    touch-action: manipulation;
+  }
+  :where(button, [role="button"], [role="menuitem"], [role="tab"]) {
+    -webkit-touch-callout: none;
   }
   body {
     @apply bg-background font-sans text-foreground;

@@ -58,7 +58,7 @@ function AppAccountNavTrigger({
       type="button"
       aria-label="Account"
       className={cn(
-        "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground outline-none select-none focus-visible:bg-sidebar-accent active:bg-sidebar-accent aria-expanded:text-foreground",
+        "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground outline-none select-none focus-visible:bg-sidebar-accent active:bg-sidebar-accent aria-expanded:text-foreground data-current:font-medium data-current:text-foreground",
         className,
       )}
       {...props}

@@ -31,7 +31,7 @@ export function AppearanceMenu({ children }: { children?: ReactNode }) {
         <SunMoonIcon aria-hidden />
         Appearance
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="data-open:animate-none data-closed:animate-none">
+      <DropdownMenuContent align="end" className="transition-none">
         <AppearanceMenuItems />
         {children}
       </DropdownMenuContent>

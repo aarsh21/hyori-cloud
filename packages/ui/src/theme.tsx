@@ -13,6 +13,9 @@ type AppearanceControl = {
 
 const APPEARANCE_STORAGE_KEY = "hyori-appearance";
 
+/** The app's ground in each scheme; browser chrome and the phone status bar take this color. */
+export const THEME_COLORS = { light: "#f1eee8", dark: "#07080a" } as const;
+
 function subscribeToHydration() {
   return () => {};
 }
@@ -37,9 +40,25 @@ export function AppearanceProvider({ children, nonce }: { children: ReactNode; n
       enableColorScheme
       disableTransitionOnChange
     >
+      <ThemeColor />
       {children}
     </ThemeProvider>
   );
+}
+
+/** The head's per-scheme tags follow the OS; a chosen Light or Dark has to repaint them itself. */
+function ThemeColor() {
+  const { resolved } = useAppearance();
+
+  useEffect(() => {
+    if (resolved === undefined) return;
+
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+      meta.setAttribute("content", THEME_COLORS[resolved]);
+    }
+  }, [resolved]);
+
+  return null;
 }
 
 /** Synchronizes an external host surface with the existing appearance owner, without owning its lifecycle. */

@@ -38,10 +38,11 @@ function ComboboxContent({
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner className="isolate z-50 outline-none" sideOffset={sideOffset}>
+        {/* Typing opens and closes this list, so it appears without motion. */}
         <ComboboxPrimitive.Popup
           data-slot="combobox-content"
           className={cn(
-            "max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-(--shadow-popover) ring-1 ring-foreground/8 transition-[opacity,scale] duration-140 ease-(--ease-out) outline-none data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:duration-100 data-starting-style:scale-[0.97] data-starting-style:opacity-0",
+            "max-h-(--available-height) min-w-(--anchor-width) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-(--shadow-popover) ring-1 ring-foreground/8 outline-none",
             className,
           )}
           {...props}

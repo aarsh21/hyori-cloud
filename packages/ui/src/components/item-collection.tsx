@@ -323,7 +323,7 @@ function ItemTableRow({
         data-slot="item-table-row"
         data-item-key={itemKey}
         className={cn(
-          "group/item relative grid min-h-11 grid-cols-(--item-columns) items-center gap-3 rounded-md px-2 [&_[data-item-target]]:after:absolute [&_[data-item-target]]:after:inset-0 [contain-intrinsic-size:auto_2.75rem] [content-visibility:auto] focus-within:bg-accent hover:bg-accent active:bg-accent has-aria-expanded:bg-accent @2xl:min-h-10 @2xl:[contain-intrinsic-size:auto_2.5rem] coarse:min-h-13 coarse:[contain-intrinsic-size:auto_3.25rem]",
+          "group/item relative grid min-h-11 grid-cols-(--item-columns) items-center gap-3 rounded-md px-2 [&_[data-item-target]]:after:absolute [&_[data-item-target]]:after:inset-0 [contain-intrinsic-size:auto_2.75rem] [content-visibility:auto] hover:bg-accent has-[:focus-visible]:bg-accent active:bg-accent has-aria-expanded:bg-accent @2xl:min-h-10 @2xl:[contain-intrinsic-size:auto_2.5rem] coarse:min-h-13 coarse:[contain-intrinsic-size:auto_3.25rem]",
           className,
         )}
         {...props}
@@ -493,7 +493,7 @@ function ItemTile({
         data-slot="item-tile"
         data-item-key={itemKey}
         className={cn(
-          "group/item relative flex flex-col gap-1.5 rounded-lg p-1.5 [&_[data-item-target]]:after:absolute [&_[data-item-target]]:after:inset-0 [contain-intrinsic-size:auto_10rem] [content-visibility:auto] focus-within:bg-accent hover:bg-accent active:bg-accent has-aria-expanded:bg-accent",
+          "group/item relative flex flex-col gap-1.5 rounded-lg p-1.5 [&_[data-item-target]]:after:absolute [&_[data-item-target]]:after:inset-0 [contain-intrinsic-size:auto_10rem] [content-visibility:auto] hover:bg-accent has-[:focus-visible]:bg-accent active:bg-accent has-aria-expanded:bg-accent",
           className,
         )}
         {...props}

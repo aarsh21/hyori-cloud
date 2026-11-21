@@ -3,17 +3,18 @@ import { cn } from "@hyori-cloud/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-[13px] font-medium whitespace-nowrap transition-[scale,background-color,border-color,box-shadow,color,opacity] duration-150 ease-(--ease-out) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background active:not-aria-[haspopup]:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-busy:opacity-70 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-[13px] font-medium whitespace-nowrap transition-[scale,background-color,border-color,box-shadow,color,opacity] duration-100 ease-(--ease-out) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-busy:opacity-70 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-(--shadow-control-strong) hover:bg-primary/90",
+          "bg-primary text-primary-foreground shadow-(--shadow-control-strong) hover:bg-primary/90 active:bg-primary/90",
         outline:
-          "border-border bg-card text-foreground shadow-(--shadow-control) hover:bg-accent aria-expanded:bg-accent",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-accent",
+          "border-border bg-card text-foreground shadow-(--shadow-control) hover:bg-accent active:bg-accent aria-expanded:bg-accent",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-accent active:bg-accent aria-expanded:bg-accent",
         ghost:
-          "text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground",
+          "text-muted-foreground hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         "destructive-outline":
           "border-border bg-card text-destructive shadow-(--shadow-control) hover:bg-destructive/8",

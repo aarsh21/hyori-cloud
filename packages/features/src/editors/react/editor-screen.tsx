@@ -267,10 +267,7 @@ function EditorBar({
         >
           <MoreHorizontal aria-hidden />
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="data-open:animate-none data-closed:animate-none"
-        >
+        <DropdownMenuContent align="end" className="transition-none">
           {native && !copyOnly && live ? (
             <>
               {/* Only an unfinished save blocks a copy; one already given up on never does. */}

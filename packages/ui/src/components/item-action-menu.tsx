@@ -31,7 +31,7 @@ function ItemActionMenuScope({
       {children}
       <DropdownMenu handle={handle} onOpenChange={onOpenChange}>
         {({ payload }) => (
-          <DropdownMenuContent align="end" className="animate-none! duration-0!">
+          <DropdownMenuContent align="end" className="transition-none">
             {payload}
           </DropdownMenuContent>
         )}

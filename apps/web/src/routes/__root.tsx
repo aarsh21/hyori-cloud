@@ -1,7 +1,7 @@
 import { ClientSDKProvider } from "@hyori-cloud/client-sdk/react";
 import { QueryClientProvider, useQuery } from "@hyori-cloud/lib/query";
 import { Toaster } from "@hyori-cloud/ui/components/sonner";
-import { AppearanceProvider } from "@hyori-cloud/ui/theme";
+import { AppearanceProvider, THEME_COLORS } from "@hyori-cloud/ui/theme";
 import { BrowserPreferencesScript } from "@hyori-cloud/ui/components/browser-preferences-script";
 import { BrowserPreferencesProvider } from "@hyori-cloud/ui/components/browser-preferences-provider";
 import {
@@ -52,8 +52,8 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       },
       { name: "color-scheme", content: "light dark" },
       // Follow the app's ground in each scheme, so browser chrome reads as part of the frame.
-      { name: "theme-color", media: "(prefers-color-scheme: light)", content: "#f1eee8" },
-      { name: "theme-color", media: "(prefers-color-scheme: dark)", content: "#07080a" },
+      { name: "theme-color", media: "(prefers-color-scheme: light)", content: THEME_COLORS.light },
+      { name: "theme-color", media: "(prefers-color-scheme: dark)", content: THEME_COLORS.dark },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
