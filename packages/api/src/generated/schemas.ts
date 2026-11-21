@@ -96,7 +96,7 @@ export const Albums = Schema.Struct({ "items": Schema.Array(Album) });
 
 export type Albums = typeof Albums.Type;
 
-export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("uploads.busy"), Schema.Literal("uploads.tooSlow"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable"), Schema.Literal("auth.signInBusy")), Schema.String);
+export const ErrorCode = intersection(Schema.Union(Schema.Literal("auth.required"), Schema.Literal("auth.invalidCredentials"), Schema.Literal("auth.setupDenied"), Schema.Literal("auth.rateLimited"), Schema.Literal("access.denied"), Schema.Literal("input.invalid"), Schema.Literal("resource.notFound"), Schema.Literal("resource.conflict"), Schema.Literal("uploads.limitReached"), Schema.Literal("uploads.busy"), Schema.Literal("uploads.tooSlow"), Schema.Literal("downloads.archiveTooLarge"), Schema.Literal("storage.quotaExceeded"), Schema.Literal("service.unavailable"), Schema.Literal("auth.signInBusy")), Schema.String);
 
 export type ErrorCode = typeof ErrorCode.Type;
 
@@ -304,11 +304,15 @@ export const FavoriteNote = Schema.Struct({ "favorite": Schema.Boolean, "id": Id
 
 export type FavoriteNote = typeof FavoriteNote.Type;
 
+export const FileShareSummary = Schema.Struct({ "hasLink": Schema.Boolean, "peopleCount": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(0)) });
+
+export type FileShareSummary = typeof FileShareSummary.Type;
+
 export const FileThumbnail = Schema.Struct({ "pending": Schema.Boolean, "url": Schema.Union(Schema.String, Schema.Null) });
 
 export type FileThumbnail = typeof FileThumbnail.Type;
 
-export const FileList = Schema.Struct({ "breadcrumbs": Schema.Array(Breadcrumb), "folder": Schema.Union(FileEntry, Schema.Null), "items": Schema.Array(FileEntry), "nextCursor": Schema.Union(Schema.String, Schema.Null), "thumbnails": Schema.optional(Schema.Record({ key: Schema.String, value: FileThumbnail }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))) });
+export const FileList = Schema.Struct({ "breadcrumbs": Schema.Array(Breadcrumb), "folder": Schema.Union(FileEntry, Schema.Null), "items": Schema.Array(FileEntry), "nextCursor": Schema.Union(Schema.String, Schema.Null), "sharing": Schema.optional(Schema.Record({ key: Schema.String, value: FileShareSummary }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))), "thumbnails": Schema.optional(Schema.Record({ key: Schema.String, value: FileThumbnail }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))) });
 
 export type FileList = typeof FileList.Type;
 
@@ -323,6 +327,10 @@ export type FileVersion = typeof FileVersion.Type;
 export const FilesView = intersection(Schema.Union(Schema.Literal("files"), Schema.Literal("shared"), Schema.Literal("trash")), Schema.String);
 
 export type FilesView = typeof FilesView.Type;
+
+export const FolderDownload = Schema.Struct({ "mimeType": Schema.String, "name": Schema.String, "url": Schema.String });
+
+export type FolderDownload = typeof FolderDownload.Type;
 
 export const IncomingUpload = Schema.Struct({ "anonymous": Schema.Boolean, "expiresAt": Schema.String, "name": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
 
@@ -400,6 +408,26 @@ export const NoteListInput = Schema.Struct({ "cursor": Schema.optional(Schema.Un
 
 export type NoteListInput = typeof NoteListInput.Type;
 
+export const UserIdentity = Schema.Struct({ "email": Schema.String, "id": Id, "name": Schema.String });
+
+export type UserIdentity = typeof UserIdentity.Type;
+
+export const Share = Schema.Struct({ "expiresAt": Schema.Union(Schema.String, Schema.Null), "id": Id, "itemId": Id, "passwordProtected": Schema.Boolean, "public": Schema.Boolean, "recipient": Schema.Union(UserIdentity, Schema.Null), "recipientId": Schema.Union(Id, Schema.Null), "revokedAt": Schema.Union(Schema.String, Schema.Null), "role": ShareRole, "url": Schema.Union(Schema.String, Schema.Null) });
+
+export type Share = typeof Share.Type;
+
+export const OutgoingShare = Schema.Struct({ "createdAt": Schema.String, "expired": Schema.Boolean, "itemKind": FileKind, "itemName": Schema.String, "share": Share });
+
+export type OutgoingShare = typeof OutgoingShare.Type;
+
+export const OutgoingShares = Schema.Struct({ "items": Schema.Array(OutgoingShare), "nextCursor": Schema.Union(Schema.String, Schema.Null) });
+
+export type OutgoingShares = typeof OutgoingShares.Type;
+
+export const OutgoingSharesInput = Schema.Struct({ "cursor": Schema.optional(Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 150))), "limit": Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(1), Schema.lessThanOrEqualTo(100))) });
+
+export type OutgoingSharesInput = typeof OutgoingSharesInput.Type;
+
 export const PasswordResetLink = Schema.Struct({ "expiresAt": Schema.String, "token": Schema.String });
 
 export type PasswordResetLink = typeof PasswordResetLink.Type;
@@ -472,15 +500,7 @@ export const ResolveShare = Schema.Struct({ "token": Schema.String.pipe(Schema.f
 
 export type ResolveShare = typeof ResolveShare.Type;
 
-export const UserIdentity = Schema.Struct({ "email": Schema.String, "id": Id, "name": Schema.String });
-
-export type UserIdentity = typeof UserIdentity.Type;
-
-export const Share = Schema.Struct({ "expiresAt": Schema.Union(Schema.String, Schema.Null), "id": Id, "itemId": Id, "passwordProtected": Schema.Boolean, "public": Schema.Boolean, "recipient": Schema.Union(UserIdentity, Schema.Null), "recipientId": Schema.Union(Id, Schema.Null), "revokedAt": Schema.Union(Schema.String, Schema.Null), "role": ShareRole, "url": Schema.Union(Schema.String, Schema.Null) });
-
-export type Share = typeof Share.Type;
-
-export const ResolvedShare = Schema.Struct({ "item": Schema.Union(FileEntry, Schema.Null), "requiresPassword": Schema.Boolean, "share": Share });
+export const ResolvedShare = Schema.Struct({ "item": Schema.Union(FileEntry, Schema.Null), "requiresPassword": Schema.Boolean, "share": Share, "sharedByName": Schema.optional(Schema.Union(Schema.String, Schema.Null)) });
 
 export type ResolvedShare = typeof ResolvedShare.Type;
 

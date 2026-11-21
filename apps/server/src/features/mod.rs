@@ -6,6 +6,7 @@ pub mod auth {
 }
 pub mod files {
     pub mod api;
+    pub(crate) mod archive;
     pub(crate) mod db;
     pub(crate) mod deletion;
     pub(crate) mod policy;

@@ -6,6 +6,7 @@ use crate::{
     features::{
         auth::api::Done,
         files::{
+            api::FileKind,
             policy::{self, Action},
             service::FilesService,
         },
@@ -14,12 +15,12 @@ use crate::{
             capability::{self, Capability},
             db::ShareRecord,
         },
-        users::{api::UserIdentity, service::active_identity},
+        users::service::active_identity,
     },
     rpc::{GRANT_COOKIE_PREFIX, RequestContext, RpcResult},
     wire::Nullable,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
 use std::sync::Arc;
 
@@ -72,17 +73,68 @@ impl SharesService {
                             vec![input.item_id.0.into()],
                         ))
                         .await?
-                        .into_iter()
-                        .map(|row| {
-                            let recipient = row.try_get::<Option<String>>("", "active_recipient_id")?
-                                .map(|id| UserIdentity::from_row(&row, id)).transpose()?;
-                            Ok(ShareRecord::from_row(&row)?.project(None, recipient))
-                        })
+                        .iter()
+                        .map(ShareRecord::project_list_row)
                         .collect::<db::DomainResult<_>>()?;
                     Ok(SharesList { items })
                 })
             })
             .await
+    }
+    pub async fn outgoing(&self, input: OutgoingSharesInput) -> Result<OutgoingShares, ApiError> {
+        let limit = input.limit.unwrap_or(50);
+        let cursor = input
+            .cursor
+            .as_deref()
+            .map(|value| {
+                let (timestamp, id) = value.split_once('.').ok_or_else(ApiError::invalid)?;
+                let timestamp = timestamp
+                    .parse::<i64>()
+                    .ok()
+                    .and_then(DateTime::from_timestamp_micros)
+                    .ok_or_else(ApiError::invalid)?;
+                let id = policy::cursor(Some(id))?;
+                if id.is_empty() {
+                    return Err(ApiError::invalid());
+                }
+                Ok((timestamp, id.to_owned()))
+            })
+            .transpose()?;
+        self.files().run(move |tx, actor| {
+            let cursor = cursor.clone();
+            Box::pin(async move {
+                let user = actor.require_user()?;
+                let mut values = vec![user.into(), i64::from(limit + 1).into()];
+                let boundary = if let Some((time, id)) = cursor {
+                    values.extend([time.into(), id.into()]);
+                    "AND (s.created_at,s.id)<($3,$4)"
+                } else { "" };
+                let rows = tx.query_all_raw(sql(&format!(
+                    "SELECT s.*, i.name AS item_name, i.kind='folder' AS folder,
+                            coalesce(s.expires_at<=now(), false) AS expired,
+                            u.id AS active_recipient_id, u.name, u.email
+                     FROM hyori_shares s JOIN hyori_items i ON i.id=s.item_id
+                     LEFT JOIN hyori_users u ON u.id=s.recipient_id AND u.status='active'
+                     WHERE s.issuer_id=$1 AND i.owner_id=$1 AND s.revoked_at IS NULL AND i.trashed_at IS NULL
+                     {boundary} ORDER BY s.created_at DESC,s.id DESC LIMIT $2"
+                ), values)).await?;
+                let mut items = Vec::with_capacity(rows.len().min(limit as usize));
+                let mut next_cursor = None;
+                for (index, row) in rows.iter().take(limit as usize).enumerate() {
+                    let created_at: DateTime<Utc> = row.try_get("", "created_at")?;
+                    let share = ShareRecord::project_list_row(row)?;
+                    if index + 1 == limit as usize && rows.len() > limit as usize {
+                        next_cursor = Some(format!("{}.{}", created_at.timestamp_micros(), share.id.0));
+                    }
+                    items.push(OutgoingShare {
+                        share, created_at: created_at.to_rfc3339(), item_name: row.try_get("", "item_name")?,
+                        item_kind: if row.try_get::<bool>("", "folder")? { FileKind::Folder } else { FileKind::File },
+                        expired: row.try_get("", "expired")?,
+                    });
+                }
+                Ok(OutgoingShares { items, next_cursor: Nullable(next_cursor) })
+            })
+        }).await
     }
     pub async fn create(&self, input: CreateShare) -> Result<Share, ApiError> {
         let item_id = input.item_id.0.clone();
@@ -231,6 +283,7 @@ impl SharesService {
                                 share: share.project(None, None),
                                 item: Nullable(None),
                                 requires_password: true,
+                                shared_by_name: None,
                             },
                             vec![],
                             None,
@@ -239,6 +292,14 @@ impl SharesService {
                     let actor = actor.with_share(share.id.clone());
                     let item =
                         policy::authorize(tx, &actor, &share.item_id, Action::Read, false).await?;
+                    let issuer_name = tx
+                        .query_one_raw(sql(
+                            "SELECT name FROM hyori_users WHERE id=$1 AND status='active'",
+                            vec![share.issuer_id.clone().into()],
+                        ))
+                        .await?
+                        .ok_or_else(ApiError::denied)?
+                        .try_get("", "name")?;
                     // A visitor who already holds a live credential keeps it, and with it their
                     // uploads and editor handles; anyone else gets a new capability.
                     let grant = existing.unwrap_or_else(|| {
@@ -254,6 +315,7 @@ impl SharesService {
                             share: share.project(None, None),
                             item: Nullable(Some(policy::project(&item, &actor))),
                             requires_password: false,
+                            shared_by_name: Some(issuer_name),
                         },
                         actor.public_shares().to_vec(),
                         Some(grant),

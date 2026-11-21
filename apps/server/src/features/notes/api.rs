@@ -112,7 +112,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         RenameNote,
         Note,
         "mutation",
-        ["notes", "files"],
+        ["notes", "files", "shares"],
         false
     );
     crate::operation!(

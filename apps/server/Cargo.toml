@@ -42,6 +42,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 unicode-normalization = "0.1"
 url = "2"
 yrs = "=0.24.0"
+zip = { version = "=9.8.1", default-features = false }
 
 [dev-dependencies]
 http-body-util = "0.1"

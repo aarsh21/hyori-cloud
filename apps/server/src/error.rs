@@ -13,6 +13,7 @@ crate::wire_enum!(ErrorCode {
     NotFound => "resource.notFound", Conflict => "resource.conflict",
     UploadLimit => "uploads.limitReached", UploadBusy => "uploads.busy",
     UploadTooSlow => "uploads.tooSlow",
+    ArchiveTooLarge => "downloads.archiveTooLarge",
     QuotaExceeded => "storage.quotaExceeded", Unavailable => "service.unavailable",
     SignInBusy => "auth.signInBusy"
 });
@@ -74,6 +75,7 @@ impl ApiError {
             | ErrorCode::UploadBusy => StatusCode::CONFLICT,
             ErrorCode::RateLimited | ErrorCode::SignInBusy => StatusCode::TOO_MANY_REQUESTS,
             ErrorCode::UploadTooSlow => StatusCode::REQUEST_TIMEOUT,
+            ErrorCode::ArchiveTooLarge => StatusCode::UNPROCESSABLE_ENTITY,
             ErrorCode::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }

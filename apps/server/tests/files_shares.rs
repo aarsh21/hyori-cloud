@@ -100,6 +100,147 @@ async fn seed_file(server: &TestServer, owner: &Account, parent: &str, name: &st
 }
 
 #[tokio::test]
+#[ignore = "real HTTP and PostgreSQL for outgoing sharing, shared listings and link unlock"]
+async fn outgoing_shares_and_summaries_stay_with_the_owner() {
+    let pg = Postgres::start().await;
+    let server = TestServer::start(pg.config.clone()).await;
+    let admin = setup(&server, &pg.config).await;
+    let owner = account(&server, &admin, "owner").await;
+    let member = account(&server, &admin, "member").await;
+    let root = folder(&server, &owner.cookie, None, "Root").await;
+    let child = folder(&server, &owner.cookie, Some(&root), "Child").await;
+    let trashed = folder(&server, &owner.cookie, None, "Trash me").await;
+    let direct = share(&server, &owner, &root, &member, "editor").await;
+    share(&server, &owner, &trashed, &member, "viewer").await;
+    server
+        .rpc("files.trash", json!({"id":trashed}), Some(&owner.cookie))
+        .await
+        .value();
+    let link = server
+        .rpc(
+            "shares.create",
+            json!({"itemId":root,"public":true,"role":"viewer","password":"long enough"}),
+            Some(&owner.cookie),
+        )
+        .await;
+    let token = link.value()["url"]
+        .as_str()
+        .unwrap()
+        .rsplit('/')
+        .next()
+        .unwrap();
+    let expired = server
+        .rpc(
+            "shares.create",
+            json!({"itemId":child,"public":true,"role":"viewer"}),
+            Some(&owner.cookie),
+        )
+        .await;
+    let expired = expired.value()["id"].as_str().unwrap();
+    server
+        .state
+        .db
+        .execute_raw(sql(
+            "UPDATE hyori_shares SET expires_at=now()-interval '1 second' WHERE id=$1",
+            vec![expired.into()],
+        ))
+        .await
+        .unwrap();
+
+    let summary = server
+        .rpc("files.list", json!({"sort":"nameAsc"}), Some(&owner.cookie))
+        .await;
+    assert_eq!(
+        summary.value()["sharing"],
+        json!({(root.clone()):{"peopleCount":1,"hasLink":true}})
+    );
+    assert!(
+        server
+            .rpc("files.list", json!({"parentId":root}), Some(&owner.cookie))
+            .await
+            .value()
+            .get("sharing")
+            .is_none()
+    );
+    for account in [&member, &admin] {
+        assert_eq!(
+            server
+                .rpc("shares.outgoing", json!({}), Some(&account.cookie))
+                .await
+                .value(),
+            &json!({"items":[],"nextCursor":null})
+        );
+    }
+    assert!(
+        server
+            .rpc("files.list", json!({"view":"shared"}), Some(&member.cookie))
+            .await
+            .value()
+            .get("sharing")
+            .is_none()
+    );
+    server
+        .rpc("shares.outgoing", json!({}), None)
+        .await
+        .error(401, "auth.required");
+
+    let first = server
+        .rpc("shares.outgoing", json!({"limit":1}), Some(&owner.cookie))
+        .await;
+    let first = first.value();
+    let cursor = first["nextCursor"].as_str().unwrap();
+    let row = &first["items"][0];
+    assert_eq!(row["share"]["id"], expired);
+    assert_eq!(row["share"]["url"], Value::Null);
+    assert_eq!(row["itemName"], "Child");
+    assert_eq!(row["expired"], true);
+    server
+        .rpc("shares.revoke", json!({"id":expired}), Some(&owner.cookie))
+        .await
+        .value();
+    let rest = server
+        .rpc(
+            "shares.outgoing",
+            json!({"cursor":cursor}),
+            Some(&owner.cookie),
+        )
+        .await;
+    assert_eq!(rest.value()["nextCursor"], Value::Null);
+    let rows = rest.value()["items"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["share"]["id"], link.value()["id"]);
+    assert_eq!(rows[0]["expired"], false);
+    assert_eq!(rows[1]["share"]["id"], direct);
+    assert_eq!(rows[1]["share"]["recipient"]["id"], member.id);
+
+    let locked = server
+        .rpc(
+            "shares.resolve",
+            json!({"token":token}),
+            Some(&member.cookie),
+        )
+        .await;
+    assert_eq!(locked.value()["requiresPassword"], true);
+    assert!(locked.value().get("sharedByName").is_none());
+    let unlocked = server
+        .rpc(
+            "shares.unlock",
+            json!({"token":token,"password":"long enough"}),
+            Some(&member.cookie),
+        )
+        .await;
+    let unlocked_value = unlocked.value();
+    assert_eq!(unlocked_value["sharedByName"], "owner");
+    assert_eq!(unlocked_value["share"]["role"], "viewer");
+    assert_eq!(unlocked_value["item"]["access"]["role"], "editor");
+    assert!(!unlocked_value.to_string().contains("owner@example.test"));
+    server
+        .rpc("shares.outgoing", json!({}), Some(&unlocked.credential()))
+        .await
+        .error(401, "auth.required");
+}
+
+#[tokio::test]
 #[ignore = "real HTTP and unique loopback PostgreSQL; metadata only, no RustFS"]
 async fn directory_search_and_account_share_role_changes() {
     let pg = Postgres::start().await;

@@ -362,18 +362,15 @@ impl FilesService {
                 } else {
                     None
                 };
-                let items = rows
+                let page = &rows[..rows.len().min(limit as usize)];
+                let items = page
                     .iter()
-                    .take(limit as usize)
                     .map(|item| policy::project(item, &actor))
                     .collect();
-                let thumbnails = super::thumbnails::describe(
-                    tx,
-                    &rows[..rows.len().min(limit as usize)],
-                    media_enabled,
-                    trash,
-                )
-                .await?;
+                let sharing =
+                    crate::features::shares::db::describe_page(tx, actor.user_id(), page).await?;
+                let thumbnails =
+                    super::thumbnails::describe(tx, page, media_enabled, trash).await?;
                 let mut breadcrumbs = vec![];
                 if let Some(folder) = &folder {
                     let mut ancestors = tx
@@ -412,6 +409,7 @@ impl FilesService {
                     next_cursor: Nullable(next_cursor),
                     folder: Nullable(folder.map(|item| policy::project(&item, &actor))),
                     thumbnails,
+                    sharing,
                 })
             })
         })

@@ -20,35 +20,42 @@ export function createClient(options: ClientOptions = {}) {
   const uploads = createUploads(catalog.rpc.uploads, transport.request);
   const editors = createEditors(catalog.rpc.editors, uploads, transport.request);
 
+  async function openDownload<T extends { url: string; size?: number }>(
+    metadata: T,
+    signal: AbortSignal | undefined,
+  ) {
+    const response = await transport.request(metadata.url, { signal });
+
+    if (!response.ok) throw await readBinaryRejection(response, signal);
+
+    if (!response.body) throw new SDKError("SDK_PROTOCOL", "The download has no readable body.");
+    const length = response.headers.get("content-length");
+
+    if (
+      metadata.size !== undefined &&
+      length !== null &&
+      (!/^(0|[1-9]\d*)$/.test(length) || Number(length) !== metadata.size)
+    ) {
+      await response.body.cancel().catch(() => undefined);
+      throw new SDKError("SDK_PROTOCOL", "Download length does not match its descriptor.");
+    }
+
+    return { metadata, stream: response.body };
+  }
+
   return {
     ...catalog,
     uploads,
     editors,
     downloads: {
       /** Stream bytes to a host-owned sink; this helper never buffers an entire file. */
-      open: async (
-        input: InputOf<RPC["files"]["download"]>,
+      open: async (input: InputOf<RPC["files"]["download"]>, options?: { signal?: AbortSignal }) =>
+        openDownload(await catalog.rpc.files.download(input, options), options?.signal),
+      /** Open a streamed ZIP; its size is not known before streaming. */
+      openFolder: async (
+        input: InputOf<RPC["files"]["downloadFolder"]>,
         options?: { signal?: AbortSignal },
-      ) => {
-        const metadata = await catalog.rpc.files.download(input, options);
-        const response = await transport.request(metadata.url, { signal: options?.signal });
-
-        if (!response.ok) throw await readBinaryRejection(response, options?.signal);
-
-        if (!response.body)
-          throw new SDKError("SDK_PROTOCOL", "The download has no readable body.");
-        const length = response.headers.get("content-length");
-
-        if (
-          length !== null &&
-          (!/^(0|[1-9]\d*)$/.test(length) || Number(length) !== metadata.size)
-        ) {
-          await response.body.cancel().catch(() => undefined);
-          throw new SDKError("SDK_PROTOCOL", "Download length does not match its descriptor.");
-        }
-
-        return { metadata, stream: response.body };
-      },
+      ) => openDownload(await catalog.rpc.files.downloadFolder(input, options), options?.signal),
     },
     previews: {
       /**

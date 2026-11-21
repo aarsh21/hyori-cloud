@@ -94,3 +94,58 @@ test("a plain gateway outage remains a download transport failure", async () => 
     client.dispose();
   }
 });
+
+test("folder downloads accept an unknown length and surface the server's archive limit", async () => {
+  const folder = {
+    url: "/api/storage/folders/folder_1",
+    name: "Trips.zip",
+    mimeType: "application/zip",
+  };
+
+  let tooLarge = false;
+
+  const client = createClient({
+    fetch: async (url, init) => {
+      if (init?.method === "POST") {
+        expect(JSON.parse(String(init.body))).toEqual({
+          operation: "files.downloadFolder",
+          input: { id: "folder_1" },
+        });
+
+        return Response.json({ ok: true, value: folder });
+      }
+
+      expect(String(url)).toBe(folder.url);
+
+      return tooLarge
+        ? Response.json(
+            {
+              ok: false,
+              error: { code: "downloads.archiveTooLarge", message: "Limit: 10000 entries" },
+            },
+            { status: 422 },
+          )
+        : new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(Uint8Array.of(80, 75));
+                controller.close();
+              },
+            }),
+          );
+    },
+  });
+
+  try {
+    const { metadata, stream } = await client.downloads.openFolder({ id: "folder_1" });
+    expect(metadata).toEqual(folder);
+    expect(await new Response(stream).text()).toBe("PK");
+    tooLarge = true;
+    await expect(client.downloads.openFolder({ id: "folder_1" })).rejects.toEqual({
+      code: "downloads.archiveTooLarge",
+      message: "Limit: 10000 entries",
+    });
+  } finally {
+    client.dispose();
+  }
+});

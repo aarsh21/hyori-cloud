@@ -33,6 +33,8 @@ pub struct AppState {
     /// Download-like bodies (originals, previews, thumbnails, editor bytes). A permit lives in the
     /// task that drives one body and is dropped when that body finishes, fails or stalls.
     pub(crate) transfers: Arc<tokio::sync::Semaphore>,
+    /// ZIPs also retain a bounded manifest; don't let an archive burst occupy all downloads.
+    pub(crate) archives: Arc<tokio::sync::Semaphore>,
     /// Upload begin/part/complete operations, admitted independently of downloads.
     pub(crate) uploads: Arc<tokio::sync::Semaphore>,
     pub(crate) upload_principals: features::uploads::http::PrincipalLimiter,
@@ -130,6 +132,7 @@ impl AppState {
             editor_assets,
             request_log_deployment: observability::RequestLogDeployment::from_env(),
             transfers: Arc::new(tokio::sync::Semaphore::new(config::DOWNLOAD_CONCURRENCY)),
+            archives: Arc::new(tokio::sync::Semaphore::new(4)),
             uploads: Arc::new(tokio::sync::Semaphore::new(config::UPLOAD_CONCURRENCY)),
             upload_principals: features::uploads::http::PrincipalLimiter::default(),
             download_principals: features::uploads::http::PrincipalLimiter::default(),
@@ -159,6 +162,10 @@ pub fn router(state: Arc<AppState>) -> Router {
     // Every download-like route shares one per-principal concurrency budget.
     let downloads = Router::new()
         .route("/api/storage/files/{id}", get(features::uploads::http::get))
+        .route(
+            "/api/storage/folders/{id}",
+            get(features::files::archive::get),
+        )
         .route("/api/storage/notes/{id}", get(features::notes::http::get))
         .route(
             "/api/storage/previews/{id}",

@@ -77,7 +77,7 @@ export type Album = Contract.Album;
 export const Albums: z.ZodMiniType<Contract.Albums> = z.object({ "items": z.array(Album) });
 export type Albums = Contract.Albums;
 
-export const ErrorCode: z.ZodMiniType<Contract.ErrorCode> = intersection(z.literal(["auth.required","auth.invalidCredentials","auth.setupDenied","auth.rateLimited","access.denied","input.invalid","resource.notFound","resource.conflict","uploads.limitReached","uploads.busy","uploads.tooSlow","storage.quotaExceeded","service.unavailable","auth.signInBusy"]), z.string());
+export const ErrorCode: z.ZodMiniType<Contract.ErrorCode> = intersection(z.literal(["auth.required","auth.invalidCredentials","auth.setupDenied","auth.rateLimited","access.denied","input.invalid","resource.notFound","resource.conflict","uploads.limitReached","uploads.busy","uploads.tooSlow","downloads.archiveTooLarge","storage.quotaExceeded","service.unavailable","auth.signInBusy"]), z.string());
 export type ErrorCode = Contract.ErrorCode;
 
 export const ApiError: z.ZodMiniType<Contract.ApiError> = z.object({ "code": ErrorCode, "message": z.string() });
@@ -233,10 +233,13 @@ export type Empty = Contract.Empty;
 export const FavoriteNote: z.ZodMiniType<Contract.FavoriteNote> = z.object({ "favorite": z.boolean(), "id": Id });
 export type FavoriteNote = Contract.FavoriteNote;
 
+export const FileShareSummary: z.ZodMiniType<Contract.FileShareSummary> = z.object({ "hasLink": z.boolean(), "peopleCount": z.int().check(z.gte(0), z.lte(4294967295), z.gte(0)) });
+export type FileShareSummary = Contract.FileShareSummary;
+
 export const FileThumbnail: z.ZodMiniType<Contract.FileThumbnail> = z.object({ "pending": z.boolean(), "url": z.union([z.string(), z.null()]) });
 export type FileThumbnail = Contract.FileThumbnail;
 
-export const FileList: z.ZodMiniType<Contract.FileList> = z.object({ "breadcrumbs": z.array(Breadcrumb), "folder": z.union([FileEntry, z.null()]), "items": z.array(FileEntry), "nextCursor": z.union([z.string(), z.null()]), "thumbnails": z.optional(z.record(z.string(), FileThumbnail)) });
+export const FileList: z.ZodMiniType<Contract.FileList> = z.object({ "breadcrumbs": z.array(Breadcrumb), "folder": z.union([FileEntry, z.null()]), "items": z.array(FileEntry), "nextCursor": z.union([z.string(), z.null()]), "sharing": z.optional(z.record(z.string(), FileShareSummary)), "thumbnails": z.optional(z.record(z.string(), FileThumbnail)) });
 export type FileList = Contract.FileList;
 
 export const FileSort: z.ZodMiniType<Contract.FileSort> = intersection(z.literal(["nameAsc","nameDesc","sizeAsc","sizeDesc","modifiedAsc","modifiedDesc"]), z.string());
@@ -247,6 +250,9 @@ export type FileVersion = Contract.FileVersion;
 
 export const FilesView: z.ZodMiniType<Contract.FilesView> = intersection(z.literal(["files","shared","trash"]), z.string());
 export type FilesView = Contract.FilesView;
+
+export const FolderDownload: z.ZodMiniType<Contract.FolderDownload> = z.object({ "mimeType": z.string(), "name": z.string(), "url": z.string() });
+export type FolderDownload = Contract.FolderDownload;
 
 export const IncomingUpload: z.ZodMiniType<Contract.IncomingUpload> = z.object({ "anonymous": z.boolean(), "expiresAt": z.string(), "name": z.string().check(z.refine((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
 export type IncomingUpload = Contract.IncomingUpload;
@@ -305,6 +311,21 @@ export type NoteList = Contract.NoteList;
 export const NoteListInput: z.ZodMiniType<Contract.NoteListInput> = z.object({ "cursor": z.optional(z.union([Id, z.null()])), "favorites": z.optional(z.boolean()), "search": z.optional(z.union([z.string().check(z.refine((value) => Array.from(value).length <= 255)), z.null()])), "trash": z.optional(z.boolean()) });
 export type NoteListInput = Contract.NoteListInput;
 
+export const UserIdentity: z.ZodMiniType<Contract.UserIdentity> = z.object({ "email": z.string(), "id": Id, "name": z.string() });
+export type UserIdentity = Contract.UserIdentity;
+
+export const Share: z.ZodMiniType<Contract.Share> = z.object({ "expiresAt": z.union([z.string(), z.null()]), "id": Id, "itemId": Id, "passwordProtected": z.boolean(), "public": z.boolean(), "recipient": z.union([UserIdentity, z.null()]), "recipientId": z.union([Id, z.null()]), "revokedAt": z.union([z.string(), z.null()]), "role": ShareRole, "url": z.union([z.string(), z.null()]) });
+export type Share = Contract.Share;
+
+export const OutgoingShare: z.ZodMiniType<Contract.OutgoingShare> = z.object({ "createdAt": z.string(), "expired": z.boolean(), "itemKind": FileKind, "itemName": z.string(), "share": Share });
+export type OutgoingShare = Contract.OutgoingShare;
+
+export const OutgoingShares: z.ZodMiniType<Contract.OutgoingShares> = z.object({ "items": z.array(OutgoingShare), "nextCursor": z.union([z.string(), z.null()]) });
+export type OutgoingShares = Contract.OutgoingShares;
+
+export const OutgoingSharesInput: z.ZodMiniType<Contract.OutgoingSharesInput> = z.object({ "cursor": z.optional(z.string().check(z.refine((value) => Array.from(value).length <= 150))), "limit": z.optional(z.int().check(z.gte(0), z.lte(4294967295), z.gte(1), z.lte(100))) });
+export type OutgoingSharesInput = Contract.OutgoingSharesInput;
+
 export const PasswordResetLink: z.ZodMiniType<Contract.PasswordResetLink> = z.object({ "expiresAt": z.string(), "token": z.string() });
 export type PasswordResetLink = Contract.PasswordResetLink;
 
@@ -359,13 +380,7 @@ export type ResetPassword = Contract.ResetPassword;
 export const ResolveShare: z.ZodMiniType<Contract.ResolveShare> = z.object({ "token": z.string().check(z.refine((value) => Array.from(value).length <= 256)) });
 export type ResolveShare = Contract.ResolveShare;
 
-export const UserIdentity: z.ZodMiniType<Contract.UserIdentity> = z.object({ "email": z.string(), "id": Id, "name": z.string() });
-export type UserIdentity = Contract.UserIdentity;
-
-export const Share: z.ZodMiniType<Contract.Share> = z.object({ "expiresAt": z.union([z.string(), z.null()]), "id": Id, "itemId": Id, "passwordProtected": z.boolean(), "public": z.boolean(), "recipient": z.union([UserIdentity, z.null()]), "recipientId": z.union([Id, z.null()]), "revokedAt": z.union([z.string(), z.null()]), "role": ShareRole, "url": z.union([z.string(), z.null()]) });
-export type Share = Contract.Share;
-
-export const ResolvedShare: z.ZodMiniType<Contract.ResolvedShare> = z.object({ "item": z.union([FileEntry, z.null()]), "requiresPassword": z.boolean(), "share": Share });
+export const ResolvedShare: z.ZodMiniType<Contract.ResolvedShare> = z.object({ "item": z.union([FileEntry, z.null()]), "requiresPassword": z.boolean(), "share": Share, "sharedByName": z.optional(z.union([z.string(), z.null()])) });
 export type ResolvedShare = Contract.ResolvedShare;
 
 export const RestoreNoteCheckpoint: z.ZodMiniType<Contract.RestoreNoteCheckpoint> = z.object({ "checkpointId": Id, "id": Id });

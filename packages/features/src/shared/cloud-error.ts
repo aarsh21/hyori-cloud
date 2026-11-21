@@ -43,6 +43,10 @@ const COPY: Record<CloudErrorCode, ErrorCopy> = {
     title: "Your connection was too slow to finish uploading",
     detail: "Your progress is kept. Use a faster connection, then press Retry.",
   },
+  "downloads.archiveTooLarge": {
+    title: "This folder is too large for one ZIP",
+    detail: "Download smaller subfolders separately.",
+  },
   "storage.quotaExceeded": {
     title: "Not enough storage",
     detail: "Free up space or ask your admin for a larger quota.",

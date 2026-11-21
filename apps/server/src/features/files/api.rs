@@ -24,11 +24,18 @@ crate::wire_struct!(ListFiles {
 });
 crate::wire_struct!(Breadcrumb { id: Id, name: Name });
 crate::wire_struct!(FileThumbnail { url: Nullable<String>, pending: bool });
+crate::wire_struct!(FileShareSummary {
+    people_count: u32,
+    has_link: bool
+});
 crate::wire_struct!(FileList {
     items: Vec<FileEntry>, breadcrumbs: Vec<Breadcrumb>, next_cursor: Nullable<String>, folder: Nullable<FileEntry>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(with = "std::collections::BTreeMap<String, FileThumbnail>")]
-    thumbnails: Option<std::collections::BTreeMap<String, FileThumbnail>>
+    thumbnails: Option<std::collections::BTreeMap<String, FileThumbnail>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "std::collections::BTreeMap<String, FileShareSummary>")]
+    sharing: Option<std::collections::BTreeMap<String, FileShareSummary>>
 });
 // The service trims/NFC-normalizes before validating the final Name; JSON body size bounds input.
 crate::wire_struct!(CreateFolder { parent_id: Nullable<Id>, #[schemars(with = "String")] name: Name });
@@ -71,6 +78,11 @@ crate::wire_struct!(Download {
     url: String,
     name: Name,
     size: Bytes,
+    mime_type: String
+});
+crate::wire_struct!(FolderDownload {
+    url: String,
+    name: String,
     mime_type: String
 });
 pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResult<()> {
@@ -203,10 +215,18 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
             ))
         },
     )?;
+    registry.bind::<ItemInput, FolderDownload, _, _>(
+        "files.downloadFolder",
+        |state, context, input| async move {
+            Ok(RpcResult::value(
+                super::archive::describe(&state, context, input.id.0).await?,
+            ))
+        },
+    )?;
     Ok(())
 }
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
-    crate::schemas!(m; ShareRole, Access, FileEntry, ItemInput, ListFiles, FileList, CreateFolder, RenameFile, MoveFile, FileVersion, Versions, ListVersions, RestoreVersion, DeleteVersion, PermanentDeletion, TrashSummary, DownloadInput, Download);
+    crate::schemas!(m; ShareRole, Access, FileEntry, ItemInput, ListFiles, FileList, FileShareSummary, CreateFolder, RenameFile, MoveFile, FileVersion, Versions, ListVersions, RestoreVersion, DeleteVersion, PermanentDeletion, TrashSummary, DownloadInput, Download, FolderDownload);
     crate::operation!(m, "files.list", ListFiles, FileList, "query", [], false);
     crate::operation!(m, "files.get", ItemInput, FileEntry, "query", [], false);
     crate::operation!(
@@ -233,7 +253,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         RenameFile,
         FileEntry,
         "mutation",
-        ["files", "photos", "notes"],
+        ["files", "photos", "notes", "shares"],
         false
     );
     crate::operation!(
@@ -260,7 +280,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         ItemInput,
         FileEntry,
         "mutation",
-        ["files", "photos", "media", "notes"],
+        ["files", "photos", "media", "notes", "shares"],
         false
     );
     crate::operation!(
@@ -322,6 +342,15 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
         "files.download",
         DownloadInput,
         Download,
+        "query",
+        [],
+        false
+    );
+    crate::operation!(
+        m,
+        "files.downloadFolder",
+        ItemInput,
+        FolderDownload,
         "query",
         [],
         false

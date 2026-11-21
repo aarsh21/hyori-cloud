@@ -404,11 +404,18 @@ pub(crate) fn stream_bytes(bytes: Vec<u8>, permit: tokio::sync::OwnedSemaphorePe
             .step_by(64 * 1024)
             .map(move |start| Ok(bytes.slice(start..(start + 64 * 1024).min(bytes.len())))),
     );
+    stream_download(Box::pin(chunks), permit)
+}
+
+pub(crate) fn stream_download(
+    source: hyori_storage::StorageStream,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) -> Body {
     let slot = DOWNLOAD_SLOT
         .try_with(|slot| slot.borrow_mut().take())
         .ok()
         .flatten();
-    Body::from_stream(relay(Box::pin(chunks), (permit, slot), IDLE))
+    Body::from_stream(relay(source, (permit, slot), IDLE))
 }
 
 /// Hyper polls a response body only while the client reads, so deadlines inside the body never
@@ -430,7 +437,11 @@ fn relay<A: Send + 'static>(
         let deadline = tokio::time::Instant::now() + DOWNLOAD_DEADLINE;
         let until = || deadline.min(tokio::time::Instant::now() + idle);
         loop {
-            let item = match tokio::time::timeout_at(until(), source.next()).await {
+            let next = tokio::select! {
+                _ = sender.closed() => return,
+                next = tokio::time::timeout_at(until(), source.next()) => next,
+            };
+            let item = match next {
                 Ok(Some(item)) => item,
                 Ok(None) => {
                     complete.store(true, Ordering::Release);

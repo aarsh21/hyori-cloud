@@ -105,6 +105,169 @@ async fn accounting(server: &TestServer, owner: &str) -> (i64, i64) {
 }
 
 #[tokio::test]
+#[ignore = "real PostgreSQL and pinned RustFS for folder archive content and authorization"]
+async fn folder_zip_streams_the_current_readable_tree() {
+    use std::io::{Cursor, Read};
+
+    let mut pg = Postgres::start().await;
+    let rustfs = storage::RustFs::start().await;
+    pg.config.storage = Some(rustfs.config.clone());
+    let server = TestServer::start(pg.config.clone()).await;
+    let (owner, cookie) = setup(&server).await;
+    let root = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":null,"name":"Trip: 雪"}),
+            Some(&cookie),
+        )
+        .await;
+    let id = root.value()["id"].as_str().unwrap();
+    server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":id,"name":"Empty"}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    let original = b"a trip report, not compressed or buffered in the SDK";
+    let upload = begin(
+        &server,
+        &cookie,
+        "report.txt",
+        original.len() as u64,
+        Some(id),
+        None,
+    )
+    .await;
+    assert_eq!(put(&server, &cookie, &upload, original).await.status(), 200);
+    let file = complete(&server, &cookie, &upload).await;
+    let note = server
+        .rpc(
+            "notes.create",
+            json!({"parentId":null,"name":"Plan"}),
+            Some(&cookie),
+        )
+        .await;
+    let note_id = &note.value()["file"]["id"];
+    server
+        .rpc(
+            "notes.create",
+            json!({"parentId":note_id,"name":"Child"}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    server
+        .rpc(
+            "files.move",
+            json!({"id":note_id,"parentId":id}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    let link = server
+        .rpc(
+            "shares.create",
+            json!({"itemId":id,"public":true,"role":"viewer"}),
+            Some(&cookie),
+        )
+        .await;
+    let grant = server
+        .rpc(
+            "shares.resolve",
+            json!({"token":share_token(link.value())}),
+            None,
+        )
+        .await;
+    let guest = grant.credential();
+    let descriptor = server
+        .rpc("files.downloadFolder", json!({"id":id}), Some(&guest))
+        .await;
+    let url = descriptor.value()["url"].as_str().unwrap();
+    let fetch = |credential: &str| {
+        server
+            .client
+            .get(format!("{}{url}", server.url))
+            .header("host", "localhost:3001")
+            .header("origin", &server.state.config.origin)
+            .header("cookie", credential)
+            .send()
+    };
+    assert_eq!(fetch("").await.unwrap().status(), 401);
+    let response = fetch(&guest).await.unwrap();
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.headers()["content-type"], "application/zip");
+    assert!(!response.headers().contains_key("content-length"));
+    let mut zip = zip::ZipArchive::new(Cursor::new(response.bytes().await.unwrap())).unwrap();
+    assert_eq!(zip.len(), 6);
+    assert!(zip.by_name("Trip%3A 雪/Empty/").unwrap().is_dir());
+    assert!(zip.by_name("Trip%3A 雪/Plan/").unwrap().is_dir());
+    for entry in ["Plan.hyori-note.json", "Plan/Child.hyori-note.json"] {
+        let data: Value =
+            serde_json::from_reader(zip.by_name(&format!("Trip%3A 雪/{entry}")).unwrap()).unwrap();
+        assert_eq!(data["format"], "hyori-note");
+    }
+    let mut bytes = vec![];
+    zip.by_name("Trip%3A 雪/report.txt")
+        .unwrap()
+        .read_to_end(&mut bytes)
+        .unwrap();
+    assert_eq!(bytes, original);
+
+    server
+        .rpc(
+            "shares.revoke",
+            json!({"id":link.value()["id"]}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    assert!(!fetch(&guest).await.unwrap().status().is_success());
+    let key = server
+        .state
+        .db
+        .query_one_raw(sql(
+            "SELECT object_key FROM hyori_items WHERE id=$1",
+            vec![file["id"].as_str().unwrap().into()],
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get::<String>("", "object_key")
+        .unwrap();
+    server
+        .state
+        .storage
+        .as_ref()
+        .unwrap()
+        .remove(&key)
+        .await
+        .unwrap();
+    // Storage can fail after 200; none of those incomplete bytes may look like a complete ZIP.
+    if let Ok(failed) = fetch(&cookie).await {
+        assert!(failed.bytes().await.is_err());
+    }
+
+    server.state.db.execute_raw(sql(
+        "INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,mime_type,ancestor_ids)
+         SELECT 'archive-bound-'||n,$1,$2,'Bound '||n,'folder','inode/directory',jsonb_build_array($2::text)
+         FROM generate_series(1,10000) n",
+        vec![owner.into(), id.into()],
+    )).await.unwrap();
+    let too_large = fetch(&cookie).await.unwrap();
+    assert_eq!(too_large.status(), 422);
+    let error = too_large.json::<Value>().await.unwrap();
+    assert_eq!(error["error"]["code"], "downloads.archiveTooLarge");
+    assert!(
+        error["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("10000")
+    );
+}
+
+#[tokio::test]
 #[ignore = "real isolated PostgreSQL and pinned RustFS HTTP lifecycle"]
 async fn owner_idle_expiry_inventory_cross_session_cancel_and_pending_limit() {
     let mut pg = Postgres::start().await;

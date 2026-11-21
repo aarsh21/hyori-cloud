@@ -3,7 +3,11 @@ use crate::{
     error::ApiError,
     features::{
         auth::api::Id,
-        files::{api::ShareRole, policy},
+        files::{
+            api::{FileShareSummary, ShareRole},
+            db::Item,
+            policy,
+        },
         shares::api::Share,
         users::api::UserIdentity,
     },
@@ -11,6 +15,41 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use sea_orm::{ConnectionTrait, DatabaseTransaction, QueryResult};
+use std::collections::BTreeMap;
+
+/// Enrich only owned, live entries on the selected page. Each indexed share range is bounded by
+/// the per-item grant cap; the lateral aggregate never visits another page's shares.
+pub(crate) async fn describe_page(
+    tx: &DatabaseTransaction,
+    user: Option<&str>,
+    page: &[Item],
+) -> DomainResult<Option<BTreeMap<String, FileShareSummary>>> {
+    let Some(user) = user else { return Ok(None) };
+    let ids: Vec<_> = page
+        .iter()
+        .filter(|item| item.owner_id == user && item.trashed_at.is_none())
+        .map(|item| &item.id)
+        .collect();
+    if ids.is_empty() {
+        return Ok(None);
+    }
+    let items = tx.query_all_raw(sql(
+        "SELECT page.id, summary.people, summary.link FROM jsonb_array_elements_text($1::jsonb) page(id)
+         CROSS JOIN LATERAL (
+           SELECT count(u.id)::int AS people, coalesce(bool_or(s.public),false) AS link
+           FROM hyori_shares s LEFT JOIN hyori_users u ON u.id=s.recipient_id AND u.status='active'
+           WHERE s.item_id=page.id AND s.issuer_id=$2 AND s.revoked_at IS NULL
+           AND (s.expires_at IS NULL OR s.expires_at>now())
+         ) summary WHERE summary.people>0 OR summary.link",
+        vec![serde_json::json!(ids).into(), user.into()],
+    )).await?.into_iter().map(|row| {
+        Ok((row.try_get("", "id")?, FileShareSummary {
+            people_count: row.try_get::<i32>("", "people")? as u32,
+            has_link: row.try_get("", "link")?,
+        }))
+    }).collect::<DomainResult<BTreeMap<_, _>>>()?;
+    Ok((!items.is_empty()).then_some(items))
+}
 
 #[derive(Clone)]
 pub(crate) struct ShareRecord {
@@ -52,6 +91,13 @@ impl ShareRecord {
     }
     pub async fn by_token(tx: &DatabaseTransaction, digest: &str) -> DomainResult<Self> {
         Self::from_row(&tx.query_one_raw(sql("SELECT s.* FROM hyori_shares s JOIN hyori_users u ON u.id=s.issuer_id AND u.status='active' WHERE s.token_digest=$1 AND s.public AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())", vec![digest.into()])).await?.ok_or_else(ApiError::denied)?)
+    }
+    pub fn project_list_row(row: &QueryResult) -> DomainResult<Share> {
+        let recipient = row
+            .try_get::<Option<String>>("", "active_recipient_id")?
+            .map(|id| UserIdentity::from_row(row, id))
+            .transpose()?;
+        Ok(Self::from_row(row)?.project(None, recipient))
     }
     pub fn project(&self, url: Option<String>, recipient: Option<UserIdentity>) -> Share {
         Share {
