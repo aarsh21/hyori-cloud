@@ -22,7 +22,9 @@ export function screenAssets(): Plugin {
       for (const output of Object.values(bundle)) {
         if (output.type !== "chunk" || !output.facadeModuleId) continue;
 
-        const name = output.facadeModuleId.match(/\/([^/]+-screen|signed-in-cloud)\.tsx$/)?.[1];
+        const name = output.facadeModuleId.match(
+          /\/([^/]+-screen|signed-in-cloud|note-document)\.tsx$/,
+        )?.[1];
 
         if (!name) continue;
 

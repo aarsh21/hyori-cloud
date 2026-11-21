@@ -41,7 +41,15 @@ const loadDocument = createIsomorphicFn()
           : location.section === "passwordReset"
             ? ["password-reset-screen"]
             : status?.user
-              ? ["signed-in-cloud", `${location.section}-screen`]
+              ? [
+                  "signed-in-cloud",
+                  `${location.section}-screen`,
+                  // An opened note's editor is most of its code, and the screen only asks for it
+                  // once the app has started; the document's preload starts it beside the app.
+                  ...(location.section === "notes" && location.noteId !== null
+                    ? ["note-document"]
+                    : []),
+                ]
               : [];
 
     return { preloads: [...new Set(names.flatMap((name) => screenAssets[name] ?? []))] };

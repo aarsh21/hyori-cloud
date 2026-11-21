@@ -37,8 +37,12 @@ function NoteDocument(props: ComponentProps<NoteDocumentScreen>) {
   return <editor.NoteDocument {...props} />;
 }
 
-/** Start the shared editor import when the loaded list commits, not on sidebar intent. */
-function onNotesListReady(node: HTMLDivElement | null) {
+/**
+ * Start the shared editor import when the Notes screen commits, beside the list's own request
+ * rather than a round trip behind it: on a slow phone the editor's code is most of the wait for
+ * the first note opened from the list. Not on sidebar intent, and never for other sections.
+ */
+function onNotesScreenReady(node: HTMLDivElement | null) {
   if (node !== null) preloadNoteDocument();
 }
 
@@ -125,10 +129,7 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
             </Button>
             <MutationFailure error={create.error} />
           </div>
-          <div
-            ref={notes.data !== undefined ? onNotesListReady : undefined}
-            className="min-h-0 flex-1 overflow-y-auto px-2 pb-4"
-          >
+          <div ref={onNotesScreenReady} className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
             {notes.data === undefined ? (
               <QueryWaiting
                 resource={notes}

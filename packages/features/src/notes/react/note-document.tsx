@@ -7,6 +7,7 @@ import {
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { ArrowLeft, Ellipsis, Lock, Plus, Share2, Star } from "@hyori-cloud/lib/icons";
 import { useRef, useState } from "@hyori-cloud/lib/react";
+import type { ReactNode } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
   Dialog,
@@ -75,26 +76,28 @@ export function NoteDocument({
   // the expected result, not a failure to announce.
   const leaving = trash.isPending || trash.isSuccess;
 
-  if (note.data === undefined)
-    return (
-      <QueryWaiting
-        resource={note}
-        pending={
-          <div className="p-8">
-            <Spinner />
-          </div>
-        }
-      />
-    );
+  const pending = (
+    <div className="p-8">
+      <Spinner />
+    </div>
+  );
+
+  // The session opens beside the note's own request, not a round trip after it: both are on the
+  // wire while the document mounts. Only a first request still on its way gets that head start —
+  // a failed or offline note shows its own state, and its session opens once the note is here.
+  if (note.data === undefined && (note.error !== null || note.fetchStatus !== "fetching"))
+    return <QueryWaiting resource={note} pending={pending} />;
 
   return (
     <>
-      {note.error !== null && !leaving && (
+      {note.data !== undefined && note.error !== null && !leaving && (
         <RefreshFailure error={note.error} onRetry={() => note.refetch()} />
       )}
       <NoteAttempt
         key={`${id}:${attempt}`}
+        id={id}
         note={note.data}
+        pending={pending}
         autoFocus={autoFocus}
         trash={trash}
         accountId={accountId}
@@ -109,33 +112,35 @@ export function NoteDocument({
   );
 }
 
-function NoteAttempt({
-  note,
-  autoFocus,
-  trash,
-  accountId,
-  onNewChild,
-  closePath,
-  onReopen,
-}: {
-  note: Note;
+type NoteViewProps = {
   autoFocus: boolean;
   trash: ReturnType<typeof useTrashFile>;
   accountId?: string | undefined;
   onNewChild?: (() => void) | undefined;
   closePath: string;
   onReopen(): void;
-}) {
+};
+
+type Session = ReturnType<typeof createCollaborationSession>;
+
+/** Owns one attempt's collaboration session, which opens as soon as this mounts. */
+function NoteAttempt({
+  id,
+  note,
+  pending,
+  accountId,
+  ...props
+}: NoteViewProps & { id: string; note: Note | undefined; pending: ReactNode }) {
   const sdk = useClientSDK();
-  const { navigationGuard, navigatePath } = useCloudNavigation();
+  const { navigationGuard } = useCloudNavigation();
 
   const [session] = useState(() => {
     let release: (() => void) | undefined;
 
     return createCollaborationSession({
-      id: note.file.id,
+      id,
       backend: sdk.rpc.collaboration,
-      journal: accountId ? createBrowserCollaborationJournal(accountId, note.file.id) : undefined,
+      journal: accountId ? createBrowserCollaborationJournal(accountId, id) : undefined,
       pageExit: createBrowserPageExit(),
       onUnsavedChange(unsaved) {
         if (unsaved) release ??= navigationGuard.hold();
@@ -148,7 +153,26 @@ function NoteAttempt({
   });
 
   useDisposeOnUnmount(() => session.dispose());
+  // Subscribing starts the session, so it opens while the note itself may still be on its way.
   const state = useStoreValue(session);
+
+  if (note === undefined) return pending;
+
+  return <NoteView {...props} accountId={accountId} note={note} session={session} state={state} />;
+}
+
+function NoteView({
+  note,
+  session,
+  state,
+  autoFocus,
+  trash,
+  accountId,
+  onNewChild,
+  closePath,
+  onReopen,
+}: NoteViewProps & { note: Note; session: Session; state: ReturnType<Session["getSnapshot"]> }) {
+  const { navigatePath } = useCloudNavigation();
   const control = useRef<NoteEditorControl>(null);
   const [sharing, setSharing] = useState(false);
   const [history, setHistory] = useState(false);
