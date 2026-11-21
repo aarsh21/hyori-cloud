@@ -455,15 +455,21 @@ export function createFrontHandler({
       peakInFlightTileMedia = 0;
     },
     hold(matches: Fault["matches"], count = 1) {
-      let release = () => {};
+      const released = Promise.withResolvers<void>();
 
-      const released = new Promise<void>((resolve) => {
-        release = resolve;
-      });
+      const fault: Fault = {
+        matches,
+        action: { kind: "hold", released: released.promise },
+        remaining: count,
+      };
 
-      faults.push({ matches, action: { kind: "hold", released }, remaining: count });
+      faults.push(fault);
 
-      return release;
+      // Releasing retires an unused hold too, so it cannot shadow a later hold on the same request.
+      return () => {
+        fault.remaining = 0;
+        released.resolve();
+      };
     },
     replaceReply(matches: Fault["matches"], status = 503) {
       faults.push({ matches, action: { kind: "replace-reply", status }, remaining: 1 });

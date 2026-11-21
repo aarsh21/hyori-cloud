@@ -576,9 +576,10 @@ async function transfers(run: CoreRun, phone: boolean) {
   try {
     const name = `multipart-${size}.bin`;
     const source = media.bytes(name, 8 * 1024 * 1024 + 1193);
+    // Holding the first part keeps the upload running until Pause lands, however fast the transfer is.
     release = front.hold(
       (record) =>
-        record.operation === "uploads.part" && /"partNumber":2\b/.test(record.rpcBody ?? ""),
+        record.operation === "uploads.part" && /"partNumber":1\b/.test(record.rpcBody ?? ""),
     );
     await report.check(
       `${size}: multipart upload pauses, reloads, reselects and resumes with exact bytes`,

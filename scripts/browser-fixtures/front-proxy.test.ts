@@ -85,6 +85,30 @@ describe("abandoning a request at the gateway", () => {
   });
 });
 
+describe("holding a request at the gateway", () => {
+  test("a hold released before its request arrives does not let a later hold's request through", async () => {
+    const nitroUrl = startStub(async () => Response.json({ ok: true, value: {} }));
+    const front = createFrontHandler({ nitroUrl });
+    const isPart = (record: { operation: string | null }) => record.operation === "uploads.part";
+
+    front.hold(isPart)();
+
+    const release = front.hold(isPart);
+    let answered = false;
+
+    const reply = front.handle(rpc("uploads.part"), "http/1.1").then((response) => {
+      answered = true;
+
+      return response;
+    });
+
+    await Bun.sleep(50);
+    expect(answered).toBe(false);
+    release();
+    expect(await (await reply).json()).toEqual({ ok: true, value: {} });
+  });
+});
+
 describe("the editor bundle route", () => {
   function bundleFront() {
     const parent = mkdtempSync(join(tmpdir(), "hyori-front-bundle-"));
