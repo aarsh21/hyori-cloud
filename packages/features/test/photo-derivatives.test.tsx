@@ -467,6 +467,35 @@ describe("the timeline with server thumbnails", () => {
     expect(api.calls.map((call) => call.operation)).toEqual(["photos.timeline"]);
   });
 
+  test("the first batch of ready stills starts loading before any tile reaches the viewport", async () => {
+    const still = (index: number) => `/api/storage/derivatives/lead_${index}/a?revision=1`;
+
+    const items = Array.from({ length: 9 }, (_, index) =>
+      photo(
+        index === 1
+          ? { status: "queued", kind: "thumbnail", sourceRevision: 1 }
+          : ready(still(index), 1),
+        {
+          id: `lead_${index}`,
+          name: `${index}.png`,
+          previewUrl: `/api/storage/previews/lead_${index}`,
+        },
+      ),
+    );
+
+    mount(<MountedTimeline />, createFakeApi({ "photos.timeline": () => timelinePage(items) }));
+
+    await screen.findByRole("button", { name: "0.png" });
+
+    const preloaded = [
+      ...document.head.querySelectorAll('link[rel="preload"][as="image"][href*="lead_"]'),
+    ].map((link) => link.getAttribute("href"));
+
+    // As many as the tiles load at once, in timeline order, skipping a tile with no thumbnail yet.
+    expect(preloaded).toEqual([0, 2, 3, 4, 5, 6].map(still));
+    expect(imageSources()).toEqual([]);
+  });
+
   test("a refresh that finds a finished thumbnail swaps it in, without touching the original", async () => {
     let current = photo({ status: "queued", kind: "thumbnail", sourceRevision: 3 });
     const api = createFakeApi({ "photos.timeline": () => timelinePage([current]) });

@@ -6,7 +6,11 @@ import { Button } from "@hyori-cloud/ui/components/button";
 import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
 import { ItemNavigation } from "@hyori-cloud/ui/components/item-collection";
 import { LightboxAction, LightboxNotice } from "@hyori-cloud/ui/components/lightbox";
-import { MediaGrid, MediaGridSkeleton } from "@hyori-cloud/ui/components/media-grid";
+import {
+  MediaGrid,
+  MediaGridSkeleton,
+  preloadMediaTiles,
+} from "@hyori-cloud/ui/components/media-grid";
 import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { toast } from "@hyori-cloud/ui/components/sonner";
 import { VirtualSections } from "@hyori-cloud/ui/components/virtual-items";
@@ -99,6 +103,10 @@ export function PhotoTimeline<Item extends PhotoItem>({
   const trash = useTrashFile();
   const restore = useRestoreFile();
   const hydrated = useHydrated();
+
+  // The first tiles' thumbnails start downloading now, alongside the render below rather than after
+  // it. Before the hydration check, so the server's document carries the same hints.
+  preloadMediaTiles(readyStills(timeline.data?.pages[0]?.items ?? []));
 
   // Data arrives in the document, but day labels are formatted in this browser. Keep the same
   // skeleton until hydration; warm section switches already have a client snapshot.
@@ -310,6 +318,13 @@ function TimelineDay<Item>({
       </h2>
       {children}
     </section>
+  );
+}
+
+/** The thumbnails and posters tiles show, in timeline order. */
+function readyStills(items: readonly PhotoItem[]) {
+  return items.flatMap((item) =>
+    item.derivative?.status === "ready" ? [item.derivative.url] : [],
   );
 }
 

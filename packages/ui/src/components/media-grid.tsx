@@ -7,9 +7,10 @@ import {
 } from "@hyori-cloud/ui/components/item-collection";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Skeleton } from "@hyori-cloud/ui/components/skeleton";
-import { createImageLoadSlot } from "@hyori-cloud/ui/lib/image-load-slots";
+import { createImageLoadSlot, MAX_LOADING } from "@hyori-cloud/ui/lib/image-load-slots";
 import { cn } from "@hyori-cloud/ui/lib/utils";
 import * as React from "react";
+import { preload } from "react-dom";
 
 function MediaGroup({
   className,
@@ -113,6 +114,16 @@ function MediaTileButton({
       {children}
     </button>
   );
+}
+
+/**
+ * Starts a grid's first batch of images while the grid is still rendering, so their round trip
+ * overlaps the render instead of following it. Call during render with the tiles' image URLs in
+ * grid order. Only as many start as the tiles would load at once, and those tiles then find their
+ * images already on the way. Server rendering emits the same hints in the document head.
+ */
+function preloadMediaTiles(urls: readonly string[]) {
+  for (const url of urls.slice(0, MAX_LOADING)) preload(url, { as: "image" });
 }
 
 function notGranted() {
@@ -264,6 +275,7 @@ function MediaTileAction({
 }
 
 export {
+  preloadMediaTiles,
   MediaGrid,
   MediaGridSkeleton,
   MediaGroup,

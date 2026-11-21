@@ -1,6 +1,6 @@
 // Previews are full originals and share the server's transfer limit with uploads and downloads, so
 // a screenful of tiles can't all ask at once. Below that limit on purpose, to leave room for those.
-const MAX_LOADING = 6;
+export const MAX_LOADING = 6;
 
 type Slot = { readonly grant: () => void };
 
