@@ -1,5 +1,5 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
-import { FileText, Plus, Search, Star } from "@hyori-cloud/lib/icons";
+import { NotebookPen, Plus, Search, Star } from "@hyori-cloud/lib/icons";
 import { Suspense, useDeferredValue, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
@@ -22,6 +22,11 @@ type Note = OutputOf<RPC["notes"]["get"]>;
 // for it; the screen itself, and the section's preload, stay light.
 const NoteDocument = lazyScreen(loadNoteDocument, (module) => module.NoteDocument);
 
+/** Only an unfiltered, loaded, empty first page proves there are no notes at all. */
+function mayHaveNotes(loadedCount: number | undefined, narrowed: boolean) {
+  return loadedCount === undefined || loadedCount > 0 || narrowed;
+}
+
 export function NotesScreen({ noteId }: { noteId: string | null }) {
   const user = useCurrentUser();
   const [search, setSearch] = useState("");
@@ -29,6 +34,8 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
   const [cursor, setCursor] = useState<string | undefined>();
   const deferredSearch = useDeferredValue(search);
   const notes = useNotes({ search: deferredSearch, favorites, trash: false, cursor });
+  const narrowed = search !== "" || favorites || cursor !== undefined;
+  const hasNotes = mayHaveNotes(notes.data?.items.length, narrowed);
   const create = useCreateNote();
   const { navigatePath } = useCloudNavigation();
   // The note created last opens ready to type. The flag is dropped when the list navigates
@@ -113,11 +120,11 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
                   <RefreshFailure error={notes.error} onRetry={() => notes.refetch()} />
                 )}
                 {notes.data.items.length === 0 ? (
-                  <p className="px-3 py-6 text-[13px] text-muted-foreground">
-                    {search || favorites
-                      ? "No matching notes."
-                      : "Your thoughts, all in one place."}
-                  </p>
+                  (search || favorites) && (
+                    <p className="px-3 py-6 text-[13px] text-muted-foreground">
+                      No matching notes.
+                    </p>
+                  )
                 ) : (
                   <NoteTree
                     notes={notes.data.items}
@@ -143,21 +150,22 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
               </>
             )}
           </div>
-          <div className="border-t border-border p-3 text-xs text-muted-foreground">
-            Private until you share.
-          </div>
         </>
       }
     >
       {noteId === null ? (
         <RegionState
-          icon={<FileText />}
-          title="A little room to think"
-          description="Write, plan, and work on a note together. Changes are saved as you go."
+          icon={<NotebookPen />}
+          title={hasNotes ? "Choose a note" : "No notes yet"}
+          description={
+            hasNotes
+              ? "Open one from the list, or start a new one."
+              : "Notes save as you type and stay private until you share them."
+          }
           action={
             <Button variant="outline" onClick={() => newNote()} pending={create.isPending}>
               <Plus />
-              Create a note
+              New note
             </Button>
           }
         />

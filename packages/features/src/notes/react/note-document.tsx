@@ -5,7 +5,7 @@ import {
   createBrowserPageExit,
 } from "@hyori-cloud/client-sdk/browser";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
-import { ArrowLeft, Ellipsis, FileText, Plus, Share2, Star } from "@hyori-cloud/lib/icons";
+import { ArrowLeft, Ellipsis, Lock, Plus, Share2, Star } from "@hyori-cloud/lib/icons";
 import { useRef, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import {
@@ -326,11 +326,13 @@ function NoteAttempt({
       </div>
       <NoteCanvas>
         <div className="px-9 pb-6">
-          <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <FileText className="size-4" />
-            {state.writable ? "NOTE" : "READ ONLY"}
-          </div>
-          <h1 className="text-3xl leading-tight font-semibold tracking-tight md:text-4xl">
+          {!state.writable && (
+            <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Lock className="size-3.5" aria-hidden />
+              Read only
+            </p>
+          )}
+          <h1 className="text-[32px] leading-[1.2] font-semibold tracking-[-0.02em] text-balance wrap-anywhere">
             {note.file.name}
           </h1>
         </div>

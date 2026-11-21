@@ -1,5 +1,5 @@
 import { useState } from "@hyori-cloud/lib/react";
-import type { ComponentProps, ReactElement } from "@hyori-cloud/lib/react";
+import type { ComponentProps, ReactElement, ReactNode } from "@hyori-cloud/lib/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,10 +27,13 @@ export function AccountMenuRoot({
   trigger,
   align,
   className,
+  children,
 }: {
   trigger: ReactElement;
   align: MenuContentProps["align"];
   className?: string;
+  /** Places that have no tab of their own on phones. */
+  children?: ReactNode;
 }) {
   const logout = useLogout();
   // Unopened dialogs load nothing. Once opened, retain their normal closing/focus lifecycle.
@@ -62,8 +65,9 @@ export function AccountMenuRoot({
         <DropdownMenuContent
           side="top"
           align={align}
-          className={`${className ?? ""} animate-none! duration-0!`}
+          className={`${className ?? ""} transition-none`}
         >
+          {children}
           <AccountMenuItems
             signingOut={logout.isPending}
             onChangePassword={() => setChangePasswordOpen(true)}

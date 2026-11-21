@@ -146,6 +146,7 @@ export function FileActionsProvider({
       void requestTrash({ id: entry.id })
         .then(() =>
           toast(`Moved “${entry.name}” to Trash`, {
+            duration: 6000,
             action: { label: "Undo", onClick: () => restoreOnce(entry) },
           }),
         )

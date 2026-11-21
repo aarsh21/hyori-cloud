@@ -47,6 +47,7 @@ export {
   Menu,
   MoreHorizontal,
   Move,
+  NotebookPen,
   Music,
   PanelLeft,
   Pause,

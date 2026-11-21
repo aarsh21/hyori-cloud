@@ -1,7 +1,24 @@
-import { FolderPlus, LayoutGrid, List, SlidersHorizontal, Upload } from "@hyori-cloud/lib/icons";
+import {
+  Ellipsis,
+  FolderPlus,
+  LayoutGrid,
+  List,
+  Search,
+  SlidersHorizontal,
+  Upload,
+} from "@hyori-cloud/lib/icons";
 import { useRef, useState } from "@hyori-cloud/lib/react";
 import type { ReactNode, RefObject } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@hyori-cloud/ui/components/dropdown-menu";
 import { DropZone, FilePicker } from "@hyori-cloud/ui/components/file-picker";
 import type { FilePickerHandle } from "@hyori-cloud/ui/components/file-picker";
 import {
@@ -21,8 +38,9 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@hyori-cloud/ui/components/segmented-control";
-import { InlineText, Row } from "@hyori-cloud/ui/components/text";
+import { Row } from "@hyori-cloud/ui/components/text";
 import { useDocumentKeydown } from "@hyori-cloud/ui/hooks/use-document-keydown";
+import { useFocusWhenActive } from "@hyori-cloud/ui/hooks/use-focus-when-active";
 import { useItemLayout } from "@hyori-cloud/ui/hooks/use-item-layout";
 import { useSingleKeyShortcuts } from "@hyori-cloud/ui/hooks/use-single-key-shortcuts";
 import { useBrowserPreferencesReady } from "@hyori-cloud/ui/hooks/use-browser-preferences-ready";
@@ -32,12 +50,7 @@ import {
   AvailableEditorsContext,
   useAvailableEditors,
 } from "#features/editors/react/use-available-editors.ts";
-import {
-  countBarFilters,
-  hasActiveFilters,
-  NO_FILTERS,
-  toListFilesInput,
-} from "#features/files/file-filters.ts";
+import { countBarFilters, NO_FILTERS, toListFilesInput } from "#features/files/file-filters.ts";
 import type { FileFilters, FileView } from "#features/files/file-filters.ts";
 import {
   FileActionsProvider,
@@ -46,6 +59,7 @@ import {
 } from "#features/files/react/file-actions.tsx";
 import { FileFilterBar } from "#features/files/react/file-filter-bar.tsx";
 import { FileListingView } from "#features/files/react/file-listing-view.tsx";
+import type { FileLayout } from "#features/files/react/file-listing-content.tsx";
 import { FileSortControl } from "#features/files/react/file-sort-control.tsx";
 import { useFileSort } from "#features/files/react/file-sort.ts";
 import { FolderPathProvider } from "#features/files/react/folder-path.tsx";
@@ -108,6 +122,7 @@ export function FileBrowser({
   const [sort, setSort] = useFileSort();
   const ready = useBrowserPreferencesReady();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { filters, patch, clear } = useBrowserFilters(parentId);
 
   // Changing filters keeps this folder on screen. Entering another folder never shows this one's data.
@@ -127,8 +142,11 @@ export function FileBrowser({
   const entries = listing.data?.pages.flatMap((page) => page.items) ?? [];
   const canCreate = folder === null ? parentId === null && rootCanUpload : folder.access.canUpload;
   const title = crumbs.at(-1)?.name ?? (parentId === null ? rootLabel : "");
-  const filtering = hasActiveFilters(filters);
   const searchScope = parentId === null ? rootSearchScope : "this folder";
+  const phoneSearch = searchOpen || filters.search !== "";
+
+  // The phone field only becomes visible once this commit lands, so focus follows it.
+  useFocusWhenActive(searchOpen, () => searchInput.current?.focus());
 
   function addFiles(files: File[]) {
     queue.add(files, parentId);
@@ -141,23 +159,30 @@ export function FileBrowser({
           <FilePicker ref={picker} onFiles={addFiles} />
           <BrowserShortcuts canCreate={canCreate} picker={picker} searchInput={searchInput} />
           <PageBar data-browser-ready={ready}>
-            <BrowserLocation
-              root={
-                folder !== null && !folder.access.isOwner && foreignRoot
-                  ? foreignRoot
-                  : { label: rootLabel, path: folderPath(rootFolderId) }
+            <div className={phoneSearch ? "contents max-md:hidden" : "contents"}>
+              <BrowserLocation
+                root={
+                  folder !== null && !folder.access.isOwner && foreignRoot
+                    ? foreignRoot
+                    : { label: rootLabel, path: folderPath(rootFolderId) }
+                }
+                showRoot={parentId !== rootFolderId}
+                title={title}
+                ancestors={crumbs.slice(0, -1).filter((crumb) => crumb.id !== rootFolderId)}
+                folderPath={folderPath}
+              />
+              {titleMeta === undefined ? null : (
+                <div className="hidden min-w-0 self-center truncate text-[13px] text-muted-foreground md:block">
+                  {titleMeta}
+                </div>
+              )}
+            </div>
+            {/* Phones trade the title row for this field while a search is open or applied. */}
+            <PageBarActions
+              className={
+                phoneSearch ? "max-md:ml-0 max-md:w-full md:ml-0" : "max-md:hidden md:ml-0"
               }
-              showRoot={parentId !== rootFolderId}
-              title={title}
-              ancestors={crumbs.slice(0, -1).filter((crumb) => crumb.id !== rootFolderId)}
-              folderPath={folderPath}
-            />
-            {titleMeta === undefined ? null : (
-              <div className="hidden min-w-0 self-center truncate text-[13px] text-muted-foreground md:block">
-                {titleMeta}
-              </div>
-            )}
-            <PageBarActions className="order-last w-full md:order-none md:ml-0 md:w-auto">
+            >
               <SearchField
                 key={parentId}
                 inputRef={searchInput}
@@ -168,14 +193,28 @@ export function FileBrowser({
                 value={filters.search}
                 onCommit={(search) => patch({ search })}
               />
-              <FiltersToggle
-                activeCount={countBarFilters(filters)}
-                open={filtersOpen}
-                onToggle={() => setFiltersOpen(!filtersOpen)}
-              />
-              <FileSortControl value={sort} onChange={setSort} />
+              <div className="contents max-md:hidden">
+                <FiltersToggle
+                  activeCount={countBarFilters(filters)}
+                  open={filtersOpen}
+                  onToggle={() => setFiltersOpen(!filtersOpen)}
+                />
+                <FileSortControl value={sort} onChange={setSort} />
+              </div>
+              {phoneSearch ? (
+                <Button
+                  variant="ghost"
+                  className="md:hidden"
+                  onClick={() => {
+                    setSearchOpen(false);
+                    patch({ search: "" });
+                  }}
+                >
+                  Cancel
+                </Button>
+              ) : null}
             </PageBarActions>
-            <PageBarActions className="md:ml-0">
+            <PageBarActions className="max-md:hidden md:ml-0">
               <SegmentedControl label="Layout" value={layout} onValueChange={setLayout}>
                 <SegmentedControlItem value="list" label="List">
                   <List aria-hidden />
@@ -191,8 +230,39 @@ export function FileBrowser({
                   Upload
                 </Button>
               ) : null}
-              {actions}
             </PageBarActions>
+            {phoneSearch ? null : (
+              // One row on phones: the title keeps the space, everything secondary sits in the menu.
+              <PageBarActions className="gap-0.5 md:hidden">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Search ${searchScope}`}
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search />
+                </Button>
+                <FileSortControl value={sort} onChange={setSort} />
+                <BrowserMenu
+                  layout={layout}
+                  onLayoutChange={setLayout}
+                  canCreate={canCreate}
+                  activeFilters={countBarFilters(filters)}
+                  onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+                />
+                {canCreate ? (
+                  <Button size="icon" aria-label="Upload" onClick={() => picker.current?.open()}>
+                    <Upload aria-hidden />
+                  </Button>
+                ) : null}
+              </PageBarActions>
+            )}
+            {/* One slot for both layouts, so host actions such as Appearance mount once. */}
+            {actions === undefined ? null : (
+              <PageBarActions className={phoneSearch ? "max-md:hidden md:ml-0" : "md:ml-0"}>
+                {actions}
+              </PageBarActions>
+            )}
           </PageBar>
           {filtersOpen ? (
             <FileFilterBar filters={filters} onChange={patch} onClear={clear} />
@@ -210,7 +280,7 @@ export function FileBrowser({
                   listing={listing}
                   layout={layout}
                   label={title}
-                  filtering={filtering}
+                  filters={filters}
                   onClearFilters={clear}
                   empty={
                     <BrowserEmpty
@@ -288,24 +358,84 @@ function BrowserLocation({
   );
 }
 
+/** Phones keep New folder, Filters, and the layout one tap away instead of on a second row. */
+function BrowserMenu({
+  layout,
+  onLayoutChange,
+  canCreate,
+  activeFilters,
+  onToggleFilters,
+}: {
+  layout: FileLayout;
+  onLayoutChange: (layout: FileLayout) => void;
+  canCreate: boolean;
+  activeFilters: number;
+  onToggleFilters: () => void;
+}) {
+  const { openDialog } = useFileActions();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={
+              activeFilters === 0 ? "More options" : `More options, ${activeFilters} filters active`
+            }
+            className={
+              activeFilters === 0
+                ? undefined
+                : "relative after:absolute after:top-1 after:right-1 after:size-1.5 after:rounded-full after:bg-brand"
+            }
+          />
+        }
+      >
+        <Ellipsis />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {canCreate ? (
+          <DropdownMenuItem onClick={() => openDialog({ kind: "createFolder" })}>
+            <FolderPlus />
+            New folder
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onClick={onToggleFilters}>
+          <SlidersHorizontal />
+          {activeFilters === 0 ? "Filters" : `Filters (${activeFilters})`}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup
+          value={layout}
+          aria-label="Layout"
+          onValueChange={(value) => {
+            if (value === "list" || value === "grid") onLayoutChange(value);
+          }}
+        >
+          <DropdownMenuRadioItem value="list" closeOnClick>
+            <List />
+            List
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="grid" closeOnClick>
+            <LayoutGrid />
+            Grid
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function CreateFolderButton() {
   const { openDialog } = useFileActions();
 
   return (
-    <Button
-      variant="outline"
-      aria-label="New folder"
-      className="max-md:size-8 max-md:px-0 max-md:coarse:size-11"
-      onClick={() => openDialog({ kind: "createFolder" })}
-    >
+    <Button variant="outline" onClick={() => openDialog({ kind: "createFolder" })}>
       <FolderPlus aria-hidden />
-      <NewFolderLabel />
+      New folder
     </Button>
   );
-}
-
-function NewFolderLabel() {
-  return <InlineText className="hidden font-medium md:inline">New folder</InlineText>;
 }
 
 function BrowserEmpty({

@@ -12,7 +12,8 @@ export function CloudBottomNav() {
 
   return (
     <AppBottomNav aria-label="Main">
-      {CLOUD_SECTIONS.map((section) => (
+      {/* Five tabs fit a phone; Trash is one tap further, in the account sheet. */}
+      {CLOUD_SECTIONS.filter((section) => section.location.section !== "trash").map((section) => (
         <AppBottomNavItem
           key={section.label}
           href={formatCloudPath(section.location)}

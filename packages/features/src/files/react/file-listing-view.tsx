@@ -4,6 +4,7 @@ import { Button } from "@hyori-cloud/ui/components/button";
 import { ItemGridSkeleton, ItemTableSkeleton } from "@hyori-cloud/ui/components/item-collection";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { Stack } from "@hyori-cloud/ui/components/text";
+import { hasActiveFilters, type FileFilters } from "#features/files/file-filters.ts";
 import { FileListingContent } from "#features/files/react/file-listing-content.tsx";
 import type { FileLayout } from "#features/files/react/file-listing-content.tsx";
 import type { FileListing } from "#features/files/react/use-file-listing.ts";
@@ -16,14 +17,14 @@ export function FileListingView({
   listing,
   layout,
   label,
-  filtering,
+  filters,
   onClearFilters,
   empty,
 }: {
   listing: FileListing;
   layout: FileLayout;
   label: string;
-  filtering: boolean;
+  filters: FileFilters;
   onClearFilters: () => void;
   empty: ReactNode;
 }) {
@@ -41,7 +42,7 @@ export function FileListingView({
       listing={listing}
       layout={layout}
       label={label}
-      filtering={filtering}
+      filters={filters}
       onClearFilters={onClearFilters}
       empty={empty}
     />
@@ -52,14 +53,14 @@ function LoadedListing({
   listing,
   layout,
   label,
-  filtering,
+  filters,
   onClearFilters,
   empty,
 }: {
   listing: FileListing;
   layout: FileLayout;
   label: string;
-  filtering: boolean;
+  filters: FileFilters;
   onClearFilters: () => void;
   empty: ReactNode;
 }) {
@@ -91,7 +92,7 @@ function LoadedListing({
           <FileListingContent entries={entries} layout={layout} label={label} />
         </Stack>
       ) : (
-        <NoEntries filtering={filtering} onClearFilters={onClearFilters} empty={empty} />
+        <NoEntries filters={filters} onClearFilters={onClearFilters} empty={empty} />
       )}
       {listing.isPlaceholderData ? null : <LoadMore pages={listing} />}
     </>
@@ -99,25 +100,31 @@ function LoadedListing({
 }
 
 function NoEntries({
-  filtering,
+  filters,
   onClearFilters,
   empty,
 }: {
-  filtering: boolean;
+  filters: FileFilters;
   onClearFilters: () => void;
   empty: ReactNode;
 }) {
-  if (!filtering) return empty;
+  if (!hasActiveFilters(filters)) return empty;
+
+  const onlySearch = !hasActiveFilters({ ...filters, search: "" });
 
   return (
     <RegionState
       role="status"
       icon={<Search />}
-      title="Nothing matches"
-      description="Search looks at file and folder names, not what’s inside files."
+      title={filters.search === "" ? "No matches" : `No matches for “${filters.search}”`}
+      description={
+        onlySearch
+          ? "Search looks at file and folder names, not what’s inside files."
+          : "Try another name or clear the filters."
+      }
       action={
         <Button variant="outline" onClick={onClearFilters}>
-          Clear filters
+          {onlySearch ? "Clear search" : "Clear filters"}
         </Button>
       }
     />

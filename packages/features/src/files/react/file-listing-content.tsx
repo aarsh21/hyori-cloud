@@ -35,10 +35,15 @@ type ListingEntry = FileEntry & {
   readonly derivative?: NonNullable<FileList["thumbnails"]>[string];
 };
 
+/** Folders and notes have no size a person would act on: a note's bytes are its sync document. */
+function hasSize(entry: FileEntry) {
+  return entry.kind === "file" && entry.mimeType !== "application/vnd.hyori.note";
+}
+
 function entryMeta(entry: FileEntry, hydrated: boolean) {
   const date = hydrated ? formatRecentDate(entry.updatedAt) : "—";
 
-  return entry.kind === "folder" ? date : `${formatBytes(entry.size)} · ${date}`;
+  return hasSize(entry) ? `${formatBytes(entry.size)} · ${date}` : date;
 }
 
 function entryKey(entry: FileEntry) {
@@ -153,7 +158,7 @@ function FileRow({ entry }: { entry: ListingEntry }) {
         {hydrated ? formatRecentDate(entry.updatedAt) : "—"}
       </ItemTableDetailCell>
       <ItemTableDetailCell className="text-right">
-        {entry.kind === "folder" ? <NoSize /> : formatBytes(entry.size)}
+        {hasSize(entry) ? formatBytes(entry.size) : <NoSize />}
       </ItemTableDetailCell>
       <ItemTableCell className="overflow-visible">
         <ItemActionSlot>

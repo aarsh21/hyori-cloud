@@ -140,12 +140,12 @@ describe("search field and the filter it describes", () => {
     expect(screen.queryByText("notes.txt")).toBeNull();
   });
 
-  test("clearing filters also empties the search box", async () => {
+  test("clearing a search with no matches empties the search box", async () => {
     renderAt("/folders/folder_a", signedInApi());
 
     await screen.findByText("roadmap.pdf");
     fireEvent.change(searchBox(), { target: { value: "zzz" } });
-    fireEvent.click(await screen.findByRole("button", { name: "Clear filters" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Clear search" }));
 
     await waitFor(() => expect(searchBox().value).toBe(""));
     expect(await screen.findByText("notes.txt")).toBeTruthy();

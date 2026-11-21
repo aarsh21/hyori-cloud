@@ -9,7 +9,6 @@ import {
   ItemTableRow,
 } from "@hyori-cloud/ui/components/item-collection";
 import { Tag } from "@hyori-cloud/ui/components/tag";
-import { InlineText } from "@hyori-cloud/ui/components/text";
 import type { AdminUser } from "#features/admin/react/admin-screen.tsx";
 import { formatUsage } from "#features/shared/format.ts";
 
@@ -44,10 +43,11 @@ export function AdminUserRow({
           }
         >
           {user.name}
+          {/* Narrow rows carry the email in the meta line; wide rows keep it under the name. */}
+          <span className="hidden truncate text-xs text-muted-foreground @2xl:block">
+            {user.email}
+          </span>
         </ItemName>
-        <InlineText tone="muted" truncate className="hidden min-w-0 flex-1 @2xl:inline">
-          {user.email}
-        </InlineText>
         {user.role === "admin" ? <Tag>Admin</Tag> : null}
       </ItemTableCell>
       <ItemTableDetailCell>{deleting ? "Deleting account…" : usage}</ItemTableDetailCell>

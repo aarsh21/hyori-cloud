@@ -7,6 +7,7 @@ import {
   FileText,
   FileVideo,
   Folder,
+  NotebookPen,
 } from "@hyori-cloud/lib/icons";
 
 const ARCHIVE_TYPES = new Set([
@@ -21,6 +22,8 @@ export function FileTypeIcon({ entry }: { entry: Pick<FileEntry, "kind" | "mimeT
   const { kind, mimeType } = entry;
 
   if (kind === "folder") return <Folder aria-hidden className="fill-folder/25 text-folder" />;
+
+  if (mimeType === "application/vnd.hyori.note") return <NotebookPen aria-hidden />;
 
   if (mimeType.startsWith("image/")) return <FileImage aria-hidden />;
 
