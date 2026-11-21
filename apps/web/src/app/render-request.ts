@@ -10,6 +10,8 @@ export function renderRequest(incoming: Request, init: RequestInit | undefined, 
   const headers = new Headers(incoming.headers);
   headers.delete("content-length");
   headers.delete("transfer-encoding");
+  // This in-process SDK call reads JSON directly; there is no browser HTTP decoder on this hop.
+  headers.delete("accept-encoding");
   headers.set("content-type", "application/json");
   headers.set("origin", new URL(origin).origin);
   headers.set("sec-fetch-site", "same-origin");

@@ -31,6 +31,8 @@ pub(crate) const GRANT_COOKIE_PREFIX: &str = "hyori_grant_";
 pub(crate) const DEVICE_COOKIE: &str = "hyori_device";
 /// Set by a trusted proxy (the web host) to the one address its own client connected from.
 pub const CLIENT_ADDRESS_HEADER: &str = "x-hyori-client-address";
+/// Private response hint consumed by the web proxy, never by the client.
+const RPC_COMPRESSION_HEADER: &str = "x-hyori-rpc-compressible";
 
 /// Who the client is, for attempt limits. A peer listed in `trusted_proxies` names its client in
 /// exactly one [`CLIENT_ADDRESS_HEADER`] holding one IP literal; a missing, repeated or malformed
@@ -253,9 +255,21 @@ pub async fn handle(State(state): State<Arc<AppState>>, request: Request<Body>) 
         tokio::time::sleep_until(*instant).await;
     }
     match result {
-        Ok(result) => {
+        Ok((name, result)) => {
             let mut response =
                 Json(serde_json::json!({ "ok": true, "value": result.value })).into_response();
+            // Re-audit if these reads gain credentials, bearer links or reflected input.
+            // Files (including Shared and Trash), Notes and Photos project stored metadata,
+            // not document content or search text. Media URLs reauthorize each fetch.
+            if matches!(
+                name,
+                "files.list" | "notes.list" | "photos.timeline" | "photos.library"
+            ) && result.cookies.is_empty()
+            {
+                response
+                    .headers_mut()
+                    .insert(RPC_COMPRESSION_HEADER, HeaderValue::from_static("1"));
+            }
             for cookie in result.cookies {
                 match HeaderValue::from_str(&cookie) {
                     Ok(cookie) => {
@@ -273,7 +287,7 @@ async fn handle_inner(
     state: Arc<AppState>,
     request: Request<Body>,
     answer_not_before: Arc<OnceLock<Instant>>,
-) -> Result<RpcResult<Value>, ApiError> {
+) -> Result<(&'static str, RpcResult<Value>), ApiError> {
     let started = std::time::Instant::now();
     let ordinary_budget = std::time::Duration::from_secs(30);
     validate_origin(request.headers(), &state.config.origin)?;
@@ -342,6 +356,7 @@ async fn handle_inner(
     )
     .await
     .unwrap_or_else(|_| Err(ApiError::unavailable()))
+    .map(|result| (name, result))
 }
 pub fn validate_origin(headers: &HeaderMap, origin: &str) -> Result<(), ApiError> {
     if headers.get_all("origin").iter().count() > 1 {

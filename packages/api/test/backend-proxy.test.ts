@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { gunzipSync } from "node:zlib";
 import { createBackendProxy } from "@hyori-cloud/api";
 
 const origin = "https://cloud.example.test";
@@ -74,8 +75,107 @@ describe("private Rust backend proxy", () => {
     const response = await handle(rpc({ Origin: origin, Cookie: "hyori_session=opaque" }));
     expect(response.status).toBe(200);
     expect(response.headers.getSetCookie()).toHaveLength(2);
-    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("cache-control")).toBe("private, no-store, no-transform");
     expect(await response.json()).toEqual({ ok: true, value: {} });
+  });
+
+  test("negotiates gzip only for the backend's opt-in, with identical decoded JSON", async () => {
+    const json = JSON.stringify("x".repeat(1022));
+    const hint = "x-hyori-rpc-compressible";
+
+    const handle = createBackendProxy({
+      origin,
+      backendUrl: "http://127.0.0.1:3002",
+      request: async (request) => {
+        expect(request.headers.has(hint)).toBe(false);
+        expect(request.headers.get("accept-encoding")).toBe("identity");
+
+        return new Response(json, {
+          headers: {
+            "content-type": "application/json",
+            "content-length": "1024",
+            vary: "Origin",
+            [hint]: "1",
+          },
+        });
+      },
+    });
+
+    for (const [accept, encoding, status] of [
+      [undefined, null, 200],
+      ["", null, 200],
+      ["br, zstd", null, 200],
+      ["gzip;q=0, *;q=1", null, 200],
+      ["gzip, gzip;q=0", null, 200],
+      ["gzip;q=1.5", null, 200],
+      ["gzip;q=0.5, identity;q=0.9", null, 200],
+      ["br, GZip;q=0.7", "gzip", 200],
+      ["br, *;q=0.5", "gzip", 200],
+      ["*;q=0, gzip;q=1", "gzip", 200],
+      ["*;q=0, identity;q=1", null, 200],
+      ["br, *;q=0", null, 406],
+      ["br, gzip;q=0, identity;q=0", null, 406],
+    ] as const) {
+      const request = rpc({ Origin: origin, [hint]: "1" });
+
+      if (accept !== undefined) request.headers.set("accept-encoding", accept);
+
+      const response = await handle(request);
+
+      expect(response.status, accept).toBe(status);
+      expect(response.headers.get("content-encoding"), accept).toBe(encoding);
+      expect(response.headers.get("vary")).toBe("Origin, Accept-Encoding");
+      expect(response.headers.has(hint)).toBe(false);
+
+      if (encoding === "gzip") {
+        expect(response.headers.has("content-length")).toBe(false);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        expect(bytes.byteLength).toBeLessThan(1024);
+        expect(gunzipSync(bytes).toString()).toBe(json);
+      } else if (status === 200) {
+        expect(response.headers.get("content-length")).toBe("1024");
+        expect(await response.text()).toBe(json);
+      } else {
+        expect(await response.json()).toMatchObject({ ok: false });
+      }
+    }
+  });
+
+  test("leaves large unmarked RPCs, cookies, errors and bodies under 1024 bytes as identity", async () => {
+    const hint = "x-hyori-rpc-compressible";
+
+    for (const [size, status, extra] of [
+      [2048, 200, {}],
+      [2048, 200, { [hint]: "1", "set-cookie": "test=credential" }],
+      [2048, 403, { [hint]: "1" }],
+      [1023, 200, { [hint]: "1" }],
+    ] as const) {
+      const json = JSON.stringify("x".repeat(size - 2));
+
+      const handle = createBackendProxy({
+        origin,
+        backendUrl: "http://127.0.0.1:3002",
+        request: async () =>
+          new Response(json, {
+            status,
+            headers: {
+              "content-type": "application/json",
+              "content-length": String(size),
+              ...extra,
+            },
+          }),
+      });
+
+      const response = await handle(
+        rpc({ Origin: origin, "accept-encoding": "gzip", [hint]: "1" }),
+      );
+
+      expect(response.status).toBe(status);
+      expect(response.headers.has("content-encoding")).toBe(false);
+      expect(response.headers.has("vary")).toBe(false);
+      expect(response.headers.has(hint)).toBe(false);
+      expect(await response.text()).toBe(json);
+    }
   });
 
   test("forwards byte ranges and returns the original binary stream and headers", async () => {
@@ -92,17 +192,20 @@ describe("private Rust backend proxy", () => {
           "Content-Disposition": 'attachment; filename="safe.bin"',
           "Content-Security-Policy": "sandbox; default-src 'none'",
           "Accept-Ranges": "bytes",
+          "X-Hyori-Rpc-Compressible": "1",
         },
       });
     });
 
     const response = await createBackendProxy({ origin, backendUrl })(
       new Request(`${origin}/api/storage/files/file1?version=version1`, {
-        headers: { Range: "bytes=2-4" },
+        headers: { Range: "bytes=2-4", "Accept-Encoding": "gzip" },
       }),
     );
 
     expect(response.status).toBe(206);
+    expect(response.headers.has("content-encoding")).toBe(false);
+    expect(response.headers.has("x-hyori-rpc-compressible")).toBe(false);
     expect(response.headers.get("content-range")).toBe("bytes 2-4/8");
     expect(response.headers.get("content-length")).toBe("3");
     expect(response.headers.get("content-security-policy")).toBe("sandbox; default-src 'none'");

@@ -38,7 +38,7 @@ Requirements: Docker Engine with the **Compose v2 and Buildx plugins** (`docker 
    }
    ```
 
-   The handler in [editor deployment](editor-deployment.md) uses `web:3001`. That only works when Caddy runs on the Compose network. The shipped Compose file has no gateway service, so a host Caddy uses `127.0.0.1:${HYORI_WEB_PORT}`.
+   The handler in [editor deployment](editor-deployment.md) uses `web:3001`. That only works when Caddy runs on the Compose network. The shipped Compose file has no gateway service, so a host Caddy uses `127.0.0.1:${HYORI_WEB_PORT}`. Do not apply blanket compression at the gateway or CDN to `/api/rpc`: the web host selects which RPC responses may be compressed and sends `Cache-Control: no-transform` to preserve that boundary.
 
 4. Open the site and complete setup with `HYORI_SETUP_TOKEN`.
 

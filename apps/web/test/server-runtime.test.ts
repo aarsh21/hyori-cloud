@@ -185,6 +185,7 @@ test("render RPC keeps the visitor cookie, gateway address evidence, authority a
           headers: {
             host: new URL(origin).host,
             cookie: "hyori_session=visitor",
+            "accept-encoding": "gzip, br",
             "x-forwarded-for": "192.0.2.6, 203.0.113.9",
             "x-hyori-client-address": "198.51.100.99",
           },
@@ -202,9 +203,10 @@ test("render RPC keeps the visitor cookie, gateway address evidence, authority a
         origin,
       );
 
+      expect(request.headers.has("accept-encoding")).toBe(false);
       const response = await proxy(request);
       expect(await response.json()).toEqual({ address, cookie: "hyori_session=visitor" });
-      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("cache-control")).toBe("private, no-store, no-transform");
 
       incoming.headers.set("host", "attacker.example.test");
       expect(
