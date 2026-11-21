@@ -1,6 +1,9 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 import { createCollaborationSession } from "@hyori-cloud/client-sdk/collaboration";
-import { createBrowserCollaborationJournal } from "@hyori-cloud/client-sdk/browser";
+import {
+  createBrowserCollaborationJournal,
+  createBrowserPageExit,
+} from "@hyori-cloud/client-sdk/browser";
 import { useClientSDK } from "@hyori-cloud/client-sdk/react";
 import { ArrowLeft, Ellipsis, FileText, Plus, Share2, Star } from "@hyori-cloud/lib/icons";
 import { useRef, useState } from "@hyori-cloud/lib/react";
@@ -132,6 +135,7 @@ function NoteAttempt({
       id: note.file.id,
       backend: sdk.rpc.collaboration,
       journal: accountId ? createBrowserCollaborationJournal(accountId, note.file.id) : undefined,
+      pageExit: createBrowserPageExit(),
       onUnsavedChange(unsaved) {
         if (unsaved) release ??= navigationGuard.hold();
         else {
@@ -337,6 +341,7 @@ function NoteAttempt({
             user={{ name: state.document.name, color: state.document.color }}
             editable={state.writable}
             control={control}
+            holdRemoteChanges={session.holdRemoteChanges}
           />
         )}
         {state.status === "opening" && (

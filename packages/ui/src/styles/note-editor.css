@@ -53,3 +53,51 @@
     transition-duration: 0s !important;
   }
 }
+.hyori-note-editor {
+  position: relative;
+}
+.hyori-note-cursors {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hyori-note-selection,
+.hyori-note-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.hyori-note-cursor .bn-collaboration-cursor__caret {
+  position: absolute;
+  left: -1px;
+  width: 2px;
+  background: var(--cursor-color);
+  pointer-events: auto;
+}
+.hyori-note-cursor .bn-collaboration-cursor__label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  max-width: 4px;
+  max-height: 5px;
+  overflow: hidden;
+  border-radius: 4px 4px 4px 0;
+  background: var(--cursor-color);
+  color: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    max-width 150ms var(--ease-out),
+    max-height 150ms var(--ease-out),
+    color 150ms var(--ease-out);
+}
+.hyori-note-cursor[data-active] .bn-collaboration-cursor__label {
+  max-width: 20rem;
+  max-height: 1.25rem;
+  padding: 0 0.375rem;
+  color: #0d0d0d;
+}

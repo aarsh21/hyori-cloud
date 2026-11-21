@@ -22,6 +22,11 @@ export type CollaborationRecovery = {
   updatedAt: number;
 };
 
+/** Tells the session its page is going away: a tab closing, a reload or a full navigation. */
+export type CollaborationPageExit = {
+  subscribe(listener: () => void): () => void;
+};
+
 export type CollaborationJournal = {
   load(): Promise<CollaborationRecovery | null>;
   save(value: CollaborationRecovery | null): Promise<void>;
@@ -59,11 +64,13 @@ export function createCollaborationSession({
   id,
   backend,
   journal,
+  pageExit,
   onUnsavedChange,
 }: {
   id: string;
   backend: RPC["collaboration"];
   journal?: CollaborationJournal | undefined;
+  pageExit?: CollaborationPageExit | undefined;
   onUnsavedChange?: (unsaved: boolean) => void;
 }) {
   const doc = new Y.Doc();
@@ -94,6 +101,24 @@ export function createCollaborationSession({
   let journalUnreadable = false;
   const abort = new AbortController();
   let peerClock = 0;
+  const peerPresence = new Map<number, string>();
+  let holds = 0;
+  let held: Uint8Array[] = [];
+  let stopPageExit: (() => void) | undefined;
+
+  // Remote content waits while a local view holds it, then lands as one update.
+  function applyRemote(update: Uint8Array) {
+    if (holds > 0) held.push(update);
+    else Y.applyUpdate(doc, update, remote);
+  }
+
+  // Ending the session on the server is what removes this tab from everyone's peer list.
+  function leave() {
+    if (descriptor)
+      void backend
+        .close({ sessionId: descriptor.sessionId }, { keepalive: true })
+        .catch(() => undefined);
+  }
 
   function publish(patch: Partial<Snapshot>) {
     if (disposed) return;
@@ -228,6 +253,9 @@ export function createCollaborationSession({
       awareness = new Awareness(doc);
       awareness.setLocalStateField("user", { name: descriptor.name, color: descriptor.color });
       doc.on("update", changed);
+      // A page leaving says so at once, so no peer keeps a cursor for a tab that is gone. If the
+      // back/forward cache restores it, the next exchange finds the session closed and reopens.
+      stopPageExit = pageExit?.subscribe(leave);
       publish({
         document: descriptor,
         writable: descriptor.writable && !blocked,
@@ -280,7 +308,7 @@ export function createCollaborationSession({
 
       if (receipt.acknowledged !== update)
         throw new SDKError("SDK_PROTOCOL", "The server did not acknowledge this edit batch.");
-      Y.applyUpdate(doc, decodeCollaborationBytes(receipt.update), remote);
+      applyRemote(decodeCollaborationBytes(receipt.update));
       pending.splice(0, count);
       preserve();
       const present = new Set(receipt.peers.map((peer) => Number(peer.clientId)));
@@ -290,12 +318,18 @@ export function createCollaborationSession({
       );
 
       removeAwarenessStates(awareness, gone, remote);
+
+      for (const key of gone) peerPresence.delete(key);
       const peerNames: string[] = [];
 
       for (const peer of receipt.peers) {
         const peerId = Number(peer.clientId);
         const state = Schema.decodeUnknownSync(PeerPresence)(JSON.parse(peer.presence));
         peerNames.push(state.user.name);
+
+        // Every receipt repeats each peer; only a real change is news for the cursors.
+        if (peerPresence.get(peerId) === peer.presence) continue;
+        peerPresence.set(peerId, peer.presence);
         // Awareness is ephemeral, separate from the acknowledged content stream.
         awareness.meta.set(peerId, { clock: ++peerClock, lastUpdated: Date.now() });
         const states = new Map([[peerId, state]]);
@@ -332,7 +366,7 @@ export function createCollaborationSession({
 
           if (next.generation === descriptor.generation) {
             descriptor = next;
-            Y.applyUpdate(doc, decodeCollaborationBytes(next.state), remote);
+            applyRemote(decodeCollaborationBytes(next.state));
             publish({
               status: pending.length ? "pending" : "saved",
               writable: next.writable,
@@ -364,6 +398,7 @@ export function createCollaborationSession({
           : "Connection interrupted. Your edits will sync when Hyori is reachable.",
         peers: [],
       });
+      peerPresence.clear();
       removeAwarenessStates(
         awareness,
         [...awareness.getStates().keys()].filter((key) => key !== doc.clientID),
@@ -402,6 +437,26 @@ export function createCollaborationSession({
       };
     },
     flush,
+    /**
+     * Holds remote content back from the document until the returned release is called, for a
+     * view whose DOM is mid-input, such as an open IME composition that a peer's edit replacing the
+     * paragraph would break. Local edits keep syncing; peers' edits apply together on release.
+     */
+    holdRemoteChanges() {
+      holds++;
+      let released = false;
+
+      return () => {
+        if (released) return;
+        released = true;
+        holds--;
+
+        if (holds > 0 || held.length === 0 || disposed) return;
+        const update = Y.mergeUpdates(held);
+        held = [];
+        Y.applyUpdate(doc, update, remote);
+      };
+    },
     async discardRecovery() {
       await journalWrite;
 
@@ -411,6 +466,7 @@ export function createCollaborationSession({
       if (disposed) return;
       disposed = true;
       clearTimeout(timer);
+      stopPageExit?.();
       abort.abort();
       doc.off("update", changed);
       awareness?.destroy();
@@ -419,9 +475,7 @@ export function createCollaborationSession({
       onUnsavedChange?.(false);
       // Keep a tab's recovery lease until its last serialized journal write is settled.
       void journalWrite.finally(() => journal?.dispose?.());
-
-      if (descriptor)
-        void backend.close({ sessionId: descriptor.sessionId }).catch(() => undefined);
+      leave();
     },
   };
 }

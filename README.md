@@ -20,6 +20,8 @@ The session cap is shared with readers. Unsigned public-link sessions may hold a
 
 Checkpoints remain quota-accounted until the note is permanently deleted; history is paginated, not silently pruned. Browser recovery is best-effort, scoped to account/note/schema/tab and cleared after acknowledgement. Automatic replay stops after 24 hours or a generation change; retained work can be exported rather than silently merged. Anonymous notes do not persist recovery on the device. Encoded live state is capped at 1 MiB and a sync batch at 96 KiB; an oversized edit pauses with export guidance. Browser storage is not a backup and a fully offline app shell is not provided.
 
+Known limitation: two people typing at the same spot can interleave text. The y-prosemirror binding places a local insert by diffing the paragraph's text, not by caret position, so an insert that begins or ends with the same characters as its neighbours, such as "Leena-4 " typed before "Leena-3 ", can be anchored a few characters away. When someone else types at that spot at the same moment, their text can land inside the neighbouring word. Every character still arrives exactly once and both editors converge; no text is lost. Fixing this would mean replacing the vendored binding's diff.
+
 This is an Orbit-inspired Notes workspace, not all Orbit product features: comments are explicitly a later feature, not part of the first Notes release; databases, external-media embeds, arbitrary import formats and Office conversion are not included. The collaboration foundation does not enable co-editing in the ArtCraft engines; their adapters remain later stages. Whole-product production/capacity acceptance remains open.
 
 ## Local development

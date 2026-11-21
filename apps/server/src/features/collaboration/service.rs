@@ -150,7 +150,7 @@ impl CollaborationService {
             .try_get("", "item_id")?;
         let _queued = self.state.collaboration_locks.lock(Some(&id)).await;
         self.files.run(move|tx,actor|{let input=input.clone();let bytes=bytes.clone();let vector=vector.clone();let cursor=cursor.clone();Box::pin(async move{
-            let row=tx.query_one_raw(sql("SELECT item_id,client_id,presence,seen_at<now()-interval '5 seconds' AS heartbeat_due FROM hyori_collab_sessions WHERE id=$1 AND principal=$2 AND expires_at>now()",vec![input.session_id.0.clone().into(),principal(&actor)?.into()])).await?.ok_or_else(ApiError::required)?;
+            let row=tx.query_one_raw(sql("SELECT item_id,client_id,presence,seen_at<now()-interval '3 seconds' AS heartbeat_due FROM hyori_collab_sessions WHERE id=$1 AND principal=$2 AND expires_at>now()",vec![input.session_id.0.clone().into(),principal(&actor)?.into()])).await?.ok_or_else(ApiError::required)?;
             let id:String=row.try_get("","item_id")?;
             let item=require_note(tx,&actor,&id,Action::Read).await?;
             let writable=policy::access(&item,&actor).can_edit;
@@ -171,12 +171,14 @@ impl CollaborationService {
             }
             let (name,color)=identity(tx,&actor).await?;
             let presence=serde_json::json!({"user":{"name":name,"color":color},"cursor":cursor}).to_string();
-            // An unchanged poll is read-only until the five-second heartbeat is due. Cursor
-            // changes still publish immediately; the 15-second peer and two-minute idle fences stay.
+            // An unchanged poll is read-only until the three-second heartbeat is due. Cursor
+            // changes still publish immediately. Closing pages leave explicitly; the eight-second
+            // peer fence only drops tabs that vanished without saying so, and the two-minute idle
+            // fence frees their leases.
             if row.try_get::<bool>("","heartbeat_due")? || row.try_get::<String>("","presence")?!=presence {
                 tx.execute_raw(sql("UPDATE hyori_collab_sessions SET presence=$2,seen_at=now(),expires_at=now()+interval '12 hours' WHERE id=$1",vec![input.session_id.0.clone().into(),presence.into()])).await?;
             }
-            let peers=tx.query_all_raw(sql("SELECT client_id,presence FROM hyori_collab_sessions WHERE item_id=$1 AND id<>$2 AND presence<>'{}' AND seen_at>now()-interval '15 seconds' AND expires_at>now() ORDER BY id LIMIT 16",vec![id.into(),input.session_id.0.into()])).await?.into_iter().map(|r|Ok(CollaborationPeer{client_id:r.try_get("","client_id")?,presence:r.try_get("","presence")?})).collect::<DomainResult<Vec<_>>>()?;
+            let peers=tx.query_all_raw(sql("SELECT client_id,presence FROM hyori_collab_sessions WHERE item_id=$1 AND id<>$2 AND presence<>'{}' AND seen_at>now()-interval '8 seconds' AND expires_at>now() ORDER BY id LIMIT 16",vec![id.into(),input.session_id.0.into()])).await?.into_iter().map(|r|Ok(CollaborationPeer{client_id:r.try_get("","client_id")?,presence:r.try_get("","presence")?})).collect::<DomainResult<Vec<_>>>()?;
             // FilesService::run commits before exposing this receipt to HTTP or another client.
             Ok(CollaborationReceipt{sequence:sequence.to_string(),update:hex::encode(delta),acknowledged:input.update,writable,peers})
         })}).await

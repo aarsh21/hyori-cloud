@@ -14,6 +14,7 @@ import { useAppearance } from "@hyori-cloud/ui/theme";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { Label } from "@hyori-cloud/ui/components/label";
+import { NoteCursorsExtension } from "@hyori-cloud/ui/lib/note-cursors";
 import "@blocknote/shadcn/style.css";
 import "../styles/note-editor.css";
 
@@ -47,19 +48,24 @@ export function NoteEditor({
   user,
   editable,
   control,
+  holdRemoteChanges,
 }: {
   doc: Doc;
   awareness: Awareness;
   user: { name: string; color: string };
   editable: boolean;
   control: Ref<NoteEditorControl>;
+  /** Keeps peers' content out of the document while this editor holds an open composition. */
+  holdRemoteChanges?: () => () => void;
 }) {
   const { resolved } = useAppearance();
 
   const editor = useCreateBlockNote(
     withCollaboration({
       schema,
-      collaboration: { fragment: doc.getXmlFragment("prosemirror"), provider: { awareness }, user },
+      // No provider: BlockNote's widget cursors are replaced by an overlay outside the editable DOM.
+      collaboration: { fragment: doc.getXmlFragment("prosemirror"), user },
+      extensions: [NoteCursorsExtension({ awareness, holdRemoteChanges })],
       trailingBlock: true,
     }),
     [doc],

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
-import type { BrowserContextOptions, Page } from "playwright-core";
+import type { BrowserContext, BrowserContextOptions, Page } from "playwright-core";
 import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { signIn } from "./page-actions.ts";
@@ -147,6 +147,52 @@ async function typeUntilLanded(page: Page, text: string, anchor: () => Promise<v
   }
 }
 
+/**
+ * One person's half of simultaneous editing. Batch insertions and IME compositions land in the
+ * paragraph the other person is typing in, each right after a caret move, with no pause for the
+ * other's presence or sync receipts to settle: exactly the input that collaboration cursors and
+ * remote updates must never swallow. Nothing is retried. Each marker begins with a letter no other
+ * marker uses, so the binding's text diff can only place it where it was typed. Returns the text
+ * that must survive.
+ */
+async function typeAlongside(
+  page: Page,
+  context: BrowserContext,
+  [batches, compositions]: readonly [string, string],
+) {
+  const cdp = await context.newCDPSession(page);
+  const typed: string[] = [];
+
+  await page.locator("p.bn-inline-content").first().click();
+
+  for (let round = 0; round < batches.length; round++) {
+    // Document edges, not Home/End: those follow visual lines, which wrap inside CJK words.
+    await page.keyboard.press(round % 2 ? "Control+End" : "Control+Home");
+    const batch = `${batches[round]}typed${round} `;
+    await page.keyboard.insertText(batch);
+    typed.push(batch);
+
+    // The composition stays open across sync receipts and remote caret moves before it commits.
+    for (const preview of ["に", "にほ", "にほん"]) {
+      await cdp.send("Input.imeSetComposition", {
+        text: preview,
+        selectionStart: preview.length,
+        selectionEnd: preview.length,
+      });
+      await page.waitForTimeout(90);
+    }
+
+    const composed = `${compositions[round]}語${round} `;
+    await cdp.send("Input.insertText", { text: composed });
+    typed.push(composed);
+    await page.waitForTimeout((round * 70) % 300);
+  }
+
+  await cdp.detach();
+
+  return typed;
+}
+
 async function append(page: Page, text: string) {
   const anchor = async () => {
     await page.locator("p.bn-inline-content").last().click();
@@ -233,7 +279,9 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
     await saved(peer);
 
     const identities = await Promise.all(
-      [owner, peer].map((page) => rpc<{ user: { id: string } }>(page, "auth.status", {})),
+      [owner, peer].map((page) =>
+        rpc<{ user: { id: string; name: string } }>(page, "auth.status", {}),
+      ),
     );
 
     assert.notEqual(identities[0]!.user.id, identities[1]!.user.id);
@@ -248,10 +296,8 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
     await Promise.all(
       [owner, peer].map((page) => page.locator("p.bn-inline-content").first().click()),
     );
-    // A full-page navigation away from the note leaks the creating session until its idle
-    // expiry, and that ghost publishes the owner's name too, so any caret on the owner's page
-    // proves nothing about the peer. The owner waits for Leena's cursor by name; the peer proves
-    // it renders remote cursors, and the owner's own upstream is proven by the first convergence.
+    // The owner waits for Leena's cursor by name; the peer proves it renders remote cursors, and
+    // the owner's own upstream is proven by the first convergence.
     await Promise.all([
       owner
         .locator(".bn-collaboration-cursor__label", { hasText: "Leena Rao" })
@@ -259,6 +305,63 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
         .waitFor({ state: "attached" }),
       peer.locator(".bn-collaboration-cursor__caret").first().waitFor(),
     ]);
+
+    await run.report.check(`${name}: two people typing at once lose no keystroke`, async () => {
+      const markers = await Promise.all([
+        typeAlongside(owner, ownerContext, ["ABCDEF", "甲乙丙丁戊己"]),
+        typeAlongside(peer, peerContext, ["GHIJKL", "子丑寅卯辰巳"]),
+      ]);
+
+      await converged(owner, peer, markers.flat());
+      await Promise.all([saved(owner), saved(peer)]);
+      const text = await content(owner);
+
+      for (const marker of markers.flat())
+        assert.equal(text.split(marker).length - 1, 1, `"${marker}" was duplicated`);
+
+      assert.equal(text.length, markers.flat().join("").length, `stray text remained: ${text}`);
+      assert.ok(!/[にほん]/.test(text), `an IME preview was committed: ${text}`);
+    });
+    await run.report.check(`${name}: a reloaded page leaves the note at once`, async () => {
+      const own = identities[0]!.user.name;
+
+      await owner.reload();
+      await saved(owner);
+      await owner.locator("p.bn-inline-content").first().click();
+      await owner
+        .locator(".bn-collaboration-cursor__label", { hasText: "Leena Rao" })
+        .first()
+        .waitFor({ state: "attached" });
+
+      // Across several sync rounds, the peer must list the owner once and the owner must never
+      // see a caret carrying their own name: the page before the reload is gone, not idle.
+      const [peerLists, ownCursors] = await Promise.all([
+        peer.evaluate(async () => {
+          const seen = new Set<string>();
+
+          for (const end = Date.now() + 3_000; Date.now() < end;) {
+            seen.add(document.querySelector("header span[title]")?.getAttribute("title") ?? "");
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
+          return [...seen];
+        }),
+        owner.evaluate(async (name) => {
+          let count = 0;
+
+          for (const end = Date.now() + 3_000; Date.now() < end;) {
+            for (const label of document.querySelectorAll(".bn-collaboration-cursor__label"))
+              if (label.textContent === name) count++;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
+          return count;
+        }, own),
+      ]);
+
+      assert.deepEqual(peerLists, [own], "the reloaded page stayed in the peer's list");
+      assert.equal(ownCursors, 0, "the reloaded page left a cursor with the owner's name");
+    });
 
     for (let repeat = 1; repeat <= 3; repeat++) {
       await run.report.check(
