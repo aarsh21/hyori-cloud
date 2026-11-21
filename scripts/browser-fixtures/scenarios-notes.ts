@@ -59,10 +59,41 @@ async function converged(owner: Page, peer: Page, markers: readonly string[]) {
   );
 }
 
+/**
+ * Chrome can drop a whole batch keystroke while collaboration cursors re-render under the caret,
+ * before any character reaches the document, and a dropped batch leaves no local trace to sync.
+ * The product promise under test is that text which reaches an editor converges, so type, prove
+ * the text reached this page, and retype only when the input pipeline dropped the batch.
+ */
+async function typeUntilLanded(page: Page, text: string, anchor: () => Promise<void>) {
+  for (let attempt = 0; ; attempt++) {
+    await page.keyboard.insertText(text);
+
+    const landed = await page
+      .waitForFunction(
+        (value) => document.querySelector(".bn-editor")?.textContent?.includes(value),
+        text,
+        { polling: 50, timeout: 1_000 },
+      )
+      .then(
+        () => true,
+        () => false,
+      );
+
+    if (landed) return;
+    assert.ok(attempt < 8, `Typing "${text}" never reached this page's editor`);
+    await anchor();
+  }
+}
+
 async function append(page: Page, text: string) {
-  await page.locator("p.bn-inline-content").last().click();
-  await page.keyboard.press("End");
-  await page.keyboard.insertText(text);
+  const anchor = async () => {
+    await page.locator("p.bn-inline-content").last().click();
+    await page.keyboard.press("End");
+  };
+
+  await anchor();
+  await typeUntilLanded(page, text, anchor);
 }
 
 async function pointer(page: Page) {
@@ -170,13 +201,22 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
             [owner, peer].map(async (page) => {
               await page.mouse.move(210, 120, { steps: 12 });
               await page.mouse.move(440, 180, { steps: 12 });
-              await page.locator("p.bn-inline-content").first().click();
-              await page.keyboard.press("Home");
             }),
           );
+
+          const anchorOn = (page: Page) => async () => {
+            await page.locator("p.bn-inline-content").first().click();
+            await page.keyboard.press("Home");
+          };
+
+          const [anchorOwner, anchorPeer] = [anchorOn(owner), anchorOn(peer)];
+          await Promise.all([anchorOwner(), anchorPeer()]);
           const a = `Noor-${repeat} `;
           const b = `Leena-${repeat} `;
-          await Promise.all([owner.keyboard.insertText(a), peer.keyboard.insertText(b)]);
+          await Promise.all([
+            typeUntilLanded(owner, a, anchorOwner),
+            typeUntilLanded(peer, b, anchorPeer),
+          ]);
           await converged(owner, peer, [a, b]);
           await Promise.all([saved(owner), saved(peer)]);
           await owner.locator("p.bn-inline-content").first().click();
