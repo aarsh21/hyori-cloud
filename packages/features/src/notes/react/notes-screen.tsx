@@ -1,7 +1,7 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
 import type { ComponentProps } from "@hyori-cloud/lib/react";
 import { NotebookPen, Plus, Search, Star } from "@hyori-cloud/lib/icons";
-import { useDeferredValue, useEffect, useState } from "@hyori-cloud/lib/react";
+import { useDeferredValue, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { NoteListItem, NoteWorkspace } from "@hyori-cloud/ui/components/note-workspace";
@@ -10,7 +10,10 @@ import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { Text } from "@hyori-cloud/ui/components/text";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
-import { loadNoteDocument } from "#features/cloud/react/cloud-screen-loaders.ts";
+import {
+  preloadNoteDocument,
+  useNoteDocument,
+} from "#features/cloud/react/cloud-screen-loaders.ts";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { useCreateNote, useNotes } from "#features/notes/react/use-notes.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
@@ -19,48 +22,24 @@ import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 
 type Note = OutputOf<RPC["notes"]["get"]>;
 
-type NoteDocumentScreen = Awaited<ReturnType<typeof loadNoteDocument>>["NoteDocument"];
+type NoteDocumentScreen = NonNullable<ReturnType<typeof useNoteDocument>>["NoteDocument"];
 
-/**
- * Waits for the editor's chunk without `React.lazy`, whose fallback React holds for 300 ms even
- * when the chunk is already on its way. Arrived code renders at once; in-flight code keeps the
- * local spinner until it lands. A failed request rethrows to the recovery boundary, exactly as
- * the lazy wrapper's rejection did — the chunk forgets its failure, so a remount asks again.
- */
 function NoteDocument(props: ComponentProps<NoteDocumentScreen>) {
-  const [screen, setScreen] = useState(() => loadNoteDocument.arrived()?.NoteDocument ?? null);
-  const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
+  const editor = useNoteDocument();
 
-  useEffect(() => {
-    if (screen !== null) return;
-
-    let cancelled = false;
-    loadNoteDocument().then(
-      (module) => {
-        if (!cancelled) setScreen(() => module.NoteDocument);
-      },
-      (cause) => {
-        if (!cancelled) setFailure({ cause });
-      },
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [screen]);
-
-  if (failure !== null) throw failure.cause;
-
-  if (screen === null)
+  if (editor === undefined)
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center">
         <Spinner />
       </div>
     );
 
-  const Screen = screen;
+  return <editor.NoteDocument {...props} />;
+}
 
-  return <Screen {...props} />;
+/** Start the shared editor import when the loaded list commits, not on sidebar intent. */
+function onNotesListReady(node: HTMLDivElement | null) {
+  if (node !== null) preloadNoteDocument();
 }
 
 /** Only an unfiltered, loaded, empty first page proves there are no notes at all. */
@@ -79,16 +58,6 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
   const hasNotes = mayHaveNotes(notes.data?.items.length, narrowed);
   const create = useCreateNote();
   const { navigatePath } = useCloudNavigation();
-
-  // A usable list is one note open away from the editor, the heaviest code in the product, and
-  // this section alone pays for it: one fetch here and a later open renders the document with
-  // no chunk wait at all. Deliberately not an idle preload — the list being usable is the
-  // trigger — and the request deduplicates against an open already under way.
-  const listUsable = notes.data !== undefined;
-
-  useEffect(() => {
-    if (listUsable) void loadNoteDocument().catch(() => undefined);
-  }, [listUsable]);
 
   // The note created last opens ready to type. The flag is dropped when the list navigates
   // elsewhere, because the document mounts a network round-trip after the route reaches it; a
@@ -156,7 +125,10 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
             </Button>
             <MutationFailure error={create.error} />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+          <div
+            ref={notes.data !== undefined ? onNotesListReady : undefined}
+            className="min-h-0 flex-1 overflow-y-auto px-2 pb-4"
+          >
             {notes.data === undefined ? (
               <QueryWaiting
                 resource={notes}

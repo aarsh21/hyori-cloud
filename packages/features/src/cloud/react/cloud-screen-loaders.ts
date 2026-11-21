@@ -1,4 +1,4 @@
-import { createElement, lazy, useState } from "@hyori-cloud/lib/react";
+import { createElement, lazy, useState, useSyncExternalStore } from "@hyori-cloud/lib/react";
 import type { ComponentType } from "@hyori-cloud/lib/react";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { parseCloudPath } from "#features/cloud/cloud-path.ts";
@@ -96,6 +96,50 @@ export const loadPublicShareScreen = chunk(
 export const loadFilesScreen = chunk(() => import("#features/files/react/files-screen.tsx"));
 export const loadNotesScreen = chunk(() => import("#features/notes/react/notes-screen.tsx"));
 export const loadNoteDocument = chunk(() => import("#features/notes/react/note-document.tsx"));
+
+export function preloadNoteDocument() {
+  void loadNoteDocument().catch(ignoreLoadFailure);
+}
+
+/** Read a warm editor immediately without React.lazy's fallback hold. Each mounted reader owns
+ * its rejection, so a speculative failure cannot poison a later open and remounting can retry. */
+export function useNoteDocument() {
+  const [source] = useState(() => {
+    let failure: { cause: unknown } | null = null;
+
+    return {
+      read() {
+        if (failure !== null) throw failure.cause;
+
+        return loadNoteDocument.arrived();
+      },
+      subscribe(onChange: () => void) {
+        if (loadNoteDocument.arrived() !== undefined || failure !== null) return () => {};
+
+        let active = true;
+
+        loadNoteDocument().then(
+          () => {
+            if (active) onChange();
+          },
+          (cause) => {
+            if (!active) return;
+
+            failure = { cause };
+            onChange();
+          },
+        );
+
+        return () => {
+          active = false;
+        };
+      },
+    };
+  });
+
+  return useSyncExternalStore(source.subscribe, source.read, source.read);
+}
+
 export const loadSharedScreen = chunk(() => import("#features/files/react/shared-screen.tsx"));
 
 export const loadSharedByMeScreen = chunk(
