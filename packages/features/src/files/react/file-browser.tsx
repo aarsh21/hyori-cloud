@@ -199,7 +199,11 @@ export function FileBrowser({
           ) : null}
           <DropZone disabled={!canCreate} label={`Drop to upload to ${title}`} onFiles={addFiles}>
             {/* Keyed so entering a folder starts at its top instead of the last one's scroll offset. */}
-            <PageBody key={parentId} data-browser-ready={ready}>
+            <PageBody
+              key={parentId}
+              scrollRestorationId={`${view}:${parentId ?? "root"}`}
+              data-browser-ready={ready}
+            >
               <PageSection>
                 <ActionFailureNotice />
                 <FileListingView

@@ -8,11 +8,17 @@ type ShellLocation = Exclude<
   { section: "invite" | "passwordReset" | "publicShare" | "publicEditor" | "editor" }
 >;
 
-function FallbackFrame({ children }: { children: React.ReactNode }) {
+function FallbackFrame({
+  children,
+  scrollRestorationId,
+}: {
+  children: React.ReactNode;
+  scrollRestorationId: string;
+}) {
   return (
     <>
       <PageBar aria-hidden />
-      <PageBody>
+      <PageBody scrollRestorationId={scrollRestorationId}>
         <PageSection>{children}</PageSection>
       </PageBody>
     </>
@@ -28,20 +34,20 @@ export function CloudScreenFallback({ location }: { location: ShellLocation }) {
     case "trash":
     case "admin":
       return (
-        <FallbackFrame>
+        <FallbackFrame scrollRestorationId={location.section}>
           <ItemTableSkeleton />
         </FallbackFrame>
       );
     case "photos":
     case "album":
       return (
-        <FallbackFrame>
+        <FallbackFrame scrollRestorationId={location.section}>
           <MediaGridSkeleton />
         </FallbackFrame>
       );
     case "albums":
       return (
-        <FallbackFrame>
+        <FallbackFrame scrollRestorationId={location.section}>
           <ItemGridSkeleton tiles={6} />
         </FallbackFrame>
       );

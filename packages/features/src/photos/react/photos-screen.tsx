@@ -43,7 +43,7 @@ export function PhotosScreen() {
       />
       <FilePicker accept="image/*,video/*" onFiles={addFiles} ref={picker} />
       <DropZone label="Drop to upload to Files" onFiles={addFiles}>
-        <PageBody>
+        <PageBody scrollRestorationId="photos">
           <PageSection>
             <PhotoTimeline
               timeline={timeline}

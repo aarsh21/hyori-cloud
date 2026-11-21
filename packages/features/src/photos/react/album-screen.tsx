@@ -26,7 +26,7 @@ export function AlbumScreen({ albumId }: { albumId: string }) {
   return (
     <>
       <PhotosBar status={thumbnailProgressSummary(timeline.data?.pages ?? [])} />
-      <PageBody>
+      <PageBody scrollRestorationId={`album:${albumId}`}>
         <PageSection>
           {/* Holds its line while albums load, so the photos below don't move when the name lands. */}
           <SectionHeading className="flex min-h-5 items-center px-1 text-[15px]">

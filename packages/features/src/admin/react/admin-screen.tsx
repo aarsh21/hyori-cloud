@@ -123,7 +123,7 @@ function AdminUsers() {
           </Button>
         </PageBarActions>
       </PageBar>
-      <PageBody>
+      <PageBody scrollRestorationId="admin">
         <PageSection>{renderBody()}</PageSection>
       </PageBody>
       {active === null ? null : (

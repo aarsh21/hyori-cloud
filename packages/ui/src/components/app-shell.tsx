@@ -114,10 +114,22 @@ function PageBarActions({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function PageBody({ className, ...props }: React.ComponentProps<"div">) {
+/**
+ * Scroll restoration keys scrollers by their DOM position, which is identical for every
+ * screen's body, so without an identity one screen's leftover scroll lands on the next
+ * screen once it mounts. A scrollRestorationId keys the body to its screen instead:
+ * going back restores only the same screen's own position, and every navigation between
+ * screens starts at the top.
+ */
+function PageBody({
+  className,
+  scrollRestorationId,
+  ...props
+}: React.ComponentProps<"div"> & { scrollRestorationId?: string }) {
   return (
     <div
       data-slot="page-body"
+      data-scroll-restoration-id={scrollRestorationId}
       className={cn("relative min-h-0 flex-1 overflow-y-auto overscroll-contain", className)}
       {...props}
     />

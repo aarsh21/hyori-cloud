@@ -107,7 +107,7 @@ export function TrashScreen() {
           </PageBarActions>
         ) : null}
       </PageBar>
-      <PageBody>
+      <PageBody scrollRestorationId="trash">
         <PageSection>
           <MutationFailure error={restore.error} />
           {renderBody()}

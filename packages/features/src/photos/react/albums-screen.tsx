@@ -77,7 +77,7 @@ export function AlbumsScreen() {
           </Button>
         }
       />
-      <PageBody>
+      <PageBody scrollRestorationId="albums">
         <PageSection>{renderBody()}</PageSection>
       </PageBody>
       <CreateAlbumDialog open={creating} onOpenChange={setCreating} />

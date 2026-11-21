@@ -405,6 +405,64 @@ export async function runInterfaceScenarios(run: CoreRun) {
     }
   }
 
+  await run.report.scenario("Interface scroll handoff", async () => {
+    // Scroll restoration keys each screen's list by identity: one list's leftover offset must
+    // not land on the list navigated to from it, and a list's own place must survive a round trip.
+    const { context, page } = await ownerPage(run, PHONE);
+
+    try {
+      const body = page.locator('[data-slot="page-body"]');
+      const crumbs = page.getByRole("navigation", { name: "Folder path" });
+
+      await folder(page, "zz scroll handoff");
+      await uploadFiles(
+        page,
+        Array.from({ length: 14 }, (_, index) =>
+          run.media.bytes(`scroll-folder-${index}.bin`, 1024),
+        ),
+      );
+      // Every file's tray row carries the same label once it lands, so the batch is done when
+      // the last row has joined them.
+      await uploadsTray(page).getByLabel("Uploaded").nth(13).waitFor({ timeout: 30_000 });
+      await uploadsTray(page).getByRole("button", { name: "Clear", exact: true }).click();
+
+      await run.report.check(
+        "phone: a scrolled list hands no offset to the list it navigates to, and keeps its own place",
+        async () => {
+          assert.equal(
+            await body.evaluate((element) => element.scrollHeight > element.clientHeight),
+            true,
+            "the folder list must be long enough to scroll",
+          );
+          await body.evaluate((element) => {
+            element.scrollTop = element.scrollHeight;
+          });
+          const folderScroll = await body.evaluate((element) => element.scrollTop);
+          assert.ok(folderScroll > 0, "the folder list must hold a scroll offset");
+
+          await crumbs.getByRole("link", { name: "Files", exact: true }).click();
+          await page.getByRole("heading", { name: "Files", exact: true }).waitFor();
+          await run.report.shot(page, "interface-scroll-handoff-root-top");
+          assert.equal(
+            await body.evaluate((element) => Math.round(element.scrollTop)),
+            0,
+            "the root list must open at its own top, not at the folder list's offset",
+          );
+
+          await page.goBack();
+          await page.getByRole("heading", { name: "zz scroll handoff", exact: true }).waitFor();
+          assert.equal(
+            await body.evaluate((element) => Math.round(element.scrollTop)),
+            Math.round(folderScroll),
+            "going back must restore the folder list's own place, not the root's",
+          );
+        },
+      );
+    } finally {
+      await context.close();
+    }
+  });
+
   await runFailedPreloadChecks(run);
 }
 
