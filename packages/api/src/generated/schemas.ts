@@ -304,6 +304,10 @@ export const FavoriteNote = Schema.Struct({ "favorite": Schema.Boolean, "id": Id
 
 export type FavoriteNote = typeof FavoriteNote.Type;
 
+export const FileListEntry = Schema.Struct({ "access": Access, "childCount": Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.nonNegative(), Schema.greaterThanOrEqualTo(0), Schema.lessThanOrEqualTo(9007199254740991))), "createdAt": Schema.String, "id": Id, "kind": FileKind, "mimeType": Schema.String, "name": Name, "originalParentPath": Schema.optional(Schema.Array(Name).pipe(Schema.maxItems(63))), "ownerId": Id, "parentId": Schema.Union(Id, Schema.Null), "size": Bytes, "trashedAt": Schema.Union(Schema.String, Schema.Null), "updatedAt": Schema.String });
+
+export type FileListEntry = typeof FileListEntry.Type;
+
 export const FileShareSummary = Schema.Struct({ "hasLink": Schema.Boolean, "peopleCount": Schema.Number.pipe(Schema.finite(), Schema.int(), Schema.between(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), Schema.between(0, 4294967295), Schema.greaterThanOrEqualTo(0)) });
 
 export type FileShareSummary = typeof FileShareSummary.Type;
@@ -312,7 +316,7 @@ export const FileThumbnail = Schema.Struct({ "pending": Schema.Boolean, "url": S
 
 export type FileThumbnail = typeof FileThumbnail.Type;
 
-export const FileList = Schema.Struct({ "breadcrumbs": Schema.Array(Breadcrumb), "folder": Schema.Union(FileEntry, Schema.Null), "items": Schema.Array(FileEntry), "nextCursor": Schema.Union(Schema.String, Schema.Null), "sharing": Schema.optional(Schema.Record({ key: Schema.String, value: FileShareSummary }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))), "thumbnails": Schema.optional(Schema.Record({ key: Schema.String, value: FileThumbnail }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))) });
+export const FileList = Schema.Struct({ "breadcrumbs": Schema.Array(Breadcrumb), "folder": Schema.Union(FileListEntry, Schema.Null), "items": Schema.Array(FileListEntry), "nextCursor": Schema.Union(Schema.String, Schema.Null), "sharing": Schema.optional(Schema.Record({ key: Schema.String, value: FileShareSummary }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))), "thumbnails": Schema.optional(Schema.Record({ key: Schema.String, value: FileThumbnail }).pipe(Schema.filter((value) => Object(value) === value && !Array.isArray(value)))) });
 
 export type FileList = typeof FileList.Type;
 

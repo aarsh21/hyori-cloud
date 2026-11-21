@@ -74,6 +74,17 @@ async fn parent_listing_preserves_filters_lookahead_breadcrumbs_and_roles() {
             "listing-child-0001"
         );
     }
+    // A shared folder's count is independent of the current filter and page size.
+    assert_eq!(first.value()["folder"]["childCount"], 102);
+    assert!(items[0].get("childCount").is_none());
+    let shared_folder = server
+        .rpc(
+            "files.list",
+            json!({"view":"shared","type":"folder"}),
+            Some(&recipient.cookie),
+        )
+        .await;
+    assert_eq!(shared_folder.value()["items"][0]["childCount"], 102);
     let literal = seed_file(&server, &owner, &parent, "quote' OR true;--.png").await;
     let result = server
         .rpc(
@@ -382,6 +393,16 @@ async fn trash_listing_keeps_owner_groups_filters_and_parent_preconditions() {
     assert_eq!(second.value()["nextCursor"], Value::Null);
     assert_eq!(first.value()["folder"]["id"], live);
     assert_eq!(first.value()["items"][0]["access"]["isOwner"], true);
+    for reply in [&first, &second] {
+        let item = &reply.value()["items"][0];
+        let expected = if item["id"] == early {
+            json!(["Trash root"])
+        } else {
+            json!([])
+        };
+        assert_eq!(item["originalParentPath"], expected);
+        assert!(item.get("childCount").is_none());
+    }
     assert!(
         names(
             &server
@@ -443,6 +464,113 @@ async fn trash_listing_keeps_owner_groups_filters_and_parent_preconditions() {
         )
         .await
         .error(401, "auth.required");
+}
+
+#[tokio::test]
+#[ignore = "real HTTP/PostgreSQL folder counts and original trash path through mutations"]
+async fn listing_metadata_tracks_active_children_and_snapshots_each_trash() {
+    let pg = Postgres::start().await;
+    let server = TestServer::start(pg.config.clone()).await;
+    let admin = setup(&server, &pg.config).await;
+    let owner = account(&server, &admin, "owner").await;
+    let cookie = Some(owner.cookie.as_str());
+    let old = folder(&server, &owner.cookie, None, "Old").await;
+    let new = folder(&server, &owner.cookie, None, "New").await;
+    let parent = folder(&server, &owner.cookie, Some(&old), "Résumé").await;
+    let nested = folder(&server, &owner.cookie, Some(&parent), "Nested").await;
+    let file = seed_file(&server, &owner, &parent, "Document.png").await;
+    seed_file(&server, &owner, &nested, "Grandchild.png").await;
+
+    let list = |id: &str| {
+        server.rpc(
+            "files.list",
+            json!({"parentId":id,"sort":"sizeDesc"}),
+            cookie,
+        )
+    };
+    assert_eq!(list(&old).await.value()["folder"]["childCount"], 1);
+    assert_eq!(list(&new).await.value()["folder"]["childCount"], 0);
+    let before = list(&parent).await;
+    assert_eq!(before.value()["folder"]["childCount"], 2);
+    assert_eq!(before.value()["items"][0]["childCount"], 1);
+    assert!(before.value()["items"][1].get("childCount").is_none());
+    assert!(
+        before.value()["items"][1]
+            .get("originalParentPath")
+            .is_none()
+    );
+
+    let trash_list = || {
+        server.rpc(
+            "files.list",
+            json!({"view":"trash","search":"Document"}),
+            cookie,
+        )
+    };
+    server
+        .rpc("files.trash", json!({"id":file}), cookie)
+        .await
+        .value();
+    assert_eq!(list(&parent).await.value()["folder"]["childCount"], 1);
+    assert_eq!(
+        trash_list().await.value()["items"][0]["originalParentPath"],
+        json!(["Old", "Résumé"])
+    );
+
+    server
+        .rpc("files.move", json!({"id":parent,"parentId":new}), cookie)
+        .await
+        .value();
+    server
+        .rpc(
+            "files.rename",
+            json!({"id":parent,"name":"Renamed"}),
+            cookie,
+        )
+        .await
+        .value();
+    assert_eq!(list(&old).await.value()["folder"]["childCount"], 0);
+    assert_eq!(list(&new).await.value()["folder"]["childCount"], 1);
+    assert_eq!(list(&parent).await.value()["folder"]["childCount"], 1);
+
+    server
+        .rpc("files.trash", json!({"id":new}), cookie)
+        .await
+        .value();
+    assert_eq!(
+        trash_list().await.value()["items"][0]["originalParentPath"],
+        json!(["Old", "Résumé"])
+    );
+    server
+        .rpc("files.restore", json!({"id":file}), cookie)
+        .await
+        .error(404, "resource.notFound");
+    server
+        .rpc("files.restore", json!({"id":new}), cookie)
+        .await
+        .value();
+    assert_eq!(list(&new).await.value()["folder"]["childCount"], 1);
+    assert_eq!(list(&nested).await.value()["folder"]["childCount"], 1);
+    assert_eq!(list(&parent).await.value()["folder"]["childCount"], 1);
+
+    server
+        .rpc("files.restore", json!({"id":file}), cookie)
+        .await
+        .value();
+    assert_eq!(list(&parent).await.value()["folder"]["childCount"], 2);
+    server
+        .rpc("files.trash", json!({"id":file}), cookie)
+        .await
+        .value();
+    assert_eq!(
+        trash_list().await.value()["items"][0]["originalParentPath"],
+        json!(["New", "Renamed"])
+    );
+    server
+        .rpc("files.deletePermanently", json!({"id":file}), cookie)
+        .await
+        .value();
+    assert_eq!(list(&parent).await.value()["folder"]["childCount"], 1);
 }
 
 #[tokio::test]

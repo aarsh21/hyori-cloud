@@ -348,6 +348,16 @@ impl FilesService {
                         limit,
                     )?)
                     .await?;
+                let original_paths = if trash {
+                    rows.iter()
+                        .take(limit as usize)
+                        .map(|row| {
+                            row.try_get::<Option<serde_json::Value>>("", "original_parent_path")
+                        })
+                        .collect::<Result<Vec<_>, _>>()?
+                } else {
+                    vec![]
+                };
                 let mut rows = rows
                     .into_iter()
                     .map(Item::from_row)
@@ -363,10 +373,12 @@ impl FilesService {
                     None
                 };
                 let page = &rows[..rows.len().min(limit as usize)];
-                let items = page
-                    .iter()
-                    .map(|item| policy::project(item, &actor))
-                    .collect();
+                let project = |item: &Item| FileListEntry {
+                    file: policy::project(item, &actor),
+                    child_count: None,
+                    original_parent_path: None,
+                };
+                let mut items: Vec<_> = page.iter().map(project).collect();
                 let sharing =
                     crate::features::shares::db::describe_page(tx, actor.user_id(), page).await?;
                 let thumbnails =
@@ -403,11 +415,35 @@ impl FilesService {
                         name: crate::features::auth::api::Name(folder.name.clone()),
                     });
                 }
+                let mut folder = folder.as_ref().map(project);
+                if trash {
+                    for (item, path) in items.iter_mut().zip(original_paths) {
+                        item.original_parent_path = path
+                            .map(serde_json::from_value)
+                            .transpose()
+                            .map_err(|_| ApiError::unavailable())?;
+                    }
+                } else {
+                    let ids = items
+                        .iter()
+                        .chain(folder.iter())
+                        .filter(|item| item.file.kind == FileKind::Folder)
+                        .map(|item| item.file.id.0.as_str())
+                        .collect();
+                    let counts = super::db::child_counts(tx, ids).await?;
+                    for item in items
+                        .iter_mut()
+                        .chain(folder.iter_mut())
+                        .filter(|item| item.file.kind == FileKind::Folder)
+                    {
+                        item.child_count = Some(counts.get(&item.file.id.0).copied().unwrap_or(0));
+                    }
+                }
                 Ok(FileList {
                     items,
                     breadcrumbs,
                     next_cursor: Nullable(next_cursor),
-                    folder: Nullable(folder.map(|item| policy::project(&item, &actor))),
+                    folder: Nullable(folder),
                     thumbnails,
                     sharing,
                 })

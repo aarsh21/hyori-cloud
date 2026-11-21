@@ -150,6 +150,8 @@ async fn outgoing_shares_and_summaries_stay_with_the_owner() {
     let summary = server
         .rpc("files.list", json!({"sort":"nameAsc"}), Some(&owner.cookie))
         .await;
+    assert_eq!(summary.value()["items"][0]["id"], root);
+    assert_eq!(summary.value()["items"][0]["childCount"], 1);
     assert_eq!(
         summary.value()["sharing"],
         json!({(root.clone()):{"peopleCount":1,"hasLink":true}})
@@ -171,14 +173,11 @@ async fn outgoing_shares_and_summaries_stay_with_the_owner() {
             &json!({"items":[],"nextCursor":null})
         );
     }
-    assert!(
-        server
-            .rpc("files.list", json!({"view":"shared"}), Some(&member.cookie))
-            .await
-            .value()
-            .get("sharing")
-            .is_none()
-    );
+    let incoming = server
+        .rpc("files.list", json!({"view":"shared"}), Some(&member.cookie))
+        .await;
+    assert_eq!(incoming.value()["items"][0]["childCount"], 1);
+    assert!(incoming.value().get("sharing").is_none());
     server
         .rpc("shares.outgoing", json!({}), None)
         .await

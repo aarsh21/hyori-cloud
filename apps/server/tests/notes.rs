@@ -1215,6 +1215,10 @@ async fn notes_migration_preserves_populated_candidate_database_and_is_repeatabl
     ] {
         assert!(item.remove(added).is_some());
     }
+    assert_eq!(
+        item.remove("original_parent_path"),
+        Some(serde_json::Value::Null)
+    );
     assert_eq!(existing, before);
     hyori_server::db::migrate(&db).await.unwrap();
     assert_eq!(snapshot().await, after);
@@ -1229,8 +1233,9 @@ async fn notes_migration_preserves_populated_candidate_database_and_is_repeatabl
     assert_eq!(&applied[..20], &(1..=20).collect::<Vec<_>>());
     assert!(applied.contains(&24));
     assert!(applied.contains(&25));
+    assert!(applied.contains(&29));
     println!(
-        "MIGRATION populated 0020 -> 0025 twice: existing users, items, versions and shares unchanged"
+        "MIGRATION populated 0020 -> 0029 twice: existing users, items, versions and shares unchanged"
     );
     pg.stop();
 }

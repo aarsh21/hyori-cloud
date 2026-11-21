@@ -5,6 +5,31 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use sea_orm::{ConnectionTrait, DatabaseTransaction, QueryResult};
+use std::collections::HashMap;
+
+/// One lookup for the already authorized folders on the page. Absent rows are empty folders.
+pub(crate) async fn child_counts(
+    tx: &DatabaseTransaction,
+    folder_ids: Vec<&str>,
+) -> DomainResult<HashMap<String, u64>> {
+    if folder_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    tx.query_all_raw(sql(
+        "SELECT parent_id, child_count FROM hyori_item_child_counts
+         WHERE parent_id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))",
+        vec![serde_json::json!(folder_ids).into()],
+    ))
+    .await?
+    .into_iter()
+    .map(|row| {
+        Ok((
+            row.try_get("", "parent_id")?,
+            row.try_get::<i64>("", "child_count")? as u64,
+        ))
+    })
+    .collect()
+}
 
 /// Persistence-only metadata. Never serialize this into a product response.
 #[derive(Clone, Debug)]

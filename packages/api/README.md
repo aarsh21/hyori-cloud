@@ -41,6 +41,12 @@ Sign-in checks passwords in its own lane of 16 places. When every place is taken
 
 Each backend process holds at most `HYORI_DATABASE_MAX_CONNECTIONS` PostgreSQL connections (8 to 1024; default 48, a quarter of the 128 RPC slots plus the 16 upload operations). Keep the sum across replicas below PostgreSQL's `max_connections`.
 
+### File listing metadata
+
+- In active `files.list` views, folder entries (including the open `folder` when present) carry `childCount: number`. It counts immediate active files and folders, independent of filters or page size. Empty folders return `0`; files and Trash rows omit the field. Size ordering and cursors are unchanged.
+- In the owner-only Trash view, each item carries `originalParentPath: string[]`, ordered from the library root to the original parent, excluding the item itself. `[]` means it came from the root. Later renames, moves or trashing of the parent do not change the saved names. This is not a restore destination: restore still follows the current parent ID and requires the parent to be active. Permanent deletion retains its existing subtree behavior.
+- Migration `0029_file_listing_metadata.sql` backfills counts and reconstructs older trash paths from the retained tree; names from before an older move or rename were never recorded and cannot be recovered. The migration locks file metadata against reads and writes while it backfills. Apply it during a planned backend upgrade for a large existing library.
+
 ### People and account sharing
 
 - `users.search({query})` returns `{items: UserIdentity[]}`, where `UserIdentity` is only `{id,name,email}`. Any active signed-in account can search, but results never include the caller or inactive accounts. Search trims whitespace and accepts 1–100 characters. Case-insensitive matching is literal: use a name/email prefix for short or punctuation-heavy queries, or a substring when the query contains at least three consecutive letters or numbers. Responses have at most ten matches. The shared per-account budget is 240 searches per 15 minutes; hitting it returns `auth.rateLimited` (429). Admin account creation and deletion invalidate the SDK's `users` query scope.

@@ -233,13 +233,16 @@ export type Empty = Contract.Empty;
 export const FavoriteNote: z.ZodMiniType<Contract.FavoriteNote> = z.object({ "favorite": z.boolean(), "id": Id });
 export type FavoriteNote = Contract.FavoriteNote;
 
+export const FileListEntry: z.ZodMiniType<Contract.FileListEntry> = z.object({ "access": Access, "childCount": z.optional(z.int().check(z.gte(0), z.gte(0), z.lte(9007199254740991))), "createdAt": z.string(), "id": Id, "kind": FileKind, "mimeType": z.string(), "name": Name, "originalParentPath": z.optional(z.array(Name).check(z.maxLength(63))), "ownerId": Id, "parentId": z.union([Id, z.null()]), "size": Bytes, "trashedAt": z.union([z.string(), z.null()]), "updatedAt": z.string() });
+export type FileListEntry = Contract.FileListEntry;
+
 export const FileShareSummary: z.ZodMiniType<Contract.FileShareSummary> = z.object({ "hasLink": z.boolean(), "peopleCount": z.int().check(z.gte(0), z.lte(4294967295), z.gte(0)) });
 export type FileShareSummary = Contract.FileShareSummary;
 
 export const FileThumbnail: z.ZodMiniType<Contract.FileThumbnail> = z.object({ "pending": z.boolean(), "url": z.union([z.string(), z.null()]) });
 export type FileThumbnail = Contract.FileThumbnail;
 
-export const FileList: z.ZodMiniType<Contract.FileList> = z.object({ "breadcrumbs": z.array(Breadcrumb), "folder": z.union([FileEntry, z.null()]), "items": z.array(FileEntry), "nextCursor": z.union([z.string(), z.null()]), "sharing": z.optional(z.record(z.string(), FileShareSummary)), "thumbnails": z.optional(z.record(z.string(), FileThumbnail)) });
+export const FileList: z.ZodMiniType<Contract.FileList> = z.object({ "breadcrumbs": z.array(Breadcrumb), "folder": z.union([FileListEntry, z.null()]), "items": z.array(FileListEntry), "nextCursor": z.union([z.string(), z.null()]), "sharing": z.optional(z.record(z.string(), FileShareSummary)), "thumbnails": z.optional(z.record(z.string(), FileThumbnail)) });
 export type FileList = Contract.FileList;
 
 export const FileSort: z.ZodMiniType<Contract.FileSort> = intersection(z.literal(["nameAsc","nameDesc","sizeAsc","sizeDesc","modifiedAsc","modifiedDesc"]), z.string());

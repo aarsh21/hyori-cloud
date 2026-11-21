@@ -8,6 +8,18 @@ crate::wire_enum!(FilesView { Files => "files", Shared => "shared", Trash => "tr
 crate::wire_enum!(FileSort { NameAsc => "nameAsc", NameDesc => "nameDesc", SizeAsc => "sizeAsc", SizeDesc => "sizeDesc", ModifiedAsc => "modifiedAsc", ModifiedDesc => "modifiedDesc" });
 crate::wire_struct!(Access { role: Nullable<ShareRole>, is_owner: bool, can_download: bool, can_upload: bool, can_edit: bool, can_rename: bool, can_delete: bool, can_share: bool });
 crate::wire_struct!(FileEntry { id: Id, name: Name, kind: FileKind, parent_id: Nullable<Id>, owner_id: Id, size: Bytes, mime_type: String, created_at: String, updated_at: String, trashed_at: Nullable<String>, access: Access });
+crate::wire_struct!(FileListEntry {
+    #[serde(flatten)]
+    file: FileEntry,
+    /// Active direct children, independent of the list's filter or page. Active list folders only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "u64", range(max = 9007199254740991_u64))]
+    child_count: Option<u64>,
+    /// Trash list only. Names from the library root to the original parent; empty at the root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Vec<Name>", length(max = 63))]
+    original_parent_path: Option<Vec<Name>>
+});
 crate::wire_struct!(ItemInput { id: Id });
 crate::wire_struct!(ListFiles {
     #[serde(default, skip_serializing_if = "Option::is_none")] parent_id: Option<Nullable<Id>>,
@@ -29,7 +41,7 @@ crate::wire_struct!(FileShareSummary {
     has_link: bool
 });
 crate::wire_struct!(FileList {
-    items: Vec<FileEntry>, breadcrumbs: Vec<Breadcrumb>, next_cursor: Nullable<String>, folder: Nullable<FileEntry>,
+    items: Vec<FileListEntry>, breadcrumbs: Vec<Breadcrumb>, next_cursor: Nullable<String>, folder: Nullable<FileListEntry>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(with = "std::collections::BTreeMap<String, FileThumbnail>")]
     thumbnails: Option<std::collections::BTreeMap<String, FileThumbnail>>,
