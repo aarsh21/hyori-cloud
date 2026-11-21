@@ -35,7 +35,7 @@ export const CLOUD_SECTIONS: readonly CloudSection[] = [
     label: "Shared",
     icon: Share2,
     location: { section: "shared" },
-    isCurrent: (location) => location.section === "shared",
+    isCurrent: (location) => location.section === "shared" || location.section === "sharedByMe",
   },
   {
     label: "Trash",

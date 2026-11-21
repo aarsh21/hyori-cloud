@@ -15,6 +15,7 @@ import {
   loadFilesScreen,
   loadNotesScreen,
   loadPhotosScreen,
+  loadSharedByMeScreen,
   loadSharedScreen,
   loadTrashScreen,
   lazyScreen,
@@ -24,6 +25,7 @@ import { OfflineState } from "#features/shared/react/offline-state.tsx";
 const FilesScreen = lazyScreen(loadFilesScreen, (module) => module.FilesScreen);
 const NotesScreen = lazyScreen(loadNotesScreen, (module) => module.NotesScreen);
 const SharedScreen = lazyScreen(loadSharedScreen, (module) => module.SharedScreen);
+const SharedByMeScreen = lazyScreen(loadSharedByMeScreen, (module) => module.SharedByMeScreen);
 const TrashScreen = lazyScreen(loadTrashScreen, (module) => module.TrashScreen);
 const PhotosScreen = lazyScreen(loadPhotosScreen, (module) => module.PhotosScreen);
 const AlbumsScreen = lazyScreen(loadAlbumsScreen, (module) => module.AlbumsScreen);
@@ -43,6 +45,8 @@ function CloudSection({ location }: { location: ShellLocation }) {
       return <NotesScreen noteId={location.noteId} />;
     case "shared":
       return <SharedScreen />;
+    case "sharedByMe":
+      return <SharedByMeScreen />;
     case "trash":
       return <TrashScreen />;
     case "photos":

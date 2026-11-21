@@ -31,6 +31,7 @@ export function CloudScreenFallback({ location }: { location: ShellLocation }) {
     case "files":
     case "notes":
     case "shared":
+    case "sharedByMe":
     case "trash":
     case "admin":
       return (

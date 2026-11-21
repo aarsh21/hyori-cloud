@@ -2,6 +2,7 @@ import { Share2 } from "@hyori-cloud/lib/icons";
 import { RegionState } from "@hyori-cloud/ui/components/region-state";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { FileBrowser } from "#features/files/react/file-browser.tsx";
+import { SharedNav } from "#features/sharing/react/shared-nav.tsx";
 
 function sharedFolderPath(folderId: string | null) {
   return folderId === null
@@ -18,6 +19,7 @@ export function SharedScreen() {
       rootSearchScope="shared items"
       rootCanUpload={false}
       folderPath={sharedFolderPath}
+      actions={<SharedNav />}
       empty={() => (
         <RegionState
           icon={<Share2 />}

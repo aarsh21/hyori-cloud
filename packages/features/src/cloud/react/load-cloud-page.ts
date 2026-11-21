@@ -5,6 +5,7 @@ import { preloadCloudPath } from "#features/cloud/react/cloud-screen-loaders.ts"
 import { NO_FILTERS, toListFilesInput } from "#features/files/file-filters.ts";
 import type { ListFilesInput } from "#features/files/file-filters.ts";
 import { cursorPagesOptions } from "#features/shared/react/use-cursor-pages.ts";
+import { outgoingSharesOptions } from "#features/sharing/outgoing-shares.ts";
 
 /** First-document reads only. Link consent never resolves a grant or exposes account state. */
 export async function loadCloudPage(
@@ -48,6 +49,10 @@ export async function loadCloudPage(
       );
       break;
     }
+
+    case "sharedByMe":
+      await queryClient.prefetchInfiniteQuery(outgoingSharesOptions(sdkClient));
+      break;
 
     case "admin":
       if (status.user.role === "admin")

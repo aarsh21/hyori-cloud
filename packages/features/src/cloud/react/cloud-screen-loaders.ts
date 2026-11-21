@@ -97,6 +97,11 @@ export const loadFilesScreen = chunk(() => import("#features/files/react/files-s
 export const loadNotesScreen = chunk(() => import("#features/notes/react/notes-screen.tsx"));
 export const loadNoteDocument = chunk(() => import("#features/notes/react/note-document.tsx"));
 export const loadSharedScreen = chunk(() => import("#features/files/react/shared-screen.tsx"));
+
+export const loadSharedByMeScreen = chunk(
+  () => import("#features/sharing/react/shared-by-me-screen.tsx"),
+);
+
 export const loadTrashScreen = chunk(() => import("#features/files/react/trash-screen.tsx"));
 export const loadPhotosScreen = chunk(() => import("#features/photos/react/photos-screen.tsx"));
 export const loadAlbumsScreen = chunk(() => import("#features/photos/react/albums-screen.tsx"));
@@ -142,6 +147,9 @@ export function preloadCloudLocation(location: CloudLocation) {
       break;
     case "shared":
       requests.push(loadSharedScreen());
+      break;
+    case "sharedByMe":
+      requests.push(loadSharedByMeScreen());
       break;
     case "trash":
       requests.push(loadTrashScreen());

@@ -3,6 +3,7 @@ import { useQueryClient } from "@hyori-cloud/lib/query";
 import { NO_FILTERS, toListFilesInput } from "#features/files/file-filters.ts";
 import { readSort } from "#features/files/react/file-sort.ts";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
+import { outgoingSharesOptions } from "#features/sharing/outgoing-shares.ts";
 import { cursorPagesOptions } from "#features/shared/react/use-cursor-pages.ts";
 
 /**
@@ -37,6 +38,9 @@ export function useCloudDataPrefetch() {
             sort: readSort(),
           }),
         );
+        break;
+      case "sharedByMe":
+        void queryClient.prefetchInfiniteQuery(outgoingSharesOptions({ query, rpc }));
         break;
       case "trash":
         void queryClient.prefetchInfiniteQuery(

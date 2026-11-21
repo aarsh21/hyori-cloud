@@ -5,6 +5,7 @@ const locations: CloudLocation[] = [
   { section: "files", folderId: null },
   { section: "files", folderId: "abc_1" },
   { section: "shared" },
+  { section: "sharedByMe" },
   { section: "notes", noteId: null },
   { section: "notes", noteId: "note-1" },
   { section: "trash" },
@@ -38,6 +39,7 @@ describe("cloud paths", () => {
   test("unknown and malformed paths are not found, not silently the file root", () => {
     expect(parseCloudPath("/nope")).toEqual({ section: "notFound" });
     expect(parseCloudPath("/folders/a/b")).toEqual({ section: "notFound" });
+    expect(parseCloudPath("/shared/by-me/x")).toEqual({ section: "notFound" });
     expect(parseCloudPath("/folders/%E0%A4%A")).toEqual({ section: "notFound" });
   });
 });
