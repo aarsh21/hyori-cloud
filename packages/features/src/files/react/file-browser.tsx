@@ -122,7 +122,10 @@ export function FileBrowser({
   const [sort, setSort] = useFileSort();
   const ready = useBrowserPreferencesReady();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  // Keyed to the folder like the filters, so opening a result brings the phone bar back.
+  const [searchOpenIn, setSearchOpenIn] = useState<string | null | undefined>(undefined);
+  const searchOpen = searchOpenIn === parentId;
+  const setSearchOpen = (open: boolean) => setSearchOpenIn(open ? parentId : undefined);
   const { filters, patch, clear } = useBrowserFilters(parentId);
 
   // Changing filters keeps this folder on screen. Entering another folder never shows this one's data.
@@ -178,6 +181,7 @@ export function FileBrowser({
               )}
             </div>
             {/* Phones trade the title row for this field while a search is open or applied. */}
+            {phoneSearch ? <h1 className="sr-only md:hidden">{title}</h1> : null}
             <PageBarActions
               className={
                 phoneSearch ? "max-md:ml-0 max-md:w-full md:ml-0" : "max-md:hidden md:ml-0"
@@ -386,7 +390,9 @@ function BrowserMenu({
             size="icon"
             variant="ghost"
             aria-label={
-              activeFilters === 0 ? "More options" : `More options, ${activeFilters} filters active`
+              activeFilters === 0
+                ? "More options"
+                : `More options, ${activeFilters} ${activeFilters === 1 ? "filter" : "filters"} active`
             }
             className={
               activeFilters === 0
