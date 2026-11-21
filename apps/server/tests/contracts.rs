@@ -70,6 +70,7 @@ fn complete_deterministic_catalog() {
         "TrashSummary",
         "DownloadInput",
         "Download",
+        "FolderDownloadInput",
         "FolderDownload",
         "BeginUpload",
         "UploadInput",

@@ -79,12 +79,16 @@ type FileBrowserProps = {
   rootSearchScope: string;
   /** The folder that acts as the root, for a public link scoped to one shared folder. */
   rootFolderId?: string | null;
+  /** ZIP downloads in a public browser must use this link's grant. */
+  shareId?: string | undefined;
   /** The root crumb for folders owned by someone else, reached through a share. */
   foreignRoot?: { readonly label: string; readonly path: string };
   /** Whether new items can be created at the root, which has no folder entry to carry access. */
   rootCanUpload: boolean;
-  /** Muted context beside the location, such as the access a public link grants. Hidden on phones. */
+  /** Muted context beside the location, such as the access a public link grants. */
   titleMeta?: ReactNode;
+  /** An action shown beside the location context instead of crowding the phone toolbar. */
+  titleAction?: ReactNode;
   actions?: ReactNode;
   folderPath: (folderId: string | null) => string;
   empty: (actions: { upload?: () => void; createFolder?: () => void }) => ReactNode;
@@ -109,9 +113,11 @@ export function FileBrowser({
   rootLabel,
   rootSearchScope,
   rootFolderId = null,
+  shareId,
   foreignRoot,
   rootCanUpload,
   titleMeta,
+  titleAction,
   actions,
   folderPath,
   empty,
@@ -158,7 +164,7 @@ export function FileBrowser({
   return (
     <AvailableEditorsContext value={editors}>
       <FolderPathProvider value={folderPath}>
-        <FileActionsProvider entries={entries} folderId={parentId}>
+        <FileActionsProvider entries={entries} folderId={parentId} shareId={shareId}>
           <FilePicker ref={picker} onFiles={addFiles} />
           <BrowserShortcuts canCreate={canCreate} picker={picker} searchInput={searchInput} />
           <PageBar data-browser-ready={ready}>
@@ -261,9 +267,11 @@ export function FileBrowser({
                 ) : null}
               </PageBarActions>
             )}
-            {/* One slot for both layouts, so host actions such as Appearance mount once. */}
-            {actions === undefined ? null : (
+            {actions === undefined && titleAction === undefined ? null : (
               <PageBarActions className={phoneSearch ? "max-md:hidden md:ml-0" : "md:ml-0"}>
+                {titleAction === undefined ? null : (
+                  <div className="hidden md:contents">{titleAction}</div>
+                )}
                 {actions}
               </PageBarActions>
             )}
@@ -279,9 +287,15 @@ export function FileBrowser({
               data-browser-ready={ready}
             >
               <PageSection>
-                {titleMeta === undefined ? null : (
-                  // The bar has no room for it on phones, so it leads the page instead.
-                  <p className="px-1 text-[13px] text-muted-foreground md:hidden">{titleMeta}</p>
+                {titleMeta === undefined && titleAction === undefined ? null : (
+                  <div className="flex items-center gap-2 md:hidden">
+                    {titleMeta === undefined ? null : (
+                      <p className="min-w-0 flex-1 px-1 text-[13px] wrap-anywhere text-muted-foreground">
+                        {titleMeta}
+                      </p>
+                    )}
+                    {titleAction}
+                  </div>
                 )}
                 <ActionFailureNotice />
                 <FileListingView

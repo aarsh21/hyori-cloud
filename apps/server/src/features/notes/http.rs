@@ -37,7 +37,7 @@ pub(crate) async fn get(
         return Err(ApiError::invalid());
     }
     let (name, bytes) = NotesService::new(&state, state.request_context(request.headers()))
-        .download(id, query.fence)
+        .download(id, query.fence, None)
         .await?;
     let length = bytes.len().to_string();
     let disposition = format!(

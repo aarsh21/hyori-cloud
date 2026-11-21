@@ -1,7 +1,7 @@
 use super::{
-    api::{FileKind, FolderDownload},
+    api::{FileKind, FolderDownload, FolderDownloadInput},
     db::Item,
-    policy::{self, Action, ProductActor},
+    policy::{self, Action},
     service::FilesService,
 };
 use crate::{
@@ -16,13 +16,14 @@ use crate::{
 };
 use axum::{
     body::Body,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::Request,
     response::Response,
 };
 use futures_util::{StreamExt, stream};
 use hyori_storage::{Bytes, StorageError, StorageStream};
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
+use serde::Deserialize;
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet},
@@ -47,34 +48,50 @@ fn too_large() -> ApiError {
     )
 }
 
-async fn authorize_folder(
-    tx: &DatabaseTransaction,
-    actor: &ProductActor,
-    id: &str,
-) -> DomainResult<Item> {
-    actor.require_access()?;
-    let folder = policy::authorize(tx, actor, id, Action::Read, false).await?;
-    if folder.kind != FileKind::Folder {
-        return Err(ApiError::not_found().into());
-    }
-    Ok(folder)
-}
-
 pub(crate) async fn describe(
     state: &Arc<AppState>,
     context: RequestContext,
-    id: String,
+    input: FolderDownloadInput,
 ) -> Result<FolderDownload, ApiError> {
+    let _archive = state
+        .archives
+        .try_acquire()
+        .map_err(|_| ApiError::unavailable())?;
+    let id = input.id.0;
+    let share_id = input.share_id.map(|id| id.0);
+    let (name, _) = prepare(state, context, id.clone(), share_id.clone()).await?;
+    let mut url = format!("/api/storage/folders/{id}");
+    if let Some(share_id) = share_id {
+        // The ID selects a grant; the unlock credential stays in its HttpOnly cookie.
+        url.push_str(&format!("?shareId={share_id}"));
+    }
+    Ok(FolderDownload {
+        url,
+        name,
+        mime_type: ZIP_MIME.into(),
+    })
+}
+
+async fn prepare(
+    state: &Arc<AppState>,
+    context: RequestContext,
+    id: String,
+    share_id: Option<String>,
+) -> Result<(String, Vec<(String, Content)>), ApiError> {
     FilesService::new(state, context)
-        .run(move |tx, actor| {
+        .run(move |tx, mut actor| {
             let id = id.clone();
+            let share_id = share_id.clone();
             Box::pin(async move {
-                let folder = authorize_folder(tx, &actor, &id).await?;
-                Ok(FolderDownload {
-                    url: format!("/api/storage/folders/{id}"),
-                    name: format!("{}.zip", segment(&folder.name)),
-                    mime_type: ZIP_MIME.into(),
-                })
+                if let Some(share_id) = share_id {
+                    actor.restrict_to_share(&share_id)?;
+                }
+                actor.require_access()?;
+                let folder = policy::authorize(tx, &actor, &id, Action::Read, false).await?;
+                if folder.kind != FileKind::Folder {
+                    return Err(ApiError::not_found().into());
+                }
+                manifest(tx, folder).await
             })
         })
         .await
@@ -235,9 +252,16 @@ async fn manifest(
     Ok((format!("{}.zip", segment(&root.name)), entries))
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ArchiveQuery {
+    share_id: Option<String>,
+}
+
 pub(crate) async fn get(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    Query(ArchiveQuery { share_id }): Query<ArchiveQuery>,
     request: Request<Body>,
 ) -> Result<Response, ApiError> {
     validate_origin(request.headers(), &state.config.origin)?;
@@ -252,12 +276,8 @@ pub(crate) async fn get(
         .try_acquire_owned()
         .map_err(|_| ApiError::unavailable())?;
     let context = state.request_context(request.headers());
-    let (name, entries) = FilesService::new(&state, context.clone())
-        .run(move |tx, actor| {
-            let id = id.clone();
-            Box::pin(async move { manifest(tx, authorize_folder(tx, &actor, &id).await?).await })
-        })
-        .await?;
+    // A descriptor is not a reservation: the tree and its access may have changed since issuance.
+    let (name, entries) = prepare(&state, context.clone(), id, share_id.clone()).await?;
     if state.storage.is_none()
         && entries
             .iter()
@@ -272,7 +292,7 @@ pub(crate) async fn get(
     // the async server; only one object or bounded Note export is open at a time.
     let worker = tokio::task::spawn_blocking(move || {
         let _archive = archive;
-        write_zip(&sender, &runtime, &state, context, entries)
+        write_zip(&sender, &runtime, &state, context, share_id, entries)
     });
     let source: StorageStream = Box::pin(stream::unfold(Some((receiver, worker)), |state| async {
         let (mut receiver, worker) = state?;
@@ -325,6 +345,7 @@ fn write_zip(
     runtime: &Handle,
     state: &Arc<AppState>,
     context: RequestContext,
+    share_id: Option<String>,
     entries: Vec<(String, Content)>,
 ) -> zip::result::ZipResult<()> {
     let failed = Cell::new(false);
@@ -345,7 +366,7 @@ fn write_zip(
                     let (_, bytes) = runtime.block_on(async {
                         tokio::select! {
                             _ = sender.closed() => Err(io::ErrorKind::BrokenPipe.into()),
-                            note = notes.download(id, fence) => note.map_err(io::Error::other),
+                            note = notes.download(id, fence, share_id.clone()) => note.map_err(io::Error::other),
                         }
                     })?;
                     zip.start_file(path, options)?;

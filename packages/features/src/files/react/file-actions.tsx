@@ -87,10 +87,12 @@ function dialogTitle(dialog: FileDialog) {
 export function FileActionsProvider({
   entries,
   folderId,
+  shareId,
   children,
 }: {
   entries: readonly FileEntry[];
   folderId: string | null;
+  shareId?: string | undefined;
   children: ReactNode;
 }) {
   const [active, setActive] = useState<OpenFileDialog | null>(null);
@@ -131,7 +133,7 @@ export function FileActionsProvider({
   function downloadFolderOnce(id: string) {
     if (isDownloading(id)) return;
     failure.clearFor(DOWNLOAD_MUTATION_KEY, id);
-    requestFolderDownload({ id });
+    requestFolderDownload(shareId === undefined ? { id } : { id, shareId });
   }
 
   function restoreOnce(entry: FileEntry) {

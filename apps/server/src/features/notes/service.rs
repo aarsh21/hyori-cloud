@@ -99,12 +99,21 @@ impl NotesService {
             files: FilesService::new(state, context),
         }
     }
-    pub async fn download(&self, id: String, fence: String) -> Result<(String, Vec<u8>), ApiError> {
+    pub async fn download(
+        &self,
+        id: String,
+        fence: String,
+        share_id: Option<String>,
+    ) -> Result<(String, Vec<u8>), ApiError> {
         self.files
-            .run(move |tx, actor| {
+            .run(move |tx, mut actor| {
                 let id = id.clone();
                 let fence = fence.clone();
+                let share_id = share_id.clone();
                 Box::pin(async move {
+                    if let Some(share_id) = share_id {
+                        actor.restrict_to_share(&share_id)?;
+                    }
                     let (name, bytes, current) = export(tx, &actor, &id).await?;
                     if current != fence {
                         return Err(ApiError::conflict().into());

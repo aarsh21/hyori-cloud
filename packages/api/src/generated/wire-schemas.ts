@@ -257,6 +257,9 @@ export type FilesView = Contract.FilesView;
 export const FolderDownload: z.ZodMiniType<Contract.FolderDownload> = z.object({ "mimeType": z.string(), "name": z.string(), "url": z.string() });
 export type FolderDownload = Contract.FolderDownload;
 
+export const FolderDownloadInput: z.ZodMiniType<Contract.FolderDownloadInput> = z.object({ "id": Id, "shareId": z.optional(Id) });
+export type FolderDownloadInput = Contract.FolderDownloadInput;
+
 export const IncomingUpload: z.ZodMiniType<Contract.IncomingUpload> = z.object({ "anonymous": z.boolean(), "expiresAt": z.string(), "name": z.string().check(z.refine((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
 export type IncomingUpload = Contract.IncomingUpload;
 

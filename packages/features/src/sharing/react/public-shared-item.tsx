@@ -12,6 +12,7 @@ import { Heading, Stack, Text } from "@hyori-cloud/ui/components/text";
 import { Wordmark } from "@hyori-cloud/ui/components/wordmark";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { OpenInEditorButton } from "#features/editors/react/open-in-editor-button.tsx";
+import { useFileActionPending, useFileActions } from "#features/files/react/file-actions.tsx";
 import { FileBrowser } from "#features/files/react/file-browser.tsx";
 import { loadReplaceFileDialog } from "#features/files/react/file-dialog-loaders.ts";
 import { useCurrentFile } from "#features/files/react/use-current-file.ts";
@@ -45,12 +46,14 @@ const LINK_ACCESS_LABELS: Record<ShareRole, string> = {
 export function PublicSharedItem({
   token,
   folderId,
+  shareId,
   role,
   sharedByName,
   item,
 }: {
   token: string;
   folderId: string | null;
+  shareId: string;
   /** The access this link grants, from the share the link resolved to. */
   role: ShareRole;
   /** Who shared it, once the link is open. Older servers don't say. */
@@ -86,8 +89,14 @@ export function PublicSharedItem({
           rootLabel={item.name}
           rootSearchScope="this folder"
           rootFolderId={item.id}
+          shareId={shareId}
           rootCanUpload={false}
           titleMeta={access}
+          titleAction={
+            folderId === null && item.access.canDownload ? (
+              <DownloadAllButton id={item.id} />
+            ) : undefined
+          }
           actions={
             <AppearanceMenu compact>
               <ShortcutPreferenceMenuItems />
@@ -105,6 +114,23 @@ export function PublicSharedItem({
         <UploadTray />
       </AppMain>
     </AppShell>
+  );
+}
+
+function DownloadAllButton({ id }: { id: string }) {
+  const { downloadFolder } = useFileActions();
+  const pending = useFileActionPending(id);
+
+  return (
+    <Button
+      variant="outline"
+      aria-label="Download all"
+      pending={pending}
+      onClick={() => downloadFolder(id)}
+    >
+      {pending ? <Spinner label="Preparing ZIP" /> : <Download aria-hidden />}
+      Download all
+    </Button>
   );
 }
 

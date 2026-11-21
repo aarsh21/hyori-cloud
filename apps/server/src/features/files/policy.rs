@@ -45,6 +45,16 @@ impl ProductActor {
         self.public_shares.insert(0, id);
         self
     }
+    /// A link-scoped operation cannot fall back to an account or a different unlocked link.
+    pub fn restrict_to_share(&mut self, id: &str) -> DomainResult<()> {
+        self.public_shares.retain(|share| share == id);
+        if self.public_shares.is_empty() {
+            return Err(ApiError::denied().into());
+        }
+        self.user_id = None;
+        self.link_expiry = None;
+        Ok(())
+    }
     pub fn require_access(&self) -> DomainResult<()> {
         if self.user_id.is_none() && self.public_shares.is_empty() {
             return Err(ApiError::required().into());

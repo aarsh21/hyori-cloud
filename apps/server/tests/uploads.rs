@@ -114,22 +114,30 @@ async fn folder_zip_streams_the_current_readable_tree() {
     pg.config.storage = Some(rustfs.config.clone());
     let server = TestServer::start(pg.config.clone()).await;
     let (owner, cookie) = setup(&server).await;
+    let private = server
+        .rpc(
+            "files.createFolder",
+            json!({"parentId":null,"name":"Private parent"}),
+            Some(&cookie),
+        )
+        .await;
+    let parent = private.value()["id"].as_str().unwrap();
     let root = server
         .rpc(
             "files.createFolder",
-            json!({"parentId":null,"name":"Trip: 雪"}),
+            json!({"parentId":parent,"name":"Trip: 雪"}),
             Some(&cookie),
         )
         .await;
     let id = root.value()["id"].as_str().unwrap();
-    server
+    let empty = server
         .rpc(
             "files.createFolder",
             json!({"parentId":id,"name":"Empty"}),
             Some(&cookie),
         )
-        .await
-        .value();
+        .await;
+    let empty_id = empty.value()["id"].as_str().unwrap();
     let original = b"a trip report, not compressed or buffered in the SDK";
     let upload = begin(
         &server,
@@ -166,26 +174,60 @@ async fn folder_zip_streams_the_current_readable_tree() {
         )
         .await
         .value();
+    let password = random_token();
     let link = server
         .rpc(
             "shares.create",
-            json!({"itemId":id,"public":true,"role":"viewer"}),
+            json!({"itemId":id,"public":true,"role":"viewer","password":password}),
             Some(&cookie),
         )
         .await;
-    let grant = server
+    let share_id = link.value()["id"].as_str().unwrap();
+    let input = json!({"id":id,"shareId":share_id});
+    let locked = server
         .rpc(
             "shares.resolve",
             json!({"token":share_token(link.value())}),
             None,
         )
         .await;
-    let guest = grant.credential();
+    assert!(locked.value()["requiresPassword"].as_bool().unwrap());
+    assert!(locked.cookie.is_none());
+    server
+        .rpc("files.downloadFolder", input.clone(), Some(&cookie))
+        .await
+        .error(403, "access.denied");
+    let guest = server
+        .rpc(
+            "shares.unlock",
+            json!({"token":share_token(link.value()),"password":password}),
+            None,
+        )
+        .await
+        .credential();
+    // The visitor also has a different grant to the parent. The selected link cannot inherit it.
+    let other = server
+        .rpc(
+            "shares.create",
+            json!({"itemId":parent,"public":true,"role":"editor"}),
+            Some(&cookie),
+        )
+        .await;
+    let other_guest = server
+        .rpc(
+            "shares.resolve",
+            json!({"token":share_token(other.value())}),
+            None,
+        )
+        .await
+        .credential();
+    let both = format!("{guest}; {other_guest}");
     let descriptor = server
-        .rpc("files.downloadFolder", json!({"id":id}), Some(&guest))
+        .rpc("files.downloadFolder", input.clone(), Some(&both))
         .await;
     let url = descriptor.value()["url"].as_str().unwrap();
-    let fetch = |credential: &str| {
+    assert_eq!(url, format!("/api/storage/folders/{id}?shareId={share_id}"));
+    let fetch = |url: &str, credential: &str| {
         server
             .client
             .get(format!("{}{url}", server.url))
@@ -194,8 +236,31 @@ async fn folder_zip_streams_the_current_readable_tree() {
             .header("cookie", credential)
             .send()
     };
-    assert_eq!(fetch("").await.unwrap().status(), 401);
-    let response = fetch(&guest).await.unwrap();
+    for missing_selected_grant in ["", cookie.as_str(), other_guest.as_str()] {
+        assert_eq!(
+            fetch(url, missing_selected_grant).await.unwrap().status(),
+            403
+        );
+    }
+    server
+        .rpc(
+            "files.downloadFolder",
+            json!({"id":parent,"shareId":share_id}),
+            Some(&both),
+        )
+        .await
+        .error(403, "access.denied");
+    assert_eq!(
+        fetch(
+            &format!("/api/storage/folders/{parent}?shareId={share_id}"),
+            &both
+        )
+        .await
+        .unwrap()
+        .status(),
+        403
+    );
+    let response = fetch(url, &guest).await.unwrap();
     assert_eq!(response.status(), 200);
     assert_eq!(response.headers()["content-type"], "application/zip");
     assert!(!response.headers().contains_key("content-length"));
@@ -215,15 +280,48 @@ async fn folder_zip_streams_the_current_readable_tree() {
         .unwrap();
     assert_eq!(bytes, original);
 
+    let child = server
+        .rpc(
+            "files.downloadFolder",
+            json!({"id":empty_id,"shareId":share_id}),
+            Some(&both),
+        )
+        .await;
+    let child_url = child.value()["url"].as_str().unwrap();
     server
         .rpc(
-            "shares.revoke",
-            json!({"id":link.value()["id"]}),
+            "files.move",
+            json!({"id":empty_id,"parentId":parent}),
             Some(&cookie),
         )
         .await
         .value();
-    assert!(!fetch(&guest).await.unwrap().status().is_success());
+    assert_eq!(fetch(child_url, &both).await.unwrap().status(), 403);
+
+    // Simulate expiry without waiting. Neither expiry nor revocation may fall back to another link.
+    let expire = |expired: bool| {
+        server.state.db.execute_raw(sql(
+            "UPDATE hyori_shares SET expires_at=CASE WHEN $2 THEN now() - interval '1 second' END WHERE id=$1",
+            vec![share_id.into(), expired.into()],
+        ))
+    };
+    expire(true).await.unwrap();
+    server
+        .rpc("files.downloadFolder", input.clone(), Some(&both))
+        .await
+        .error(403, "access.denied");
+    assert_eq!(fetch(url, &both).await.unwrap().status(), 403);
+    expire(false).await.unwrap();
+    server
+        .rpc("shares.revoke", json!({"id":share_id}), Some(&cookie))
+        .await
+        .value();
+    server
+        .rpc("files.downloadFolder", input, Some(&both))
+        .await
+        .error(403, "access.denied");
+    assert_eq!(fetch(url, &both).await.unwrap().status(), 403);
+    let owner_url = format!("/api/storage/folders/{id}");
     let key = server
         .state
         .db
@@ -245,17 +343,52 @@ async fn folder_zip_streams_the_current_readable_tree() {
         .await
         .unwrap();
     // Storage can fail after 200; none of those incomplete bytes may look like a complete ZIP.
-    if let Ok(failed) = fetch(&cookie).await {
+    if let Ok(failed) = fetch(&owner_url, &cookie).await {
         assert!(failed.bytes().await.is_err());
     }
 
+    // With the escaped UTF-8 root, 15 directory names of 255 ASCII bytes plus a 243-byte
+    // leaf reach exactly 4,096 bytes including the trailing slash. One more byte must fail.
+    let mut ancestor = id.to_owned();
+    for name in std::iter::repeat_n("a".repeat(255), 15).chain(["b".repeat(243)]) {
+        let folder = server
+            .rpc(
+                "files.createFolder",
+                json!({"parentId":ancestor,"name":name}),
+                Some(&cookie),
+            )
+            .await;
+        ancestor = folder.value()["id"].as_str().unwrap().into();
+    }
+    server
+        .rpc("files.downloadFolder", json!({"id":id}), Some(&cookie))
+        .await
+        .value();
+    server
+        .rpc(
+            "files.rename",
+            json!({"id":ancestor,"name":"b".repeat(244)}),
+            Some(&cookie),
+        )
+        .await
+        .value();
+    server
+        .rpc("files.downloadFolder", json!({"id":id}), Some(&cookie))
+        .await
+        .error(422, "downloads.archiveTooLarge");
+    assert_eq!(fetch(&owner_url, &cookie).await.unwrap().status(), 422);
+
     server.state.db.execute_raw(sql(
         "INSERT INTO hyori_items(id,owner_id,parent_id,name,kind,mime_type,ancestor_ids)
-         SELECT 'archive-bound-'||n,$1,$2,'Bound '||n,'folder','inode/directory',jsonb_build_array($2::text)
+         SELECT 'archive-bound-'||n,$1,$2,'Bound '||n,'folder','inode/directory',jsonb_build_array($3::text,$2::text)
          FROM generate_series(1,10000) n",
-        vec![owner.into(), id.into()],
+        vec![owner.into(), id.into(), parent.into()],
     )).await.unwrap();
-    let too_large = fetch(&cookie).await.unwrap();
+    server
+        .rpc("files.downloadFolder", json!({"id":id}), Some(&cookie))
+        .await
+        .error(422, "downloads.archiveTooLarge");
+    let too_large = fetch(&owner_url, &cookie).await.unwrap();
     assert_eq!(too_large.status(), 422);
     let error = too_large.json::<Value>().await.unwrap();
     assert_eq!(error["error"]["code"], "downloads.archiveTooLarge");

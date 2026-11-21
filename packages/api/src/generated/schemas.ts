@@ -336,6 +336,10 @@ export const FolderDownload = Schema.Struct({ "mimeType": Schema.String, "name":
 
 export type FolderDownload = typeof FolderDownload.Type;
 
+export const FolderDownloadInput = Schema.Struct({ "id": Id, "shareId": Schema.optional(Id) });
+
+export type FolderDownloadInput = typeof FolderDownloadInput.Type;
+
 export const IncomingUpload = Schema.Struct({ "anonymous": Schema.Boolean, "expiresAt": Schema.String, "name": Schema.String.pipe(Schema.filter((value) => Array.from(value).length <= 255)), "size": Bytes, "uploadId": Id });
 
 export type IncomingUpload = typeof IncomingUpload.Type;

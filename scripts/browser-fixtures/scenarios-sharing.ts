@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { Page } from "playwright-core";
 import {
   chooseWith,
+  downloadBytes,
   fetchInPage,
   filesBarAction,
   hydrated,
@@ -190,7 +191,31 @@ async function publicViewer(run: CoreRun) {
   const visitor = await openPage(run, visitorContext, new URL(url).pathname);
 
   await hydrated(visitor);
+
+  const download = visitor.getByRole("button", { name: "Download all" });
+
+  assert.equal(await download.count(), 0, "ZIP is offered before the link is opened");
   await visitor.getByRole("button", { name: "Open" }).click();
+
+  await report.check("an anonymous visitor gets a ZIP in one attachment request", async () => {
+    const start = run.front.records.length;
+    const bytes = await downloadBytes(visitor, () => download.click());
+
+    assert.equal(bytes.subarray(0, 4).toString("hex"), "504b0304");
+
+    for (const name of ["one.png", "two.png", "three.png"]) {
+      assert.ok(bytes.includes(`${folder}/${name}`), `${name} missing from ZIP`);
+    }
+
+    const transfers = run.front.records
+      .slice(start)
+      .filter((record) => record.path.startsWith("/api/storage/folders/"));
+
+    assert.equal(transfers.length, 1);
+    assert.equal(transfers[0]?.method, "GET");
+    assert.match(transfers[0]?.path ?? "", /\?shareId=[a-zA-Z0-9_-]+$/);
+  });
+
   await visitor.getByRole("button", { name: /^one\.png/ }).click();
 
   const lightbox = visitor.locator('[data-slot="lightbox"]');

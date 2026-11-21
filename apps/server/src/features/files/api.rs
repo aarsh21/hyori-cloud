@@ -92,6 +92,12 @@ crate::wire_struct!(Download {
     size: Bytes,
     mime_type: String
 });
+crate::wire_struct!(FolderDownloadInput {
+    id: Id,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Id")]
+    share_id: Option<Id>
+});
 crate::wire_struct!(FolderDownload {
     url: String,
     name: String,
@@ -227,18 +233,18 @@ pub fn bind(registry: &mut crate::rpc::RpcRegistry) -> crate::wire::ContractResu
             ))
         },
     )?;
-    registry.bind::<ItemInput, FolderDownload, _, _>(
+    registry.bind::<FolderDownloadInput, FolderDownload, _, _>(
         "files.downloadFolder",
         |state, context, input| async move {
             Ok(RpcResult::value(
-                super::archive::describe(&state, context, input.id.0).await?,
+                super::archive::describe(&state, context, input).await?,
             ))
         },
     )?;
     Ok(())
 }
 pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
-    crate::schemas!(m; ShareRole, Access, FileEntry, ItemInput, ListFiles, FileList, FileShareSummary, CreateFolder, RenameFile, MoveFile, FileVersion, Versions, ListVersions, RestoreVersion, DeleteVersion, PermanentDeletion, TrashSummary, DownloadInput, Download, FolderDownload);
+    crate::schemas!(m; ShareRole, Access, FileEntry, ItemInput, ListFiles, FileList, FileShareSummary, CreateFolder, RenameFile, MoveFile, FileVersion, Versions, ListVersions, RestoreVersion, DeleteVersion, PermanentDeletion, TrashSummary, DownloadInput, Download, FolderDownloadInput, FolderDownload);
     crate::operation!(m, "files.list", ListFiles, FileList, "query", [], false);
     crate::operation!(m, "files.get", ItemInput, FileEntry, "query", [], false);
     crate::operation!(
@@ -361,7 +367,7 @@ pub fn register(m: &mut Manifest) -> crate::wire::ContractResult<()> {
     crate::operation!(
         m,
         "files.downloadFolder",
-        ItemInput,
+        FolderDownloadInput,
         FolderDownload,
         "query",
         [],
