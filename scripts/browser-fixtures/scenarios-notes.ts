@@ -333,6 +333,17 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
         .first()
         .waitFor({ state: "attached" });
 
+      // The reload tears the old page's socket down and the server clears its presence at once;
+      // the reloaded page republishes presence when it rejoins. The owner rendering Leena's
+      // cursor proves the join happened, but the peer's header can re-render a beat later under
+      // load, so the continuity window would otherwise race the tail of that teardown. Wait for
+      // the rejoin to reach the peer first: a new page that never reappears still fails below.
+      await peer.waitForFunction(
+        (name) => document.querySelector("header span[title]")?.getAttribute("title") === name,
+        own,
+        { polling: 100, timeout: 10_000 },
+      );
+
       // Across several sync rounds, the peer must list the owner once and the owner must never
       // see a caret carrying their own name: the page before the reload is gone, not idle.
       const [peerLists, ownCursors] = await Promise.all([
