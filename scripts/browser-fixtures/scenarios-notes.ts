@@ -60,13 +60,50 @@ async function converged(owner: Page, peer: Page, markers: readonly string[]) {
 }
 
 /**
+ * A caret move publishes presence on a debounce, and every collaboration receipt re-applies each
+ * peer's awareness, which rebuilds the remote cursor widgets around the caret. A keystroke batch
+ * dispatched into that rebuild can be dropped by the browser before any character reaches the
+ * document. So before typing: wait out the presence debounce, then wait for two identical editor
+ * snapshots and take the editor as quiet. Best effort — a runner slower than the timeout still
+ * types, and the landing checks below catch a dropped batch.
+ */
+async function settle(page: Page) {
+  const floor = Date.now() + 350;
+  await page
+    .waitForFunction(
+      (until) => {
+        const editor = document.querySelector(".bn-editor");
+
+        if (!editor || Date.now() < until) return false;
+        const markup = editor.innerHTML;
+        const quiet = document.documentElement.dataset;
+
+        if (quiet.hyoriEditorQuiet === markup) return true;
+        quiet.hyoriEditorQuiet = markup;
+
+        return false;
+      },
+      floor,
+      { polling: 100, timeout: 3_000 },
+    )
+    .then(
+      () => {},
+      () => {},
+    );
+}
+
+/**
  * Chrome can drop a whole batch keystroke while collaboration cursors re-render under the caret,
  * before any character reaches the document, and a dropped batch leaves no local trace to sync.
  * The product promise under test is that text which reaches an editor converges, so type, prove
- * the text reached this page, and retype only when the input pipeline dropped the batch.
+ * the text reached this page and kept its place, and retype only when the input pipeline dropped
+ * the batch. A retry must not re-anchor: clicking and pressing Home again restarts the cursor
+ * churn that dropped the batch, so the caret is touched again only when focus actually left the
+ * editor.
  */
 async function typeUntilLanded(page: Page, text: string, anchor: () => Promise<void>) {
   for (let attempt = 0; ; attempt++) {
+    await settle(page);
     await page.keyboard.insertText(text);
 
     const landed = await page
@@ -80,9 +117,33 @@ async function typeUntilLanded(page: Page, text: string, anchor: () => Promise<v
         () => false,
       );
 
-    if (landed) return;
+    if (landed) {
+      const stayed = await page.evaluate(async (value) => {
+        const deadline = Date.now() + 1_000;
+
+        while (Date.now() < deadline) {
+          if (!document.querySelector(".bn-editor")?.textContent?.includes(value)) return false;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        return true;
+      }, text);
+
+      if (!stayed)
+        assert.fail(
+          `Typed "${text}" reached this page's editor but a later update removed it again`,
+        );
+
+      return;
+    }
+
     assert.ok(attempt < 8, `Typing "${text}" never reached this page's editor`);
-    await anchor();
+
+    const focused = await page.evaluate(
+      () => document.activeElement?.classList.contains("bn-editor") ?? false,
+    );
+
+    if (!focused) await anchor();
   }
 }
 
@@ -187,11 +248,17 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
     await Promise.all(
       [owner, peer].map((page) => page.locator("p.bn-inline-content").first().click()),
     );
-    await Promise.all(
-      [owner, peer].map((page) =>
-        page.locator(".bn-collaboration-cursor__caret").first().waitFor(),
-      ),
-    );
+    // A full-page navigation away from the note leaks the creating session until its idle
+    // expiry, and that ghost publishes the owner's name too, so any caret on the owner's page
+    // proves nothing about the peer. The owner waits for Leena's cursor by name; the peer proves
+    // it renders remote cursors, and the owner's own upstream is proven by the first convergence.
+    await Promise.all([
+      owner
+        .locator(".bn-collaboration-cursor__label", { hasText: "Leena Rao" })
+        .first()
+        .waitFor({ state: "attached" }),
+      peer.locator(".bn-collaboration-cursor__caret").first().waitFor(),
+    ]);
 
     for (let repeat = 1; repeat <= 3; repeat++) {
       await run.report.check(
@@ -209,14 +276,20 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
             await page.keyboard.press("Home");
           };
 
-          const [anchorOwner, anchorPeer] = [anchorOn(owner), anchorOn(peer)];
-          await Promise.all([anchorOwner(), anchorPeer()]);
           const a = `Noor-${repeat} `;
           const b = `Leena-${repeat} `;
-          await Promise.all([
-            typeUntilLanded(owner, a, anchorOwner),
-            typeUntilLanded(peer, b, anchorPeer),
-          ]);
+          // One page types at a time: anchoring a caret republishes presence, which rebuilds the
+          // remote cursor widgets in the other page's editor, and Chrome drops batch keystrokes
+          // dispatched into that rebuild. Both carets anchor first, while the paragraph still has
+          // its pre-edit geometry — a caret re-anchored after the other page's insert can land
+          // inside that insert once the shorter lines rewrap — and then the inserts land one at
+          // a time. Sequential typing still proves the concurrent promise: two live sessions
+          // cross-sync every edit and undo stays per-author.
+          const [anchorOwner, anchorPeer] = [anchorOn(owner), anchorOn(peer)];
+          await Promise.all([anchorOwner(), anchorPeer()]);
+          await typeUntilLanded(owner, a, anchorOwner);
+          await converged(owner, peer, [a]);
+          await typeUntilLanded(peer, b, anchorPeer);
           await converged(owner, peer, [a, b]);
           await Promise.all([saved(owner), saved(peer)]);
           await owner.locator("p.bn-inline-content").first().click();
@@ -229,6 +302,9 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
           assert.ok(!result.includes(a), "undo removed a peer edit or left the owner's edit");
           let typingFinished = false;
           const marker = `Live-${repeat} `;
+          // The undo just republished presence; let the peer's cursor widget settle before the
+          // continuous passage starts, so the first characters are not typed into its rebuild.
+          await settle(owner);
           await Promise.all([
             owner.keyboard
               .type(`${marker}${"continuous input without a pause ".repeat(3)}`, { delay: 40 })
@@ -251,38 +327,47 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
       await run.report.check(
         `${name} run ${repeat}: offline merge and lost acknowledgement`,
         async () => {
-          await ownerContext.setOffline(true);
-          const a = `Offline-${repeat} `;
-          const b = `Online-${repeat} `;
-          await append(owner, a);
-          await owner.getByText("Working offline", { exact: true }).waitFor();
+          try {
+            await ownerContext.setOffline(true);
+            const a = `Offline-${repeat} `;
+            const b = `Online-${repeat} `;
+            await append(owner, a);
+            await owner.getByText("Working offline", { exact: true }).waitFor();
 
-          if (repeat === 1) await run.report.shot(owner, `${name}-offline`);
-          await append(peer, b);
-          await saved(peer);
-          await ownerContext.setOffline(false);
-          await converged(owner, peer, [a, b]);
-          await saved(owner);
-          const start = run.front.records.length;
-          run.front.dropReply(
-            (record) =>
-              record.operation === "collaboration.sync" &&
-              Boolean(JSON.parse(record.rpcBody ?? "{}").input?.update),
-          );
-          const marker = `Lost-receipt-${repeat} `;
-          await append(owner, marker);
-          await converged(owner, peer, [marker]);
-          await saved(owner);
-
-          const dropped = run.front.records
-            .slice(start)
-            .find(
-              (record) => record.operation === "collaboration.sync" && record.outcome === "dropped",
+            if (repeat === 1) await run.report.shot(owner, `${name}-offline`);
+            await append(peer, b);
+            await saved(peer);
+            await ownerContext.setOffline(false);
+            await converged(owner, peer, [a, b]);
+            await saved(owner);
+            const start = run.front.records.length;
+            run.front.dropReply(
+              (record) =>
+                record.operation === "collaboration.sync" &&
+                Boolean(JSON.parse(record.rpcBody ?? "{}").input?.update),
             );
+            const marker = `Lost-receipt-${repeat} `;
+            await append(owner, marker);
+            await converged(owner, peer, [marker]);
+            await saved(owner);
 
-          assert.ok(dropped, "no committed acknowledgement was dropped");
-          assert.equal(dropped.status, 200);
-          assert.equal((await content(peer)).split(marker).length - 1, 1);
+            const dropped = run.front.records
+              .slice(start)
+              .find(
+                (record) =>
+                  record.operation === "collaboration.sync" && record.outcome === "dropped",
+              );
+
+            assert.ok(dropped, "no committed acknowledgement was dropped");
+            assert.equal(dropped.status, 200);
+            assert.equal((await content(peer)).split(marker).length - 1, 1);
+          } finally {
+            // A failed check must not leave the owner offline or a reply-dropping fault armed:
+            // the restart check below needs the owner online, and a leftover fault would eat the
+            // next run's first sync acknowledgement.
+            await ownerContext.setOffline(false);
+            run.front.clearFaults();
+          }
         },
       );
       await run.report.check(
