@@ -61,14 +61,18 @@ function DropdownMenuSheet<Payload>({
     onOpenChange?.(open);
   }
 
-  // An item's action may open a dialog, which returns focus to whatever had it. A menu has already
-  // handed focus back to its trigger by then; the sheet does the same before the action runs.
-  function returnFocus() {
-    trigger.current?.focus({ preventScroll: true });
-  }
+  const sheet = React.useMemo(
+    () => ({
+      instant,
+      // An item's action may open a dialog, which returns focus to whatever had it. A menu has
+      // already handed focus back to its trigger by then; the sheet does the same before the action.
+      returnFocus: () => trigger.current?.focus({ preventScroll: true }),
+    }),
+    [instant],
+  );
 
   return (
-    <SheetContext value={{ instant, returnFocus }}>
+    <SheetContext value={sheet}>
       <Drawer handle={handle} onOpenChange={changeOpen}>
         {children}
       </Drawer>
@@ -400,9 +404,14 @@ function DropdownMenuRadioGroup({
 }) {
   const sheet = React.useContext(SheetContext);
 
+  const radio = React.useMemo(
+    () => ({ value: props.value, onValueChange }),
+    [props.value, onValueChange],
+  );
+
   if (sheet !== null)
     return (
-      <SheetRadioContext value={{ value: props.value, onValueChange }}>
+      <SheetRadioContext value={radio}>
         <div role="group" aria-label={props["aria-label"]} data-slot="dropdown-menu-radio-group">
           {props.children}
         </div>
@@ -476,8 +485,7 @@ function DropdownMenuRadioItem({
 function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
   const sheet = React.useContext(SheetContext);
 
-  if (sheet !== null)
-    return <div role="separator" className="mx-3 my-1.5 h-px shrink-0 bg-border" />;
+  if (sheet !== null) return <hr className="mx-3 my-1.5 h-px shrink-0 border-0 bg-border" />;
 
   return (
     <MenuPrimitive.Separator
