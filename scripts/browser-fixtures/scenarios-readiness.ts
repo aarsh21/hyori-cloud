@@ -10,7 +10,10 @@ import { runSortingScenarios } from "./scenarios-sorting.ts";
 import {
   chooseWith,
   downloadBytes,
+  filesBarAction,
+  filesSearch,
   hydrated,
+  openTrash,
   signIn,
   uploadFiles,
   uploadsTray,
@@ -34,7 +37,7 @@ async function menu(page: Page, name: string, action: string) {
 }
 
 async function folder(page: Page, name: string) {
-  await enter(page.getByRole("button", { name: "New folder" }).first());
+  await filesBarAction(page, "New folder", enter);
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name", { exact: true }).fill(name);
   await dialog.getByLabel("Name", { exact: true }).press("Enter");
@@ -152,7 +155,7 @@ async function lifecycle(run: CoreRun, phone: boolean) {
         await clearUploads(page);
         await menu(page, name, "Move to Trash");
         await menu(page, `discard-${size}.bin`, "Move to Trash");
-        await page.getByRole("link", { name: "Trash", exact: true }).first().click();
+        await openTrash(page);
         await enter(page.getByRole("button", { name: `More actions for ${name}`, exact: true }));
         await enter(
           page
@@ -390,21 +393,34 @@ async function recoveryAndAlbums(run: CoreRun, phone: boolean) {
     await report.check(
       `${size}: name search, size filters and reset preserve the listing`,
       async () => {
-        const search = page.getByRole("searchbox");
+        const visible = { visible: true };
+        const search = await filesSearch(page, enter);
 
         await search.fill(`multipart-${size}`);
         await page.getByRole("button", { name: new RegExp(`^multipart-${size}`) }).waitFor();
         await search.fill("no file has this readiness name");
-        await page.getByText("Nothing matches").waitFor();
-        await enter(page.getByRole("button", { name: "Clear filters", exact: true }));
-        await enter(page.getByRole("button", { name: "Filters", exact: true }));
+        await page.getByText("No matches for “no file has this readiness name”").waitFor();
+        await enter(
+          page
+            .getByRole("button", { name: "Clear search", exact: true })
+            .filter({ hasText: "Clear search" }),
+        );
+        // Phones keep the emptied field open for another query; Cancel gives the bar back.
+        const cancel = page.getByRole("button", { name: "Cancel", exact: true }).filter(visible);
+
+        if (await cancel.isVisible()) await enter(cancel);
+
+        await filesBarAction(page, "Filters", enter);
         await enter(page.getByRole("combobox", { name: "Size", exact: true }));
         await enter(page.getByRole("option", { name: "Under 10 MB", exact: true }));
-        await page.getByRole("button", { name: "Filters, 1 active" }).waitFor();
+        await page
+          .getByRole("button", { name: /^(Filters, 1 active|More options, 1 filter active)$/ })
+          .filter({ visible: true })
+          .waitFor();
         await page.getByRole("button", { name: new RegExp(`^multipart-${size}`) }).waitFor();
         await enter(page.getByRole("button", { name: "Clear", exact: true }));
-        await enter(page.getByRole("button", { name: "Filters", exact: true }));
-        assert.equal(await search.inputValue(), "");
+        await filesBarAction(page, "Filters", enter);
+        assert.equal(await page.locator('input[type="search"]').inputValue(), "");
       },
     );
     await report.check(
@@ -490,7 +506,7 @@ async function recoveryAndAlbums(run: CoreRun, phone: boolean) {
       `${size}: an actually stopped Rust server shows failure and recovers`,
       async () => {
         await run.stack.restartServer(async () => {
-          await page.getByRole("link", { name: "Trash", exact: true }).first().click();
+          await openTrash(page);
           await page
             .getByText(/Hyori can’t reach its services|Can’t reach the server/)
             .first()

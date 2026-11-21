@@ -7,7 +7,15 @@ import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { accountPassword, openUsers } from "./scenarios-admin.ts";
 import { closeViewer } from "./scenarios-photos.ts";
-import { hydrated, signIn, uploadFiles, uploadsTray } from "./page-actions.ts";
+import {
+  filesBarAction,
+  filesSearch,
+  hydrated,
+  openTrash,
+  signIn,
+  uploadFiles,
+  uploadsTray,
+} from "./page-actions.ts";
 import { PHONE } from "./scenarios-touch.ts";
 
 // Seed through product operations, using this browser's cookies and certificate trust.
@@ -150,7 +158,7 @@ async function openLibrary(page: Page) {
   await page.getByRole("link", { name: "Files", exact: true }).first().click();
   await page.getByRole("heading", { name: "Files", exact: true }).waitFor();
   // The fixture can be beyond the first page at the root; use the product's server-side search.
-  await page.getByRole("searchbox").fill("Tray reach library");
+  await (await filesSearch(page)).fill("Tray reach library");
   await page.getByRole("link", { name: /^Tray reach library/ }).click();
 }
 
@@ -311,13 +319,9 @@ export async function runTrayReachScenarios(run: CoreRun) {
               "users",
             ]) {
               if (screen.startsWith("files-")) {
-                await page
-                  .getByRole("button", {
-                    name: screen === "files-list" ? "List" : "Grid",
-                    exact: true,
-                  })
-                  .click();
+                await filesBarAction(page, screen === "files-list" ? "List" : "Grid");
               } else if (screen === "users") await openUsers(page);
+              else if (screen === "trash") await openTrash(page);
               else {
                 const name = { photos: "Photos", shared: "Shared", trash: "Trash" }[screen];
                 assert.ok(name);
@@ -332,7 +336,7 @@ export async function runTrayReachScenarios(run: CoreRun) {
           await uploadsTray(page).getByRole("button", { name: "Clear", exact: true }).click();
           await uploadsTray(page).waitFor({ state: "detached" });
           await openLibrary(page);
-          await page.getByRole("button", { name: "List", exact: true }).click();
+          await filesBarAction(page, "List");
           await run.report.check(`${label}: clearing restores the original viewport`, async () => {
             const height = await page
               .locator('[data-slot="page-body"]')

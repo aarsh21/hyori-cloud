@@ -3,6 +3,7 @@ import type { Page } from "playwright-core";
 import {
   chooseWith,
   fetchInPage,
+  filesBarAction,
   hydrated,
   rowMenu,
   uploadFiles,
@@ -162,7 +163,7 @@ async function publicViewer(run: CoreRun) {
   const { context: ownerContext, page: owner } = await ownerPage(run);
   const folder = "Shared album";
 
-  await owner.getByRole("button", { name: "New folder" }).first().click();
+  await filesBarAction(owner, "New folder");
   await owner.getByRole("dialog").getByLabel("Name", { exact: true }).fill(folder);
   await owner.getByRole("button", { name: "Create" }).click();
   await owner.getByRole("link", { name: new RegExp(`^${folder}`) }).waitFor();

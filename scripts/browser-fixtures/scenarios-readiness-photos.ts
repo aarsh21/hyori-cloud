@@ -8,7 +8,7 @@ import {
   tileSelector,
   waitForTrayIdle,
 } from "./scenarios-photos.ts";
-import { uploadFiles } from "./page-actions.ts";
+import { filesBarAction, uploadFiles } from "./page-actions.ts";
 import { PHONE } from "./scenarios-touch.ts";
 
 export async function runReadinessPhotoScenarios(run: CoreRun, phone: boolean) {
@@ -32,7 +32,7 @@ export async function runReadinessPhotoScenarios(run: CoreRun, phone: boolean) {
       const video = `review-${size}.mp4`;
 
       try {
-        await page.getByRole("button", { name: "New folder", exact: true }).first().click();
+        await filesBarAction(page, "New folder");
         await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill(folder);
         await page.getByRole("button", { name: "Create", exact: true }).click();
         await page.getByRole("link", { name: new RegExp(`^${folder}`) }).click();

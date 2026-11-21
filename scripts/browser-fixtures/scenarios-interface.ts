@@ -5,7 +5,7 @@ import { ownerContext, ownerPage, openPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { openUsers } from "./scenarios-admin.ts";
 import { PHONE } from "./scenarios-touch.ts";
-import { uploadFiles, uploadsTray } from "./page-actions.ts";
+import { filesBarAction, openTrash, uploadFiles, uploadsTray } from "./page-actions.ts";
 
 // A DOM presence assertion misses ellipsis and ancestor clipping. Measure the actual glyph range.
 async function readable(locator: Locator, text: string) {
@@ -48,7 +48,7 @@ async function readable(locator: Locator, text: string) {
 }
 
 async function folder(page: Page, name: string) {
-  await page.getByRole("button", { name: "New folder", exact: true }).first().click();
+  await filesBarAction(page, "New folder");
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name", { exact: true }).fill(name);
   await dialog.getByLabel("Name", { exact: true }).press("Enter");
@@ -242,7 +242,7 @@ export async function runInterfaceScenarios(run: CoreRun) {
         const warm = await ownerPage(run, options);
 
         try {
-          await warm.page.getByRole("link", { name: "Trash", exact: true }).first().click();
+          await openTrash(warm.page);
           await warm.page.getByRole("heading", { name: "Trash", exact: true }).waitFor();
           // The fallback has the same heading. Finish the first visit before testing a return.
           await warm.page.waitForFunction(
@@ -268,7 +268,8 @@ export async function runInterfaceScenarios(run: CoreRun) {
               });
 
               for (const name of ["Trash", "Files", "Trash", "Files"]) {
-                await warm.page.getByRole("link", { name, exact: true }).first().click();
+                if (name === "Trash") await openTrash(warm.page);
+                else await warm.page.getByRole("link", { name, exact: true }).first().click();
                 await warm.page.getByRole("heading", { name, exact: true }).waitFor();
               }
 
@@ -487,10 +488,11 @@ async function warmNavigation(run: CoreRun) {
         await page.getByRole("heading", { name: "Photos", exact: true }).waitFor();
       }
 
-      if (section.name === "Users" && phone) {
+      // Phones keep five tabs; Users and Trash are items in the Account sheet.
+      if ((section.name === "Users" || section.name === "Trash") && phone) {
         await page.getByRole("button", { name: "Account", exact: true }).press("Enter");
 
-        return page.getByRole("menuitem", { name: "Users", exact: true });
+        return page.getByRole("menuitem", { name: section.name, exact: true });
       }
 
       return page.getByRole("link", { name: section.name, exact: true }).first();
@@ -510,7 +512,7 @@ async function warmNavigation(run: CoreRun) {
             const times: number[] = [];
 
             for (let repeat = 0; repeat < 10; repeat += 1) {
-              const away = section.name === "Files" ? "Trash" : "Files";
+              const away = section.name !== "Files" ? "Files" : phone ? "Photos" : "Trash";
               await page.getByRole("link", { name: away, exact: true }).first().click();
               await page.getByRole("heading", { name: away, exact: true }).waitFor();
               const target = await destination(section);

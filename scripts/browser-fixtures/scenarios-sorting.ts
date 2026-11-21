@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { ownerPage, waitForHydration } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { PHONE } from "./scenarios-touch.ts";
+import { filesBarAction } from "./page-actions.ts";
 
 declare global {
   interface Window {
@@ -58,7 +59,7 @@ export async function runSortingScenarios(run: CoreRun, phone: boolean) {
         // Start a fresh cache so each order exercises actual continuation, not retained full pages.
         await page.reload();
         await waitForHydration(page);
-        await activate(page.getByRole("button", { name: layout, exact: true }));
+        await filesBarAction(page, layout, activate);
 
         for (const [sort, label, key, descending] of orders) {
           await run.report.check(

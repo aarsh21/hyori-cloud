@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { ownerPage, freshContext, openPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
-import { downloadBytes, hydrated, rowMenu, uploadFiles } from "./page-actions.ts";
+import { downloadBytes, hydrated, openTrash, rowMenu, uploadFiles } from "./page-actions.ts";
 import { createLink, revokeLink } from "./scenarios-sharing.ts";
 import {
   closeViewer,
@@ -30,7 +30,7 @@ export async function runPhoneCompletionScenarios(run: CoreRun) {
         "phone: trash and restore preserve the file's bytes and parent",
         async () => {
           await rowMenu(page, file, /Move to Trash/);
-          await page.getByRole("link", { name: "Trash", exact: true }).first().click();
+          await openTrash(page);
           await page.getByRole("button", { name: "Restore", exact: true }).focus();
           await page.keyboard.press("Enter");
           await page.getByText("Trash is empty", { exact: true }).waitFor();

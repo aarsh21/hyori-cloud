@@ -1,6 +1,55 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import type { Page } from "playwright-core";
+import type { Locator, Page } from "playwright-core";
+
+/** How a journey presses a control: a click, a tap, or focus and Enter. */
+type Activate = (control: Locator) => Promise<void>;
+
+const click: Activate = (control) => control.click();
+
+/**
+ * Files' bar shows New folder, Filters and the layout on wide screens; phones fold them into
+ * "More options" so the bar keeps one row. Journeys name the action and reach it either way.
+ */
+export async function filesBarAction(
+  page: Page,
+  name: "New folder" | "Filters" | "List" | "Grid",
+  activate: Activate = click,
+) {
+  const inBar = page.getByRole("button", { name, exact: true }).filter({ visible: true }).first();
+  const more = page.getByRole("button", { name: /^More options/ }).filter({ visible: true });
+  await inBar.or(more).first().waitFor();
+
+  if (await inBar.isVisible()) return activate(inBar);
+
+  await activate(more);
+  const role = name === "List" || name === "Grid" ? "menuitemradio" : "menuitem";
+  await activate(page.getByRole("menu").getByRole(role, { name: new RegExp(`^${name}`) }));
+}
+
+/** The listing's search field; phones open it from the bar's Search button first. */
+export async function filesSearch(page: Page, activate: Activate = click) {
+  const field = page.getByRole("searchbox").filter({ visible: true });
+  const open = page.getByRole("button", { name: /^Search / }).filter({ visible: true });
+  await field.or(open).first().waitFor();
+
+  if (!(await field.isVisible())) await activate(open);
+
+  return field;
+}
+
+/** Trash is a sidebar link on wide screens and an item in the Account sheet on phones. */
+export async function openTrash(page: Page, activate: Activate = click) {
+  const visible = { visible: true };
+  const link = page.getByRole("link", { name: "Trash", exact: true }).filter(visible);
+  const account = page.getByRole("button", { name: "Account", exact: true }).filter(visible);
+  await link.or(account).first().waitFor();
+
+  if (await link.first().isVisible()) return activate(link.first());
+
+  await activate(account);
+  await activate(page.getByRole("menuitem", { name: "Trash", exact: true }));
+}
 
 export async function setupAdmin(
   page: Page,

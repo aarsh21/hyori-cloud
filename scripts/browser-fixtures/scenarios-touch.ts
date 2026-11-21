@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { BrowserContext, Page } from "playwright-core";
-import { rowMenu, uploadFiles, uploadsTray } from "./page-actions.ts";
+import { filesBarAction, openTrash, rowMenu, uploadFiles, uploadsTray } from "./page-actions.ts";
 import { ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 
@@ -96,11 +96,11 @@ async function phone(run: CoreRun) {
     assert.ok(box !== null && box.height >= 44, "bottom nav is too short");
   });
 
-  await page.getByRole("button", { name: "Grid" }).tap();
+  await filesBarAction(page, "Grid", (control) => control.tap());
   await page.getByRole("button", { name: /^release\.bin/ }).waitFor();
   await report.shot(page, "phone-files-grid-light");
   await audit(run, page, "Files grid");
-  await page.getByRole("button", { name: "List" }).tap();
+  await filesBarAction(page, "List", (control) => control.tap());
 
   await page.getByRole("button", { name: "Actions for release.bin" }).tap();
   await page.getByRole("menuitem", { name: "Share…" }).waitFor();
@@ -165,7 +165,7 @@ async function phone(run: CoreRun) {
   });
 
   await report.check("Trash and Photos fit too", async () => {
-    await page.getByRole("link", { name: "Trash" }).first().tap();
+    await openTrash(page, (control) => control.tap());
     await page.getByRole("heading", { name: "Trash" }).waitFor();
     await report.shot(page, "phone-trash-dark");
     await page.getByRole("link", { name: "Photos" }).first().tap();
@@ -293,9 +293,12 @@ async function reducedMotion(run: CoreRun) {
   const { context, page } = await ownerPage(run, { reducedMotion: "reduce" });
 
   await page.getByRole("button", { name: /^release\.bin/ }).waitFor();
-  await page.getByRole("button", { name: "New folder" }).first().click();
+  await filesBarAction(page, "New folder");
 
   await report.check("with reduced motion, dialogs lose movement but keep their fade", async () => {
+    // Read the settled dialog: a node still mounting can be replaced before the read lands.
+    await page.getByRole("dialog").getByLabel("Name", { exact: true }).waitFor();
+
     const transition = await page
       .locator('[data-slot="dialog-content"]')
       .evaluate((element) => getComputedStyle(element).transitionProperty);

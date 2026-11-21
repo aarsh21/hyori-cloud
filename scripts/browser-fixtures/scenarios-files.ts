@@ -49,8 +49,11 @@ async function browsing(run: CoreRun) {
     await page.getByRole("button", { name: /^osaka\.bin/ }).waitFor({ state: "detached" });
     await page.getByRole("button", { name: /^kyoto notes\.txt/ }).waitFor();
     await search.fill("nothing like this");
-    await page.getByText("Nothing matches").waitFor();
-    await page.getByRole("button", { name: "Clear filters" }).click();
+    await page.getByText("No matches for “nothing like this”").waitFor();
+    await page
+      .getByRole("button", { name: "Clear search" })
+      .filter({ hasText: "Clear search" })
+      .click();
     await page.getByRole("button", { name: /^osaka\.bin/ }).waitFor();
     assert.deepEqual(await search.inputValue(), "", "search box after clearing");
   });

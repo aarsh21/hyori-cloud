@@ -4,7 +4,14 @@ import { join } from "node:path";
 import type { BrowserContext, Page } from "playwright-core";
 import { accountPassword, addUser, openUsers } from "./scenarios-admin.ts";
 import { MEDIA_FORMATS } from "./media.ts";
-import { chooseWith, rowMenu, signIn, uploadFiles, uploadsTray } from "./page-actions.ts";
+import {
+  chooseWith,
+  filesBarAction,
+  rowMenu,
+  signIn,
+  uploadFiles,
+  uploadsTray,
+} from "./page-actions.ts";
 import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import type { Observed } from "./run-report.ts";
@@ -21,7 +28,7 @@ const isThumbnail = ({ path }: { readonly path: string }) =>
   path.startsWith("/api/storage/derivatives/");
 
 export async function createFolder(page: Page, name: string) {
-  await page.getByRole("button", { name: "New folder" }).first().click();
+  await filesBarAction(page, "New folder");
 
   const dialog = page.getByRole("dialog");
 
