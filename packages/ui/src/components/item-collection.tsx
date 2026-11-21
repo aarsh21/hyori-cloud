@@ -9,20 +9,35 @@ import * as React from "react";
 import { flushSync } from "react-dom";
 
 /**
- * Which item was last focused lives outside React state, so moving through a list wakes only the
- * two items whose tab stop changed instead of every row in it.
+ * Which item was last focused, and which holds the tab stop while nothing valid is focused, live
+ * outside React state. Moving through a list, or focus first entering it, then wakes only the items
+ * whose tab stop changed instead of every row in it.
  */
-function createFocusedItemStore() {
+function createFocusedItemStore(initialFallbackKey: string | null) {
   let focusedKey: string | null = null;
+  let fallbackKey = initialFallbackKey;
   const listeners = new Set<() => void>();
+
+  function notify() {
+    for (const listener of listeners) listener();
+  }
 
   return {
     getFocusedKey: () => focusedKey,
+    getFallbackKey: () => fallbackKey,
+    /** The tab stop's key: the fallback while nothing valid has focus, else the focused item. */
+    getActiveKey: () => fallbackKey ?? focusedKey,
+    /** Only rendered rows report focus, so a focused key is always valid and holds the tab stop. */
     setFocusedKey(key: string) {
-      if (key === focusedKey) return;
+      if (key === focusedKey && fallbackKey === null) return;
       focusedKey = key;
-
-      for (const listener of listeners) listener();
+      fallbackKey = null;
+      notify();
+    },
+    setFallbackKey(key: string | null) {
+      if (key === fallbackKey) return;
+      fallbackKey = key;
+      notify();
     },
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -39,8 +54,6 @@ const FocusedItemContext = React.createContext<ReturnType<typeof createFocusedIt
   null,
 );
 
-// The first item, while nothing valid has focus. Changes only when the list's head or that fact does.
-const FallbackItemContext = React.createContext<string | null>(null);
 const ItemKeyContext = React.createContext<string | null>(null);
 const ItemKeyScope = ItemKeyContext;
 
@@ -84,13 +97,12 @@ function serverItemKey() {
 
 function useItemTabIndex() {
   const store = React.use(FocusedItemContext);
-  const fallbackKey = React.use(FallbackItemContext);
   const itemKey = React.use(ItemKeyContext);
 
   const isActive = React.useSyncExternalStore(
     store?.subscribe ?? subscribeToNothing,
-    () => itemKey !== null && (fallbackKey ?? store?.getFocusedKey()) === itemKey,
-    () => itemKey !== null && fallbackKey === itemKey,
+    () => itemKey !== null && store?.getActiveKey() === itemKey,
+    () => itemKey !== null && store?.getFallbackKey() === itemKey,
   );
 
   if (store === null) return 0;
@@ -101,12 +113,11 @@ function useItemTabIndex() {
 /** The item holding the collection's tab stop, but only when `isShown` says it isn't on hand. */
 function useItemKeyOutside(isShown: (itemKey: string) => boolean) {
   const store = React.use(FocusedItemContext);
-  const fallbackKey = React.use(FallbackItemContext);
 
   return React.useSyncExternalStore(
     store?.subscribe ?? subscribeToNothing,
     () => {
-      const activeKey = fallbackKey ?? store?.getFocusedKey() ?? null;
+      const activeKey = store?.getActiveKey() ?? null;
 
       return activeKey !== null && !isShown(activeKey) ? activeKey : null;
     },
@@ -151,7 +162,7 @@ function ItemNavigation({
   onItemKeyDown?: (itemKey: string, event: React.KeyboardEvent) => void;
   children: React.ReactNode;
 }) {
-  const [store] = React.useState(createFocusedItemStore);
+  const [store] = React.useState(() => createFocusedItemStore(itemKeys[0] ?? null));
   const container = React.useRef<HTMLDivElement>(null);
   const { setFocusedKey } = store;
 
@@ -163,8 +174,16 @@ function ItemNavigation({
 
   useRefocusAfterRemoval(container, itemKeys, focusedKey, setFocusedKey);
 
-  const fallbackKey =
-    focusedKey !== null && itemKeys.includes(focusedKey) ? null : (itemKeys[0] ?? null);
+  // The first item holds the tab stop while nothing valid has focus. It's worked out from the
+  // store's latest focus, not this render's, because the refocus above may already have moved it.
+  // Published before paint, so the tab stop never shows on a stale item.
+  React.useLayoutEffect(() => {
+    const latest = store.getFocusedKey();
+
+    store.setFallbackKey(
+      latest !== null && itemKeys.includes(latest) ? null : (itemKeys[0] ?? null),
+    );
+  }, [store, itemKeys, focusedKey]);
 
   function moveTo(itemKey: string | undefined) {
     const element = container.current;
@@ -179,89 +198,87 @@ function ItemNavigation({
 
   return (
     <FocusedItemContext value={store}>
-      <FallbackItemContext value={fallbackKey}>
-        <div
-          ref={container}
-          role="none"
-          data-slot="item-navigation"
-          onFocus={(event) => {
-            const key = event.target.closest<HTMLElement>("[data-item-key]")?.dataset.itemKey;
+      <div
+        ref={container}
+        role="none"
+        data-slot="item-navigation"
+        onFocus={(event) => {
+          const key = event.target.closest<HTMLElement>("[data-item-key]")?.dataset.itemKey;
 
-            if (key !== undefined) setFocusedKey(key);
-          }}
-          onKeyDown={(event) => {
-            const element = event.target;
+          if (key !== undefined) setFocusedKey(key);
+        }}
+        onKeyDown={(event) => {
+          const element = event.target;
 
-            if (!(element instanceof Element) || !event.currentTarget.contains(element)) return;
+          if (!(element instanceof Element) || !event.currentTarget.contains(element)) return;
 
-            if (event.defaultPrevented) return;
+          if (event.defaultPrevented) return;
 
-            if (event.altKey || event.ctrlKey || event.metaKey) return;
-            const row = element.closest<HTMLElement>("[data-item-key]");
-            const key = row?.dataset.itemKey;
+          if (event.altKey || event.ctrlKey || event.metaKey) return;
+          const row = element.closest<HTMLElement>("[data-item-key]");
+          const key = row?.dataset.itemKey;
 
-            if (!row || key === undefined) return;
+          if (!row || key === undefined) return;
 
-            const primary = row.querySelector<HTMLElement>("[data-item-target]");
-            const action = row.querySelector<HTMLElement>("[data-item-action]");
-            const index = itemKeys.indexOf(key);
+          const primary = row.querySelector<HTMLElement>("[data-item-target]");
+          const action = row.querySelector<HTMLElement>("[data-item-action]");
+          const index = itemKeys.indexOf(key);
 
-            const vertical = (direction: 1 | -1) => {
-              const adjacent = adjacentInColumn(
-                groupSizes ?? [itemKeys.length],
-                layout === "grid" ? columnCount(row.parentElement) : 1,
-                index,
-                direction,
-              );
+          const vertical = (direction: 1 | -1) => {
+            const adjacent = adjacentInColumn(
+              groupSizes ?? [itemKeys.length],
+              layout === "grid" ? columnCount(row.parentElement) : 1,
+              index,
+              direction,
+            );
 
-              moveTo(adjacent === undefined ? undefined : itemKeys[adjacent]);
-            };
+            moveTo(adjacent === undefined ? undefined : itemKeys[adjacent]);
+          };
 
-            switch (event.key) {
-              case "ArrowDown":
-                vertical(1);
-                break;
-              case "ArrowUp":
-                vertical(-1);
-                break;
-              case "ArrowRight":
-                if (layout === "grid") moveTo(itemKeys[index + 1]);
-                else action?.focus();
-                break;
-              case "ArrowLeft":
-                if (layout === "grid") moveTo(itemKeys[index - 1]);
-                else primary?.focus();
-                break;
-              case "Home":
-                moveTo(itemKeys[0]);
-                break;
-              case "End":
-                moveTo(itemKeys.at(-1));
-                break;
-              case "ContextMenu":
+          switch (event.key) {
+            case "ArrowDown":
+              vertical(1);
+              break;
+            case "ArrowUp":
+              vertical(-1);
+              break;
+            case "ArrowRight":
+              if (layout === "grid") moveTo(itemKeys[index + 1]);
+              else action?.focus();
+              break;
+            case "ArrowLeft":
+              if (layout === "grid") moveTo(itemKeys[index - 1]);
+              else primary?.focus();
+              break;
+            case "Home":
+              moveTo(itemKeys[0]);
+              break;
+            case "End":
+              moveTo(itemKeys.at(-1));
+              break;
+            case "ContextMenu":
+              action?.click();
+              event.preventDefault();
+
+              return;
+            case "F10":
+              if (event.shiftKey) {
                 action?.click();
                 event.preventDefault();
+              }
 
-                return;
-              case "F10":
-                if (event.shiftKey) {
-                  action?.click();
-                  event.preventDefault();
-                }
+              return;
+            default:
+              onItemKeyDown?.(key, event);
 
-                return;
-              default:
-                onItemKeyDown?.(key, event);
+              return;
+          }
 
-                return;
-            }
-
-            event.preventDefault();
-          }}
-        >
-          {children}
-        </div>
-      </FallbackItemContext>
+          event.preventDefault();
+        }}
+      >
+        {children}
+      </div>
     </FocusedItemContext>
   );
 }
