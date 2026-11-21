@@ -66,7 +66,11 @@ function LoadedListing({
 }) {
   const entries =
     listing.data?.pages.flatMap((page) =>
-      page.items.map((entry) => ({ ...entry, derivative: page.thumbnails?.[entry.id] })),
+      page.items.map((entry) => ({
+        ...entry,
+        derivative: page.thumbnails?.[entry.id],
+        sharing: page.sharing?.[entry.id],
+      })),
     ) ?? [];
 
   // Retained rows belong to the previous filters, so an empty set says nothing about these ones.

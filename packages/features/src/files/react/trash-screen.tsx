@@ -1,4 +1,4 @@
-import type { FileEntry } from "@hyori-cloud/client-sdk";
+import type { FileEntry, FileList } from "@hyori-cloud/client-sdk";
 import { Trash2 } from "@hyori-cloud/lib/icons";
 import { useState } from "@hyori-cloud/lib/react";
 import {
@@ -32,11 +32,28 @@ import { FileTypeIcon } from "#features/files/react/file-type-icon.tsx";
 import { NoSize } from "#features/files/react/no-size.tsx";
 import { useFileListing } from "#features/files/react/use-file-listing.ts";
 import { useRestoreFile } from "#features/files/react/use-file-mutations.ts";
-import { formatBytes, formatDateTime, formatRecentDate } from "#features/shared/format.ts";
+import {
+  formatBytes,
+  formatDateTime,
+  formatRecentDate,
+  formatRecentDay,
+} from "#features/shared/format.ts";
 import { LoadMore } from "#features/shared/react/load-more.tsx";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
+
+type TrashEntry = FileList["items"][number];
+
+/**
+ * Where an item was when it was deleted, root first. The names are a record from that moment, so
+ * they read as plain text: a parent renamed since is not a link. Older servers don't say.
+ */
+function originalLocation(entry: TrashEntry) {
+  const path = entry.originalParentPath;
+
+  return path === undefined ? null : ["Files", ...path].join(" › ");
+}
 
 export function TrashScreen() {
   const listing = useFileListing({ view: "trash" });
@@ -66,9 +83,10 @@ export function TrashScreen() {
           />
         ) : (
           <ItemNavigation itemKeys={entries.map((entry) => entry.id)} layout="list">
-            <ItemTable className="[--item-columns:minmax(0,1fr)_auto] @2xl:[--item-columns:minmax(0,1fr)_10rem_6rem_8.5rem]">
+            <ItemTable className="[--item-columns:minmax(0,1fr)_auto] @2xl:[--item-columns:minmax(0,1fr)_minmax(0,14rem)_10rem_6rem_8.5rem]">
               <ItemTableHeader>
                 <ItemTableHeaderCell>Name</ItemTableHeaderCell>
+                <ItemTableHeaderCell>Original location</ItemTableHeaderCell>
                 <ItemTableHeaderCell>Deleted</ItemTableHeaderCell>
                 <ItemTableHeaderCell className="text-right">Size</ItemTableHeaderCell>
                 <ItemTableHeaderCell />
@@ -132,23 +150,30 @@ function TrashRow({
   onRestore,
   onDelete,
 }: {
-  entry: FileEntry;
+  entry: TrashEntry;
   restoring: boolean;
   onRestore: () => void;
   onDelete: () => void;
 }) {
   const deletedAt = entry.trashedAt ?? entry.updatedAt;
+  const location = originalLocation(entry);
+  // One line on phones: the folder it came from leads, so truncation takes the date, not the place.
+  const from = entry.originalParentPath?.at(-1) ?? (location === null ? null : "Files");
+  const meta = `Deleted ${formatRecentDay(deletedAt)}`;
 
   return (
     <ItemTableRow itemKey={entry.id}>
       <ItemTableCell className="flex">
         <ItemName
           icon={<FileTypeIcon entry={entry} />}
-          meta={`Deleted ${formatRecentDate(deletedAt)}`}
+          meta={from === null ? meta : `From ${from} · ${meta}`}
         >
           {entry.name}
         </ItemName>
       </ItemTableCell>
+      <ItemTableDetailCell className="truncate" title={location ?? undefined}>
+        {location ?? <NoSize />}
+      </ItemTableDetailCell>
       <ItemTableDetailCell title={formatDateTime(deletedAt)}>
         {formatRecentDate(deletedAt)}
       </ItemTableDetailCell>

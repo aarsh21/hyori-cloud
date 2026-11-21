@@ -157,3 +157,30 @@ describe("deleting an earlier version", () => {
     ]);
   });
 });
+
+test("Trash says where each item was, and stays quiet when the server doesn't know", async () => {
+  const fromTaxes = {
+    ...fileEntry({ id: "file_9", name: "budget.csv", trashedAt: TRASHED }),
+    originalParentPath: ["Work", "Taxes"],
+  };
+
+  const fromRoot = {
+    ...fileEntry({ id: "file_8", name: "draft.txt", trashedAt: TRASHED }),
+    originalParentPath: [],
+  };
+
+  const unknown = fileEntry({ id: "file_7", name: "legacy.txt", trashedAt: TRASHED });
+
+  mount(
+    <TrashScreen />,
+    createFakeApi({
+      "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
+      "files.list": () => fileList([fromTaxes, fromRoot, unknown]),
+    }),
+  );
+
+  expect(await screen.findByText("Files › Work › Taxes")).toBeTruthy();
+  expect(screen.getByText(/^From Taxes · Deleted/)).toBeTruthy();
+  expect(screen.getByText(/^From Files · Deleted/)).toBeTruthy();
+  expect(screen.getAllByText(/^Deleted /)).toHaveLength(1);
+});

@@ -993,3 +993,27 @@ describe("what the server's errors mean to people", () => {
     expect(screen.queryByText(/Resource conflicts/)).toBeNull();
   });
 });
+
+describe("what a listing says about each item", () => {
+  test("folders count their items, and only shared items carry a sharing mark", async () => {
+    const shared = folderEntry({ id: "folder_s", name: "Trip" });
+    const empty = { ...FOLDER_A, childCount: 0 };
+    const full = { ...shared, childCount: 1204 };
+
+    const api = createFakeApi({
+      "auth.status": () => ({ initialized: true, user: SIGNED_IN_USER }),
+      "files.list": () => ({
+        // An older server leaves the count out (Bravo); the row still renders, just without it.
+        ...fileList([empty, full, FOLDER_B]),
+        sharing: { [shared.id]: { peopleCount: 2, hasLink: true } },
+      }),
+    });
+
+    renderAt("/", api);
+
+    expect(await screen.findByText("1,204 items")).toBeTruthy();
+    expect(screen.getByText("Empty")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Shared with 2 people and by link" })).toBeTruthy();
+    expect(screen.getAllByRole("img", { name: /^Shared/ })).toHaveLength(1);
+  });
+});

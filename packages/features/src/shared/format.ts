@@ -25,6 +25,13 @@ export function formatBytes(bytes: number): string {
 }
 
 /** For where the word "used" would push the numbers out of a narrow row. */
+/** A folder's direct contents: "Empty", "1 item", "1,204 items". */
+export function formatItemCount(count: number): string {
+  if (count === 0) return "Empty";
+
+  return `${count.toLocaleString("en-US")} ${count === 1 ? "item" : "items"}`;
+}
+
 export function formatStorage(usedBytes: number, quotaBytes: number): string {
   return `${formatBytes(usedBytes)} of ${formatBytes(quotaBytes)}`;
 }
@@ -67,6 +74,16 @@ export function formatRecentDate(iso: string, now = new Date()): string {
   return date.getFullYear() === now.getFullYear()
     ? dayFormat.format(date)
     : dateFormat.format(date);
+}
+
+/** The same without the time, for one-line phone rows and tiles: "Today", "Yesterday", "Nov 3". */
+export function formatRecentDay(iso: string, now = new Date()): string {
+  const date = new Date(iso);
+
+  if (localMidnight(now) === localMidnight(date))
+    return capitalized(relativeDayFormat.format(0, "day"));
+
+  return formatRecentDate(iso, now);
 }
 
 export function formatDateTime(iso: string): string {
