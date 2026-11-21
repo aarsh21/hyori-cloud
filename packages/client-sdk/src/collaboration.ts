@@ -195,38 +195,45 @@ export function createCollaborationSession({
     started = true;
 
     try {
+      // The journal is this device's retained branch, a purely local read that needs nothing
+      // from the server, so it loads beside the open round trip instead of behind it; the two
+      // only meet in the merge checks below.
+      let recoveryFlight: Promise<{
+        recovery: CollaborationRecovery | null;
+        unreadable: boolean;
+      }> | null = null;
+
+      if (journal)
+        recoveryFlight = journal.load().then(
+          (recovery) => ({ recovery, unreadable: false }),
+          () => ({ recovery: null, unreadable: true }),
+        );
+
       descriptor = await backend.open(
         { id, clientId: String(doc.clientID), schemaVersion: 1 },
         { signal: abort.signal },
       );
 
+      const journalResult = (await recoveryFlight) ?? { recovery: null, unreadable: false };
+
       if (disposed) {
         void backend.close({ sessionId: descriptor.sessionId }).catch(() => undefined);
-
-        return;
-      }
-
-      let recovery: CollaborationRecovery | null = null;
-
-      if (journal) {
-        try {
-          recovery = await journal.load();
-        } catch {
-          // Never replace a retained draft we could not read with a new editor's empty journal.
-          journalUnreadable = true;
-          blocked = true;
-          publish({
-            recoveryError: true,
-            error: "Device recovery could not be read. Retained work has not been overwritten.",
-          });
-        }
-      }
-
-      if (disposed) {
         journal?.dispose?.();
 
         return;
       }
+
+      if (journalResult.unreadable) {
+        // Never replace a retained draft we could not read with a new editor's empty journal.
+        journalUnreadable = true;
+        blocked = true;
+        publish({
+          recoveryError: true,
+          error: "Device recovery could not be read. Retained work has not been overwritten.",
+        });
+      }
+
+      const recovery = journalResult.recovery;
 
       if (recovery) {
         Y.applyUpdate(doc, decodeCollaborationBytes(recovery.state), remote);

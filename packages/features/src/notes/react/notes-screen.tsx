@@ -1,6 +1,7 @@
 import type { OutputOf, RPC } from "@hyori-cloud/client-sdk";
+import type { ComponentProps } from "@hyori-cloud/lib/react";
 import { NotebookPen, Plus, Search, Star } from "@hyori-cloud/lib/icons";
-import { Suspense, useDeferredValue, useState } from "@hyori-cloud/lib/react";
+import { useDeferredValue, useEffect, useState } from "@hyori-cloud/lib/react";
 import { Button } from "@hyori-cloud/ui/components/button";
 import { Input } from "@hyori-cloud/ui/components/input";
 import { NoteListItem, NoteWorkspace } from "@hyori-cloud/ui/components/note-workspace";
@@ -9,7 +10,7 @@ import { Spinner } from "@hyori-cloud/ui/components/spinner";
 import { Text } from "@hyori-cloud/ui/components/text";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import { useCloudNavigation } from "#features/cloud/react/cloud-navigation.tsx";
-import { lazyScreen, loadNoteDocument } from "#features/cloud/react/cloud-screen-loaders.ts";
+import { loadNoteDocument } from "#features/cloud/react/cloud-screen-loaders.ts";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { useCreateNote, useNotes } from "#features/notes/react/use-notes.ts";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
@@ -18,9 +19,49 @@ import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
 
 type Note = OutputOf<RPC["notes"]["get"]>;
 
-// The editor is by far the heaviest code in the product, so only a note actually opening pays
-// for it; the screen itself, and the section's preload, stay light.
-const NoteDocument = lazyScreen(loadNoteDocument, (module) => module.NoteDocument);
+type NoteDocumentScreen = Awaited<ReturnType<typeof loadNoteDocument>>["NoteDocument"];
+
+/**
+ * Waits for the editor's chunk without `React.lazy`, whose fallback React holds for 300 ms even
+ * when the chunk is already on its way. Arrived code renders at once; in-flight code keeps the
+ * local spinner until it lands. A failed request rethrows to the recovery boundary, exactly as
+ * the lazy wrapper's rejection did — the chunk forgets its failure, so a remount asks again.
+ */
+function NoteDocument(props: ComponentProps<NoteDocumentScreen>) {
+  const [screen, setScreen] = useState(() => loadNoteDocument.arrived()?.NoteDocument ?? null);
+  const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
+
+  useEffect(() => {
+    if (screen !== null) return;
+
+    let cancelled = false;
+    loadNoteDocument().then(
+      (module) => {
+        if (!cancelled) setScreen(() => module.NoteDocument);
+      },
+      (cause) => {
+        if (!cancelled) setFailure({ cause });
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [screen]);
+
+  if (failure !== null) throw failure.cause;
+
+  if (screen === null)
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Spinner />
+      </div>
+    );
+
+  const Screen = screen;
+
+  return <Screen {...props} />;
+}
 
 /** Only an unfiltered, loaded, empty first page proves there are no notes at all. */
 function mayHaveNotes(loadedCount: number | undefined, narrowed: boolean) {
@@ -38,6 +79,17 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
   const hasNotes = mayHaveNotes(notes.data?.items.length, narrowed);
   const create = useCreateNote();
   const { navigatePath } = useCloudNavigation();
+
+  // A usable list is one note open away from the editor, the heaviest code in the product, and
+  // this section alone pays for it: one fetch here and a later open renders the document with
+  // no chunk wait at all. Deliberately not an idle preload — the list being usable is the
+  // trigger — and the request deduplicates against an open already under way.
+  const listUsable = notes.data !== undefined;
+
+  useEffect(() => {
+    if (listUsable) void loadNoteDocument().catch(() => undefined);
+  }, [listUsable]);
+
   // The note created last opens ready to type. The flag is dropped when the list navigates
   // elsewhere, because the document mounts a network round-trip after the route reaches it; a
   // later visit from the list is not treated as the one that was just created.
@@ -170,21 +222,13 @@ export function NotesScreen({ noteId }: { noteId: string | null }) {
           }
         />
       ) : (
-        <Suspense
-          fallback={
-            <div className="flex min-h-0 flex-1 items-center justify-center">
-              <Spinner />
-            </div>
-          }
-        >
-          <NoteDocument
-            key={noteId}
-            id={noteId}
-            accountId={user.id}
-            autoFocus={createdId === noteId}
-            onNewChild={() => newNote(noteId)}
-          />
-        </Suspense>
+        <NoteDocument
+          key={noteId}
+          id={noteId}
+          accountId={user.id}
+          autoFocus={createdId === noteId}
+          onNewChild={() => newNote(noteId)}
+        />
       )}
     </NoteWorkspace>
   );

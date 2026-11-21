@@ -61,6 +61,12 @@ export function useCloudDataPrefetch() {
             cursor: undefined,
           }),
         );
+
+        // An opened note mounts a document that reads this one item, so a confirmed visit
+        // starts it beside the code, where its round trip hides under the mount.
+        if (location.noteId !== null)
+          void queryClient.prefetchQuery(query.notes.get.getOptions({ id: location.noteId }));
+
         break;
       case "admin":
         void queryClient.prefetchInfiniteQuery(
