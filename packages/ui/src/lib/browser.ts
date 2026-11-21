@@ -24,6 +24,24 @@ export function saveBytesAsDownload(bytes: Uint8Array<ArrayBuffer>, name: string
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+type ConnectionNavigator = Navigator & {
+  readonly connection?: { readonly saveData?: boolean; readonly effectiveType?: string };
+};
+
+/**
+ * True when the browser asks to save data or reports a 2G connection. Chromium-only signals:
+ * elsewhere they are absent and this is false, so a speculative download only skips where asked.
+ */
+export function isConstrainedConnection(host: ConnectionNavigator = navigator) {
+  const connection = host.connection;
+
+  return (
+    connection?.saveData === true ||
+    connection?.effectiveType === "2g" ||
+    connection?.effectiveType === "slow-2g"
+  );
+}
+
 export function focusMainRegion() {
   document.querySelector<HTMLElement>('[data-slot="app-main"]')?.focus({ preventScroll: true });
 }
