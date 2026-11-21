@@ -214,8 +214,15 @@ async function authScenario(run: CoreRun) {
 let ownerSession: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 /** A fresh context holding only the owner's session cookies, so nothing else carries over. */
+export async function ownerContext(
+  run: CoreRun,
+  options: Parameters<Browser["newContext"]>[0] = {},
+) {
+  return freshContext(run, { ...options, storageState: ownerSession });
+}
+
 export async function ownerPage(run: CoreRun, options: Parameters<Browser["newContext"]>[0] = {}) {
-  const context = await freshContext(run, { ...options, storageState: ownerSession });
+  const context = await ownerContext(run, options);
   const page = await openPage(run, context);
 
   await page.getByRole("navigation", { name: "Main" }).first().waitFor();

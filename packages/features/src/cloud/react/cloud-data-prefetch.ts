@@ -63,8 +63,18 @@ export function useCloudDataPrefetch() {
           cursorPagesOptions(query.admin.users, rpc.admin.users, {}),
         );
         break;
-      default:
+      case "editor":
+      case "album":
+      case "albums":
+      case "invite":
+      case "passwordReset":
+      case "publicShare":
+      case "publicEditor":
+      case "notFound":
+        // Single-item screens and public routes open one thing, not a first page.
         break;
+      default:
+        location satisfies never;
     }
   };
 }

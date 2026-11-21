@@ -1,10 +1,11 @@
-import { Suspense, useEffect } from "@hyori-cloud/lib/react";
+import { Suspense, useCallback } from "@hyori-cloud/lib/react";
 import { TooltipProvider } from "@hyori-cloud/ui/components/tooltip";
+import { usePreloadWhenIdle } from "@hyori-cloud/ui/hooks/use-preload-when-idle";
 import { useCurrentUser } from "#features/auth/react/current-user.tsx";
 import { formatCloudPath } from "#features/cloud/cloud-path.ts";
 import type { CloudLocation } from "#features/cloud/cloud-path.ts";
 import { CloudContent } from "#features/cloud/react/cloud-content.tsx";
-import { scheduleIdleCloudPreload } from "#features/cloud/react/idle-preload.ts";
+import { preloadIdleCloudScreens } from "#features/cloud/react/idle-preload.ts";
 import {
   lazyScreen,
   loadEditorScreen,
@@ -38,9 +39,12 @@ export function SignedInCloud({ location }: { location: SignedInLocation }) {
   const user = useCurrentUser();
 
   // Once the app has painted, whatever is left of the wire goes to the other sections' code.
-  useEffect(() => {
-    scheduleIdleCloudPreload(user.role === "admin");
-  }, [user.role]);
+  const preloadSections = useCallback(
+    () => preloadIdleCloudScreens(user.role === "admin"),
+    [user.role],
+  );
+
+  usePreloadWhenIdle(preloadSections);
 
   return (
     // Interrupted uploads belong to one account. Changing accounts must not carry them across.

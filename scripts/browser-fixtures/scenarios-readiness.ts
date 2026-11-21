@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { Locator, Page } from "playwright-core";
 import { addUser, accountPassword, runAdminScenarios } from "./scenarios-admin.ts";
-import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
+import { freshContext, openPage, ownerContext, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { PHONE } from "./scenarios-touch.ts";
 import { runReadinessPhotoScenarios } from "./scenarios-readiness-photos.ts";
@@ -436,22 +436,38 @@ async function recoveryAndAlbums(run: CoreRun, phone: boolean) {
     await report.check(
       `${size}: offline uncached navigation recovers when connectivity returns`,
       async () => {
-        await context.setOffline(true);
+        // This long-lived page has every section's code warm from idle preloading, so the
+        // uncached navigation is met on its own page, with the Shared screen's chunk refused
+        // from before it loads.
+        const cold = await ownerContext(run, phone ? PHONE : { deviceScaleFactor: 2 });
+        const sharedChunk = /\/assets\/shared-screen-[^/]+\.js$/;
+        await cold.route(sharedChunk, async (route) => {
+          await route.abort("internetdisconnected");
+        });
+        const coldPage = await openPage(run, cold);
 
         try {
-          await page.getByRole("link", { name: "Shared", exact: true }).first().click();
-          await page.getByText("You’re offline", { exact: true }).waitFor();
+          await coldPage.getByRole("navigation", { name: "Main" }).first().waitFor();
+          await cold.setOffline(true);
+          await coldPage.getByRole("link", { name: "Shared", exact: true }).first().click();
+          await coldPage.getByText("You’re offline", { exact: true }).waitFor();
           assert.equal(
-            await page.getByRole("navigation", { name: "Main", exact: true }).first().isVisible(),
+            await coldPage
+              .getByRole("navigation", { name: "Main", exact: true })
+              .first()
+              .isVisible(),
             true,
           );
-          await page.getByRole("button", { name: "Retry", exact: true }).waitFor();
-          await report.shot(page, `readiness-${size}-offline`);
-        } finally {
-          await context.setOffline(false);
-        }
+          await coldPage.getByRole("button", { name: "Retry", exact: true }).waitFor();
+          await report.shot(coldPage, `readiness-${size}-offline`);
 
-        await page.getByRole("heading", { name: "Shared with me", exact: true }).waitFor();
+          // Back online, the same unfetched chunk must be reachable for the retry.
+          await cold.unroute(sharedChunk);
+          await cold.setOffline(false);
+          await coldPage.getByRole("heading", { name: "Shared with me", exact: true }).waitFor();
+        } finally {
+          await cold.close();
+        }
       },
     );
     await report.check(`${size}: reloading after connectivity returns recovers Files`, async () => {

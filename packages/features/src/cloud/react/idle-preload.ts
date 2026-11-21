@@ -15,6 +15,8 @@ import {
  * their code is a hundred times a section's and most sessions never open either. Chunks download
  * one at a time to keep the wire free for whatever the person is actually doing, and each request
  * is the memoized one the section's own open would make, so nothing is fetched twice.
+ *
+ * The idle hook owns the when; this only says what runs, at most once per page load.
  */
 const IDLE_SCREENS = [
   loadFilesScreen,
@@ -28,17 +30,11 @@ const IDLE_SCREENS = [
 
 let scheduled = false;
 
-export function scheduleIdleCloudPreload(isAdmin: boolean) {
+export function preloadIdleCloudScreens(isAdmin: boolean) {
   if (scheduled || typeof window === "undefined") return;
   scheduled = true;
 
-  // The timeout bounds how long a busy tab can hold the preload back; the fallback covers
-  // browsers without requestIdleCallback.
-  if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(() => void preloadIdleScreens(isAdmin), { timeout: 3000 });
-  } else {
-    setTimeout(() => void preloadIdleScreens(isAdmin), 1500);
-  }
+  void preloadIdleScreens(isAdmin);
 }
 
 async function preloadIdleScreens(isAdmin: boolean) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import type { Locator, Page } from "playwright-core";
-import { ownerPage } from "./scenarios-core.ts";
+import { ownerContext, ownerPage, openPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { openUsers } from "./scenarios-admin.ts";
 import { PHONE } from "./scenarios-touch.ts";
@@ -112,7 +112,10 @@ export async function runInterfaceScenarios(run: CoreRun) {
         // Fresh context: neither the catch-all route nor the Shared screen has been fetched.
         const recording = label === "desktop-light";
 
-        const cold = await ownerPage(
+        // Section code preloads on hover and once the app goes idle, so this page must keep the
+        // Shared screen cold from before it loads, or the offline navigation below never meets
+        // the network and shows the data-offline state instead of the recoverable screen.
+        const coldContext = await ownerContext(
           run,
           recording
             ? {
@@ -121,6 +124,14 @@ export async function runInterfaceScenarios(run: CoreRun) {
               }
             : options,
         );
+
+        const sharedChunk = /\/assets\/shared-screen-[^/]+\.js$/;
+        await coldContext.route(sharedChunk, async (route) => {
+          await route.abort("internetdisconnected");
+        });
+        const coldPage = await openPage(run, coldContext);
+        await coldPage.getByRole("navigation", { name: "Main" }).first().waitFor();
+        const cold = { context: coldContext, page: coldPage };
 
         if (recording)
           await cold.page.evaluate(() => {
@@ -202,6 +213,8 @@ export async function runInterfaceScenarios(run: CoreRun) {
               )
               .catch(() => []),
           );
+          // The recovery must be able to re-fetch the chunk the route kept cold.
+          await cold.context.unroute(sharedChunk);
           await cold.context.setOffline(false);
           await run.report.check(
             `${label}: online event loads Shared without reload or click`,
@@ -299,29 +312,33 @@ export async function runInterfaceScenarios(run: CoreRun) {
 
         // A 404 for the deployed chunk while online. For an image, publicDirectory is only
         // an inspection copy; moving that copy would not affect what the browser receives.
-        const stale = await ownerPage(run, options);
+        // The refusal starts before the page loads, so idle preloading cannot cache the
+        // chunk first and the open itself meets the 404.
+        const staleContext = await ownerContext(run, options);
         const chunk = /^\/assets\/shared-screen-[^/]+\.js$/;
         run.front.refuse((record) => chunk.test(record.path), 404, Infinity);
+        const stale = await openPage(run, staleContext);
+        await stale.getByRole("navigation", { name: "Main" }).first().waitFor();
 
         try {
           await run.report.check(`${label}: stale deployed chunk still offers Reload`, async () => {
             await Promise.all([
-              stale.page.waitForResponse(
+              stale.waitForResponse(
                 (response) =>
                   chunk.test(new URL(response.url()).pathname) && response.status() === 404,
               ),
-              stale.page.getByRole("link", { name: "Shared", exact: true }).first().click(),
+              stale.getByRole("link", { name: "Shared", exact: true }).first().click(),
             ]);
-            await stale.page
+            await stale
               .getByText("Your files aren’t affected. Reloading gets the latest version.")
               .waitFor();
-            await stale.page.getByRole("button", { name: "Reload", exact: true }).waitFor();
-            assert.equal(await stale.page.evaluate(() => navigator.onLine), true);
+            await stale.getByRole("button", { name: "Reload", exact: true }).waitFor();
+            assert.equal(await stale.evaluate(() => navigator.onLine), true);
           });
-          await run.report.shot(stale.page, `interface-stale-${label}`);
+          await run.report.shot(stale, `interface-stale-${label}`);
         } finally {
           run.front.clearFaults();
-          await stale.context.close();
+          await staleContext.close();
         }
       });
     }
@@ -579,6 +596,15 @@ async function failPreloadThenOpen(
     );
 
     await context.route(chunk, async (route) => {
+      // Hover intent and the idle preload can both reach for the code while the network is
+      // refusing it. Refuse only the first request: what is under test is that one failed
+      // preload is forgotten, so the next ask — whichever intent makes it — must get through.
+      if (refused >= 1) {
+        await route.continue();
+
+        return;
+      }
+
       refused += 1;
       await route.abort("internetdisconnected");
       preloadFailed.resolve();
@@ -596,7 +622,7 @@ async function failPreloadThenOpen(
     await page.waitForLoadState("networkidle");
     await open(page);
     assert.equal(refused, 1);
-    assert.equal(requested, 2, "the open asks for the screen's code again");
+    assert.equal(requested, 2, "the refused request is asked for again before the screen shows");
     assert.equal(await page.getByText("Hyori couldn’t finish loading").count(), 0);
   } finally {
     await run.report.shot(page, `interface-failed-preload-${name}`);
