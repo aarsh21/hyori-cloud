@@ -16,7 +16,13 @@ type Point = { left: number; top: number; bottom: number };
 
 type Peer = { name: string; color: string; head: number; from: number; to: number };
 
-type Drawn = { root: HTMLElement; caret: HTMLElement; label: HTMLElement; hide?: number };
+type Drawn = {
+  root: HTMLElement;
+  caret: HTMLElement;
+  label: HTMLElement;
+  hide?: number;
+  hovered?: boolean;
+};
 
 /**
  * Collaboration cursors for the note editor. y-prosemirror draws remote carets as widget
@@ -138,12 +144,6 @@ export const NoteCursorsExtension = createExtension(
           layer.append(root);
           entry = { root, caret, label };
           drawn.set(clientId, entry);
-          const shown = entry;
-          root.addEventListener("pointerenter", () => {
-            clearTimeout(shown.hide);
-            root.dataset.active = "";
-          });
-          root.addEventListener("pointerleave", () => activity(shown));
         }
 
         if (entry.label.textContent !== peer.name) entry.label.textContent = peer.name;
@@ -156,7 +156,10 @@ export const NoteCursorsExtension = createExtension(
       function activity(entry: Drawn) {
         clearTimeout(entry.hide);
         entry.root.dataset.active = "";
-        entry.hide = window.setTimeout(() => delete entry.root.dataset.active, 2000);
+
+        // A caret under the pointer keeps its name until the pointer leaves it.
+        if (!entry.hovered)
+          entry.hide = window.setTimeout(() => delete entry.root.dataset.active, 2000);
       }
 
       function render() {
@@ -238,6 +241,9 @@ export const NoteCursorsExtension = createExtension(
 
       const observer = new ResizeObserver(schedule);
       observer.observe(dom);
+      // A web font arriving moves glyphs without resizing the editor, which would strand carets.
+      document.fonts.addEventListener("loadingdone", schedule);
+      void document.fonts.ready.then(schedule);
       const stopChange = editor.onChange(schedule, true);
 
       const stopSelection = editor.onSelectionChange(() => {
@@ -246,8 +252,42 @@ export const NoteCursorsExtension = createExtension(
       }, true);
 
       const onFocus = () => publish();
+
+      // The overlay never takes the pointer, so a click on a peer's caret still places the local
+      // one. Hovering near a caret shows its name, read from pointer moves over the editor.
+      function hover(event: PointerEvent) {
+        for (const entry of drawn.values()) {
+          const box = entry.caret.getBoundingClientRect();
+
+          const near =
+            !entry.root.hidden &&
+            event.clientY >= box.top &&
+            event.clientY <= box.bottom &&
+            Math.abs(event.clientX - box.left) <= 4;
+
+          const was = entry.hovered;
+          entry.hovered = near;
+
+          // Showing is idempotent, so a missed pointerleave can never leave a name unreachable.
+          if (near) {
+            clearTimeout(entry.hide);
+            entry.root.dataset.active = "";
+          } else if (was) activity(entry);
+        }
+      }
+
+      function leave() {
+        for (const entry of drawn.values()) {
+          if (!entry.hovered) continue;
+          entry.hovered = false;
+          activity(entry);
+        }
+      }
+
       awareness.on("change", schedule);
       dom.addEventListener("focusin", onFocus);
+      dom.addEventListener("pointermove", hover);
+      dom.addEventListener("pointerleave", leave);
       dom.addEventListener("focusout", onFocus);
       dom.addEventListener("compositionstart", compose);
       dom.addEventListener("compositionend", commit);
@@ -260,11 +300,14 @@ export const NoteCursorsExtension = createExtension(
         clearTimeout(releasing);
         release?.();
         observer.disconnect();
+        document.fonts.removeEventListener("loadingdone", schedule);
         stopChange();
         stopSelection();
         awareness.off("change", schedule);
         dom.removeEventListener("focusin", onFocus);
         dom.removeEventListener("focusout", onFocus);
+        dom.removeEventListener("pointermove", hover);
+        dom.removeEventListener("pointerleave", leave);
         dom.removeEventListener("compositionstart", compose);
         dom.removeEventListener("compositionend", commit);
         dom.removeEventListener("focusout", commit);

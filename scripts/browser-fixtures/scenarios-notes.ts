@@ -363,6 +363,31 @@ async function notesVariant(run: CoreRun, phone: boolean, dark: boolean) {
       assert.equal(ownCursors, 0, "the reloaded page left a cursor with the owner's name");
     });
 
+    await run.report.check(`${name}: a peer's caret never blocks a click`, async () => {
+      const caret = owner
+        .locator(".hyori-note-cursor", { hasText: "Leena Rao" })
+        .locator(".bn-collaboration-cursor__caret");
+
+      // Move away and let the label's activity timeout lapse, so only hovering can show it again.
+      await owner.mouse.move(5, 5);
+      await owner.waitForTimeout(2_300);
+      const box = (await caret.boundingBox())!;
+      const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+
+      assert.equal(
+        await owner.evaluate(
+          ([x, y]) => document.elementFromPoint(x!, y!)?.closest(".bn-editor") !== null,
+          [x, y],
+        ),
+        true,
+        "a remote caret takes the pointer instead of the editor",
+      );
+      await owner.mouse.move(x, y, { steps: 4 });
+      await owner
+        .locator(".hyori-note-cursor[data-active]", { hasText: "Leena Rao" })
+        .waitFor({ state: "attached", timeout: 1_000 });
+    });
+
     for (let repeat = 1; repeat <= 3; repeat++) {
       await run.report.check(
         `${name} run ${repeat}: concurrent edits and selective undo`,

@@ -73,7 +73,6 @@
   left: -1px;
   width: 2px;
   background: var(--cursor-color);
-  pointer-events: auto;
 }
 .hyori-note-cursor .bn-collaboration-cursor__label {
   position: absolute;
