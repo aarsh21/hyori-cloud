@@ -144,6 +144,11 @@ export function preloadCloudLocation(location: CloudLocation) {
       break;
     case "notes":
       requests.push(loadNotesScreen());
+
+      // An opened note's document mounts a render after this loader runs, and that mount is
+      // where the editor's fetch used to start. Started here it is on its way — or already
+      // arrived, which renders the document without React's fallback hold — by then.
+      if (location.noteId !== null) requests.push(loadNoteDocument());
       break;
     case "shared":
       requests.push(loadSharedScreen());
