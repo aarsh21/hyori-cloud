@@ -46,6 +46,7 @@ import {
   useRenameNote,
   useRestoreNoteCheckpoint,
 } from "#features/notes/react/use-notes.ts";
+import { NoteTitle } from "#features/notes/react/note-title.tsx";
 import { MutationFailure } from "#features/shared/react/mutation-failure.tsx";
 import { QueryWaiting } from "#features/shared/react/query-waiting.tsx";
 import { RefreshFailure } from "#features/shared/react/refresh-failure.tsx";
@@ -156,13 +157,18 @@ function NoteAttempt({
   const [importOpen, setImportOpen] = useState(false);
   const favorite = useFavoriteNote();
 
-  // A note the user just created opens with the caret in its editor, so the first words typed are
-  // the note and not a shortcut on the button that made it. The mount snapshot keeps this to the
-  // one opening that follows creation, never a later visit to the same note.
+  // A note the user just created opens with the caret in its title (or its editor, when only the
+  // body is editable), so the first words typed are the note and not a shortcut on the button that
+  // made it. The mount snapshot keeps this to the one opening that follows creation, never a later
+  // visit to the same note.
   const shouldFocus = useRef(autoFocus).current;
   const editorMounted = state.document !== null && session.awareness !== null;
+  const title = useRef<HTMLTextAreaElement>(null);
+  const titleEditable = state.writable && note.file.access.canRename;
 
-  useFocusWhenActive(shouldFocus && editorMounted, () => control.current?.focus());
+  useFocusWhenActive(shouldFocus && editorMounted, () =>
+    titleEditable ? title.current?.focus() : control.current?.focus(),
+  );
 
   useDocumentKeydown((event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s" && !event.altKey) {
@@ -332,9 +338,12 @@ function NoteAttempt({
               Read only
             </p>
           )}
-          <h1 className="text-[32px] leading-[1.2] font-semibold tracking-[-0.02em] text-balance wrap-anywhere">
-            {note.file.name}
-          </h1>
+          <NoteTitle
+            note={note}
+            editable={titleEditable}
+            inputRef={title}
+            onEnter={(field) => (editorMounted ? control.current?.focus() : field.blur())}
+          />
         </div>
         {state.document !== null && session.awareness !== null && (
           <NoteEditor
