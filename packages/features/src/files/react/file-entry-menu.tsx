@@ -13,7 +13,7 @@ import { useFileActions } from "#features/files/react/file-actions.tsx";
 export function FileEntryMenu({ entry }: { entry: FileEntry }) {
   const actions = useFileActions();
   const { access, kind } = entry;
-  const canDownload = kind === "file" && access.canDownload;
+  const canDownload = access.canDownload;
 
   const hasSecondaryActions =
     canDownload || access.canEdit || access.canRename || access.canShare || access.isOwner;
@@ -30,9 +30,13 @@ export function FileEntryMenu({ entry }: { entry: FileEntry }) {
         </DropdownMenuItem>
       ) : null}
       {canDownload ? (
-        <DropdownMenuItem onClick={() => actions.download(entry.id)}>
+        <DropdownMenuItem
+          onClick={() =>
+            kind === "folder" ? actions.downloadFolder(entry.id) : actions.download(entry.id)
+          }
+        >
           <Download />
-          Download
+          {kind === "folder" ? "Download as ZIP" : "Download"}
         </DropdownMenuItem>
       ) : null}
       {access.canEdit && kind === "file" ? (

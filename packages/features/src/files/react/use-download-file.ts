@@ -22,3 +22,29 @@ export function useDownloadFile(scope?: FileActionScope) {
     retry: (failures, error) => failures === 0 && error.code === "SDK_TRANSPORT",
   });
 }
+
+type DownloadFolder = RPC["files"]["downloadFolder"];
+
+/**
+ * A folder downloads as a ZIP the server streams. A folder over the archive limits is refused when
+ * that stream opens, before any bytes, and the browser's download manager would only report a
+ * failed download. So the stream is opened here first and dropped at once; the browser then fetches
+ * the same address and streams the ZIP to disk itself, with its own progress.
+ */
+export function useDownloadFolder(scope?: FileActionScope) {
+  const { downloads } = useClientSDK();
+
+  return useMutation<OutputOf<DownloadFolder>, CloudError, InputOf<DownloadFolder>>({
+    mutationKey: DOWNLOAD_MUTATION_KEY,
+    meta: scope,
+    mutationFn: async (input) => {
+      const opened = await downloads.openFolder(input);
+
+      await opened.stream.cancel().catch(() => undefined);
+
+      return opened.metadata;
+    },
+    onSuccess: ({ url }) => startBrowserDownload(url),
+    retry: (failures, error) => failures === 0 && error.code === "SDK_TRANSPORT",
+  });
+}

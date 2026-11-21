@@ -7,7 +7,11 @@ import { toast } from "@hyori-cloud/ui/components/sonner";
 import { DeferredDialog } from "@hyori-cloud/ui/components/deferred-dialog";
 import { useDisposeOnUnmount } from "@hyori-cloud/ui/hooks/use-dispose-on-unmount";
 import { loadFileDialogs } from "#features/files/react/file-dialog-loaders.ts";
-import { DOWNLOAD_MUTATION_KEY, useDownloadFile } from "#features/files/react/use-download-file.ts";
+import {
+  DOWNLOAD_MUTATION_KEY,
+  useDownloadFile,
+  useDownloadFolder,
+} from "#features/files/react/use-download-file.ts";
 import { useRestoreFile, useTrashFile } from "#features/files/react/use-file-mutations.ts";
 import { usePendingItemActions } from "#features/files/react/use-pending-item-actions.ts";
 import { useFileActionErrors } from "#features/files/react/use-file-action-errors.ts";
@@ -39,6 +43,8 @@ type FileActions = {
   readonly openDialog: (dialog: FileDialog) => void;
   readonly openFile: (entry: FileEntry) => void;
   readonly download: (id: string) => void;
+  /** A ZIP of the folder, refused up front when it is over the archive limits. */
+  readonly downloadFolder: (id: string) => void;
   readonly trash: (entry: FileEntry) => void;
 };
 
@@ -91,6 +97,7 @@ export function FileActionsProvider({
   const { mutation } = useClientSDK();
   const scope = { fileActionsOwner: useId() };
   const download = useDownloadFile(scope);
+  const { mutate: requestFolderDownload } = useDownloadFolder(scope);
   const trash = useTrashFile(scope);
   // Unscoped: an Undo's failure belongs to its toast, which names the file and can try again.
   const restore = useRestoreFile();
@@ -121,6 +128,12 @@ export function FileActionsProvider({
     requestDownload({ id });
   }
 
+  function downloadFolderOnce(id: string) {
+    if (isDownloading(id)) return;
+    failure.clearFor(DOWNLOAD_MUTATION_KEY, id);
+    requestFolderDownload({ id });
+  }
+
   function restoreOnce(entry: FileEntry) {
     void requestRestore({ id: entry.id }).catch((error) => {
       toast.error(`Couldn’t restore “${entry.name}”`, {
@@ -133,6 +146,7 @@ export function FileActionsProvider({
   const actions: FileActions = {
     openDialog,
     download: downloadOnce,
+    downloadFolder: downloadFolderOnce,
     openFile(entry) {
       // Media opens in the viewer; every other file opens in Quick preview, where download stays
       // one action away instead of being what a click silently does.
