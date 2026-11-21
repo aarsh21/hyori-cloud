@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import type { Browser, Locator, Page, Route } from "playwright-core";
-import { chooseWith, hydrated, signIn, uploadFiles, uploadsTray } from "./page-actions.ts";
+import {
+  chooseWith,
+  hydrated,
+  menuChoice,
+  sheetTrigger,
+  signIn,
+  uploadFiles,
+  uploadsTray,
+} from "./page-actions.ts";
 import { accountPassword, addUser, openUsers } from "./scenarios-admin.ts";
 import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
@@ -57,8 +65,8 @@ async function accountMenu(page: Page, account: Account, item: string, recording
     ? compact
     : page.getByRole("button", { name: new RegExp(`^${account.name}`) });
 
-  await press(page, trigger, recording);
-  await press(page, page.getByRole("menuitem", { name: item, exact: true }), recording);
+  await press(page, await sheetTrigger(page, trigger), recording);
+  await press(page, menuChoice(page, item), recording);
 }
 
 /** The next request this browser makes finds its session ended, which leads only to sign-in. */

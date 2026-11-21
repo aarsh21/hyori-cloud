@@ -5,7 +5,14 @@ import { ownerContext, ownerPage, openPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { openUsers } from "./scenarios-admin.ts";
 import { PHONE } from "./scenarios-touch.ts";
-import { filesBarAction, openTrash, uploadFiles, uploadsTray } from "./page-actions.ts";
+import {
+  filesBarAction,
+  menuChoice,
+  openTrash,
+  sheetTrigger,
+  uploadFiles,
+  uploadsTray,
+} from "./page-actions.ts";
 
 // A DOM presence assertion misses ellipsis and ancestor clipping. Measure the actual glyph range.
 async function readable(locator: Locator, text: string) {
@@ -490,9 +497,11 @@ async function warmNavigation(run: CoreRun) {
 
       // Phones keep five tabs; Users and Trash are items in the Account sheet.
       if ((section.name === "Users" || section.name === "Trash") && phone) {
-        await page.getByRole("button", { name: "Account", exact: true }).press("Enter");
+        const account = page.getByRole("button", { name: "Account", exact: true });
 
-        return page.getByRole("menuitem", { name: section.name, exact: true });
+        await (await sheetTrigger(page, account)).press("Enter");
+
+        return menuChoice(page, section.name, "Account");
       }
 
       return page.getByRole("link", { name: section.name, exact: true }).first();

@@ -154,6 +154,7 @@ export function FileListingContent({
       onItemKeyDown={onItemKeyDown}
     >
       <ItemActionMenuScope
+        sheet
         onOpenChange={(open) => {
           if (open) preloadFileDialogs();
         }}

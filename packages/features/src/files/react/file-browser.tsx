@@ -397,7 +397,7 @@ function BrowserMenu({
   const { openDialog } = useFileActions();
 
   return (
-    <DropdownMenu>
+    <DropdownMenu sheet>
       <DropdownMenuTrigger
         render={
           <Button
@@ -418,7 +418,7 @@ function BrowserMenu({
       >
         <Ellipsis />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" title="More options">
         {canCreate ? (
           <DropdownMenuItem onClick={() => openDialog({ kind: "createFolder" })}>
             <FolderPlus />

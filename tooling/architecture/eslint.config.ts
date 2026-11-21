@@ -19,6 +19,7 @@ const profile = createArchitectureConfig({
       "apps/web/src/server/api.ts",
       "apps/web/src/query-client.ts",
       "apps/web/src/routes/api/**/*.ts",
+      "packages/ui/src/hooks/use-coarse-pointer.ts",
       "packages/ui/src/hooks/use-document-keydown.ts",
       "packages/ui/src/hooks/use-dispose-on-unmount.ts",
       "packages/ui/src/hooks/use-entered-viewport.ts",

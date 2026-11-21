@@ -11,6 +11,7 @@ import {
   filesBarAction,
   filesSearch,
   hydrated,
+  menuSurface,
   openTrash,
   signIn,
   uploadFiles,
@@ -119,8 +120,7 @@ async function pointerCheck(run: CoreRun, page: Page, label: string, photo = fal
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
       if (photo) await page.locator('[data-slot="lightbox"]').waitFor({ timeout: 2000 });
-      else
-        await page.getByRole("menu", { name: name ?? "", exact: true }).waitFor({ timeout: 2000 });
+      else await menuSurface(page, name ?? "").waitFor({ timeout: 2000 });
       assert.ok(
         Math.abs(scroll.scrollTop + scroll.clientHeight - scroll.scrollHeight) <= 1,
         "must be at maximum scroll",
@@ -142,7 +142,7 @@ async function pointerCheck(run: CoreRun, page: Page, label: string, photo = fal
   if (photo && (await page.locator('[data-slot="lightbox"]').count())) await closeViewer(page);
   else {
     await page.keyboard.press("Escape");
-    await page.getByRole("menu").waitFor({ state: "hidden" });
+    await menuSurface(page).waitFor({ state: "hidden" });
   }
 }
 

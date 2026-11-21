@@ -8,6 +8,42 @@ type Activate = (control: Locator) => Promise<void>;
 const click: Activate = (control) => control.click();
 
 /**
+ * On touch, the row, Files and Account menus open as bottom sheets: a dialog of buttons named like
+ * the menu. Pointers keep menus. Journeys name the surface and reach it either way.
+ */
+export function menuSurface(page: Page, name?: string) {
+  const named = name === undefined ? {} : { name, exact: true };
+
+  return page.getByRole("menu", named).or(page.getByRole("dialog", named));
+}
+
+/**
+ * On touch, the server renders these menus' triggers as menu buttons and the client swaps in sheet
+ * triggers just after hydration. Focus on the old button is lost with it, so journeys take the sheet
+ * trigger. Pointers have no swap.
+ */
+export async function sheetTrigger(page: Page, trigger: Locator) {
+  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches))
+    await trigger.and(page.locator('[aria-haspopup="dialog"]')).first().waitFor();
+
+  return trigger;
+}
+
+/** A choice in the open menu or sheet: a menu item, a radio or checkbox item, or a sheet's button. */
+export function menuChoice(page: Page, name: string | RegExp, surface?: string) {
+  const options = { name, exact: !(name instanceof RegExp) };
+  const within = surface === undefined ? {} : { name: surface, exact: true };
+  const menu = page.getByRole("menu", within);
+  const sheet = page.getByRole("dialog", within);
+
+  return menu
+    .getByRole("menuitem", options)
+    .or(menu.getByRole("menuitemradio", options))
+    .or(menu.getByRole("menuitemcheckbox", options))
+    .or(sheet.getByRole("button", options));
+}
+
+/**
  * Files' bar shows New folder, Filters and the layout on wide screens; phones fold them into
  * "More options" so the bar keeps one row. Journeys name the action and reach it either way.
  */
@@ -22,9 +58,8 @@ export async function filesBarAction(
 
   if (await inBar.isVisible()) return activate(inBar);
 
-  await activate(more);
-  const role = name === "List" || name === "Grid" ? "menuitemradio" : "menuitem";
-  await activate(page.getByRole("menu").getByRole(role, { name: new RegExp(`^${name}`) }));
+  await activate(await sheetTrigger(page, more));
+  await activate(menuChoice(page, new RegExp(`^${name}`)));
 }
 
 /** The listing's search field; phones open it from the bar's Search button first. */
@@ -47,8 +82,8 @@ export async function openTrash(page: Page, activate: Activate = click) {
 
   if (await link.first().isVisible()) return activate(link.first());
 
-  await activate(account);
-  await activate(page.getByRole("menuitem", { name: "Trash", exact: true }));
+  await activate(await sheetTrigger(page, account));
+  await activate(menuChoice(page, "Trash", "Account"));
 }
 
 export async function setupAdmin(
@@ -93,10 +128,9 @@ export function uploadsTray(page: Page) {
 
 export async function rowMenu(page: Page, name: string, item: RegExp | string) {
   const label = `Actions for ${name}`;
-  await page.getByRole("button", { name: label, exact: true }).click();
-  const menu = page.getByRole("menu", { name: label, exact: true });
-  await menu.getByRole("menuitem", { name: item, exact: true }).click();
-  await menu.waitFor({ state: "hidden" });
+  await (await sheetTrigger(page, page.getByRole("button", { name: label, exact: true }))).click();
+  await menuChoice(page, item, label).click();
+  await menuSurface(page, label).waitFor({ state: "hidden" });
 }
 
 /** A real click and a real browser download, exactly as it landed. */

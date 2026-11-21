@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { Browser, BrowserContext, Page } from "playwright-core";
 import type { FrontHandler } from "./front-proxy.ts";
 import type { MediaKit } from "./media.ts";
-import { fetchInPage, setupAdmin, signIn } from "./page-actions.ts";
+import { fetchInPage, menuChoice, setupAdmin, sheetTrigger, signIn } from "./page-actions.ts";
 import type { RunReport } from "./run-report.ts";
 import type { EditorBundle } from "./editor-bundle.ts";
 import type { RustStack } from "./rust-stack.ts";
@@ -169,10 +169,12 @@ async function authScenario(run: CoreRun) {
   await report.check(
     "signing out returns to sign-in, and a wrong password stays there",
     async () => {
-      await page
-        .getByRole("button", { name: run.contextOptions?.isMobile ? "Account" : /Noor Haddad/ })
-        .click();
-      await page.getByRole("menuitem", { name: "Sign out" }).click();
+      const account = page.getByRole("button", {
+        name: run.contextOptions?.isMobile ? "Account" : /Noor Haddad/,
+      });
+
+      await (await sheetTrigger(page, account)).click();
+      await menuChoice(page, "Sign out").click();
       await page.getByRole("heading", { name: "Sign in" }).waitFor();
       await signIn(page, OWNER.email, "definitely wrong password");
       await page.getByText("That email and password don’t match").waitFor();

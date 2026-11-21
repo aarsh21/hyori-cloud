@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import type { Page } from "playwright-core";
-import { signIn, uploadFiles, uploadsTray } from "./page-actions.ts";
+import { menuChoice, sheetTrigger, signIn, uploadFiles, uploadsTray } from "./page-actions.ts";
 import { freshContext, openPage, ownerPage, waitForHydration } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 
@@ -25,8 +25,10 @@ export async function openUsers(page: Page) {
   await waitForHydration(page);
 
   if (await page.getByRole("button", { name: "Account", exact: true }).isVisible()) {
-    await page.getByRole("button", { name: "Account", exact: true }).press("Enter");
-    await page.getByRole("menuitem", { name: "Users", exact: true }).press("Enter");
+    const account = page.getByRole("button", { name: "Account", exact: true });
+
+    await (await sheetTrigger(page, account)).press("Enter");
+    await menuChoice(page, "Users", "Account").press("Enter");
   } else {
     await page.getByRole("link", { name: "Users" }).first().click();
   }

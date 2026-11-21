@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import type { BrowserContext, Page } from "playwright-core";
-import { filesBarAction, openTrash, rowMenu, uploadFiles, uploadsTray } from "./page-actions.ts";
+import {
+  filesBarAction,
+  menuChoice,
+  menuSurface,
+  openTrash,
+  rowMenu,
+  sheetTrigger,
+  uploadFiles,
+  uploadsTray,
+} from "./page-actions.ts";
 import { ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 
@@ -102,19 +111,42 @@ async function phone(run: CoreRun) {
   await audit(run, page, "Files grid");
   await filesBarAction(page, "List", (control) => control.tap());
 
-  await page.getByRole("button", { name: "Actions for release.bin" }).tap();
-  await page.getByRole("menuitem", { name: "Share…" }).waitFor();
+  await (
+    await sheetTrigger(page, page.getByRole("button", { name: "Actions for release.bin" }))
+  ).tap();
+  await menuChoice(page, "Share…").waitFor();
   await report.shot(page, "phone-row-menu");
   await audit(run, page, "Row menu");
-  await page.keyboard.press("Escape");
+
+  await report.check("on touch, the row menu is a bottom sheet with focus inside it", async () => {
+    const sheet = menuSurface(page, "Actions for release.bin");
+    const box = await sheet.boundingBox();
+
+    // The sheet runs past the bottom edge, so an upward pull never shows a gap under it.
+    assert.ok(box !== null && box.y + box.height >= 844, "the sheet isn't at the bottom");
+    assert.ok(box !== null && box.width >= 389, "the sheet isn't full width");
+    assert.equal(await sheet.evaluate((element) => element.contains(document.activeElement)), true);
+  });
+
+  await report.check("a downward drag dismisses the sheet and returns focus", async () => {
+    const sheet = menuSurface(page, "Actions for release.bin");
+    const box = await sheet.boundingBox();
+
+    assert.ok(box !== null);
+    await drag(context, page, { x: 195, y: box.y + 8 }, { x: 195, y: box.y + 260 });
+    await sheet.waitFor({ state: "hidden" });
+    await page.waitForFunction(
+      () => document.activeElement?.getAttribute("aria-label") === "Actions for release.bin",
+    );
+  });
 
   await page.getByRole("button", { name: "Account" }).tap();
-  await page.getByRole("menuitemradio", { name: "Dark" }).tap();
+  await menuChoice(page, "Dark").tap();
   await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
   await report.shot(page, "phone-files-dark");
 
   await page.getByRole("button", { name: "Actions for release.bin" }).tap();
-  await page.getByRole("menuitem", { name: "Upload new version…" }).tap();
+  await menuChoice(page, "Upload new version…").tap();
 
   const dialog = page.getByRole("dialog");
 
@@ -179,21 +211,29 @@ async function phone(run: CoreRun) {
   await context.close();
 }
 
-async function swipe(context: BrowserContext, page: Page, fromX: number, toX: number, y: number) {
-  const cdp = await context.newCDPSession(page);
-  const point = (x: number) => ({ x, y });
+type Point = { x: number; y: number };
 
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point(fromX)] });
+/** A finger drag from one point to another over about eight frames. */
+async function drag(context: BrowserContext, page: Page, from: Point, to: Point) {
+  const cdp = await context.newCDPSession(page);
+
+  const at = (step: number) => ({
+    x: from.x + ((to.x - from.x) * step) / 8,
+    y: from.y + ((to.y - from.y) * step) / 8,
+  });
+
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [from] });
 
   for (let step = 1; step <= 8; step += 1) {
-    await cdp.send("Input.dispatchTouchEvent", {
-      type: "touchMove",
-      touchPoints: [point(fromX + ((toX - fromX) * step) / 8)],
-    });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [at(step)] });
     await page.waitForTimeout(16);
   }
 
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+function swipe(context: BrowserContext, page: Page, fromX: number, toX: number, y: number) {
+  return drag(context, page, { x: fromX, y }, { x: toX, y });
 }
 
 async function viewerTouch(run: CoreRun) {

@@ -21,7 +21,7 @@ export function FileEntryMenu({ entry }: { entry: FileEntry }) {
   if (!hasSecondaryActions) return null;
 
   return (
-    <ItemActionMenu label={`Actions for ${entry.name}`}>
+    <ItemActionMenu label={`Actions for ${entry.name}`} heading={entry.name}>
       <OpenInEditorItem entry={entry} />
       {access.canShare ? (
         <DropdownMenuItem onClick={() => actions.openDialog({ kind: "share", id: entry.id })}>

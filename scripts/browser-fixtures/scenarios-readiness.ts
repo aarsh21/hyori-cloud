@@ -13,7 +13,9 @@ import {
   filesBarAction,
   filesSearch,
   hydrated,
+  menuChoice,
   openTrash,
+  sheetTrigger,
   signIn,
   uploadFiles,
   uploadsTray,
@@ -28,12 +30,8 @@ async function enter(control: Locator) {
 // The menu this row's trigger opened, by its label: the previous row's may still be closing.
 async function menu(page: Page, name: string, action: string) {
   const label = `Actions for ${name}`;
-  await enter(page.getByRole("button", { name: label, exact: true }));
-  await enter(
-    page
-      .getByRole("menu", { name: label, exact: true })
-      .getByRole("menuitem", { name: new RegExp(`^${action}`) }),
-  );
+  await enter(await sheetTrigger(page, page.getByRole("button", { name: label, exact: true })));
+  await enter(menuChoice(page, new RegExp(`^${action}`), label));
 }
 
 async function folder(page: Page, name: string) {
@@ -250,10 +248,13 @@ async function accountSharing(run: CoreRun, phone: boolean) {
           }
 
           await enter(
-            recipient.getByRole("button", { name: `Actions for owned-${size}.bin`, exact: true }),
+            await sheetTrigger(
+              recipient,
+              recipient.getByRole("button", { name: `Actions for owned-${size}.bin`, exact: true }),
+            ),
           );
           assert.equal(
-            await recipient.getByRole("menuitem", { name: "Upload new version…" }).count(),
+            await menuChoice(recipient, "Upload new version…").count(),
             role === "Editor" ? 1 : 0,
           );
           await recipient.keyboard.press("Escape");
@@ -427,8 +428,13 @@ async function recoveryAndAlbums(run: CoreRun, phone: boolean) {
       `${size}: keyboard appearance menu supports Light, Dark and live System`,
       async () => {
         const choose = async (name: string) => {
-          await enter(page.getByRole("button", { name: phone ? "Account" : /Noor Haddad/ }));
-          await enter(page.getByRole("menuitemradio", { name, exact: true }));
+          await enter(
+            await sheetTrigger(
+              page,
+              page.getByRole("button", { name: phone ? "Account" : /Noor Haddad/ }),
+            ),
+          );
+          await enter(menuChoice(page, name));
           await page.keyboard.press("Escape");
         };
 

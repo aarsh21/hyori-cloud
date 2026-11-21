@@ -60,9 +60,10 @@ export function AccountMenuRoot({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu sheet>
         <DropdownMenuTrigger render={trigger} />
         <DropdownMenuContent
+          title="Account"
           side="top"
           align={align}
           className={`${className ?? ""} transition-none`}
