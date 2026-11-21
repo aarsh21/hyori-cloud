@@ -67,6 +67,16 @@ Light comes from the source's Porcelain scheme, with muted text darkened slightl
 
 Follow `AGENTS.md`. Use `--ease-out` (the source's `cubic-bezier(.23, 1, .32, 1)`), at most 200ms on occasional transitions. List navigation and keyboard actions respond immediately. Surfaces brighten on hover rather than lift. Nothing animates on entrance or on scroll.
 
+These rules follow Emil Kowalski's design-engineering skills (github.com/emilkowalski/skills, especially `emil-design-eng`, `animate`, `review-animations` and `mobile-native`); read them before changing motion.
+
+- Floating surfaces use interruptible CSS transitions, not keyframes: opacity plus scale 0.96 from `--transform-origin`, 150ms in and 100ms out. Base UI marks keyboard opens `data-instant`, and those skip motion (`data-instant:transition-none`). Surfaces that type or the keyboard opens, such as comboboxes, never animate.
+- Buttons press to `scale(0.97)` over 100ms and change fill on `active:` at once, so touch gets feedback before the release. Rows and tiles never scale.
+- Rows show focus with `has-[:focus-visible]`, never `focus-within`, so a row that keeps focus after a pointer action does not look selected.
+- Skeletons are static `--muted` blocks with the content's geometry. They never pulse or shimmer.
+- Toasts keep Sonner's own motion; don't restyle its timing.
+- Under reduced motion the global rule keeps only opacity and color transitions, so nothing moves or scales.
+- Controls set `touch-action: manipulation`, and buttons suppress the iOS long-press callout.
+
 ## Left out
 
 These belong to the source's marketing page and are not part of product UI: red light-streak artwork and the hero photograph, drawn desktop and launcher mocks, keycap decorations, dot grids and `FIG` captions, tinted bento and pricing tiles, the pill navigation, machined button shadows, 64px headlines and 128px section rhythm, the Google Fonts link, the alternate schemes and tweak controls, and the dark-only rule. An approved public landing page would revisit the artwork, as a new decision.
