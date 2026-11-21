@@ -46,15 +46,20 @@ export function PublicSharedItem({
   token,
   folderId,
   role,
+  sharedByName,
   item,
 }: {
   token: string;
   folderId: string | null;
   /** The access this link grants, from the share the link resolved to. */
   role: ShareRole;
+  /** Who shared it, once the link is open. Older servers don't say. */
+  sharedByName?: string | null | undefined;
   item: FileEntry;
 }) {
-  const access = LINK_ACCESS_LABELS[role];
+  const access = sharedByName
+    ? `Shared by ${sharedByName} · ${LINK_ACCESS_LABELS[role]}`
+    : LINK_ACCESS_LABELS[role];
 
   if (item.mimeType === "application/vnd.hyori.note")
     return (
@@ -84,7 +89,7 @@ export function PublicSharedItem({
           rootCanUpload={false}
           titleMeta={access}
           actions={
-            <AppearanceMenu>
+            <AppearanceMenu compact>
               <ShortcutPreferenceMenuItems />
             </AppearanceMenu>
           }

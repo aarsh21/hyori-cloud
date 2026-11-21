@@ -176,6 +176,7 @@ function PublicShareAccess({
           token={token}
           folderId={folderId}
           role={resolved.share.role}
+          sharedByName={resolved.sharedByName}
           item={resolved.item}
         />
       ) : (

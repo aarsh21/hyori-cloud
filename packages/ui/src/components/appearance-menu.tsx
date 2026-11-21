@@ -11,8 +11,16 @@ import { useAppearance } from "@hyori-cloud/ui/theme";
 import { SunMoonIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function AppearanceMenu({ children }: { children?: ReactNode }) {
+export function AppearanceMenu({
+  children,
+  compact = false,
+}: {
+  children?: ReactNode;
+  /** In a crowded phone page bar the label goes to screen readers and the icon stays. */
+  compact?: boolean;
+}) {
   const { preference } = useAppearance();
+  const label = <span className={compact ? "max-md:sr-only" : undefined}>Appearance</span>;
 
   // The menu's store can't render on the server, which would drop the whole page out of server
   // rendering. Until hydration there's nothing to choose yet, so the same button stands in for it.
@@ -20,7 +28,7 @@ export function AppearanceMenu({ children }: { children?: ReactNode }) {
     return (
       <Button variant="ghost">
         <SunMoonIcon aria-hidden />
-        Appearance
+        {label}
       </Button>
     );
   }
@@ -29,7 +37,7 @@ export function AppearanceMenu({ children }: { children?: ReactNode }) {
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" />}>
         <SunMoonIcon aria-hidden />
-        Appearance
+        {label}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="transition-none">
         <AppearanceMenuItems />

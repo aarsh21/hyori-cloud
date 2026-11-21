@@ -275,6 +275,10 @@ export function FileBrowser({
               data-browser-ready={ready}
             >
               <PageSection>
+                {titleMeta === undefined ? null : (
+                  // The bar has no room for it on phones, so it leads the page instead.
+                  <p className="px-1 text-[13px] text-muted-foreground md:hidden">{titleMeta}</p>
+                )}
                 <ActionFailureNotice />
                 <FileListingView
                   listing={listing}
