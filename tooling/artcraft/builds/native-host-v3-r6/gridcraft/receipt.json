@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-receipt",
+  "app": "gridcraft",
+  "artifactVersion": "0.19.1-hyori-host.1",
+  "bridge": "hyori-correlated-host-v3",
+  "protocol": 3,
+  "sourceArchiveSha256": "4adb7b981de97f31c61e5be67ac7b2bcd84e2559647b5c8c39561bbcce199c5e",
+  "buildManifestSha256": "c8f132aa4da80cbf8479dff84bcdb53b9e2f0552e174d25ec45309594dc76d02",
+  "sourceSummarySha256": "9122e1f0c2799bd57371cab99e9ce9539a22d3343f0e75bd1cb15ed56773e391",
+  "wasmSha256": "ac10c413d17014eba32c085128794246bedbef95d80fc21de4e0b2149ca2d5ee",
+  "payloadSha256": "5cad50d73c91621ff089eddad3647bf46306e21077135d526399e29fa581fea1",
+  "cspScriptHashes": [
+    "sha256-/8/c24n4jH23LirWNjuvNiukiB88j9ic5zc3OKZN8VQ="
+  ],
+  "files": [
+    {
+      "path": "gridcraft/0.19.1-hyori-host.1/gridcraft-web-62a01fcc58d04090.js",
+      "bytes": 169641,
+      "sha256": "996941161c61993fe13d29785f87514e76638c5ae756f1accfde585b6e20019f"
+    },
+    {
+      "path": "gridcraft/0.19.1-hyori-host.1/gridcraft-web-62a01fcc58d04090_bg.wasm",
+      "bytes": 26340904,
+      "sha256": "ac10c413d17014eba32c085128794246bedbef95d80fc21de4e0b2149ca2d5ee"
+    },
+    {
+      "path": "gridcraft/0.19.1-hyori-host.1/hyori-mark-1e3aa2eda2b94725.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "gridcraft/0.19.1-hyori-host.1/index.html",
+      "bytes": 1785,
+      "sha256": "6df238142b507f41a1a4e658d346e41416f313af4809033be58dccac5d963c23"
+    },
+    {
+      "path": "gridcraft/0.19.1-hyori-host.1/snippets/eframe-d31a8450ea12dfc1/inline0.js",
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    },
+    {
+      "path": "gridcraft/0.19.1-hyori-host.1/snippets/gridcraft-web-259c19f82d9b2714/hyori-native-host.js",
+      "bytes": 184256,
+      "sha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    }
+  ]
+}

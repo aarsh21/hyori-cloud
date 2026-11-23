@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-source-summary",
+  "app": "deckcraft",
+  "artifactVersion": "0.18.1-hyori-host.1",
+  "upstreamVersion": "0.18.1",
+  "productPresentation": "Hyori Presentations",
+  "sourcePin": {
+    "url": "https://codeload.github.com/storytold/deckcraft/tar.gz/refs/tags/v0.18.1",
+    "sha256": "df8827f38677020445a68d5fd5779adfdb74dd72b127c3d06ba7dff60fbfa738",
+    "commit": "7cc73ab1895ed2e30c8afbcada20c70b9ea0a440"
+  },
+  "sourceCargoLockSha256": "f68bca3cd775c423cb1ea7e4bb4b7f4580f0a3695514319c5b7ca0cf3ebcbc3d",
+  "cargoLockUnchanged": true,
+  "cargoManifestsUnchanged": true,
+  "stages": [
+    "candidate-source-patch",
+    "shared-native-assets"
+  ],
+  "paletteCssSha256": "fc0d241ea299fa3b2afea54fc2670627e99ab55a78954bd2d68382131a9af11c",
+  "hostJavaScriptSha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82",
+  "embeddedFonts": {
+    "source": {
+      "repository": "https://github.com/storytold/craft-fonts",
+      "commit": "37827adc41fd165f9a9234ac40f94dbad353aa69",
+      "pinnedBy": "DeckCraft 0.14.1 .github/workflows/release.yml (craft-fonts-ref)",
+      "rawBase": "https://raw.githubusercontent.com/storytold/craft-fonts/37827adc41fd165f9a9234ac40f94dbad353aa69/"
+    },
+    "license": "OFL-1.1",
+    "faces": [
+      {
+        "family": "Inter",
+        "style": "Regular",
+        "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+        "path": "fonts/inter/Inter-Regular.ttf",
+        "bytes": 411640
+      },
+      {
+        "family": "Inter",
+        "style": "Bold",
+        "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f",
+        "path": "fonts/inter/Inter-Bold.ttf",
+        "bytes": 420428
+      }
+    ],
+    "schemaVersion": 1,
+    "kind": "hyori-native-host-v3-embedded-fonts",
+    "app": "deckcraft",
+    "purpose": "Inter is DeckCraft's default theme and interface font. Upstream's web release embeds no craft-fonts face, so every new presentation showed \"Inter isn't installed on this computer\" and drew in a fallback face.",
+    "upstream": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip (extras/ttf)",
+    "copyright": "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+    "licenseFile": "fonts/inter/OFL.txt",
+    "licenseSha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+  },
+  "changedFiles": [
+    {
+      "path": "apps/deckcraft-web/hyori-mark.ico",
+      "before": null,
+      "after": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "apps/deckcraft-web/hyori-native-host.js",
+      "before": null,
+      "after": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "apps/deckcraft-web/index.html",
+      "before": "5ff552301bfde3d5d369c93ad1a7a886f7aa639c021692269677c12f68e132be",
+      "after": "45593497479b5a06c0c125b2f10d2e48e37f6e359309c68071ef224779350131"
+    },
+    {
+      "path": "apps/deckcraft-web/src/host.rs",
+      "before": "984f8943668ab98d961e62768dac56271606b486de47ec2e7a7477bb7f6686ca",
+      "after": "63da45e10d290be38d402ea4cbb5c71ab0a44d51fb5b8062441128c7bf1a36d3"
+    },
+    {
+      "path": "apps/deckcraft-web/src/main.rs",
+      "before": "f1790009f6846aa117e54e4d758c3ee2b12f205fc28b90526bb7de7a5c52a940",
+      "after": "90e6ed368e1858026fb13054fec43096973f80b317d6421fdd0f1c8d3e128b3c"
+    },
+    {
+      "path": "apps/deckcraft-web/src/native_frame.rs",
+      "before": null,
+      "after": "e13e8aa674f51a11242c9e982c1b6ed931f87cd90c08002ac150ca028f93b067"
+    },
+    {
+      "path": "apps/deckcraft-web/src/native_host/clock.rs",
+      "before": null,
+      "after": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "apps/deckcraft-web/src/web.rs",
+      "before": "76ff1a7d4b29f8e6d7bbc8b0c55b06704fc24c7123b1960a49e2f791d32d4e60",
+      "after": "d7da7131e7e880d14df434828d2a8283d02c5022fcf5a3c01e3db0b5c3a9c28d"
+    },
+    {
+      "path": "assets/hyori-mark.png",
+      "before": null,
+      "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "crates/engine/src/cmd/file.rs",
+      "before": "89e9e6c01ebf0f65519a4897cfdf6d85cacf1d115fd37e73e34988329f1ad5d3",
+      "after": "3819f934651e3465eeb78ae184a767873f6f8daf123380f5c6aed1b48d449602"
+    },
+    {
+      "path": "crates/engine/src/lib.rs",
+      "before": "00aac618a3b84cf4772d28969396fe757abb61987a80e4acccf0f83ea9f9e79c",
+      "after": "cd5e6692b1e646c0c9558b55effaa81eb6816f30414b6445c058323ea3c635d6"
+    },
+    {
+      "path": "crates/engine/src/links.rs",
+      "before": "a60b41637788503857504beeea799836bb5191ce20de8d2dc3ff621da3e56357",
+      "after": "24aefca55c38695138db335a904fe1def79491d020f295cf4fbccbcb4f561dd4"
+    },
+    {
+      "path": "crates/ui-egui/src/app.rs",
+      "before": "59b842ed5aa87c3bf8390689d5ada5f5a659013831583444556160f2e7287e0b",
+      "after": "ff6bb043ec51d2c6da9698dafdde2e2f3906f3190ffc181e5279ae448aadaebe"
+    },
+    {
+      "path": "crates/ui-egui/src/app/commands.rs",
+      "before": "a2617427b37805ddacad3a2a8ecca589752635fb94d82dd7f5d6466ebf6217f9",
+      "after": "e80ec447538a6e28928e6b9eb0629c7d7d66cf1ad454c100350d6abb4e2e3171"
+    },
+    {
+      "path": "crates/ui-egui/src/app/files.rs",
+      "before": "2c6ae2e8b45ca305f33d4acc80e2f726e3076b2020bff1028381173fd945b258",
+      "after": "fdda216fa96296c184cd9c8452d68cb729ea701b6e00854549597580a1adefc9"
+    },
+    {
+      "path": "crates/ui-egui/src/app/keys.rs",
+      "before": "b35ba3759a93cf3f2f95c73027c634afa86b62848cd1c689a1e17f56599b8255",
+      "after": "5106dd7773cf7d5458a04f50ba9d1159d28de0b1fc6c41acad50d86b38b9f6d9"
+    },
+    {
+      "path": "crates/ui-egui/src/app/native_host.rs",
+      "before": null,
+      "after": "b2f92527f2a3dda73751b3ea937ae138048fef8e72f93820e1ff2c4b1b7d962f"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/files.rs",
+      "before": "47eb50c1c9ca56e8c85f56b0d07094ccca2ec66620ff46246e7b31018b8fadb6",
+      "after": "b51662f81176e33489cff3fe965a25f819bff943111bfcd196281ead08938b25"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/print.rs",
+      "before": "cb378599386cd7fe91988ec626d087b89957011a7875ba7c34e583a0f836ba35",
+      "after": "a67dbef93e048edead61af74c8a13fbf416c9e8d680eee43342e0b041e10b6e9"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs.rs",
+      "before": "1872e13592f1347937570cda1dd104e091b768faa096e900aa79698c97b6ffe0",
+      "after": "6ca7feab3fe392f2814772d3571ee3b8087442b3868c693d54395a4cb91a514e"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/about.rs",
+      "before": "97cf97f36824218ceafbcf89c9c27ae6af08860f505cdcb14859cfd3dcdf190a",
+      "after": "e931514453b90492f35ee5e8f626b63f80ad9a4d04a6b1173f33cf7018f07d66"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/body.rs",
+      "before": "f5bb9a2dc9817fa30b97440fffc26a91733e47839deea45b3ff03277b36fe048",
+      "after": "521accb6d23d53619836bed35ff53b4829427afabbf1fbbf33031640340bebb7"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/find.rs",
+      "before": "ed2e84bf82f59a8168e87d8bd8d05593a88eddeca4c7f2b21bfdece3b099fbd3",
+      "after": "722017d5f7ded3128513cbd050eeac092fad54c9cf4d05edc44f37e1b665f5ad"
+    },
+    {
+      "path": "crates/ui-egui/src/lib.rs",
+      "before": "6727a34763dc8a697247dbe12583950c554b3834de4cbc654b94bd9bfb243868",
+      "after": "47f93ccbeaa53cd9bbba45ace7cc53aef403419aa34f7e549f6350c2cb34d694"
+    },
+    {
+      "path": "crates/ui-egui/src/menus.rs",
+      "before": "295efa42e529e80dabae527647b50367e16c6c1a8b283e4deeabe2b372b12600",
+      "after": "e255204e9bcf3ee942607653968c5d6186ad7b043f1d4681cecae5071bdbe4e8"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon/title_bar.rs",
+      "before": "709ee60846db52727234221012161c89c109bbd41e20626d33bef14eade12068",
+      "after": "12aed717bb15c20b8500b4089a5701fcd6dc7f9612f252415c3f55098a1099f0"
+    },
+    {
+      "path": "crates/ui-egui/src/show/presenter.rs",
+      "before": "291cf781e3e7587481413d5bca6992e651a725c64be5d84009625eb75c6b43c8",
+      "after": "9e7d721270fa66dec16b709e5671e07c81e4f02ec4f8afef98a922a39fe5bbaf"
+    },
+    {
+      "path": "crates/ui-egui/src/theme.rs",
+      "before": "d8d6f55195ac5b0c22d49ec313b716fcfab6cb2c08b3c15445b1ed1fcbe97c6a",
+      "after": "0249b4005f5c9fbf45734908ce36492a6cf992dbd61905304b76dd3c46dbad6a"
+    }
+  ],
+  "originalLegalBytesUnchanged": [
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "90e96fef569474cd526350e716e4b05dd32f179ca96d39d61e6b928485e35406"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "ffb327238bcbc6fe66f77d55bbdcadeb29ccc7319e9aa96b067e735dccb750eb"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "sha256": "3e0b490182f29522d002af0b4f0f46ab44ab8863bfe5e4e50c65a84d2d18c076"
+    },
+    {
+      "path": "docs/brand/LICENSE-brand.txt",
+      "sha256": "c5ad8e77d0dd8939161b4c4eca7aaba2437d6340c29e7809fa4679f0f2a82f62"
+    },
+    {
+      "path": "contributors/contributors.json",
+      "sha256": "c6b5ec2aeca94d625852ced2b74b40727fa19ffb23e4ae48cafdd1317c130559"
+    },
+    {
+      "path": "docs/contributors.md",
+      "sha256": "92ad00f110206f45b2173a219ba364d2d07f1a5767f63658ba2883176b8afcd1"
+    },
+    {
+      "path": "licenses/pdf-writer/LICENSE-ICC.txt",
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9"
+    }
+  ],
+  "dependencyGraphEqualsNoticedUpstreamGraph": {
+    "targetNormalPackages": 237,
+    "hostInclusivePackages": 266
+  }
+}

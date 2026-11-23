@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-source-summary",
+  "app": "gridcraft",
+  "artifactVersion": "0.19.1-hyori-host.1",
+  "upstreamVersion": "0.19.1",
+  "productPresentation": "Hyori Spreadsheets",
+  "sourcePin": {
+    "url": "https://codeload.github.com/storytold/gridcraft/tar.gz/refs/tags/v0.19.1",
+    "sha256": "4adb7b981de97f31c61e5be67ac7b2bcd84e2559647b5c8c39561bbcce199c5e",
+    "commit": "476448d7d9f3a5f8e93fcf7d98b47fd52293fe7f"
+  },
+  "sourceCargoLockSha256": "6e667fecf8b8d778b5c75d5f819c8c727838f343e563faa6ed6a88c2519d6c4f",
+  "cargoLockUnchanged": true,
+  "cargoManifestsUnchanged": true,
+  "stages": [
+    "candidate-source-patch",
+    "shared-native-assets"
+  ],
+  "paletteCssSha256": "fc0d241ea299fa3b2afea54fc2670627e99ab55a78954bd2d68382131a9af11c",
+  "hostJavaScriptSha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82",
+  "changedFiles": [
+    {
+      "path": "apps/gridcraft-web/hyori-mark.ico",
+      "before": null,
+      "after": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "apps/gridcraft-web/hyori-native-host.js",
+      "before": null,
+      "after": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "apps/gridcraft-web/index.html",
+      "before": "b92b0a676c6b6e98b1a61f48024e007eb9045f8298cb9c9e8c1b0116cdfaeb13",
+      "after": "5c1795bc389e7bb73c6a5be1cb80fc59ab669891d82362613cf393f1de7d1240"
+    },
+    {
+      "path": "apps/gridcraft-web/src/main.rs",
+      "before": "26cf011cbce3470d686d4764c98be2b7fe3afbd905da421861f1bfa84e1d79b9",
+      "after": "7fd2d2c76727d53145dd8d94cafc71f37d8411bc0c851b46159e585c35e1ce88"
+    },
+    {
+      "path": "apps/gridcraft-web/src/native_frame.rs",
+      "before": null,
+      "after": "18baf1fdcbe44d37afbed43eb882f9b00725a980e73ff4ed956b0ec924c7228d"
+    },
+    {
+      "path": "apps/gridcraft-web/src/native_host.rs",
+      "before": null,
+      "after": "b41e4720a70d519f594820e708295dd46c676f72fd0a64fd0f501e255c92beb9"
+    },
+    {
+      "path": "apps/gridcraft-web/src/native_host/clock.rs",
+      "before": null,
+      "after": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "apps/gridcraft-web/src/web.rs",
+      "before": "eaa4a96ca602219edc38fd43ae5c90e1a0d31b25815ad939bd75cd2d5ab3d4fc",
+      "after": "894b4b38db07de590e097d946f7796554ec5b7573be529760f78ca064315e05b"
+    },
+    {
+      "path": "assets/hyori-mark.png",
+      "before": null,
+      "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "crates/ui-egui/src/app.rs",
+      "before": "d98863561e3bb561683fa029fc44abf4469bbce19f41fbf152062fe017353190",
+      "after": "f64dfdd4ff063f8c8d6ab34b4b03927111bdcec36df81f5ae6918daef14273fc"
+    },
+    {
+      "path": "crates/ui-egui/src/app/commands.rs",
+      "before": "13d2b338fe6feef7be4b862dec8dd9f876f7fadd2a8c9e7c4c3bfe2c767510e3",
+      "after": "0dcea1bde8dfdc0617aeefb17c4d520a18d6229c34f816fcef81c8dbb17debfb"
+    },
+    {
+      "path": "crates/ui-egui/src/app/editing.rs",
+      "before": "99763aacf791133598dcd8305d7efdeaaf3463266798537e066d9315b1770ce6",
+      "after": "0933013b0081edfc37483f4b6a47b1522ff80685e08fb53d59e2128c4e0c98eb"
+    },
+    {
+      "path": "crates/ui-egui/src/app/files.rs",
+      "before": "4f3f3dbb6ac2fcd5fe93a1ff3072f02192b80bad99c682fa6e4be257cd42345d",
+      "after": "d760be5d0281a30535594d8275f31707c47dc65d22d1ea997616e2cc3e6dc239"
+    },
+    {
+      "path": "crates/ui-egui/src/app/native_host.rs",
+      "before": null,
+      "after": "876dd901a5a84e93237c12f98e6392acfb0872f9c76a6f58598fcaf1c238080b"
+    },
+    {
+      "path": "crates/ui-egui/src/app/prefs.rs",
+      "before": "ab7ea9a8b8897f3c37d1f226da660169be1f7543f56ed59cee286bccb9090963",
+      "after": "f5fd469bb37073cfd931a58535f35f4a4b1a5472b626803b3f147622afc174ed"
+    },
+    {
+      "path": "crates/ui-egui/src/app/quit.rs",
+      "before": "f8bbd4727501101a36c82ef94ef8d22bccecf76153bfe2558855d091c09df54f",
+      "after": "3322a66673de70a21dcf4d62790d322fffac268857402d002eb150e2586724ac"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage.rs",
+      "before": "1eaf0c15a8b387dd0e659de62f5f8f3ca718fb0e159cbc9aedb742f7fa59da65",
+      "after": "80bf2a9d4a86d21bb4706bc231b212c66850ad9a098180fa17919b29615b326d"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage/options.rs",
+      "before": "7460a5ac545c813e6bc876c50a7ae3ed6b6dab09db7fbfee8041529416847906",
+      "after": "472636b20e6a769e011230a4995a6e39504202fd4d452277c1e0409c7edc6dee"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs.rs",
+      "before": "e4eb60333fb4d5f4f26c4295c78c636d1eef511a0a4b332c9abc300bcbaa57e1",
+      "after": "7f18ed3718b99d0b45a252e2f94f7728b2ae8fdf18cfa737e002cffa545a220b"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/about.rs",
+      "before": "9561cb22ec6d2f50b1b5dbb3bd866b7328450176d2d40b3623df9277fa417b10",
+      "after": "ffbf7700f6be380118f9c6005cbbce78b47cbb38a67cc1a53092c5f3f0b58e98"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/show.rs",
+      "before": "1b5eb08223c3d9c5e18a5a2daaab4d51eef19ea8050fb3e2612db9ac6c1455bd",
+      "after": "b965a8c03cf97523543cfeb17e91fd0dbd23f4b0ee7d5c838959a6c259d89c8c"
+    },
+    {
+      "path": "crates/ui-egui/src/formula_bar.rs",
+      "before": "f982e684017412a0f6827b4505b164cc622cd6992adbf6430b590dc45f7f4164",
+      "after": "c7696c93f0c57cfccbfd78d0fa7ab9958831901b6b8e43d97327caebb253dfa0"
+    },
+    {
+      "path": "crates/ui-egui/src/grid/interact.rs",
+      "before": "8b2ab652afc81131b45296311a732dda729c9beda52cc9c416bd56fc65fed77a",
+      "after": "74d463cd048ff872e25dbcfe6c9d9ffe8a81ccb79079f3ecafcf4452985ae41c"
+    },
+    {
+      "path": "crates/ui-egui/src/grid/menus.rs",
+      "before": "778fcc112cac13b03ecd46a363b9d03b28824c0bdf0e60c0b65a842f17a10bd9",
+      "after": "0cf52473d7832b0def6a3aa0b849d12a3e3fa9fd16c172a4b39c2025050f3b40"
+    },
+    {
+      "path": "crates/ui-egui/src/lib.rs",
+      "before": "acec56ce6d9d8ed33245f9448d554ed62403e2571ffc88a2a70383101a0f8ab6",
+      "after": "c0b8aeb58fd25c97cccf052f6d621bfa926edaf5eb3bf55ed0d48802429fadb9"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon/automate.rs",
+      "before": "de252694bb8ba7a7fee2419ebb8bc43f15475939689324e0274ac7ac93468928",
+      "after": "d570f7fbf3d34e3f40cbb3798a01dd1ff54fe9ed4b4adda6e5cbbd9a7a98f531"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon/title_bar.rs",
+      "before": "51b8d73a52e5ac2b9d84d7475a4e6ec7e71389edc3a1c1ca57b89a816dceae75",
+      "after": "c5e3bfc2f44b5ee8afe614feeec0e80b2051a1eea72d0e195492f34252109c28"
+    },
+    {
+      "path": "crates/ui-egui/src/theme.rs",
+      "before": "22c5312977a9e42f7595eeac27f52ad3bad95aa94db57ff6f55c2deda488ec6b",
+      "after": "ecd60e4f5e42665b44b4ff0c128e70378afcef2c66eb0d0f0f7009bea5021ca2"
+    }
+  ],
+  "originalLegalBytesUnchanged": [
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "a87109bbb1ad43ca3920a5d7ff3806863b7e8470a73f4ded97a1447ac93333f5"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "c23f6974c1a3da29fff3af7ae6658849f9432624286f8462d02e9fff98755d54"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "sha256": "8a8b933beb483bbffd103d589c896ddf4c7a851a8719ce3c47de159a88aed697"
+    },
+    {
+      "path": "docs/brand/LICENSE-brand.txt",
+      "sha256": "d60f1608b31dde193c34e4afb5d922d2c700ead06c4bb3735959334a09b1ff2c"
+    },
+    {
+      "path": "assets/app-icon/LICENSE.txt",
+      "sha256": "9596de48b5e42fbf727c924bb3863f0e28fcd9e38c47cca284e1174bd06481ce"
+    },
+    {
+      "path": "contributors/contributors.json",
+      "sha256": "4212a926558742dcf3326b932a7e7c87aa9447d5b1ed20a06e0fd53b88602338"
+    },
+    {
+      "path": "docs/contributors.md",
+      "sha256": "b9454f82753630eb16bc59d606f9cb04b5ede20a43da9ddf4a068e2176f37b39"
+    }
+  ],
+  "dependencyGraphEqualsNoticedUpstreamGraph": {
+    "targetNormalPackages": 192,
+    "hostInclusivePackages": 225
+  }
+}

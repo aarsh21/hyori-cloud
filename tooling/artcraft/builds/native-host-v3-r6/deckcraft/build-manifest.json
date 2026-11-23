@@ -1,0 +1,610 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-build",
+  "app": "deckcraft",
+  "artifactVersion": "0.18.1-hyori-host.1",
+  "officialReleaseReplaced": false,
+  "buildInputsSha256": "553b0aa70abfbcc9e2afe68ea9424d1b6a3854b2d2a996afc9fb1d61625bbd65",
+  "cargoLockSha256": "f68bca3cd775c423cb1ea7e4bb4b7f4580f0a3695514319c5b7ca0cf3ebcbc3d",
+  "tools": {
+    "schemaVersion": 1,
+    "artifactVersion": "0.14.1-hyori-host.1",
+    "platform": "linux/amd64",
+    "baseImage": "docker.io/library/rust@sha256:be49948243566aa0ae465ae2786c4bab8cb5597084873b01d3db50dcebc70b18",
+    "baseImageConfigSha256": "a9d8776121944dc474cbae7b1184dbdbd28f0d08d9fefa25737522c56a3f25cb",
+    "rustVersion": "1.99.1",
+    "rustCommit": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+    "target": "wasm32-unknown-unknown",
+    "bun": {
+      "version": "1.4.4",
+      "bytes": 107308936,
+      "sha256": "10702245766b225e70bbf6235fd6b47214fd94b4760d00ffaed8ab0df57ac235"
+    },
+    "archives": [
+      {
+        "id": "rust-std",
+        "version": "1.99.1",
+        "url": "https://static.rust-lang.org/dist/2026-10-15/rust-std-1.99.1-wasm32-unknown-unknown.tar.gz",
+        "sha256": "fdc80d2da1effc88df0bae8503ad117d268a4854afb14a8e31fd1ef6df0aad17",
+        "checksumEvidence": "Installed Rust 1.99.1 multirust-channel-manifest.toml, pkg.rust-std.target.wasm32-unknown-unknown.hash",
+        "checksumUrl": null
+      },
+      {
+        "id": "trunk",
+        "version": "0.21.14",
+        "url": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "a67f4054b249fe9acc5fabc25de1aebf19783aca3ad6ff64bf34d7da44d0ea20",
+        "checksumEvidence": "Publisher release .sha256 asset",
+        "checksumUrl": "https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-musl.tar.gz.sha256"
+      },
+      {
+        "id": "wasm-bindgen",
+        "version": "0.2.129",
+        "url": "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.129/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e",
+        "checksumEvidence": "Publisher GitHub expanded_assets HTML: exact matching x86_64-unknown-linux-musl asset digest",
+        "checksumUrl": null
+      },
+      {
+        "id": "binaryen",
+        "version": "123",
+        "url": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz",
+        "sha256": "e959f2170af4c20c552e9de3a0253704d6a9d2766e8fdb88e4d6ac4bae9388fe",
+        "checksumEvidence": "Publisher release .sha256 asset",
+        "checksumUrl": "https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz.sha256"
+      }
+    ],
+    "signatureVerification": "Publisher TLS/checksum or asset-digest evidence retained; no detached signature or SLSA verification claimed",
+    "deployable": false
+  },
+  "execution": "Restricted container (container-command.json): pinned Rust base image, no network, unprivileged, read-only root, all capabilities dropped, no-new-privileges, bounded memory/CPU/processes; read-only input/driver/tools mounts at the driver's absolute paths. Cargo and Trunk --locked --offline.",
+  "commands": [
+    {
+      "id": "rustc",
+      "status": 0,
+      "elapsedMs": 15
+    },
+    {
+      "id": "cargo-build",
+      "status": 0,
+      "elapsedMs": 266561
+    },
+    {
+      "id": "metadata",
+      "status": 0,
+      "elapsedMs": 1042
+    },
+    {
+      "id": "normal-tree",
+      "status": 0,
+      "elapsedMs": 338
+    },
+    {
+      "id": "host-tree",
+      "status": 0,
+      "elapsedMs": 360
+    },
+    {
+      "id": "trunk",
+      "status": 0,
+      "elapsedMs": 118536
+    }
+  ],
+  "wasm": {
+    "path": "artifact/deckcraft-web-b9462153d9c18271_bg.wasm",
+    "bytes": 33655113,
+    "sha256": "c2bfd44c9523ace6f50e1210f651cf813934dde82ed8461dd67953e6c3b70dc2"
+  },
+  "assets": [
+    {
+      "path": "Cargo.lock",
+      "bytes": 162207,
+      "sha256": "f68bca3cd775c423cb1ea7e4bb4b7f4580f0a3695514319c5b7ca0cf3ebcbc3d"
+    },
+    {
+      "path": "artifact/deckcraft-web-b9462153d9c18271.js",
+      "bytes": 171517,
+      "sha256": "d0e02503e087f0f42ef42ea54274f3a540ad24f9fba60062baeb7302e938b862"
+    },
+    {
+      "path": "artifact/deckcraft-web-b9462153d9c18271_bg.wasm",
+      "bytes": 33655113,
+      "sha256": "c2bfd44c9523ace6f50e1210f651cf813934dde82ed8461dd67953e6c3b70dc2"
+    },
+    {
+      "path": "artifact/hyori-mark-1e3aa2eda2b94725.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "artifact/index.html",
+      "bytes": 1808,
+      "sha256": "70fa61ebe1a9a1b7f2cfecc8ffe1760d0199749d46c131685e019a18a1ca6515"
+    },
+    {
+      "path": "artifact/snippets/deckcraft-web-dd9da626ff62e586/hyori-native-host.js",
+      "bytes": 184256,
+      "sha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "artifact/snippets/eframe-d31a8450ea12dfc1/inline0.js",
+      "bytes": 280,
+      "sha256": "22a98f9d0c5a0532d291bdc9a3050439420b3d11143b4568fcfd3c66fff36995"
+    },
+    {
+      "path": "build-inputs.json",
+      "bytes": 385949,
+      "sha256": "553b0aa70abfbcc9e2afe68ea9424d1b6a3854b2d2a996afc9fb1d61625bbd65"
+    },
+    {
+      "path": "commands/cargo-build.command.json",
+      "bytes": 1372,
+      "sha256": "3ce21c1a1091a7f556ee6ebbc08743fdbcdaef45b3ef3063c2c37be26b044741"
+    },
+    {
+      "path": "commands/cargo-build.result.json",
+      "bytes": 40,
+      "sha256": "f58be48ebf76e6287926b9a7620fd9d8ca8c821bc07086d6f45f84a114e8794d"
+    },
+    {
+      "path": "commands/cargo-build.stderr",
+      "bytes": 13107,
+      "sha256": "0136da0ab3c3350f77b56151f291ce5d99246da807f26d2f7888bde3b339cd6e"
+    },
+    {
+      "path": "commands/cargo-build.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "commands/host-tree.command.json",
+      "bytes": 1487,
+      "sha256": "c393c9c18bc594983ce92a8b3cc23ee4bb3f02d11408f98e684cbe3d21770d87"
+    },
+    {
+      "path": "commands/host-tree.result.json",
+      "bytes": 37,
+      "sha256": "9cd0e5a90846ef687e942c6cfae5e5098adc8b7d990b3d9ea399e599faa08410"
+    },
+    {
+      "path": "commands/host-tree.stderr",
+      "bytes": 837,
+      "sha256": "95c591494fd5dbabe8857719d3338d599d4112fad79440a40374fa531b53ff30"
+    },
+    {
+      "path": "commands/host-tree.stdout",
+      "bytes": 73042,
+      "sha256": "b60725c2629749a9b456cb39655ad0e282891d48b30265a54e9ff440fbd8ec1b"
+    },
+    {
+      "path": "commands/metadata.command.json",
+      "bytes": 1369,
+      "sha256": "b2d679812b48b2974c4d8c57842f0067dbb1e940edeef11469f992edb2274298"
+    },
+    {
+      "path": "commands/metadata.result.json",
+      "bytes": 38,
+      "sha256": "62e3052648439a17c7f94eab0964a0460740260da1159eda79bdc2df17fba9b4"
+    },
+    {
+      "path": "commands/metadata.stderr",
+      "bytes": 837,
+      "sha256": "95c591494fd5dbabe8857719d3338d599d4112fad79440a40374fa531b53ff30"
+    },
+    {
+      "path": "commands/metadata.stdout",
+      "bytes": 1482787,
+      "sha256": "96e39adf2c811f9c4acc3fde1835f4e19b7a91dbf30fa48d41517c1b49e46a76"
+    },
+    {
+      "path": "commands/normal-tree.command.json",
+      "bytes": 1495,
+      "sha256": "c977b83d682c715b28cb78bea946770d0c75cbc2f679a295aa542fa3ec03eab6"
+    },
+    {
+      "path": "commands/normal-tree.result.json",
+      "bytes": 37,
+      "sha256": "43e7459986c4604d05655ca44f9fea68f76542727c8b6724917dac243747d6e1"
+    },
+    {
+      "path": "commands/normal-tree.stderr",
+      "bytes": 837,
+      "sha256": "95c591494fd5dbabe8857719d3338d599d4112fad79440a40374fa531b53ff30"
+    },
+    {
+      "path": "commands/normal-tree.stdout",
+      "bytes": 66723,
+      "sha256": "c7d9e2f117b08f82aeaeace01e159a69cedb7bdce24475aab651fc6dcd863397"
+    },
+    {
+      "path": "commands/rustc.command.json",
+      "bytes": 1167,
+      "sha256": "1b4639ac56bb6d79d89b0eb6d38c7850ffa55cb71565d78f1dcdfe7a58908e9a"
+    },
+    {
+      "path": "commands/rustc.result.json",
+      "bytes": 36,
+      "sha256": "4d8fff51551c10155af7c2a887456abaf819ce94f1b31b7f048726dbb9d99e91"
+    },
+    {
+      "path": "commands/rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "commands/rustc.stdout",
+      "bytes": 196,
+      "sha256": "f22d5e4e9ced367e774ce5bc140d9e6b1235c1882fec80d011044851f3ae6369"
+    },
+    {
+      "path": "commands/trunk.command.json",
+      "bytes": 1365,
+      "sha256": "a16826688b4d60ba3f198a1b636278ab82f528e635bfa47ccc7d77caff9ffc8c"
+    },
+    {
+      "path": "commands/trunk.result.json",
+      "bytes": 40,
+      "sha256": "259a3e6876907a4eda8a0384136b6554777dbe7132248b3dd85f85cbef31871b"
+    },
+    {
+      "path": "commands/trunk.stderr",
+      "bytes": 1709,
+      "sha256": "306d34cee46dcb602520a780971088b054a050b07d4f402b2b323113ff15d265"
+    },
+    {
+      "path": "commands/trunk.stdout",
+      "bytes": 222,
+      "sha256": "f6991005c98cf39c19fc72f121916a66a24d3b7680e44b5f36df2ab5b25a257e"
+    },
+    {
+      "path": "container-command.json",
+      "bytes": 1881,
+      "sha256": "c99cc6073f1ef39b86807c7986b7915e73f9ab34ced7cc27e211b17ba2354eeb"
+    },
+    {
+      "path": "container-result.json",
+      "bytes": 41,
+      "sha256": "d404533c224f45c7519da2dadaa0ea24b313b63ef62c0c6ec0f8f7d7af61892b"
+    },
+    {
+      "path": "dependency-notices/graphs.json",
+      "bytes": 97893,
+      "sha256": "853b17d0aeca610c10045544e10882d89de7c870d6be69a7425e6e800012fd51"
+    },
+    {
+      "path": "dependency-notices/notices.json",
+      "bytes": 662941,
+      "sha256": "e0488fa6157eae5e328090bfa6688cb7762bde39d90c059fd224bbe852f43853"
+    },
+    {
+      "path": "dependency-notices/rustsec.json",
+      "bytes": 15873,
+      "sha256": "06c4ca2d4e1e0fdd5511f5edf89f0d6c2942252261d0704f2cfe8013ce57a62b"
+    },
+    {
+      "path": "dependency-notices/texts/07fc70bfeb985cc1a87a8587d0a0c80bab11c86c9dc3fd95b6f0cb332f983e96",
+      "bytes": 4382,
+      "sha256": "07fc70bfeb985cc1a87a8587d0a0c80bab11c86c9dc3fd95b6f0cb332f983e96"
+    },
+    {
+      "path": "dependency-notices/texts/0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9",
+      "bytes": 10173,
+      "sha256": "0cec06e0e55fbc3dc5cee4fca9b607f66cb8f4e4dbcf3b3c013594dd156732e9"
+    },
+    {
+      "path": "dependency-notices/texts/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174,
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "dependency-notices/texts/15b70ad85d681c27d2232d0a709a96d50b4f1dcc054ad2520d5acc74c0a8360e",
+      "bytes": 18614,
+      "sha256": "15b70ad85d681c27d2232d0a709a96d50b4f1dcc054ad2520d5acc74c0a8360e"
+    },
+    {
+      "path": "dependency-notices/texts/2e98fd23a52d253db8612cd5942c8f2ff4111b21d2367050fdca91d8ccc374a0",
+      "bytes": 4380,
+      "sha256": "2e98fd23a52d253db8612cd5942c8f2ff4111b21d2367050fdca91d8ccc374a0"
+    },
+    {
+      "path": "dependency-notices/texts/2f42c0cafc8ad394d91373fe1f342aee5453850b151a51405c68cae9ada86d26",
+      "bytes": 1102,
+      "sha256": "2f42c0cafc8ad394d91373fe1f342aee5453850b151a51405c68cae9ada86d26"
+    },
+    {
+      "path": "dependency-notices/texts/38534da270dc7c08bd627a3f3e4b859e4a72401aff96fce6d424353a9c069c6b",
+      "bytes": 16774,
+      "sha256": "38534da270dc7c08bd627a3f3e4b859e4a72401aff96fce6d424353a9c069c6b"
+    },
+    {
+      "path": "dependency-notices/texts/3b3672996cf32acfee951e37cdcd9f12c8d0132a46eb489f4dd4f45c45826ccd",
+      "bytes": 16288,
+      "sha256": "3b3672996cf32acfee951e37cdcd9f12c8d0132a46eb489f4dd4f45c45826ccd"
+    },
+    {
+      "path": "dependency-notices/texts/469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+      "bytes": 6552,
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9"
+    },
+    {
+      "path": "dependency-notices/texts/51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac",
+      "bytes": 1063,
+      "sha256": "51b50e6120c344dcc146bbd6375ca1c78e079d97c8bea76e67a53d6ff0efebac"
+    },
+    {
+      "path": "dependency-notices/texts/6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "bytes": 4301,
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+    },
+    {
+      "path": "dependency-notices/texts/742665db9c8e1bc72603c6d319ca3e90b83bd6d95202f0cd4ef11068a07a9c29",
+      "bytes": 1453,
+      "sha256": "742665db9c8e1bc72603c6d319ca3e90b83bd6d95202f0cd4ef11068a07a9c29"
+    },
+    {
+      "path": "dependency-notices/texts/834f66f04bcadcbc9ce88177fb586ec73478336ae95427065f9dedc9544b4cf1",
+      "bytes": 17675,
+      "sha256": "834f66f04bcadcbc9ce88177fb586ec73478336ae95427065f9dedc9544b4cf1"
+    },
+    {
+      "path": "dependency-notices/texts/9d1eb142840c7acfd5511b4dd298cece3f0053f5809228906445cd8a3365592f",
+      "bytes": 1071,
+      "sha256": "9d1eb142840c7acfd5511b4dd298cece3f0053f5809228906445cd8a3365592f"
+    },
+    {
+      "path": "dependency-notices/texts/b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7",
+      "bytes": 1553,
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+    },
+    {
+      "path": "dependency-notices/texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "dependency-notices/texts/fbe8f666c0eee48d1726e6aa0cce7fdb899b41d9144da8d049c3f8ca00780732",
+      "bytes": 17659,
+      "sha256": "fbe8f666c0eee48d1726e6aa0cce7fdb899b41d9144da8d049c3f8ca00780732"
+    },
+    {
+      "path": "driver.js",
+      "bytes": 4294,
+      "sha256": "42cc7f9640c52672c33b5286866de2ea379d442bcf33a2a84f7ec9cbb4b62db5"
+    },
+    {
+      "path": "font-legal/inter/OFL.txt",
+      "bytes": 4380,
+      "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+    },
+    {
+      "path": "font-legal/inter/SOURCE.md",
+      "bytes": 764,
+      "sha256": "424ddcd8fdd6ce6f26131e5d0209cc2272e5b7e025cfc5b10e4751394a82e990"
+    },
+    {
+      "path": "host-bridge-legal/effect/LICENSE",
+      "bytes": 1083,
+      "sha256": "774c3bc5924ad8ae6c5a75f1c53db13feb238ade15989625c513d07b60dedf30"
+    },
+    {
+      "path": "host-bridge-legal/effect/package.json",
+      "bytes": 40617,
+      "sha256": "7624819f8cd2b09b3be8706b0bb6a22a73061364479550b94d4e74e93797da92"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/hyori-mark.ico",
+      "bytes": 3740,
+      "sha256": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/hyori-native-host.js",
+      "bytes": 184256,
+      "sha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/index.html",
+      "bytes": 930,
+      "sha256": "45593497479b5a06c0c125b2f10d2e48e37f6e359309c68071ef224779350131"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/src/host.rs",
+      "bytes": 28807,
+      "sha256": "63da45e10d290be38d402ea4cbb5c71ab0a44d51fb5b8062441128c7bf1a36d3"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/src/main.rs",
+      "bytes": 1744,
+      "sha256": "90e6ed368e1858026fb13054fec43096973f80b317d6421fdd0f1c8d3e128b3c"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/src/native_frame.rs",
+      "bytes": 1624,
+      "sha256": "e13e8aa674f51a11242c9e982c1b6ed931f87cd90c08002ac150ca028f93b067"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/src/native_host/clock.rs",
+      "bytes": 5791,
+      "sha256": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "modified-source/apps/deckcraft-web/src/web.rs",
+      "bytes": 13954,
+      "sha256": "d7da7131e7e880d14df434828d2a8283d02c5022fcf5a3c01e3db0b5c3a9c28d"
+    },
+    {
+      "path": "modified-source/assets/hyori-mark.png",
+      "bytes": 7627,
+      "sha256": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "modified-source/crates/engine/src/cmd/file.rs",
+      "bytes": 38458,
+      "sha256": "3819f934651e3465eeb78ae184a767873f6f8daf123380f5c6aed1b48d449602"
+    },
+    {
+      "path": "modified-source/crates/engine/src/lib.rs",
+      "bytes": 38084,
+      "sha256": "cd5e6692b1e646c0c9558b55effaa81eb6816f30414b6445c058323ea3c635d6"
+    },
+    {
+      "path": "modified-source/crates/engine/src/links.rs",
+      "bytes": 485,
+      "sha256": "24aefca55c38695138db335a904fe1def79491d020f295cf4fbccbcb4f561dd4"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app.rs",
+      "bytes": 16655,
+      "sha256": "ff6bb043ec51d2c6da9698dafdde2e2f3906f3190ffc181e5279ae448aadaebe"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/commands.rs",
+      "bytes": 15355,
+      "sha256": "e80ec447538a6e28928e6b9eb0629c7d7d66cf1ad454c100350d6abb4e2e3171"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/files.rs",
+      "bytes": 41061,
+      "sha256": "fdda216fa96296c184cd9c8452d68cb729ea701b6e00854549597580a1adefc9"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/keys.rs",
+      "bytes": 14203,
+      "sha256": "5106dd7773cf7d5458a04f50ba9d1159d28de0b1fc6c41acad50d86b38b9f6d9"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/app/native_host.rs",
+      "bytes": 10646,
+      "sha256": "b2f92527f2a3dda73751b3ea937ae138048fef8e72f93820e1ff2c4b1b7d962f"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/backstage/files.rs",
+      "bytes": 15069,
+      "sha256": "b51662f81176e33489cff3fe965a25f819bff943111bfcd196281ead08938b25"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/backstage/print.rs",
+      "bytes": 19223,
+      "sha256": "a67dbef93e048edead61af74c8a13fbf416c9e8d680eee43342e0b041e10b6e9"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/dialogs.rs",
+      "bytes": 10878,
+      "sha256": "6ca7feab3fe392f2814772d3571ee3b8087442b3868c693d54395a4cb91a514e"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/dialogs/about.rs",
+      "bytes": 5523,
+      "sha256": "e931514453b90492f35ee5e8f626b63f80ad9a4d04a6b1173f33cf7018f07d66"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/dialogs/body.rs",
+      "bytes": 66504,
+      "sha256": "521accb6d23d53619836bed35ff53b4829427afabbf1fbbf33031640340bebb7"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/dialogs/find.rs",
+      "bytes": 4368,
+      "sha256": "722017d5f7ded3128513cbd050eeac092fad54c9cf4d05edc44f37e1b665f5ad"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/lib.rs",
+      "bytes": 23252,
+      "sha256": "47f93ccbeaa53cd9bbba45ace7cc53aef403419aa34f7e549f6350c2cb34d694"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/menus.rs",
+      "bytes": 13959,
+      "sha256": "e255204e9bcf3ee942607653968c5d6186ad7b043f1d4681cecae5071bdbe4e8"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/ribbon/title_bar.rs",
+      "bytes": 4927,
+      "sha256": "12aed717bb15c20b8500b4089a5701fcd6dc7f9612f252415c3f55098a1099f0"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/show/presenter.rs",
+      "bytes": 14847,
+      "sha256": "9e7d721270fa66dec16b709e5671e07c81e4f02ec4f8afef98a922a39fe5bbaf"
+    },
+    {
+      "path": "modified-source/crates/ui-egui/src/theme.rs",
+      "bytes": 25063,
+      "sha256": "0249b4005f5c9fbf45734908ce36492a6cf992dbd61905304b76dd3c46dbad6a"
+    },
+    {
+      "path": "original-legal/ATTRIBUTION.md",
+      "bytes": 11564,
+      "sha256": "3e0b490182f29522d002af0b4f0f46ab44ab8863bfe5e4e50c65a84d2d18c076"
+    },
+    {
+      "path": "original-legal/LICENSE-APACHE",
+      "bytes": 10174,
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "original-legal/LICENSE-MIT",
+      "bytes": 1101,
+      "sha256": "90e96fef569474cd526350e716e4b05dd32f179ca96d39d61e6b928485e35406"
+    },
+    {
+      "path": "original-legal/NOTICE",
+      "bytes": 6664,
+      "sha256": "ffb327238bcbc6fe66f77d55bbdcadeb29ccc7319e9aa96b067e735dccb750eb"
+    },
+    {
+      "path": "original-legal/contributors/contributors.json",
+      "bytes": 3982,
+      "sha256": "c6b5ec2aeca94d625852ced2b74b40727fa19ffb23e4ae48cafdd1317c130559"
+    },
+    {
+      "path": "original-legal/docs/brand/LICENSE-brand.txt",
+      "bytes": 2263,
+      "sha256": "c5ad8e77d0dd8939161b4c4eca7aaba2437d6340c29e7809fa4679f0f2a82f62"
+    },
+    {
+      "path": "original-legal/docs/contributors.md",
+      "bytes": 2149,
+      "sha256": "92ad00f110206f45b2173a219ba364d2d07f1a5767f63658ba2883176b8afcd1"
+    },
+    {
+      "path": "original-legal/licenses/pdf-writer/LICENSE-ICC.txt",
+      "bytes": 6552,
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9"
+    },
+    {
+      "path": "source-summary.json",
+      "bytes": 9704,
+      "sha256": "a3ab30b9b96f59739975d5973739d8e848f39d92696cc5f59454524adcbd5cb0"
+    },
+    {
+      "path": "tool-inputs.json",
+      "bytes": 24769,
+      "sha256": "8ad708779c6f5f860ab61509287f112d80e8fa1df03abeb8e2a451e8c588523b"
+    },
+    {
+      "path": "tool-legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/COPYRIGHT",
+      "bytes": 1571,
+      "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af"
+    },
+    {
+      "path": "tool-legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-APACHE",
+      "bytes": 9723,
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+    },
+    {
+      "path": "tool-legal/rust-std/rust-std-1.99.1-wasm32-unknown-unknown/LICENSE-MIT",
+      "bytes": 1068,
+      "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1"
+    },
+    {
+      "path": "tool-legal/wasm-bindgen/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-APACHE",
+      "bytes": 10847,
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+    },
+    {
+      "path": "tool-legal/wasm-bindgen/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/LICENSE-MIT",
+      "bytes": 1057,
+      "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+    }
+  ]
+}

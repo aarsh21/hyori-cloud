@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "kind": "hyori-native-host-v3-source-summary",
+  "app": "wordcraft",
+  "artifactVersion": "0.18.1-hyori-host.1",
+  "upstreamVersion": "0.18.1",
+  "productPresentation": "Hyori Documents",
+  "sourcePin": {
+    "url": "https://codeload.github.com/storytold/wordcraft/tar.gz/refs/tags/v0.18.1",
+    "sha256": "55e6e6ca0e988a7ba320bef506e3910d2e2e5c1d1599a79571e144947438ab92",
+    "commit": "079f478bd85df7bcc567e3bafa7d7219096f9c3c"
+  },
+  "sourceCargoLockSha256": "2d90aab982aeafb4c1c1dac6e26bf4a5ad50e26c833b4ad17b24d2869bcf6c82",
+  "cargoLockUnchanged": true,
+  "cargoManifestsUnchanged": true,
+  "stages": [
+    "candidate-source-patch",
+    "shared-native-assets"
+  ],
+  "paletteCssSha256": "fc0d241ea299fa3b2afea54fc2670627e99ab55a78954bd2d68382131a9af11c",
+  "hostJavaScriptSha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82",
+  "changedFiles": [
+    {
+      "path": "apps/wordcraft-web/hyori-mark.ico",
+      "before": null,
+      "after": "62876f59cab383f1494d448e91a8b8003f158b245d0c9d1fcae182bf58d6ff85"
+    },
+    {
+      "path": "apps/wordcraft-web/hyori-native-host.js",
+      "before": null,
+      "after": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82"
+    },
+    {
+      "path": "apps/wordcraft-web/index.html",
+      "before": "7d8a341aa8e480065bbb68c8e81bc0c7a6cd872fb9cb4b1127eec33f28ae22a6",
+      "after": "c8430ab240fe104b49de769da50d9f3794b586c74a2d619e2df039ea6ae4df3f"
+    },
+    {
+      "path": "apps/wordcraft-web/src/main.rs",
+      "before": "28de33f072c1c75b6e080338d40101af3030f9fedb61ad9dd0653bb93e9f4699",
+      "after": "9283a12e696d0da0a6e4105c8094eb6216048608ecf4a6036834050e1e2de33f"
+    },
+    {
+      "path": "apps/wordcraft-web/src/native_frame.rs",
+      "before": null,
+      "after": "931ddc326fdde1b14ac076eb3a7171dd322743cfd931465a2c1b74863c3d841b"
+    },
+    {
+      "path": "apps/wordcraft-web/src/native_host.rs",
+      "before": null,
+      "after": "c6748dad12257560bc3a1d4974e52eb4c96a88f7547c5ecb50942e7554592263"
+    },
+    {
+      "path": "apps/wordcraft-web/src/native_host/clock.rs",
+      "before": null,
+      "after": "c312fb240797ed369d71b99a09d8a263a915fa957984dd85b94b2e3675068356"
+    },
+    {
+      "path": "apps/wordcraft-web/src/web.rs",
+      "before": "b042bf22788cff0427293f36bc82fb6449f535b7fed38771eaa8e937f65bd634",
+      "after": "fe28625ebcd2d650d54b083abfe16d161e6af4e9e2dfedff5c5040d2cc0af08c"
+    },
+    {
+      "path": "assets/hyori-mark.png",
+      "before": null,
+      "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
+    },
+    {
+      "path": "crates/engine/src/sample.rs",
+      "before": "8f4a2edef6e19708da0207604adebcdb5ebece3b945997a1a35b1193ba87be03",
+      "after": "8ae2eb6064204876339bb3a6de18d14ae710eed1e3e18480d08a28d651fa5ea4"
+    },
+    {
+      "path": "crates/formats/src/latex/export.rs",
+      "before": "a9ffc0c5a1441c433408fcab2153773c9ccfc03b13e4b6f5193bed690c5b9cf8",
+      "after": "4734df51928e29558a05187b146068c6708920d87f397b32dd92310b9b4ef0bc"
+    },
+    {
+      "path": "crates/ui-egui/src/app.rs",
+      "before": "19b97164216e6aa23a3ab1e3de90030c5b675b9290413ccb99dd13b309609a73",
+      "after": "0f32695f07d4e1c6c0bce0ffd5c6d19d4467ebaf53b6a5e90b5788111ab6d612"
+    },
+    {
+      "path": "crates/ui-egui/src/app/commands.rs",
+      "before": "f307cdec6ad92af53b0d3060f2782491430e28144b24844bf0e5a27658aedd2e",
+      "after": "3c88d8c36d338b585681ca00b7cf6f333dd2c98e073f7ff65b4488a706e13a76"
+    },
+    {
+      "path": "crates/ui-egui/src/app/files.rs",
+      "before": "8608b08747693312d33058bf97e29d2e44fcef31ebf96c8b44cf591068f2ccce",
+      "after": "00a7be1511331fdabe022307b1b7b3ee82e23301a21f2cd76bc00f8dbc174a8a"
+    },
+    {
+      "path": "crates/ui-egui/src/app/native_host.rs",
+      "before": null,
+      "after": "45e5de0bc7c0d3e391d102769e80dd35534793a16bc83949168621d7fa4c9be9"
+    },
+    {
+      "path": "crates/ui-egui/src/backstage.rs",
+      "before": "cdd7de587a97abf6f32cf4e054b67645fd30641140aa48f93a4ddc592e9de6eb",
+      "after": "171c7309adf2703d8cb91b0efa4c7f57fc4d3417ea12466631c3e4a0b75fbd25"
+    },
+    {
+      "path": "crates/ui-egui/src/chrome.rs",
+      "before": "288fc61dc8ba18a3cefe6a5d8004dc6e86f8f827d43d81c8630b7c1e68a7ea76",
+      "after": "faea8e9e03c8f1327cba50ce86071bd6329a8d886325916575458b219280d9a5"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/chrome.rs",
+      "before": "b05f7cfd4ee7e3581f2c8393b387aaaaa772a8683533190a29f1d29e320aa808",
+      "after": "6e997735608163c1599e1dbfd41546a33ebab86e7118ce5417093fc9a369a524"
+    },
+    {
+      "path": "crates/ui-egui/src/dialogs/dispatch.rs",
+      "before": "5a274db4967fd81ce5b282b16b179b6a903d74e734380bcae81c2251df907665",
+      "after": "9a387e6c925aeb5867eb4853e5df4cdad448a04d96a4eeb585aa1c7083c3bf30"
+    },
+    {
+      "path": "crates/ui-egui/src/file_dialogs.rs",
+      "before": "949c5e0fa1017d403b8bceaaa79f958a7a59805cfce80c6aca541ad5e937e1a6",
+      "after": "fa31f1d2630b94cd463d97fdf46321cdac2ee9251da4df05173e8577d1c24aee"
+    },
+    {
+      "path": "crates/ui-egui/src/keytips.rs",
+      "before": "892987407165d20c6e08ea728afd0e067e04bd4e108e1ba4c8ae9456021831f8",
+      "after": "e9acc000d1608b93027167101617c109c669a9972d1e13ade2a7220459148ff3"
+    },
+    {
+      "path": "crates/ui-egui/src/lib.rs",
+      "before": "58b991490e03b63c9c2c8ffd40630ad1b48dee963cfe7519f4028151bc3c4e37",
+      "after": "aa05ce051c5ae377ac2303dc4bcc93d6e6f9905b286f8f33f8c73fc207fadb42"
+    },
+    {
+      "path": "crates/ui-egui/src/options.rs",
+      "before": "99137bfa9073493a0f19048767bc3b551bbcd7866905c55039170feb9bd63b26",
+      "after": "c5162efb5304532666dd588c513d523fc955f77092fd063d3810a0434012acc9"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon.rs",
+      "before": "90ac3e1f72fb6c993497f35fefafafdc981a6b720c4a91273856619796579205",
+      "after": "d9cb8ff8abd1968059ec1a1812740eb7320ad0beb3997d50219e9e8bfaef7675"
+    },
+    {
+      "path": "crates/ui-egui/src/ribbon/review.rs",
+      "before": "893efce9b7f2aaecc612d91815fbfdba3d8b046b43a36f97e7f5bcd330b24e1f",
+      "after": "37a9656cd59fd34100101da8a7613763c36df2dd7d66162b481ea99cb30109cb"
+    },
+    {
+      "path": "crates/ui-egui/src/theme.rs",
+      "before": "2a35e5fa6827b8b4d886178c49b9c98ae7f0ca501273ed6f06c93038d018e761",
+      "after": "9244038c6e246170978704d031202d50afa401ec0f19b8d181e59d9acefe779f"
+    },
+    {
+      "path": "crates/ui-egui/src/window_ui.rs",
+      "before": "ca55ae951205fdda07daa09d463e6d27fdfa8fbae9956c303fec4ebe3229d8ab",
+      "after": "adb5e4088d65dbc7f753ddda82af25413cdc63bc19f355f956d96e797247d720"
+    },
+    {
+      "path": "crates/ui-egui/src/windows.rs",
+      "before": "aa28850a9cd58ee5260db15b14d0482dc83cfd67fe3391ad53a426d4ac9e0d21",
+      "after": "19a3208a725feb26a195dafa5fe4c4c0da8bd46d1d8ff08441613d66b076e66e"
+    }
+  ],
+  "originalLegalBytesUnchanged": [
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "fc257de83c44ae49e4aad1cf777b886794be3ac9c8d00c010ef55935d5bbeba5"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "8ff59a56c883fd708ed041c7a0ce4e16bb040e03027d94677d324ce711ebba2d"
+    },
+    {
+      "path": "ATTRIBUTION.md",
+      "sha256": "3fc09b7189d078901db77a477bc2dc2007d9a139d59057c67cd5d46e8491d435"
+    },
+    {
+      "path": "docs/brand/LICENSE-brand.txt",
+      "sha256": "ed4475eacf972c9584aa335001c59dfa646eb222549b928ffd6aefd4c805b41a"
+    },
+    {
+      "path": "contributors/contributors.json",
+      "sha256": "a90c6f7620c125a7ec9872690f43418a7e112cdf019a6b3aa77fc245b7385779"
+    },
+    {
+      "path": "docs/contributors.md",
+      "sha256": "715a0167c8604379c7f68de6084a3bfae465c888e8de24328aa5df96a2a762b3"
+    }
+  ],
+  "dependencyGraphEqualsNoticedUpstreamGraph": {
+    "targetNormalPackages": 234,
+    "hostInclusivePackages": 258
+  }
+}
