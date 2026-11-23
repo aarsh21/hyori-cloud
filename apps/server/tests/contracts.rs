@@ -213,6 +213,7 @@ fn production_configuration_and_cookie_policy() {
         storage: None,
         media_worker_socket: None,
         editor_assets: None,
+        retained_editor_assets: None,
         trusted_proxies: vec![],
         sign_in_answer: hyori_server::config::SIGN_IN_ANSWER,
     };

@@ -77,7 +77,7 @@ export const EDITOR_DOCUMENT_SANDBOX =
  * Reads the bundle's index pages and, when a receipt records them, requires its loader hashes to be
  * exactly the ones in those pages, so a stale receipt or a modified bundle fails at startup.
  */
-export function editorContentSecurityPolicy(bundle: string, receiptPath?: string) {
+export function editorStaticBundle(bundle: string, receiptPath?: string) {
   const manifestBytes = readFileSync(join(bundle, MANIFEST));
   const manifestSha256 = createHash("sha256").update(manifestBytes).digest("hex");
   const { editors } = Manifest.parse(JSON.parse(manifestBytes.toString()));
@@ -105,9 +105,21 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
 
   const scripts = new Set<string>();
   const styles = new Set<string>();
+  const prefixes: string[] = [];
 
   for (const { app, version, assetUrl } of editors) {
+    if (
+      !/^(?:wordcraft|gridcraft|pdfcraft|deckcraft)$/u.test(app) ||
+      !/^[\w][\w.-]*$/u.test(version)
+    )
+      throw new Error(`Invalid editor asset prefix: ${app} ${version}`);
+
     const index = new URL(assetUrl, "https://editor.invalid").pathname.replace(/^\/artcraft\//, "");
+
+    if (index !== `${app}/${version}/index.html`)
+      throw new Error(`Editor asset URL does not match its version: ${assetUrl}`);
+
+    prefixes.push(`/${app}/${version}/`);
     const page = readFileSync(join(bundle, index), "utf8");
     const pageScripts = inline(page, "script");
 
@@ -128,7 +140,7 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
     for (const hash of inline(page, "style")) styles.add(hash);
   }
 
-  return [
+  const contentSecurityPolicy = [
     EDITOR_DOCUMENT_SANDBOX,
     "default-src 'self'",
     "connect-src 'self'",
@@ -141,6 +153,12 @@ export function editorContentSecurityPolicy(bundle: string, receiptPath?: string
     ["script-src 'self' 'wasm-unsafe-eval'", ...scripts].join(" "),
     ["style-src 'self'", ...styles].join(" "),
   ].join("; ");
+
+  return { contentSecurityPolicy, prefixes };
+}
+
+export function editorContentSecurityPolicy(bundle: string, receiptPath?: string) {
+  return editorStaticBundle(bundle, receiptPath).contentSecurityPolicy;
 }
 
 // Production Caddy: `bun scripts/editor-csp.ts <bundle> [receipt]` prints the exact header line.

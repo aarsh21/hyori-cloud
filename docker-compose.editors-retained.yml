@@ -1,0 +1,13 @@
+# Use alongside docker-compose.editors.yml only for the editor-session drain window.
+services:
+  backend:
+    environment:
+      HYORI_EDITOR_RETAINED_ASSETS_DIR: /opt/hyori/artcraft-retained
+      HYORI_EDITOR_RETAINED_ASSETS_MANIFEST_SHA256: ${HYORI_EDITOR_RETAINED_ASSETS_MANIFEST_SHA256:?Set the retained verified runtime manifest SHA-256}
+    volumes:
+      - type: bind
+        source: ${HYORI_EDITOR_RETAINED_ASSETS_DIR:?Set the absolute retained read-only runtime bundle directory}
+        target: /opt/hyori/artcraft-retained
+        read_only: true
+        bind:
+          create_host_path: false

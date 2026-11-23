@@ -6,11 +6,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { createGzipTransportSidecar } from "./artcraft/transport-sidecars.ts";
-import { EDITOR_DOCUMENT_SANDBOX, editorContentSecurityPolicy } from "./editor-csp.ts";
+import {
+  EDITOR_DOCUMENT_SANDBOX,
+  editorContentSecurityPolicy,
+  editorStaticBundle,
+} from "./editor-csp.ts";
 import { editorStaticHandler } from "./editor-static-handler.ts";
 
 const directory = await mkdtemp(join(tmpdir(), "hyori-static-delivery-"));
 const assets = join(directory, "assets");
+const retainedAssets = join(directory, "retained");
 const container = `hyori-static-delivery-${randomBytes(8).toString("hex")}`;
 const path = "wordcraft/fixture/wordcraft-web-0123456789abcdef.js";
 const original = Buffer.from(`// Non-executed synthetic transport fixture\n${"x".repeat(16_384)}`);
@@ -78,9 +83,25 @@ try {
     join(assets, "legal/RUNTIME-NOTICE-INDEX.md"),
     "Synthetic test; no vendor payload.",
   );
+  const oldIndex = "wordcraft/older/index.html";
+  const oldHtml = '<!doctype html><script type="module">window.oldBundle = true;</script>';
+  const oldNotice = "Notice for the retained bundle only.";
+  await mkdir(join(retainedAssets, "wordcraft/older"), { recursive: true });
+  await mkdir(join(retainedAssets, "legal"));
+  await writeFile(join(retainedAssets, oldIndex), oldHtml);
+  await writeFile(join(retainedAssets, "legal/RUNTIME-NOTICE-INDEX.md"), oldNotice);
+  await writeFile(
+    join(retainedAssets, "runtime-bundle-manifest.json"),
+    JSON.stringify({
+      editors: [
+        { app: "wordcraft", version: "older", assetUrl: `/artcraft/${oldIndex}?host=parent` },
+      ],
+    }),
+  );
+  const retained = editorStaticBundle(retainedAssets);
   await writeFile(
     join(directory, "Caddyfile"),
-    `{\n    admin off\n    auto_https off\n}\nhttp://:8080 {\n${editorStaticHandler(contentSecurityPolicy)}\n    handle {\n        respond 404\n    }\n}\n`,
+    `{\n    admin off\n    auto_https off\n}\nhttp://:8080 {\n${editorStaticHandler(contentSecurityPolicy, retained)}\n    handle {\n        respond 404\n    }\n}\n`,
   );
   docker([
     "create",
@@ -99,6 +120,8 @@ try {
     `type=bind,src=${join(directory, "Caddyfile")},dst=/etc/caddy/Caddyfile,readonly`,
     "--mount",
     `type=bind,src=${assets},dst=/srv/artcraft,readonly`,
+    "--mount",
+    `type=bind,src=${retainedAssets},dst=/srv/artcraft-retained,readonly`,
     "caddy:2",
   ]);
   created = true;
@@ -224,8 +247,23 @@ try {
   assert.equal(missing.status, 404);
   assert.equal(missing.headers.get("cache-control"), "no-cache");
   assert.equal(missing.headers.get("content-security-policy"), contentSecurityPolicy);
+
+  assert.notEqual(retained.contentSecurityPolicy, contentSecurityPolicy);
+  const old = await request(`${oldIndex}?host=parent`, ["Origin: null"]);
+  assert.equal(old.status, 200);
+  assert.equal(old.body.toString(), oldHtml);
+  assert.equal(old.headers.get("content-security-policy"), retained.contentSecurityPolicy);
+  assert.equal(old.headers.get("access-control-allow-origin"), "*");
+  assert.equal(old.headers.get("access-control-allow-credentials"), null);
+  const oldMissing = await request("wordcraft/older/missing.js");
+  assert.equal(oldMissing.status, 404);
+  assert.equal(oldMissing.headers.get("content-security-policy"), retained.contentSecurityPolicy);
+  const notices = await request("retained/legal/RUNTIME-NOTICE-INDEX.md");
+  assert.equal(notices.status, 200);
+  assert.equal(notices.body.toString(), oldNotice);
+  assert.equal((await request(`retained/${oldIndex}`)).status, 404);
   console.log(
-    "PASS real Caddy: exact precompressed bytes, decoded identity, MIME/security headers, sandboxed pages and 404s, immutable existing hashed assets only, revalidated index/notices, missing404 not immutable, identity range206 and conditional304. Synthetic transport only; no editor startup/speed or live deployment claim.",
+    "PASS real Caddy: independent current and retained mounts, CSP, notices and 404s; exact precompressed bytes, MIME/security headers, immutable existing hashed assets, revalidated index/notices, range206 and conditional304. Synthetic transport only.",
   );
 } finally {
   if (created) docker(["rm", "--force", container]);

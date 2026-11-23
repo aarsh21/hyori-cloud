@@ -67,7 +67,11 @@ export async function startNativeRustStack(
   postgresPort: number,
   storagePort: number,
   editorBundle: EditorBundle | null = null,
-): Promise<RustStack> {
+): Promise<
+  RustStack & {
+    switchEditorBundles: (current: EditorBundle, retained: EditorBundle) => Promise<void>;
+  }
+> {
   const work = mkdtempSync(join(tmpdir(), "hyori-native-stack-"));
 
   const secrets = {
@@ -84,6 +88,7 @@ export async function startNativeRustStack(
   const logs: string[] = [];
 
   let server: ChildProcess | null = null;
+  let retainedEditorBundle: EditorBundle | null = null;
 
   function spawnLogged(command: string, args: readonly string[], env: NodeJS.ProcessEnv) {
     const child = spawn(command, [...args], { env, stdio: ["ignore", "pipe", "pipe"] });
@@ -149,6 +154,11 @@ export async function startNativeRustStack(
       env.HYORI_EDITOR_ASSETS_MANIFEST_SHA256 = editorBundle.manifestSha256;
     }
 
+    if (retainedEditorBundle !== null) {
+      env.HYORI_EDITOR_RETAINED_ASSETS_DIR = retainedEditorBundle.directory;
+      env.HYORI_EDITOR_RETAINED_ASSETS_MANIFEST_SHA256 = retainedEditorBundle.manifestSha256;
+    }
+
     server = spawnLogged(tools.server, [], env);
   }
 
@@ -163,7 +173,8 @@ export async function startNativeRustStack(
           .ok;
       },
       `The Rust server never reached database-backed readiness.\n${logs.slice(-40).join("")}`,
-      60_000,
+      // The cutover verifies two full immutable asset inventories before it binds.
+      retainedEditorBundle === null ? 60_000 : 180_000,
     );
 
   try {
@@ -241,19 +252,27 @@ export async function startNativeRustStack(
     throw new Error("The native stack has no isolated media worker.");
   };
 
+  const restartServer: RustStack["restartServer"] = async (whileStopped) => {
+    if (server !== null) await stopped(server, 10_000);
+
+    try {
+      await whileStopped?.();
+    } finally {
+      startServer();
+      await ready();
+    }
+  };
+
   return {
     setupToken: secrets.HYORI_SETUP_TOKEN,
     backendUrl,
     webBackend: { network: "host", url: backendUrl },
-    async restartServer(whileStopped) {
-      if (server !== null) await stopped(server, 10_000);
-
-      try {
-        await whileStopped?.();
-      } finally {
-        startServer();
-        await ready();
-      }
+    restartServer,
+    switchEditorBundles(current, retained) {
+      return restartServer(async () => {
+        editorBundle = current;
+        retainedEditorBundle = retained;
+      });
     },
     stopWorker: noWorker,
     startWorker: async () => noWorker(),

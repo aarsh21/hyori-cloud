@@ -1,10 +1,9 @@
-/**
- * Inside the existing HTTPS site; the operator retains TLS, origin and fallback routing. The policy
- * comes from `editorContentSecurityPolicy` for the bundle mounted at `/srv/artcraft`.
- */
-export const editorStaticHandler = (contentSecurityPolicy: string) => `handle_path /artcraft/* {
+import { editorStaticBundle } from "./editor-csp.ts";
+
+function serve(root: string, contentSecurityPolicy: string) {
+  return `
     route {
-        root * /srv/artcraft
+        root * ${root}
         header X-Content-Type-Options nosniff
         header X-Frame-Options SAMEORIGIN
         # The editor frame is sandboxed into an opaque origin, so its scripts and WASM load with CORS.
@@ -24,5 +23,49 @@ export const editorStaticHandler = (contentSecurityPolicy: string) => `handle_pa
         file_server {
             precompressed gzip
         }
+    }`;
+}
+
+/** Keep the retained version paths on their own mount and CSP; never fall through to another root. */
+export function editorStaticHandler(
+  contentSecurityPolicy: string,
+  retained?: ReturnType<typeof editorStaticBundle>,
+) {
+  const current = serve("/srv/artcraft", contentSecurityPolicy);
+
+  if (retained === undefined) return `handle_path /artcraft/* {${current}\n}`;
+
+  const previous = serve("/srv/artcraft-retained", retained.contentSecurityPolicy);
+  const retainedPaths = retained.prefixes.map((path) => `${path}*`).join(" ");
+
+  return `handle_path /artcraft/* {
+    route {
+        @retained_editor path ${retainedPaths}
+        handle @retained_editor {${previous}
+        }
+        @retained_notices path /retained/legal/* /retained/runtime-bundle-manifest.json
+        handle @retained_notices {
+            uri strip_prefix /retained${previous}
+        }
+        handle {${current}
+        }
     }
 }`;
+}
+
+if (import.meta.main) {
+  const [current, currentReceipt, retained, retainedReceipt] = process.argv.slice(2);
+
+  if (process.argv.length !== 6 || !current || !currentReceipt || !retained || !retainedReceipt)
+    throw new Error(
+      "Usage: bun scripts/editor-static-handler.ts CURRENT CURRENT_RECEIPT RETAINED RETAINED_RECEIPT",
+    );
+
+  const active = editorStaticBundle(current, currentReceipt);
+  const drain = editorStaticBundle(retained, retainedReceipt);
+
+  if (drain.prefixes.some((prefix) => active.prefixes.includes(prefix)))
+    throw new Error("Current and retained bundles share an editor version URL");
+
+  console.log(editorStaticHandler(active.contentSecurityPolicy, drain));
+}

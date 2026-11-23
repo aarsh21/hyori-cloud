@@ -34,6 +34,7 @@ fn config(fixture: &BundleFixture) -> Config {
         storage: None,
         media_worker_socket: None,
         editor_assets: Some(fixture.persist()),
+        retained_editor_assets: None,
         trusted_proxies: vec![],
         sign_in_answer: hyori_server::config::SIGN_IN_ANSWER,
     }
@@ -179,6 +180,18 @@ async fn rolling_catalogue_accepts_one_current_and_one_legacy_per_app_only() {
     fixture.manifest["editors"][4]["role"] = json!("current");
     fixture.manifest["editors"][4]["protocol"] = json!(1);
     assert!(EditorAssets::load(&config(&fixture)).await.is_err());
+}
+#[tokio::test]
+async fn retained_mount_refuses_overlapping_editor_urls_even_with_two_valid_pins() {
+    let current = rolling_fixture();
+    let retained = BundleFixture::new();
+    EditorAssets::load(&config(&retained)).await.unwrap();
+    let mut config = config(&current);
+    EditorAssets::load(&config).await.unwrap();
+
+    config.retained_editor_assets = Some(retained.persist());
+    config.validate().unwrap();
+    assert!(EditorAssets::load(&config).await.is_err());
 }
 #[tokio::test]
 async fn read_only_synthetic_catalogue_requires_explicit_development_loopback_configuration() {

@@ -50,6 +50,7 @@ impl Postgres {
                 storage: None,
                 media_worker_socket: None,
                 editor_assets: None,
+                retained_editor_assets: None,
                 trusted_proxies: vec![],
                 // Well above one verification here (scrypt is optimized in test builds), and
                 // short enough that suites full of failed sign-ins stay quick.

@@ -40,6 +40,7 @@ pub struct AssetCapability {
 #[derive(Clone, Default)]
 pub struct EditorAssets {
     entries: BTreeMap<(String, String), AssetCapability>,
+    retained_entries: BTreeMap<(String, String), AssetCapability>,
     current: BTreeMap<String, String>,
     manifest_sha256: String,
     synthetic: bool,
@@ -117,11 +118,28 @@ impl EditorAssets {
         let Some(settings) = config.editor_assets.clone() else {
             return Ok(Self::default());
         };
+        let retained = config.retained_editor_assets.clone();
         let synthetic_allowed = !config.secure_cookies && config.bind.ip().is_loopback();
-        let assets =
-            tokio::task::spawn_blocking(move || Self::verify(&settings, synthetic_allowed))
-                .await
-                .map_err(|_| ApiError::unavailable())??;
+        let assets = tokio::task::spawn_blocking(move || {
+            let mut assets = Self::verify(&settings, synthetic_allowed)?;
+            if let Some(retained) = retained {
+                // Verify the retained manifest, inventory and carried authority as a full bundle.
+                // Only its exact session capabilities are inherited, not its activation state.
+                let retained = Self::verify(&retained, synthetic_allowed)?;
+                if assets.synthetic != retained.synthetic
+                    || retained
+                        .entries
+                        .keys()
+                        .any(|key| assets.entries.contains_key(key))
+                {
+                    return Err(ApiError::unavailable());
+                }
+                assets.retained_entries = retained.entries;
+            }
+            Ok(assets)
+        })
+        .await
+        .map_err(|_| ApiError::unavailable())??;
         // Tell the operator before a person meets it: the web client sandboxes every editor frame,
         // and only protocol 3 runs there. Older runtimes stay verified so nothing else breaks.
         for (app, version) in &assets.current {
@@ -336,6 +354,7 @@ impl EditorAssets {
         }
         Ok(Self {
             entries,
+            retained_entries: BTreeMap::new(),
             current,
             manifest_sha256: settings.manifest_sha256.clone(),
             synthetic,
@@ -346,15 +365,19 @@ impl EditorAssets {
             .current
             .get(formats::app_name(app))
             .ok_or_else(ApiError::unavailable)?;
-        self.version_capability(app, version)
+        self.entries
+            .get(&(formats::app_name(app).to_owned(), version.clone()))
+            .ok_or_else(ApiError::unavailable)
     }
     pub(crate) fn version_capability(
         &self,
         app: &EditorApp,
         version: &str,
     ) -> Result<&AssetCapability, ApiError> {
+        let key = (formats::app_name(app).to_owned(), version.to_owned());
         self.entries
-            .get(&(formats::app_name(app).to_owned(), version.to_owned()))
+            .get(&key)
+            .or_else(|| self.retained_entries.get(&key))
             .ok_or_else(ApiError::unavailable)
     }
     pub(crate) async fn activate(&self, connection: &DatabaseConnection) -> Result<(), ApiError> {

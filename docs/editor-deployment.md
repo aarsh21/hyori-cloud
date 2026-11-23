@@ -123,6 +123,21 @@ It streams transferred, verified engine bytes without the additional whole-buffe
 
 `scripts/artcraft/check-deck-clipboard.ts` is an opt-in real-stack regression using headed Chromium and real X11 keys. Its source documents the private fixture-state, fresh upload and output-directory inputs; never commit or share that state's cookies. The r4 run fails on internal A plus OS B and the r5 run passes, including armed formatting, one undo, focus retention and unarmed paste. Unit hookup tests additionally require the engine registry files to remain byte-identical.
 
+### r5 → r6: keep open tabs saving during the rollout
+
+Deploy r6 as the current bundle and keep the exact r5 bundle as a separate, read-only retained mount. New opens get r6; existing r5 sessions keep their exact asset URLs and can still prepare, complete and replay a save. Session expiry, file access and the per-editor disable switch still apply to both. Do not combine either bundle's files, authority, or CSP hashes with the other.
+
+1. Build the server with both compiled-in authorities. Set the existing `HYORI_EDITOR_ASSETS_*` values to the verified r6 directory and SHA-256. Set `HYORI_EDITOR_RETAINED_ASSETS_DIR` to the existing immutable r5 directory and `HYORI_EDITOR_RETAINED_ASSETS_MANIFEST_SHA256` to the r5 digest above. Include `docker-compose.editors-retained.yml` **after** `docker-compose.editors.yml`. The server checks both inventories before serving. These mounts do not replace any storage or database volume.
+2. In the gateway mount r6 at `/srv/artcraft` and r5 at `/srv/artcraft-retained`. Replace only the `/artcraft/*` handler with the output of this command, keeping the site's existing TLS and proxy fallback:
+
+   ```sh
+   bun scripts/editor-static-handler.ts /path/to/r6 tooling/artcraft/runtime-all4-native-v3-r6.json \
+     /path/to/r5 tooling/artcraft/runtime-all4-native-v3-r5.json
+   ```
+
+   Reload the gateway **before** switching the backend's current selection. r5's existing version paths keep resolving with r5's CSP while the old backend is still serving. Check both bundles' entry URLs and CSP before exposing new r6 opens. The current notices stay under `/artcraft/legal/`; the retained notices and manifest are under `/artcraft/retained/`. Asset CORS stays wildcard and noncredentialed.
+3. Keep r5 for at least 24 hours after new opens start using r6, and longer if open r5 tabs still need time to save. In a later release, remove the retained backend overlay and retained gateway routes/mount after the drain. Removing them intentionally ends r5 session support; it is not an automatic timer or a step in this rollout.
+
 ## Opt-in gateway client addresses for authentication limits
 
 Client-address attribution requires **both** settings below. They are runtime settings, not browser variables. Merely adding them to `.env.deployment` does not pass them into the shipped Compose services; supply a Compose override too. With both unset, the web host removes forwarded client-address headers, Rust does not trust the web host to name a client, and unknown browsers behind it retain one shared ten-attempt login budget per email per 15 minutes. A previously authenticated device retains its separate budget. This preserves the default behavior, including the ability for someone who knows an email to exhaust that shared budget.

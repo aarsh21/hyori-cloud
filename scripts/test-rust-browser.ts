@@ -14,7 +14,7 @@ import { runAdminScenarios } from "./browser-fixtures/scenarios-admin.ts";
 import { runConcurrentUploadScenario } from "./browser-fixtures/scenarios-concurrency.ts";
 import { runAuthScenario } from "./browser-fixtures/scenarios-core.ts";
 import { readEditorBundle } from "./browser-fixtures/editor-bundle.ts";
-import { runEditorScenarios } from "./browser-fixtures/scenarios-editors.ts";
+import { runEditorRollover, runEditorScenarios } from "./browser-fixtures/scenarios-editors.ts";
 import { runDerivativeScenarios } from "./browser-fixtures/scenarios-derivatives.ts";
 import { runFileScenarios } from "./browser-fixtures/scenarios-files.ts";
 import { runSortingScenarios } from "./browser-fixtures/scenarios-sorting.ts";
@@ -58,6 +58,8 @@ import { createWebImageHost } from "./browser-fixtures/web-image-host.ts";
  *     [--failure-screenshots=false] Never capture an unexpected failed state; explicit document shots remain.
  *     [--native] For hosts without containers: <image> is a `hyori-server` binary, run with native
  *       PostgreSQL 17 (`HYORI_POSTGRES_BIN`) and RustFS (`HYORI_RUSTFS_BIN`). No media worker.
+ *     With --native and --scenarios=editors or editor-rollover, pass --retained-editor-bundle and
+ *       --retained-editor-bundle-sha256 to start on the old bundle and switch while tabs are open.
  */
 const image = process.argv[2];
 
@@ -73,6 +75,8 @@ const worker = flag("worker") ?? null;
 const webImage = flag("web-image") ?? null;
 const editorBundleDirectory = flag("editor-bundle");
 const editorBundleSha256 = flag("editor-bundle-sha256");
+const retainedDirectory = flag("retained-editor-bundle");
+const retainedSha256 = flag("retained-editor-bundle-sha256");
 const failureScreenshots = flag("failure-screenshots") ?? "true";
 
 if (failureScreenshots !== "true" && failureScreenshots !== "false")
@@ -92,6 +96,23 @@ const editorBundle =
 
 const freshImage = flags.includes("--fresh-image");
 const native = flags.includes("--native");
+
+if (
+  (retainedDirectory === undefined) !== (retainedSha256 === undefined) ||
+  (retainedDirectory !== undefined &&
+    (!native ||
+      editorBundle === null ||
+      !(only?.includes("editors") || only?.includes("editor-rollover")))) ||
+  (only?.includes("editor-rollover") && retainedDirectory === undefined)
+)
+  throw new Error(
+    "Editor rollover needs --native, a pinned current bundle and a pinned retained bundle.",
+  );
+
+const retainedBundle =
+  retainedDirectory !== undefined && retainedSha256 !== undefined
+    ? readEditorBundle(retainedDirectory, retainedSha256)
+    : null;
 
 if (native && (worker !== null || webImage !== null))
   throw new Error(
@@ -169,7 +190,7 @@ try {
 
   cleanups.push(hostNetwork.stop);
 
-  const stack = native
+  const nativeStack = native
     ? await startNativeRustStack(
         {
           server: image,
@@ -181,9 +202,12 @@ try {
         backendPort,
         await fixturePort(),
         await fixturePort(),
-        editorBundle,
+        retainedBundle ?? editorBundle,
       )
-    : await startRustStack(image, origin, backendPort, worker, editorBundle);
+    : null;
+
+  const stack =
+    nativeStack ?? (await startRustStack(image, origin, backendPort, worker, editorBundle));
 
   cleanups.push(stack.stop);
   cleanups.push(() => writeFileSync(join(artifacts, "backend.log"), stack.serverLogs()));
@@ -215,7 +239,7 @@ try {
 
   const front = createFrontHandler({
     nitroUrl: web.url,
-    staticRoot: editorBundle?.directory ?? null,
+    staticRoot: (retainedBundle ?? editorBundle)?.directory ?? null,
   });
 
   cleanups.push(
@@ -234,7 +258,8 @@ try {
     headless: true,
     timeout: 30_000,
     // The full Chromium build has a PDF viewer; the default headless shell does not.
-    channel: only?.includes("editors") ? "chromium" : undefined,
+    channel:
+      only?.includes("editors") || only?.includes("editor-rollover") ? "chromium" : undefined,
     executablePath: process.env.HYORI_CHROMIUM_PATH,
     args: [chromiumTrustFor(tls.cert), ...(editorBundle === null ? [] : EDITOR_RENDERING_ARGS)],
   });
@@ -320,6 +345,20 @@ try {
   }
 
   // Only when named: it depends on the bundle handed to this run, and takes a long time.
+  if (nativeStack !== null && editorBundle !== null && retainedBundle !== null) {
+    let switched = false;
+
+    const switchBundles = async () => {
+      front.setEditorBundles(editorBundle.directory, retainedBundle.directory);
+      await nativeStack.switchEditorBundles(editorBundle, retainedBundle);
+      switched = true;
+    };
+
+    await runEditorRollover(run, retainedBundle, switchBundles);
+
+    if (!switched) await switchBundles();
+  }
+
   if (only?.includes("editors")) await runEditorScenarios(run);
   else if (only?.includes("editor-recovery")) await runEditorScenarios(run, true);
 
@@ -360,6 +399,7 @@ try {
     webImage,
     webImageId: web.webImageId,
     webRuntime: web.webRuntime,
+    retainedEditorManifest: retainedBundle?.manifestSha256 ?? null,
     editorBundle:
       editorBundle === null
         ? null

@@ -2,7 +2,7 @@ import { lstatSync } from "node:fs";
 import http2 from "node:http2";
 import { extname, resolve, sep } from "node:path";
 import { z } from "zod";
-import { editorContentSecurityPolicy } from "../editor-csp.ts";
+import { editorStaticBundle } from "../editor-csp.ts";
 
 export type ProxyRecord = {
   readonly at: number;
@@ -128,8 +128,9 @@ export function createFrontHandler({
   /** The verified editor bundle, served at `/artcraft/` from its read-only directory. */
   staticRoot?: string | null;
 }) {
-  const contentSecurityPolicy =
-    staticRoot === null ? null : editorContentSecurityPolicy(staticRoot);
+  const staticBundle = (root: string) => ({ root, ...editorStaticBundle(root) });
+  let current = staticRoot === null ? null : staticBundle(staticRoot);
+  let retained: ReturnType<typeof staticBundle> | null = null;
 
   const records: ProxyRecord[] = [];
   const trace: ProxyRecord[] = [];
@@ -207,12 +208,21 @@ export function createFrontHandler({
   async function handle(request: Request, protocol: ProxyRecord["protocol"]): Promise<Response> {
     const url = new URL(request.url);
 
-    if (
-      staticRoot !== null &&
-      contentSecurityPolicy !== null &&
-      url.pathname.startsWith(STATIC_PREFIX)
-    ) {
-      const reply = staticResponse(staticRoot, contentSecurityPolicy, url.pathname);
+    if (current !== null && url.pathname.startsWith(STATIC_PREFIX)) {
+      const path = url.pathname.slice(STATIC_PREFIX.length - 1);
+
+      const retainedNotice =
+        path.startsWith("/retained/legal/") || path === "/retained/runtime-bundle-manifest.json";
+
+      const isRetained = retained?.prefixes.some((prefix) => path.startsWith(prefix));
+      const bundle = (retainedNotice || isRetained ? retained : null) ?? current;
+
+      const pathname =
+        retainedNotice && bundle === retained
+          ? `/artcraft${path.slice("/retained".length)}`
+          : url.pathname;
+
+      const reply = staticResponse(bundle.root, bundle.contentSecurityPolicy, pathname);
 
       trace.push({
         at: Date.now(),
@@ -442,6 +452,10 @@ export function createFrontHandler({
 
   return {
     handle,
+    setEditorBundles(active: string, previous: string) {
+      current = staticBundle(active);
+      retained = staticBundle(previous);
+    },
     records,
     trace,
     peakInFlightTileMedia: () => peakInFlightTileMedia,

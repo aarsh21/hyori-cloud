@@ -34,7 +34,8 @@ import type { EditorApp, EditorCase, EditorCases } from "./editor-probe/cases.ts
 import { downloadBytes, fetchInPage } from "./page-actions.ts";
 import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
-import { runEditorRecoveryScenarios } from "./scenarios-editor-recovery.ts";
+import type { EditorBundle } from "./editor-bundle.ts";
+import { editorRollover, runEditorRecoveryScenarios } from "./scenarios-editor-recovery.ts";
 import { createFolder } from "./scenarios-photos.ts";
 import { createLink } from "./scenarios-sharing.ts";
 
@@ -789,6 +790,27 @@ export async function runEditorScenarios(run: CoreRun, recoveryOnly = false) {
     await report.scenario("Editors, one-file links", () => singleFileLink(run, cases), quiet);
     await report.scenario("Editors, native lifecycle", () => nativeLifecycle(run, cases), quiet);
     await runEditorRecoveryScenarios(run, cases);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+export async function runEditorRollover(
+  run: CoreRun,
+  retained: EditorBundle,
+  switchBundles: () => Promise<void>,
+) {
+  const work = mkdtempSync(join(tmpdir(), "hyori-editor-rollover-"));
+
+  try {
+    await run.report.scenario("Editor rollout with open r5 tabs", async () => {
+      await editorRollover(
+        { ...run, editorBundle: retained },
+        run,
+        createEditorCases(work).word,
+        switchBundles,
+      );
+    });
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

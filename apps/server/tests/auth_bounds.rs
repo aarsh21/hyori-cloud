@@ -28,6 +28,7 @@ fn config_with_token(setup_token: String) -> Config {
         storage: None,
         media_worker_socket: None,
         editor_assets: None,
+        retained_editor_assets: None,
         trusted_proxies: vec![],
         sign_in_answer: hyori_server::config::SIGN_IN_ANSWER,
     }

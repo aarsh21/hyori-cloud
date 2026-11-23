@@ -30,6 +30,8 @@ pub struct Config {
     pub media_worker_socket: Option<std::path::PathBuf>,
     /// Explicit operator-selected, pinned read-only editor bundle; absence disables runtime editing.
     pub editor_assets: Option<EditorAssetsConfig>,
+    /// Separately pinned previous bundle, usable only by already-open editor sessions.
+    pub retained_editor_assets: Option<EditorAssetsConfig>,
     /// Peers whose `x-hyori-client-address` names the end client (`HYORI_TRUSTED_PROXIES`).
     /// Empty: the header is ignored and only a public TCP peer identifies a client.
     pub trusted_proxies: Vec<ProxyRange>,
@@ -147,6 +149,17 @@ impl Config {
         let required = |name| {
             std::env::var(name).map_err(|_| ConfigError("required environment variable missing"))
         };
+        let editor_bundle = |directory, sha| match (std::env::var_os(directory), std::env::var(sha))
+        {
+            (None, Err(std::env::VarError::NotPresent)) => Ok(None),
+            (Some(directory), Ok(manifest_sha256)) => Ok(Some(EditorAssetsConfig {
+                directory: directory.into(),
+                manifest_sha256,
+            })),
+            _ => Err(ConfigError(
+                "each editor bundle requires its directory and manifest SHA-256 together",
+            )),
+        };
         let production = match std::env::var("APP_ENV").as_deref() {
             Ok("production") => true,
             Ok("development") => false,
@@ -197,21 +210,14 @@ impl Config {
                     .collect::<Result<_, _>>()?,
             },
             sign_in_answer: SIGN_IN_ANSWER,
-            editor_assets: match (
-                std::env::var_os("HYORI_EDITOR_ASSETS_DIR"),
-                std::env::var("HYORI_EDITOR_ASSETS_MANIFEST_SHA256"),
-            ) {
-                (None, Err(std::env::VarError::NotPresent)) => None,
-                (Some(directory), Ok(manifest_sha256)) => Some(EditorAssetsConfig {
-                    directory: directory.into(),
-                    manifest_sha256,
-                }),
-                _ => {
-                    return Err(ConfigError(
-                        "editor assets directory and manifest SHA-256 must be configured together",
-                    ));
-                }
-            },
+            editor_assets: editor_bundle(
+                "HYORI_EDITOR_ASSETS_DIR",
+                "HYORI_EDITOR_ASSETS_MANIFEST_SHA256",
+            )?,
+            retained_editor_assets: editor_bundle(
+                "HYORI_EDITOR_RETAINED_ASSETS_DIR",
+                "HYORI_EDITOR_RETAINED_ASSETS_MANIFEST_SHA256",
+            )?,
             storage: if [
                 "HYORI_STORAGE_ENDPOINT",
                 "HYORI_STORAGE_REGION",
@@ -237,21 +243,36 @@ impl Config {
         Ok(config)
     }
     pub fn validate(&self) -> Result<(), ConfigError> {
-        if self.editor_assets.as_ref().is_some_and(|assets| {
-            !assets.directory.is_absolute()
-                || assets.directory.as_os_str().len() > 4096
-                || assets.directory.components().any(|part| {
-                    !matches!(
-                        part,
-                        std::path::Component::RootDir | std::path::Component::Normal(_)
-                    )
-                })
-                || assets.manifest_sha256.len() != 64
-                || !assets
-                    .manifest_sha256
-                    .bytes()
-                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        }) {
+        if let Some(retained) = &self.retained_editor_assets
+            && self.editor_assets.as_ref().is_none_or(|current| {
+                current.directory == retained.directory
+                    || current.manifest_sha256 == retained.manifest_sha256
+            })
+        {
+            return Err(ConfigError(
+                "retained editor assets require a distinct current bundle",
+            ));
+        }
+        if self
+            .editor_assets
+            .iter()
+            .chain(&self.retained_editor_assets)
+            .any(|assets| {
+                !assets.directory.is_absolute()
+                    || assets.directory.as_os_str().len() > 4096
+                    || assets.directory.components().any(|part| {
+                        !matches!(
+                            part,
+                            std::path::Component::RootDir | std::path::Component::Normal(_)
+                        )
+                    })
+                    || assets.manifest_sha256.len() != 64
+                    || !assets
+                        .manifest_sha256
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            })
+        {
             return Err(ConfigError(
                 "editor assets require an absolute normalized directory and lowercase SHA-256",
             ));

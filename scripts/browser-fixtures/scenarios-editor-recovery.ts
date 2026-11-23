@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { BrowserContext, Locator, Page } from "playwright-core";
 import {
   assertHoldsEdit,
+  assertBundleAsset,
   barButton,
   barStatus,
   closeEditor,
@@ -109,6 +110,133 @@ async function folderWith(run: CoreRun, folder: string, paths: readonly string[]
   await uploadDocuments(run, page, paths);
 
   return { context, page, folderPath: new URL(page.url()).pathname };
+}
+
+/** Change the real backend's mounted catalogues without reloading either open editor tab. */
+export async function editorRollover(
+  previous: CoreRun,
+  current: CoreRun,
+  item: EditorCase,
+  switchBundles: () => Promise<void>,
+) {
+  const { front, report } = current;
+  const dirtyName = `rollover-dirty${item.extension}`;
+  const replayName = `rollover-replay${item.extension}`;
+
+  const {
+    context,
+    page: dirty,
+    folderPath,
+  } = await folderWith(previous, "Editor rollover", [
+    item.copyAs("rollover-dirty"),
+    item.copyAs("rollover-replay"),
+  ]);
+
+  const dirtyTop = await openFromRow(dirty, dirtyName);
+  const replay = await openPage(previous, context, folderPath);
+  const replayTop = await openFromRow(replay, replayName);
+  const start = front.trace.length;
+
+  const completions = () =>
+    front.trace.slice(start).filter(({ operation }) => operation === "editors.completeSave");
+
+  const dirtyPrepares = () =>
+    front.trace
+      .slice(start)
+      .filter(
+        ({ operation, rpcBody }) =>
+          operation === "editors.prepareSave" && rpcBody?.includes(`"name":"${dirtyName}"`),
+      );
+
+  const saveId = (body: string | null) => /"saveId":"([^"]+)"/.exec(body ?? "")?.[1];
+
+  const releaseDirty = front.hold(
+    ({ operation, rpcBody }) =>
+      operation === "editors.prepareSave" && rpcBody?.includes(`"name":"${dirtyName}"`) === true,
+    Number.POSITIVE_INFINITY,
+  );
+
+  const releaseReplay = front.hold(({ operation, rpcBody }) => {
+    const lost = completions().find(({ outcome }) => outcome === "dropped");
+
+    return (
+      lost !== undefined &&
+      (operation === "editors.prepareSave" || operation === "editors.completeSave") &&
+      saveId(lost.rpcBody) === saveId(rpcBody)
+    );
+  }, Number.POSITIVE_INFINITY);
+
+  try {
+    await assertBundleAsset(previous, dirty, item.app);
+    await assertBundleAsset(previous, replay, item.app);
+    await dirty.bringToFront();
+    await editDocument(dirty, item, dirtyTop, MINE);
+    await dirty.keyboard.press("Control+s");
+    await replay.bringToFront();
+    front.dropReply(({ operation }) => operation === "editors.completeSave");
+    await editDocument(replay, item, replayTop, RETRIED);
+    await replay.keyboard.press("Control+s");
+
+    const deadline = Date.now() + 30_000;
+
+    while (!completions().some(({ outcome }) => outcome === "dropped") || !dirtyPrepares().length) {
+      assert.ok(Date.now() < deadline, "both old tabs must reach the cutover boundary");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const lost = completions().find(({ outcome }) => outcome === "dropped");
+    const replayId = saveId(lost?.rpcBody ?? null);
+    assert.equal(lost?.status, 200, "the old backend committed before losing the reply");
+    assert.ok(replayId, "the first committed save has an ID to replay");
+    assert.ok(
+      dirtyPrepares().every(({ status }) => status === 0),
+      "the dirty tab has not prepared on the old backend",
+    );
+
+    await switchBundles();
+    releaseDirty();
+    releaseReplay();
+
+    await report.check("dirty r5 tab prepares and saves after switching to r6", async () => {
+      await barStatus(dirty, "All changes saved").waitFor({ timeout: 30_000 });
+      assert.ok(dirtyPrepares().some(({ status }) => status === 200));
+      await assertBundleAsset(previous, dirty, item.app);
+      await closeEditor(dirty);
+      assertHoldsEdit(item, await downloadRow(dirty, dirtyName), MINE);
+      await assertEarlierVersions(dirty, dirtyName, 1);
+    });
+
+    await report.check(
+      "an r5 save with a lost reply replays the same ID on r6 exactly once",
+      async () => {
+        await barStatus(replay, "All changes saved").waitFor({ timeout: 30_000 });
+        assert.ok(
+          completions().some(
+            ({ status, outcome, rpcBody }) =>
+              status === 200 && outcome === "complete" && saveId(rpcBody) === replayId,
+          ),
+          "the restarted backend must acknowledge the same durable save",
+        );
+        await assertBundleAsset(previous, replay, item.app);
+        await closeEditor(replay);
+        assertHoldsEdit(item, await downloadRow(replay, replayName), RETRIED);
+        await assertEarlierVersions(replay, replayName, 1);
+      },
+    );
+
+    await report.check(
+      "an open after the switch starts r6, not the retained r5 editor",
+      async () => {
+        const fresh = await openPage(current, context, folderPath);
+        await openFromRow(fresh, dirtyName);
+        await assertBundleAsset(current, fresh, item.app);
+      },
+    );
+  } finally {
+    releaseDirty();
+    releaseReplay();
+    await context.close();
+  }
 }
 
 async function conflict(run: CoreRun, item: EditorCase, context: BrowserContext, path: string) {
