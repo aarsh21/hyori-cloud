@@ -1,0 +1,1746 @@
+diff --git a/apps/deckcraft-web/index.html b/apps/deckcraft-web/index.html
+index ca570df..e401928 100644
+--- a/apps/deckcraft-web/index.html
++++ b/apps/deckcraft-web/index.html
+@@ -3,9 +3,9 @@
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+-  <title>DeckCraft</title>
++  <title>Hyori Presentations</title>
+   <link data-trunk rel="rust" data-bin="deckcraft-web" data-wasm-opt="z" data-weak-refs />
+-  <link data-trunk rel="icon" href="../../assets/app-icon/deckcraft.ico" />
++  <link data-trunk rel="icon" href="hyori-mark.ico" />
+   <style>
+     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #262626; }
+     #deckcraft_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+@@ -15,6 +15,6 @@
+ </head>
+ <body>
+   <canvas id="deckcraft_canvas"></canvas>
+-  <div id="deckcraft_loading">Loading DeckCraft&hellip;</div>
++  <div id="deckcraft_loading">Loading Hyori Presentations&hellip;</div>
+ </body>
+ </html>
+diff --git a/apps/deckcraft-web/src/host.rs b/apps/deckcraft-web/src/host.rs
+index d264b13..912097d 100644
+--- a/apps/deckcraft-web/src/host.rs
++++ b/apps/deckcraft-web/src/host.rs
+@@ -1,149 +1,545 @@
+-//! The host bridge, for pages that embed DeckCraft and keep its files (a Nextcloud app, a personal
+-//! file server). The messages and the two transports are `craft-web-host`'s
+-//! (storytold/craft-libs), the same contract as the other Craft apps' bridges, with the
+-//! `deckcraft:` prefix. This module is DeckCraft's part of it.
+-//!
+-//! - `?host=parent` (an `<iframe>`) talks to the same-origin parent over `postMessage`;
+-//!   `data-host="page"` on the canvas (the page's own document, no iframe) uses DOM
+-//!   `CustomEvent`s on the canvas instead. `?host=parent` wins when both are present. With no
+-//!   parent, or a parent on another origin, there is no bridge: the normal app with downloads.
+-//! - `deckcraft:ready` (to the host): sent once the app is running and listening; send a file now. DeckCraft
+-//!   reads bytes, so it says `file: false` and a host sends `bytes`.
+-//! - `deckcraft:open` (from the host): `{ name, bytes }`, bytes an `ArrayBuffer` or
+-//!   `Uint8Array`, name a bare file name. It opens like a file picked with File › Open on the
+-//!   desktop: a presentation sent with its name (.pptx, .potx, .ppsx, .deckcraft) has that name
+-//!   as its file, so Save goes back to it; an outline (.txt, .md, .rtf), a file without a name and
+-//!   a damaged file open untitled.
+-//! - `deckcraft:save` (to the host): `{ name, saveAs, bytes }` (with the bytes as a transferred `ArrayBuffer` over `postMessage`) for
+-//!   every file DeckCraft would otherwise download. The host stores it and reports failures
+-//!   itself. `saveAs` says whether the file becomes the presentation's file:
+-//!   - Save: `false`. It writes the opened file under its own name and format (a .pptx stays a
+-//!     .pptx), as the desktop app does. A name the parent never sent (an untitled presentation, an
+-//!     outline, a file sent without a name, a repaired copy of a damaged file, a file the user
+-//!     picked or dropped) is a new file: `true`, as for Save As, named `<title>.deckcraft` as
+-//!     Save suggests on the desktop.
+-//!   - Save As (File › Save As as .pptx or .deckcraft, Ctrl+Shift+S): `true`. The presentation is
+-//!     now that file; the next Save sends its name with `false`.
+-//!   - Export (PDF, pictures, outline, GIF, handouts, a Save As type that isn't a presentation)
+-//!     and Print: `false`. They are copies; the presentation's file stays the same.
+-//! - `deckcraft:dirty` whenever unsaved changes appear or go away, `deckcraft:failed` when the
+-//!   app couldn't start or refused a file of 2 GiB or larger.
+-//!
+-//! In host mode the app starts with an empty presentation instead of the sample, which gives way to
+-//! the first file the host sends; the host guards leaving the page, and `?author=` names the user
+-//! for comments.
++//! Hyori’s correlated protocol-3 frame; only an acknowledgement can mark an edit saved.
++
++pub use eframe::egui;
++pub use deckcraft_ui_egui::{NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntent, NativeHostIntentFn};
++pub const NATIVE_ARTIFACT_VERSION: &str = "0.18.1-hyori-host.1";
++use wasm_bindgen::{JsValue, JsCast as _};
++use wasm_bindgen::closure::Closure;
++
++#[wasm_bindgen::prelude::wasm_bindgen(module = "/hyori-native-host.js")]
++extern "C" {
++    #[wasm_bindgen(js_name = hostRequested)]
++    fn js_requested() -> bool;
++    #[wasm_bindgen(catch, js_name = prepareHost)]
++    fn js_prepare(app: &str, version: &str) -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = attachHostRepaint)]
++    fn js_attach_repaint(callback: &js_sys::Function) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostReady)]
++    fn js_ready() -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostFailed)]
++    fn js_failed(message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostDetached)]
++    fn js_detached(message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostCanExport)]
++    fn js_can_export(name: &str) -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostHasPendingSave)]
++    fn js_has_pending_save() -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostHasRecoverySnapshot)]
++    fn js_has_recovery_snapshot() -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSystemDark)]
++    fn js_system_dark() -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeOpen)]
++    fn js_take_open() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostOpened)]
++    fn js_opened(open_id: &str, document_id: &str, revision: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostOpenFailed)]
++    fn js_open_failed(open_id: &str, message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostObserved)]
++    fn js_observed(document_id: &str, revision: &str, dirty: bool) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSaveRequested)]
++    fn js_save_requested(document_id: &str, save_as: bool, name: &JsValue, intent_id: &str) -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeSaveRequest)]
++    fn js_take_save_request() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSerialized)]
++    fn js_serialized(request_id: &str, document_id: &str, revision: &str, name: &str, bytes: &[u8], save_as: bool) -> Result<String, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSerializationFailed)]
++    fn js_serialization_failed(request_id: &str, code: &str, message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeCancellation)]
++    fn js_take_cancellation() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeFailure)]
++    fn js_take_failure() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeDiscard)]
++    fn js_take_discard() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeAcknowledgement)]
++    fn js_take_ack() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostAcknowledged)]
++    fn js_acknowledged(before_document: &JsValue, before_revision: &str, current_document: &JsValue, current_revision: &str, dirty: bool) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeThemeRequest)]
++    fn js_take_theme() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostThemeFailed)]
++    fn js_theme_failed(request_id: &str, message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostThemeApplied)]
++    fn js_theme_applied(request_id: &str, theme: &str, resolved: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostShowPdf)]
++    fn js_show_pdf(bytes: &[u8]) -> Result<(), JsValue>;
++}
++
++/// Hosted print. A sandboxed page can't show a PDF, in a child frame or a tab of its own, so the
++/// PDF is downloaded and the person prints it from their viewer. False when not hosted.
++#[allow(dead_code)] // PDF prints its own window and Deck downloads; only Word and Grid call this.
++pub fn show_pdf(bytes: &[u8]) -> Result<bool, String> {
++    if !js_requested() { return Ok(false) }
++    js_show_pdf(bytes).map(|()| true).map_err(|error| error.as_string().unwrap_or_else(|| format!("{error:?}")))
++}
++
++fn js_failure(value: JsValue) -> NativeHostFailure {
++    NativeHostFailure::SerializationFailed(value.as_string().unwrap_or_else(|| format!("{value:?}")))
++}
++
++fn field(value: &JsValue, name: &str) -> Result<JsValue, NativeHostFailure> {
++    js_sys::Reflect::get(value, &JsValue::from_str(name)).map_err(js_failure)
++}
++
++fn text(value: &JsValue, name: &str) -> Result<String, NativeHostFailure> {
++    field(value, name)?.as_string().ok_or_else(|| NativeHostFailure::SerializationFailed(format!("Missing native binding field {name}")))
++}
++
++fn optional_text(value: &JsValue, name: &str) -> Result<Option<String>, NativeHostFailure> {
++    let value = field(value, name)?;
++    if value.is_null() || value.is_undefined() { return Ok(None) }
++    value.as_string().map(Some).ok_or_else(|| NativeHostFailure::SerializationFailed(format!("Invalid native binding field {name}")))
++}
++
++fn boolean(value: &JsValue, name: &str) -> Result<bool, NativeHostFailure> {
++    field(value, name)?.as_bool().ok_or_else(|| NativeHostFailure::SerializationFailed(format!("Invalid native binding field {name}")))
++}
++
++fn native_number(value: &JsValue, name: &str) -> Result<u64, NativeHostFailure> {
++    text(value, name)?.parse().map_err(|_| NativeHostFailure::SerializationFailed(format!("Invalid native u64 field {name}")))
++}
++
++fn absent(value: &JsValue) -> bool { value.is_null() || value.is_undefined() }
++
++fn document_value(identity: Option<NativeHostIdentity>) -> JsValue {
++    identity.map(|identity| JsValue::from_str(&identity.document_id.to_string())).unwrap_or(JsValue::NULL)
++}
++
++/// Per-engine adapter implemented in the web crate. Shared frame code owns IPC and the clock.
++pub trait NativeHostAdapter {
++    fn host_identity(&self) -> Option<NativeHostIdentity>;
++    fn host_pending_input(&self) -> bool;
++    fn host_install_intents(&mut self, sink: NativeHostIntentFn);
++
++    /// None means a correlated interactive open is pending, not parsed readiness.
++    fn host_open(&mut self, name: &str, bytes: &[u8]) -> Result<Option<NativeHostIdentity>, NativeHostFailure>;
++    fn host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure>;
++
++    /// Only PDF annotations have authors; other engines leave this display-only preference alone.
++    fn host_annotation_author(&mut self, _display_name: &str) {}
++
++    fn host_capture(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure>;
++    fn host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> Result<bool, NativeHostFailure>;
++
++    /// Called only after saved/currentRevision was posted. False must drop, never defer, the job.
++    fn host_finish_intent(&mut self, intent_id: &str, exact_replacement: bool);
++    fn host_cancel_intent(&mut self, intent_id: &str);
++
++    /// System remains an actual native preference where supported; Deck resolves it to dark/light.
++    fn host_theme(&mut self, preference: &str, resolved_dark: bool) -> Result<(), NativeHostFailure>;
++}
+ 
+ use std::cell::RefCell;
+ use std::rc::Rc;
+ 
+-use craft_web_host::web::{FileData, Host, Message};
+-use deckcraft_ui_egui::{Services, SlideApp};
++#[path = "native_host/clock.rs"]
++mod clock;
++use clock::NativeHostClock;
+ 
+-/// The app id in the host messages (`deckcraft:ready`).
+-const APP: &str = "deckcraft";
++#[derive(Default)]
++struct IntentQueue {
++    sequence: u64,
++    opened: bool,
++    pending: bool,
++    queued: Option<(String, NativeHostIntent)>,
++}
+ 
+-/// The name `craft-web-host` gives an open request that carries none (it cleans a host's name and
+-/// falls back to this): no name is no file, so the presentation opens untitled.
+-const NAMELESS: &str = "document";
++struct Confirmation {
++    before: Option<NativeHostIdentity>,
++    before_revision: u64,
++    post_revision: u64,
++    applied: bool,
++    cancelled: bool,
++}
+ 
+-/// The largest file a host may send. File › Open on the desktop refuses anything over 2 GiB.
+-/// On wasm32 a `Vec` cannot hold 2 GiB (`isize::MAX` is one byte less), so a file of exactly
+-/// 2 GiB is refused too, before its bytes are copied.
+-const MAX_OPEN_BYTES: f64 = 2_147_483_648.0;
++struct Captured {
++    request_id: String,
++    open_id: String,
++    revision: u64,
++    save_as: bool,
++    intent_id: Option<String>,
++    snapshot: NativeHostSnapshot,
++    confirmation: Option<Confirmation>,
++}
+ 
+-/// The longest user name taken from `?author=` (the preferences' own limit).
+-const MAX_AUTHOR_CHARS: usize = 256;
++struct ThemeApplication {
++    request_id: String,
++    preference: String,
++    resolved_dark: bool,
++}
+ 
+-#[derive(Clone)]
+-pub struct Bridge {
+-    host: Rc<Host>,
+-    /// Files the host sent (the name, if it sent one), waiting for the next frame.
+-    opened: Rc<RefCell<Vec<(Option<String>, Vec<u8>)>>>,
++/// Shared protocol owner for one actual native web application, not an emulated editor.
++pub struct NativeHostFrame {
++    clock: NativeHostClock,
++    intents: Rc<RefCell<IntentQueue>>,
++    _repaint: Closure<dyn FnMut()>,
++    opening: Option<String>,
++    pending: Option<Captured>,
++    host_dirty: bool,
++    theme: Option<ThemeApplication>,
++    system_theme: bool,
++    last_system_dark: Option<bool>,
++    input_pending: bool,
+ }
+ 
+-impl Bridge {
+-    /// The bridge for this page, or `None` when DeckCraft isn't hosted: no `?host=parent` and no
+-    /// `data-host="page"` on the canvas, an unframed `?host=parent` page (it stays the normal app
+-    /// with downloads), or a parent on another origin.
+-    pub fn detect(canvas: &web_sys::HtmlCanvasElement) -> Option<Self> {
+-        let host = Host::connect(APP, canvas)?;
+-        // An opaque origin (a file:// page in some browsers) can't be a postMessage target.
+-        if host.mode() == craft_web_host::Mode::Parent && web_sys::window()?.location().origin().ok()? == "null" {
+-            return None;
+-        }
+-        Some(Self { host: Rc::new(host), opened: Rc::default() })
+-    }
+-
+-    /// Hand saved and exported files to the host instead of downloading them, and hear the files
+-    /// it sends.
+-    pub fn connect(&self, services: &mut Services, ctx: egui::Context) {
+-        self.listen(ctx);
+-        let bridge = self.clone();
+-        services.host_save = Some(Box::new(move |name: &str, bytes: &[u8], save_as: bool| bridge.post_save(name, bytes, save_as)));
+-        // Exports and Print are copies.
+-        let bridge = self.clone();
+-        services.download = Some(Box::new(move |name: &str, bytes: &[u8]| {
+-            if let Err(e) = bridge.post_save(name, bytes, false) {
+-                log::error!("couldn't hand {name} to the page: {e}");
++impl NativeHostFrame {
++    pub fn prepare(app: &str, version: &str) -> Result<bool, NativeHostFailure> {
++        js_prepare(app, version).map_err(js_failure)
++    }
++
++    pub fn new(ctx: &egui::Context, app: &mut impl NativeHostAdapter) -> Result<Option<Self>, NativeHostFailure> {
++        if !js_requested() { return Ok(None) }
++        let repaint_ctx = ctx.clone();
++        let repaint = Closure::<dyn FnMut()>::new(move || repaint_ctx.request_repaint());
++        js_attach_repaint(repaint.as_ref().unchecked_ref()).map_err(js_failure)?;
++        let intents = Rc::new(RefCell::new(IntentQueue::default()));
++        let sink = intents.clone();
++        let sink_ctx = ctx.clone();
++        app.host_install_intents(Box::new(move |intent| {
++            let mut queue = sink.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?;
++            if !queue.opened { return Err(NativeHostFailure::Busy("Wait for the native document to open".into())) }
++            // Unsupported explicit exports keep their existing local pipeline and exact options.
++            // Replacement NEVER falls through to a local download or optimistic native clean.
++            if intent.save_as {
++                let name = intent.name.as_deref().ok_or_else(|| NativeHostFailure::SerializationFailed("Explicit export needs a name".into()))?;
++                if !js_can_export(name).map_err(js_failure)? { return Ok(None) }
++            }
++            // A plain replacement during an in-flight save is not an error the user can act on:
++            // publish_intent hands it to the host, which coalesces it or quietly cancels the job.
++            if queue.queued.is_some() || (intent.save_as && (queue.pending || js_has_pending_save().map_err(js_failure)?)) {
++                return Err(NativeHostFailure::Busy("A native save is already pending".into()));
+             }
++            queue.sequence = queue.sequence.checked_add(1).ok_or_else(|| NativeHostFailure::SerializationFailed("Native intent sequence exhausted".into()))?;
++            let id = format!("{}:{}", intent.document_id, queue.sequence);
++            queue.queued = Some((id.clone(), intent));
++            sink_ctx.request_repaint();
++            Ok(Some(id))
+         }));
++        Ok(Some(Self { clock: NativeHostClock::default(), intents, _repaint: repaint,
++            opening: None, pending: None, host_dirty: false, theme: None,
++            system_theme: false, last_system_dark: None, input_pending: false }))
++    }
++
++    pub fn ready() -> Result<(), NativeHostFailure> {
++        if js_requested() { js_ready().map_err(js_failure)?; }
++        Ok(())
+     }
+ 
+-    /// `?author=`: the host's name for the user signs new comments.
+-    pub fn set_author(app: &mut SlideApp, author: &str) {
+-        let author: String = author.trim().chars().take(MAX_AUTHOR_CHARS).collect();
+-        if !author.is_empty() {
+-            app.session.prefs.author = author;
++    pub fn failed(message: &str) -> Result<(), NativeHostFailure> {
++        if js_requested() { js_failed(message).map_err(js_failure)?; }
++        Ok(())
++    }
++
++    pub fn note_input(&mut self, app: &impl NativeHostAdapter, raw: &egui::RawInput) -> Result<(), NativeHostFailure> {
++        // Manual settling must never consume a live editor before UI applies this input batch.
++        // Retain the fence across discarded passes and hidden logic-only ticks.
++        self.input_pending |= !raw.events.is_empty() || !raw.dropped_files.is_empty();
++        self.clock.note_input(raw, app.host_pending_input())
++    }
++
++    fn revision(&mut self, app: &impl NativeHostAdapter) -> Result<u64, NativeHostFailure> {
++        let model = app.host_identity();
++        // Do not latch ordinary draft dirtiness: cancelling an uncaptured draft must emit false.
++        // Only an outstanding replacement capture creates a durability overlay (see capture).
++        self.clock.observe(model, app.host_pending_input(), self.host_dirty)
++    }
++
++    fn effective_dirty(&self, app: &impl NativeHostAdapter) -> bool {
++        self.host_dirty || app.host_pending_input() || app.host_identity().is_some_and(|model| model.dirty)
++    }
++
++    fn observe(&mut self, app: &impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let revision = self.revision(app)?;
++        if !self.intents.try_borrow().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.opened { return Ok(()) }
++        if let Some(model) = app.host_identity() {
++            js_observed(&model.document_id.to_string(), &revision.to_string(), self.effective_dirty(app)).map_err(js_failure)?;
++        } else {
++            js_detached("The native document was closed; reopen a cloud source before replacing it").map_err(js_failure)?;
+         }
++        Ok(())
+     }
+ 
+-    pub fn post_ready(&self) {
+-        let _ = self.host.post_ready(env!("CARGO_PKG_VERSION"), false);
++    fn opened(&mut self, app: &impl NativeHostAdapter, identity: NativeHostIdentity) -> Result<(), NativeHostFailure> {
++        let Some(open_id) = self.opening.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        if app.host_identity().map(|model| model.document_id) != Some(identity.document_id) {
++            return Err(NativeHostFailure::IdentityChanged);
++        }
++        self.host_dirty = false;
++        let revision = self.clock.observe(Some(identity), app.host_pending_input(), self.host_dirty)?;
++        js_opened(open_id, &identity.document_id.to_string(), &revision.to_string()).map_err(js_failure)?;
++        self.opening = None;
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.opened = true;
++        Ok(())
+     }
+ 
+-    /// The app couldn't start (no WebGPU or WebGL2, for example): let the host say so.
+-    pub fn post_failed(&self, error: &str) {
+-        let _ = self.host.post_failed(error, None);
++    fn process_open(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        if self.opening.is_some() { return Ok(()) }
++        let command = js_take_open().map_err(js_failure)?;
++        if absent(&command) { return Ok(()) }
++        let open_id = text(&command, "openId")?;
++        let name = text(&command, "name")?;
++        let bytes = js_sys::Uint8Array::new(&field(&command, "bytes")?);
++        if bytes.length() == 0 || bytes.length() > 64 * 1024 * 1024 {
++            return js_open_failed(&open_id, "Native open exceeds its byte bound").map_err(js_failure);
++        }
++        app.host_annotation_author(optional_text(&command, "annotationAuthor")?.as_deref().unwrap_or("Guest"));
++        self.opening = Some(open_id.clone());
++        match app.host_open(&name, &bytes.to_vec()) {
++            Ok(Some(identity)) => self.opened(app, identity),
++            Ok(None) => Ok(()),
++            Err(error) => {
++                self.opening = None;
++                js_open_failed(&open_id, &error.to_string()).map_err(js_failure)
++            }
++        }
++    }
++
++    fn poll_open(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        if self.opening.is_none() { return Ok(()) }
++        match app.host_poll_open() {
++            Ok(Some(identity)) => self.opened(app, identity),
++            Ok(None) => Ok(()),
++            Err(error) => {
++                let Some(open_id) = self.opening.take() else { return Err(NativeHostFailure::IdentityChanged) };
++                js_open_failed(&open_id, &error.to_string()).map_err(js_failure)
++            }
++        }
+     }
+ 
+-    /// Before each frame: open the files the host sent.
+-    pub fn open_files(&self, app: &mut SlideApp) {
+-        let opened = std::mem::take(&mut *self.opened.borrow_mut());
+-        for (name, bytes) in opened {
+-            app.open_from_host(name.as_deref(), &bytes);
++    fn fence(&mut self, app: &mut impl NativeHostAdapter, message: &JsValue) -> Result<(), NativeHostFailure> {
++        if let Some(id) = optional_text(message, "intentId")? {
++            app.host_cancel_intent(&id);
++            if let Some(pending) = self.pending.as_mut()
++                && pending.intent_id.as_deref() == Some(id.as_str())
++                && let Some(confirmation) = pending.confirmation.as_mut()
++            { confirmation.cancelled = true; }
+         }
++        Ok(())
+     }
+ 
+-    /// After each frame: tell the host when unsaved changes appear or go away (the crate does not
+-    /// repeat a state it already reported).
+-    pub fn report_dirty(&self, app: &SlideApp) {
+-        self.host.post_dirty(app.session.documents().iter().any(|d| d.is_dirty()));
++    fn process_fences(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let cancellation = js_take_cancellation().map_err(js_failure)?;
++        if !absent(&cancellation) { self.fence(app, &cancellation)?; }
++        let failure = js_take_failure().map_err(js_failure)?;
++        if !absent(&failure) { self.fence(app, &failure)?; }
++        let discard = js_take_discard().map_err(js_failure)?;
++        if !absent(&discard) { self.discard(app, &discard)?; }
++        Ok(())
+     }
+ 
+-    fn post_save(&self, path: &str, bytes: &[u8], save_as: bool) -> Result<(), String> {
+-        let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
+-        self.host.post_save(&name, bytes, None, save_as)
++    /// The host kept this snapshot itself and will never persist it. Drop it and its job so a
++    /// later capture can run; the live document's dirty state is left exactly as it is.
++    fn discard(&mut self, app: &mut impl NativeHostAdapter, message: &JsValue) -> Result<(), NativeHostFailure> {
++        let Some(captured) = self.pending.as_ref() else { return Ok(()) };
++        if text(message, "requestId")? != captured.request_id || captured.confirmation.is_some() { return Ok(()) }
++        let Some(captured) = self.pending.take() else { return Ok(()) };
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
++        if let Some(id) = captured.intent_id { app.host_cancel_intent(&id); }
++        Ok(())
+     }
+ 
+-    /// Hear `deckcraft:open` and queue the file for the next frame.
+-    fn listen(&self, ctx: egui::Context) {
+-        let opened = self.opened.clone();
+-        let host = self.host.clone();
+-        self.host.listen(move |message| {
+-            let Message::Open { name, data } = message else { return };
+-            if data.size() >= MAX_OPEN_BYTES {
+-                log::warn!("host file {name} is 2 GiB or larger; not opened");
+-                let _ = host.post_failed(&format!("{name} is 2 GiB or larger, which DeckCraft's web build cannot open"), None);
+-                return;
++    fn process_ack(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let ack = js_take_ack().map_err(js_failure)?;
++        if absent(&ack) { return Ok(()) }
++        let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        if text(&ack, "requestId")? != captured.request_id
++            || text(&ack, "openId")? != captured.open_id
++            || native_number(&ack, "documentId")? != captured.snapshot.identity.document_id
++            || native_number(&ack, "revision")? != captured.revision
++        { return Err(NativeHostFailure::IdentityChanged) }
++
++        if captured.confirmation.is_none() {
++            let before = app.host_identity();
++            let before_revision = self.revision(app)?;
++            let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++            let exact = before_revision == captured.revision
++                && before.is_some_and(|model| model.same_snapshot(captured.snapshot.identity))
++                && !app.host_pending_input();
++            let cancelled = boolean(&ack, "continuationCancelled")?;
++            let result = if exact && !captured.save_as {
++                app.host_acknowledge(&captured.snapshot, false)
++            } else { Ok(false) };
++            let applied = matches!(result, Ok(true));
++            if applied { self.host_dirty = false; }
++            if exact && !captured.save_as && !applied {
++                self.clock.invalidate()?;
++                self.host_dirty = true;
++            }
++            let post_revision = self.revision(app)?;
++            let Some(captured) = self.pending.as_mut() else { return Err(NativeHostFailure::IdentityChanged) };
++            captured.confirmation = Some(Confirmation { before, before_revision, post_revision, applied, cancelled });
++            // Do not retry PDF mark_saved after partial/native failure. An explicit confirmation
++            // retry reports current dirty state, without applying the captured graph a second time.
++            result?;
++        }
++        self.confirm(app)
++    }
++
++    fn confirm(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let current_revision = self.revision(app)?;
++        let current = app.host_identity();
++        let dirty = self.effective_dirty(app);
++        let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        let Some(confirmation) = captured.confirmation.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        js_acknowledged(&document_value(confirmation.before), &confirmation.before_revision.to_string(),
++            &document_value(current), &current_revision.to_string(), dirty).map_err(js_failure)?;
++        let continue_action = confirmation.applied && !confirmation.cancelled
++            && !captured.save_as && confirmation.post_revision == current_revision && !dirty;
++        let intent_id = captured.intent_id.clone();
++        self.pending = None;
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
++        if let Some(id) = intent_id { app.host_finish_intent(&id, continue_action); }
++        Ok(())
++    }
++
++    fn process_capture(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        if self.pending.is_some() || self.opening.is_some() { return Ok(()) }
++        let command = js_take_save_request().map_err(js_failure)?;
++        if absent(&command) { return Ok(()) }
++        let request_id = text(&command, "requestId")?;
++        let open_id = text(&command, "openId")?;
++        let document_id = native_number(&command, "documentId")?;
++        let name = text(&command, "name")?;
++        let intent_id = optional_text(&command, "intentId")?;
++        let save_as = boolean(&command, "saveAs")?;
++        let reason = match text(&command, "reason")?.as_str() {
++            "manual" => NativeHostSaveReason::Manual,
++            "automatic" => NativeHostSaveReason::Automatic,
++            _ => return Err(NativeHostFailure::SerializationFailed("Invalid capture reason".into())),
++        };
++        let snapshot = match app.host_capture(document_id, &name, reason, intent_id.as_deref()) {
++            Ok(snapshot) => snapshot,
++            Err(error) => {
++                if let Some(id) = intent_id { app.host_cancel_intent(&id); }
++                js_serialization_failed(&request_id, error.code(), &error.to_string()).map_err(js_failure)?;
++                return Ok(());
+             }
+-            let FileData::Bytes(array) = data else {
+-                log::warn!("host file {name} came as a File; DeckCraft reads bytes only; not opened");
+-                return;
+-            };
+-            // No name is no file: the presentation opens untitled, never under an invented name.
+-            let name = (name != NAMELESS).then_some(name);
+-            opened.borrow_mut().push((name, array.to_vec()));
+-            ctx.request_repaint();
++        };
++        if snapshot.identity.document_id != document_id || snapshot.name != name
++            || snapshot.bytes.is_empty() || snapshot.bytes.len() > 64 * 1024 * 1024
++        {
++            if let Some(id) = intent_id { app.host_cancel_intent(&id); }
++            js_serialization_failed(&request_id, "serialization-failed", "Native capture differs from its authorized document, name or byte bound").map_err(js_failure)?;
++            return Ok(());
++        }
++        // Undo may return to the OLD native baseline while this captured edit becomes the NEW
++        // server baseline. Keep replacement work dirty until exact acknowledgement reconciles it.
++        self.host_dirty |= !save_as && snapshot.identity.dirty;
++        let revision = self.revision(app)?;
++        self.observe(app)?;
++        self.pending = Some(Captured { request_id, open_id, revision, save_as, intent_id,
++            snapshot, confirmation: None });
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = true;
++        let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        // Store Rust recovery before posting. A failed post must not discard this snapshot/job.
++        let result = js_serialized(&captured.request_id, &document_id.to_string(), &revision.to_string(),
++            &captured.snapshot.name, &captured.snapshot.bytes, save_as);
++        if let Err(error) = result {
++            let error = js_failure(error);
++            if !js_has_recovery_snapshot().map_err(js_failure)? {
++                // Rejected before publication: no uncertain write exists. Keep the live native
++                // document dirty, release only this invalid output and report its capture failure.
++                let rejected = self.pending.take().ok_or(NativeHostFailure::IdentityChanged)?;
++                self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
++                if let Some(id) = rejected.intent_id { app.host_cancel_intent(&id); }
++                js_serialization_failed(&rejected.request_id, error.code(), &error.to_string()).map_err(js_failure)?;
++                return Ok(());
++            }
++            return Err(error);
++        }
++        Ok(())
++    }
++
++    fn publish_intent(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let intent = self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.queued.take();
++        let Some((id, intent)) = intent else { return Ok(()) };
++        let name = intent.name.as_deref().map(JsValue::from_str).unwrap_or(JsValue::UNDEFINED);
++        match js_save_requested(&intent.document_id.to_string(), intent.save_as, &name, &id) {
++            Ok(true) => Ok(()),
++            Ok(false) => { app.host_cancel_intent(&id); Ok(()) }
++            Err(error) => { app.host_cancel_intent(&id); Err(js_failure(error)) }
++        }
++    }
++
++    fn process_theme(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let command = js_take_theme().map_err(js_failure)?;
++        let system_dark = js_system_dark().map_err(js_failure)?;
++        if !absent(&command) {
++            let preference = text(&command, "theme")?;
++            let resolved_dark = match preference.as_str() { "dark" => true, "light" => false, "system" => system_dark,
++                _ => return Err(NativeHostFailure::SerializationFailed("Unknown native theme".into())) };
++            let request_id = text(&command, "requestId")?;
++            if let Err(error) = app.host_theme(&preference, resolved_dark) {
++                return js_theme_failed(&request_id, &error.to_string()).map_err(js_failure);
++            }
++            self.system_theme = preference == "system";
++            self.last_system_dark = Some(system_dark);
++            self.theme = Some(ThemeApplication { request_id, preference, resolved_dark });
++        } else if self.system_theme && self.last_system_dark != Some(system_dark) {
++            app.host_theme("system", system_dark)?;
++            self.last_system_dark = Some(system_dark);
++            if let Some(theme) = self.theme.as_mut() { theme.resolved_dark = system_dark; }
++        }
++        Ok(())
++    }
++
++    pub fn before_logic(&mut self, app: &mut impl NativeHostAdapter, _ctx: &egui::Context) -> Result<(), NativeHostFailure> {
++        self.process_fences(app)?;
++        self.process_ack(app)?;
++        self.process_open(app)?;
++        self.process_theme(app)
++    }
++
++    pub fn after_logic(&mut self, app: &mut impl NativeHostAdapter, ctx: &egui::Context) -> Result<(), NativeHostFailure> {
++        guard_urls(ctx);
++        self.poll_open(app)?;
++        self.observe(app)?;
++        if self.input_pending { return Ok(()) }
++        self.process_capture(app)
++    }
++
++    pub fn after_ui(&mut self, app: &mut impl NativeHostAdapter, ctx: &egui::Context) -> Result<(), NativeHostFailure> {
++        guard_urls(ctx);
++        if ctx.will_discard() { return Ok(()) }
++        self.input_pending = false;
++        self.poll_open(app)?;
++        self.observe(app)?;
++        self.publish_intent(app)?;
++        let was_pending = self.pending.is_some();
++        self.process_capture(app)?;
++        if !was_pending && self.pending.is_some() { ctx.request_repaint(); }
++        if let Some(theme) = self.theme.as_ref()
++            && ctx.global_style().visuals.dark_mode == theme.resolved_dark
++        {
++            js_theme_applied(&theme.request_id, &theme.preference, if theme.resolved_dark { "dark" } else { "light" }).map_err(js_failure)?;
++            self.theme = None;
++        }
++        Ok(())
++    }
++}
++
++/// Document links run with Hyori's origin, so a crafted `javascript:` or `data:` link must never
++/// reach the browser. Only absolute web and mail links open, always in a new, unrelated tab.
++fn guard_urls(ctx: &egui::Context) {
++    let urls: Vec<String> = ctx.output_mut(|output| {
++        let mut urls = Vec::new();
++        output.commands.retain(|command| match command {
++            egui::OutputCommand::OpenUrl(open) => { urls.push(open.url.clone()); false }
++            _ => true,
+         });
++        urls
++    });
++    for url in urls {
++        if let Some(url) = allowed_url(&url)
++            && let Some(window) = eframe::web_sys::window()
++        {
++            let _ = window.open_with_url_and_target_and_features(&url, "_blank", "noopener,noreferrer");
++        }
+     }
+ }
++
++/// Browsers drop leading C0/space and every tab/newline before reading a scheme; do the same.
++fn allowed_url(url: &str) -> Option<String> {
++    let url: String = url.trim_start_matches(|c: char| c <= ' ').chars().filter(|c| !matches!(c, '\t' | '\n' | '\r')).collect();
++    let (scheme, _) = url.split_once(':')?;
++    matches!(scheme.to_ascii_lowercase().as_str(), "http" | "https" | "mailto").then_some(url)
++}
+diff --git a/apps/deckcraft-web/src/main.rs b/apps/deckcraft-web/src/main.rs
+index 6964162..379f84b 100644
+--- a/apps/deckcraft-web/src/main.rs
++++ b/apps/deckcraft-web/src/main.rs
+@@ -15,21 +15,21 @@
+ //!
+ //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?blank` starts with an
+ //! empty presentation instead of the sample deck; `?show` starts the slide show.
+-//! `?host=parent` (inside an `<iframe>`) talks to a same-origin parent page instead: it sends the
+-//! presentation to open and stores what DeckCraft saves (`host`), and `&author=` names the user
+-//! for comments.
++//! `?host=parent` uses Hyori’s correlated save protocol in the sandboxed editor frame.
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ #![forbid(unsafe_code)]
+ 
+-#[cfg(any(target_arch = "wasm32", test))]
+-mod api;
+-#[cfg(target_arch = "wasm32")]
+-mod host;
+ #[cfg(target_arch = "wasm32")]
+ mod presenter;
+ #[cfg(target_arch = "wasm32")]
+ mod web;
+ 
++#[cfg(target_arch = "wasm32")]
++#[path = "host.rs"]
++mod native_host;
++#[cfg(target_arch = "wasm32")]
++mod native_frame;
++
+ #[cfg(target_arch = "wasm32")]
+ fn main() {
+     web::start();
+diff --git a/apps/deckcraft-web/src/native_frame.rs b/apps/deckcraft-web/src/native_frame.rs
+new file mode 100644
+index 0000000..c0da747
+--- /dev/null
++++ b/apps/deckcraft-web/src/native_frame.rs
+@@ -0,0 +1,25 @@
++use crate::native_host::{NativeHostAdapter, NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntentFn};
++use deckcraft_ui_egui::SlideApp;
++
++impl NativeHostAdapter for SlideApp {
++    fn host_identity(&self) -> Option<NativeHostIdentity> { self.native_host_identity() }
++    fn host_pending_input(&self) -> bool { self.native_host_pending_input() }
++    fn host_install_intents(&mut self, sink: NativeHostIntentFn) { self.native_host_install_intents(sink); }
++    fn host_open(&mut self, name: &str, bytes: &[u8]) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
++        self.native_host_open(name, bytes).map(Some)
++    }
++    fn host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
++        Err(NativeHostFailure::IdentityChanged)
++    }
++    fn host_capture(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        self.native_host_capture_intent(document_id, name, reason, intent_id)
++    }
++    fn host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> Result<bool, NativeHostFailure> {
++        Ok(self.native_host_acknowledge(snapshot, save_as))
++    }
++    fn host_finish_intent(&mut self, id: &str, exact_replacement: bool) { self.native_host_finish_intent(id, exact_replacement); }
++    fn host_cancel_intent(&mut self, id: &str) { self.native_host_cancel_intent(id); }
++    fn host_theme(&mut self, _preference: &str, resolved_dark: bool) -> Result<(), NativeHostFailure> {
++        self.native_host_theme(resolved_dark)
++    }
++}
+diff --git a/apps/deckcraft-web/src/web.rs b/apps/deckcraft-web/src/web.rs
+index 1a6c456..9814553 100644
+--- a/apps/deckcraft-web/src/web.rs
++++ b/apps/deckcraft-web/src/web.rs
+@@ -24,16 +24,11 @@ pub fn start() {
+             log::error!("missing <canvas id=\"{CANVAS_ID}\">");
+             return;
+         };
+-        // Host modes (`craft-web-host`): `?host=parent`, a same-origin page framing DeckCraft,
+-        // opens presentations in it and stores what it saves (`host`); `data-host="page"` on the
+-        // canvas opts a page in that runs DeckCraft in its own document. The presenter popup is
+-        // never the framed page.
+-        let hosted = crate::presenter::token().is_none();
+-        let bridge = if hosted { crate::host::Bridge::detect(&canvas) } else { None };
+-        if hosted && bridge.is_none() && query_param("host").as_deref() == Some("parent") {
+-            log::warn!("?host=parent needs a framing page on the same origin; saves download instead");
+-        }
+-        let app_bridge = bridge.clone();
++        // The separate presenter is not the hosted editor.
++        let native_host = crate::presenter::token().is_none() && match crate::native_host::NativeHostFrame::prepare("deckcraft", crate::native_host::NATIVE_ARTIFACT_VERSION) {
++            Ok(active) => active,
++            Err(error) => { log::error!("native host preparation: {error}"); return; }
++        };
+         let mut options = eframe::WebOptions::default();
+         if query_has("webgl")
+             && let eframe::egui_wgpu::WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup
+@@ -54,47 +49,38 @@ pub fn start() {
+                         return Ok(Box::new(presenter) as Box<dyn eframe::App>);
+                     }
+                     let inbox: Inbox = Inbox::default();
+-                    let mut services = services(inbox.clone(), cc.egui_ctx.clone());
+-                    if let Some(bridge) = &app_bridge {
+-                        bridge.connect(&mut services, cc.egui_ctx.clone());
+-                    }
+-                    let mut app = SlideApp::new(Session::new(), services);
+-                    // In host mode the parent sends the presentation to edit; no sample meanwhile.
+-                    if app_bridge.is_some() {
+-                        if let Err(e) = app.start_for_host() {
+-                            log::error!("new presentation: {e}");
+-                        }
+-                    } else if !query_has("blank") {
++                    let mut app = SlideApp::new(Session::new(), services(inbox.clone(), cc.egui_ctx.clone(), native_host));
++                    if !native_host && !query_has("blank") {
+                         if let Err(e) = deckcraft_engine::sample::open_sample(&mut app.session) {
+                             log::error!("sample deck: {e}");
+                         }
+-                    } else if let Err(e) = app.run("file.new", serde_json::json!({})) {
++                    } else if !native_host && let Err(e) = app.run("file.new", serde_json::json!({})) {
+                         log::error!("new presentation: {e}");
+                     }
+-                    if query_has("show") {
++                    if !native_host && query_has("show") {
+                         app.start_show(0, false);
+                     }
+-                    if app_bridge.is_some()
+-                        && let Some(author) = query_param("author")
+-                    {
+-                        crate::host::Bridge::set_author(&mut app, &author);
++                    if native_host && let Some(author) = query_param("author") {
++                        let author: String = author.trim().chars().take(256).collect();
++                        if !author.is_empty() { app.session.prefs.author = author; }
+                     }
+-                    crate::api::install(&mut app, cc.egui_ctx.clone());
+-                    Ok(Box::new(WebShell { app, inbox, bridge: app_bridge }))
++                    let native_host = crate::native_host::NativeHostFrame::new(&cc.egui_ctx, &mut app)
++                        .map_err(|error| -> Box<dyn std::error::Error + Send + Sync> { Box::new(error) })?;
++                    Ok(Box::new(WebShell { app, inbox, native_host }))
+                 }),
+             )
+             .await;
+-        // Ready only once the runner is up: starting can still fail after the app is made.
+-        if let Some(bridge) = &bridge {
+-            match &result {
+-                Ok(()) => bridge.post_ready(),
+-                Err(e) => bridge.post_failed(&format!("{e:?}")),
+-            }
++        if native_host {
++            let posted = match &result {
++                Ok(()) => crate::native_host::NativeHostFrame::ready(),
++                Err(error) => crate::native_host::NativeHostFrame::failed(&format!("{error:?}")),
++            };
++            if let Err(error) = posted { log::error!("native host startup: {error}"); }
+         }
+         if let Some(el) = document.get_element_by_id(LOADING_ID) {
+             match result {
+                 Ok(()) => el.remove(),
+-                Err(e) => el.set_inner_html(&format!("<p>DeckCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
++                Err(e) => el.set_inner_html(&format!("<p>Hyori Presentations failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
+             }
+         }
+     });
+@@ -119,21 +105,46 @@ fn query_has(key: &str) -> bool {
+ struct WebShell {
+     app: SlideApp,
+     inbox: Inbox,
+-    /// The parent page that keeps the files (`?host=parent`).
+-    bridge: Option<crate::host::Bridge>,
++    native_host: Option<crate::native_host::NativeHostFrame>,
++}
++
++/// eframe forwards both the shortcut key and its browser clipboard event. The native apps
++/// handle both, unlike egui-winit which forwards only the clipboard event. Prefer that event
++/// when present; without it, preserve the native clipboard command. The app reports whether
++/// Paste Formatting can apply a copied format, so a plain shifted paste still works without one.
++fn clipboard_events_only(events: &mut Vec<egui::Event>, has_copied_format: bool) {
++    use egui::{Event, Key};
++    let paste = events.iter().any(|event| matches!(event, Event::Paste(_)));
++    let cut = events.iter().any(|event| matches!(event, Event::Cut));
++    let copy = events.iter().any(|event| matches!(event, Event::Copy));
++    let formatting_paste = has_copied_format && events.iter().any(|event| matches!(event,
++        Event::Key { key: Key::V, pressed: true, modifiers: m, .. }
++            if m.command && m.shift && !m.alt));
++    events.retain(|event| match event {
++        Event::Paste(_) if formatting_paste => false,
++        Event::Key { key, pressed: true, modifiers: m, .. } => !match key {
++            Key::V => paste && m.command && !m.shift,
++            Key::X => cut && m.command && !m.shift,
++            Key::C => copy && m.command && !m.shift,
++            Key::Insert => (paste && m.shift) || (copy && m.command),
++            Key::Delete => cut && m.shift,
++            _ => false,
++        },
++        _ => true,
++    });
+ }
+ 
+ impl eframe::App for WebShell {
+     /// Delegate one eframe logic pass to the wrapped application, opening the files the parent
+     /// page sent first and telling it about unsaved changes after.
+     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+-        if let Some(bridge) = &self.bridge {
+-            bridge.open_files(&mut self.app);
+-        }
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.before_logic(&mut self.app, ctx)
++        { self.app.host_status(error.to_string()); }
+         self.app.logic(ctx);
+-        if let Some(bridge) = &self.bridge {
+-            bridge.report_dirty(&self.app);
+-        }
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.after_logic(&mut self.app, ctx)
++        { self.app.host_status(error.to_string()); }
+         if self.app.show.is_none()
+             && let Some(host) = self.app.services.presenter.as_mut()
+         {
+@@ -144,6 +155,10 @@ impl eframe::App for WebShell {
+     /// Consume browser drops with fresh input, capture the identity before the asynchronous read,
+     /// and deliver the id, name, and bytes through the inbox.
+     fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
++        clipboard_events_only(&mut raw.events, false);
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.note_input(&mut self.app, raw)
++        { self.app.host_status(error.to_string()); }
+         // Browsers cannot read dropped files synchronously. Consume this pass's drops here, with
+         // fresh input, and capture the document/slide before the asynchronous read finishes.
+         for f in std::mem::take(&mut raw.dropped_files) {
+@@ -170,22 +185,30 @@ impl eframe::App for WebShell {
+ 
+     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+         self.app.ui(ui);
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.after_ui(&mut self.app, ui.ctx())
++        { self.app.host_status(error.to_string()); }
+     }
+ }
+ 
+ /// Web services: no file paths, so `pick_open`/`pick_save`/`read` stay `None` and the UI falls
+ /// back to `open_async` (browser picker → inbox) and `download`.
+-fn services(inbox: Inbox, ctx: egui::Context) -> Services {
++fn services(inbox: Inbox, ctx: egui::Context, hosted: bool) -> Services {
+     let open_inbox = inbox.clone();
+-    let presenter = match crate::presenter::BrowserHost::new(ctx.clone()) {
+-        Ok(host) => Some(Box::new(host) as Box<dyn deckcraft_ui_egui::presenter::Host>),
+-        Err(error) => {
+-            log::error!("Presenter window: {error}");
+-            None
++    // The sandbox cannot open a same-origin popup. Use Deck's in-window presenter there.
++    let presenter = if hosted {
++        None
++    } else {
++        match crate::presenter::BrowserHost::new(ctx.clone()) {
++            Ok(host) => Some(Box::new(host) as Box<dyn deckcraft_ui_egui::presenter::Host>),
++            Err(error) => {
++                log::error!("Presenter window: {error}");
++                None
++            }
+         }
+     };
+     Services {
+         presenter,
+         open_async: Some(Box::new(move |purpose: &str, request: u64| {
+             let inbox = open_inbox.clone();
+             let ctx = ctx.clone();
+diff --git a/crates/engine/src/cmd/file.rs b/crates/engine/src/cmd/file.rs
+index a1c781f..f68c44f 100644
+--- a/crates/engine/src/cmd/file.rs
++++ b/crates/engine/src/cmd/file.rs
+@@ -132,6 +132,21 @@ pub fn open_presentation(name: &str, bytes: &[u8]) -> Result<Presentation> {
+     open_checked(name, bytes).map(|(p, _)| p)
+ }
+ 
++/// Host attachments require matching format identity and refuse a known damaged import.
++/// This does not establish lossless PPTX fidelity or decompression resource safety.
++pub fn open_host_presentation(name: &str, bytes: &[u8]) -> Result<Presentation> {
++    let extension = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
++    let matches = match extension.as_str() {
++        "deckcraft" => deckcraft_format::sniff(bytes),
++        "pptx" => !deckcraft_format::sniff(bytes) && deckcraft_pptx::sniff(bytes),
++        _ => false,
++    };
++    if !matches { return Err(EngineError::Other("Host filename and presentation format do not match".into())); }
++    let (presentation, damage) = open_checked(name, bytes)?;
++    if !damage.is_empty() { return Err(EngineError::Other("Host import contains damaged or missing media/slides; source replacement refused".into())); }
++    Ok(presentation)
++}
++
+ /// What a file lost on opening.
+ #[derive(Debug, Default, Clone)]
+ pub struct Damage {
+diff --git a/crates/engine/src/lib.rs b/crates/engine/src/lib.rs
+index 754a64f..29fd89f 100644
+--- a/crates/engine/src/lib.rs
++++ b/crates/engine/src/lib.rs
+@@ -585,6 +585,14 @@ impl Session {
+     pub fn active(&self) -> Option<&DocState> {
+         self.active.and_then(|i| self.docs.get(i))
+     }
++    /// Acknowledge exactly the serialized document snapshot, not subsequent edits or selection.
++    pub fn mark_host_saved(&mut self, uid: u64, snapshot: Arc<Presentation>) -> bool {
++        if let Some(document) = self.docs.iter_mut().find(|document| document.uid == uid) {
++            document.saved_doc = snapshot;
++            true
++        } else { false }
++    }
++
+     pub fn active_mut(&mut self) -> Option<&mut DocState> {
+         self.active.and_then(|i| self.docs.get_mut(i))
+     }
+diff --git a/crates/engine/src/links.rs b/crates/engine/src/links.rs
+index ac0c787..02e6bac 100644
+--- a/crates/engine/src/links.rs
++++ b/crates/engine/src/links.rs
+@@ -1,8 +1,8 @@
+ //! Community and project links (shown in Help, About, the CLI and MCP).
+ 
+-pub const DISCORD: &str = "https://discord.gg/artcraft";
+-pub const WEBSITE: &str = "https://getartcraft.com/";
+-pub const APPS: &str = "https://getartcraft.com/apps";
+-pub const APP_PAGE: &str = "https://getartcraft.com/apps/deckcraft";
++pub const DISCORD: &str = "https://github.com/storytold/deckcraft";
++pub const WEBSITE: &str = "https://github.com/storytold/deckcraft";
++pub const APPS: &str = "https://github.com/storytold/deckcraft";
++pub const APP_PAGE: &str = "https://github.com/storytold/deckcraft";
+ pub const GITHUB: &str = "https://github.com/storytold/deckcraft";
+ pub const ISSUES: &str = "https://github.com/storytold/deckcraft/issues";
+diff --git a/crates/media/tests/fixtures/make.sh b/crates/media/tests/fixtures/make.sh
+old mode 100755
+new mode 100644
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 8cc5325..92c1c93 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -12,6 +12,8 @@ use super::{
+ 
+ mod clipboard;
+ mod commands;
++mod native_host;
++pub use native_host::{NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntent, NativeHostIntentFn, NativeHostSerializer, NativeHostContinuation, NativeHostJob};
+ mod control;
+ pub(crate) mod files;
+ mod frame;
+@@ -45,6 +47,8 @@ impl SlideApp {
+             table_pen: serde_json::json!({"width": 1.0}),
+             session,
+             services,
++            native_host_intents: None,
++            native_host_job: None,
+             ui: UiState::default(),
+             textures: textures::Textures::default(),
+             control_rx: None,
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 718b95a..40c08bb 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -18,7 +18,11 @@ impl SlideApp {
+     /// Run a command by id (UI commands here, everything else in the engine). Errors show in the
+     /// status bar and are returned.
+     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+-        let r = if UI_COMMANDS.iter().any(|c| c.0 == id) {
++        let r = if self.native_host_intents.is_some() && id == "file.save" {
++            self.native_host_begin_intent(false, None, None, None).map_err(|error| error.to_string()).and_then(|handled| {
++                if handled { Ok(json!({"pending": "nativeHostSave"})) } else { Err("Cloud replacement cannot become a local download".into()) }
++            })
++        } else if UI_COMMANDS.iter().any(|c| c.0 == id) {
+             self.run_ui(id, &params)
+         } else if id == "file.save" && self.services.host_save.is_some() && params.get("path").is_none() {
+             // A page that keeps the files (`?host=parent`): Save by id (the command palette) goes
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index 3ec5920..8f437cb 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -123,10 +123,13 @@ fn command_for(purpose: FilePurpose, name: &str, bytes: &[u8]) -> Result<&'stati
+         FilePurpose::Open => open_command(name),
+         FilePurpose::Infer => infer_command(name, bytes),
+     };
+-    cmd.ok_or_else(|| format!("{name}: DeckCraft can't open this kind of file"))
++    cmd.ok_or_else(|| format!("{name}: this editor can't open this kind of file"))
+ }
+ 
+ impl SlideApp {
++    /// Use the existing status surface without claiming browser delivery is persistence.
++    pub fn host_status(&mut self, message: String) { self.set_status(message); }
++
+     /// Does this recent path exist on disk? Probed once per path per session and only on
+     /// desktop (the web build has no file system to ask): a stat on a dead network share can
+     /// block for seconds, so it must not repeat on every frame. A stale answer is harmless —
+@@ -199,11 +202,22 @@ impl SlideApp {
+             "deckcraft" => ("deckcraft", "deckcraft", false),
+             "gif" => ("gif", "gif", false),
+             other => {
+-                self.set_status(format!("DeckCraft can't export “{other}”"));
++                self.set_status(format!("This editor can't export “{other}”"));
+                 return false;
+             }
+         };
+         let suggested = self.suggested_name(ext);
++        if self.native_host_intents.is_some() {
++            let options = extra.clone();
++            let serializer: crate::NativeHostSerializer = Box::new(move |app, document, name, reason| {
++                app.native_host_serialize_options(document, name, reason, &options)
++            });
++            match self.native_host_begin_intent(true, Some(suggested.clone()), Some(serializer), None) {
++                Ok(true) => { self.set_status("Waiting for cloud export persistence"); return true; }
++                Ok(false) => {}, // PNG sequences/local exports retain the exact existing pipeline.
++                Err(error) => { self.set_status(error.to_string()); return false; }
++            }
++        }
+         if let Some(pick) = self.services.pick_save.as_mut() {
+             let Some(path) = pick(&suggested) else { return false };
+             let mut params = json!({"path": path, "format": format, "all": all});
+@@ -448,6 +462,19 @@ impl SlideApp {
+     }
+ 
+     pub fn save_as_dialog(&mut self, format: &str) {
++        if self.native_host_intents.is_some() {
++            let ext = if format == "pptx" { "pptx" } else { "deckcraft" };
++            let name = self.suggested_name(ext);
++            match self.native_host_begin_intent(true, Some(name), None, None) {
++                Ok(true) => return,
++                Ok(false) => {}, // Unsupported explicit local copy: preserve native download.
++                Err(error) => { self.set_status(error.to_string()); return; }
++            }
++        }
++        if self.services.host_save.is_some() {
++            let _ = self.save_to_host(Some(format));
++            return;
++        }
+         let name = self.session.active().map(|d| d.title()).unwrap_or_else(|| "Presentation".into());
+         let ext = if format == "pptx" { "pptx" } else { "deckcraft" };
+         let suggested = format!("{name}.{ext}");
+@@ -489,6 +516,10 @@ impl SlideApp {
+     }
+ 
+     pub fn save(&mut self) {
++        if self.native_host_intents.is_some() {
++            if let Err(error) = self.native_host_begin_intent(false, None, None, None) { self.set_status(error.to_string()); }
++            return;
++        }
+         if self.services.host_save.is_some() {
+             let _ = self.save_to_host(None);
+             return;
+diff --git a/crates/ui-egui/src/app/keys.rs b/crates/ui-egui/src/app/keys.rs
+index 7523308..3f6893f 100644
+--- a/crates/ui-egui/src/app/keys.rs
++++ b/crates/ui-egui/src/app/keys.rs
+@@ -116,6 +116,18 @@ impl SlideApp {
+                 self.set_status(e.to_string());
+             }
+         }
++        let painter_paste = self.native_host_intents.is_some() && self.session.painter.is_some()
++            && events.iter().any(|event| matches!(event,
++                egui::Event::Key { key: egui::Key::V, pressed: true, modifiers: m, .. }
++                    if (m.command || m.ctrl) && m.shift && !m.alt));
++        let plain_paste = self.native_host_intents.is_some() && !painter_paste
++            && events.iter().any(|event| matches!(event, egui::Event::Paste(_)));
++        let events = events.into_iter().filter(|event| match event {
++            egui::Event::Paste(_) if painter_paste => false,
++            egui::Event::Key { key: egui::Key::V, pressed: true, modifiers: m, .. }
++                if plain_paste && (m.command || m.ctrl) && m.shift && !m.alt => false,
++            _ => true,
++        });
+         for e in events {
+             // An earlier command in this raw batch may have settled the composition. Request the
+             // replacement at this ordered boundary, before the current event is considered.
+@@ -193,7 +205,9 @@ impl SlideApp {
+                     }
+                     let name = key_name(key);
+                     let revision = self.session.active().map(|d| d.revision);
+-                    match self.session.key(name, mods) {
++                    match if painter_paste && key == egui::Key::V && mods.cmd && mods.shift && !mods.alt {
++                        self.session.execute("format.painterApply", &json!({}))
++                    } else { self.session.key(name, mods) } {
+                         Ok(_) => {}
+                         Err(e) => self.set_status(e.to_string()),
+                     }
+diff --git a/crates/ui-egui/src/app/native_host.rs b/crates/ui-egui/src/app/native_host.rs
+new file mode 100644
+index 0000000..5462da4
+--- /dev/null
++++ b/crates/ui-egui/src/app/native_host.rs
+@@ -0,0 +1,213 @@
++/// Why the host requested native capture; only explicit manual actions may settle live editors.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum NativeHostSaveReason {
++    /// An explicit user Save/SaveCopy action.
++    Manual,
++    /// Background capture must preserve a live editor or report busy.
++    Automatic,
++}
++
++/// Native model identity, never a backend file revision or JavaScript number.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct NativeHostIdentity {
++    pub document_id: u64,
++    pub revision: u64,
++    pub dirty: bool,
++}
++
++/// Bytes produced by the engine, captured with the identity after native input settling.
++pub struct NativeHostSnapshot {
++    pub identity: NativeHostIdentity,
++    pub name: String,
++    pub bytes: Vec<u8>,
++    // Additional native snapshot witness. Never serialized as an IPC revision or pointer value.
++    guard: Box<dyn Fn(&NativeHostApp) -> bool>,
++}
++
++#[derive(Debug)]
++pub enum NativeHostFailure {
++    Busy(String),
++    IdentityChanged,
++    SerializationFailed(String),
++}
++
++impl NativeHostFailure {
++    pub fn code(&self) -> &'static str {
++        match self {
++            Self::Busy(_) => "busy",
++            Self::IdentityChanged => "identity-changed",
++            Self::SerializationFailed(_) => "serialization-failed",
++        }
++    }
++}
++
++impl std::fmt::Display for NativeHostFailure {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::Busy(message) | Self::SerializationFailed(message) => formatter.write_str(message),
++            Self::IdentityChanged => formatter.write_str("The native document no longer matches the host source"),
++        }
++    }
++}
++
++impl std::error::Error for NativeHostFailure {}
++
++impl NativeHostIdentity {
++    /// Dirty is deliberately excluded: only document/revision equality identifies a snapshot.
++    pub fn same_snapshot(self, other: Self) -> bool {
++        self.document_id == other.document_id && self.revision == other.revision
++    }
++}
++
++/// Native UI intent metadata. Its ID is allocated by the frame sink, never by the parent.
++pub struct NativeHostIntent {
++    pub document_id: u64,
++    pub save_as: bool,
++    pub name: Option<String>,
++}
++
++/// Some(id) delegates to cloud; None preserves an explicitly chosen unsupported local export.
++/// Replacement never falls through to a local download. Busy must not replace an existing job.
++pub type NativeHostIntentFn = Box<dyn Fn(NativeHostIntent) -> Result<Option<String>, NativeHostFailure>>;
++
++/// A native export closure retains the exact chosen options, but accepts a renamed destination.
++/// This is a private native job, not a second IPC contract or an intercepted command callback.
++pub type NativeHostSerializer = Box<dyn Fn(&mut NativeHostApp, u64, &str, NativeHostSaveReason) -> Result<NativeHostSnapshot, NativeHostFailure>>;
++
++/// A held New/Open/Close action can run only after an exact, uncancelled durable replacement.
++pub type NativeHostContinuation = Box<dyn FnOnce(&mut NativeHostApp)>;
++
++/// The app owns chosen export options and any continuation; the frame owns captured save bytes.
++/// Cancellation drops this job, never the independent immutable snapshot or source dirty state.
++pub struct NativeHostJob {
++    pub intent_id: String,
++    pub document_id: u64,
++    pub serializer: Option<NativeHostSerializer>,
++    pub continuation: Option<NativeHostContinuation>,
++}
++
++use super::*;
++
++type NativeHostApp = crate::SlideApp;
++
++impl SlideApp {
++    /// Native committed presentation revision; no pointer address or dirty-transition heuristic.
++    pub fn native_host_identity(&self) -> Option<NativeHostIdentity> {
++        self.session.active().map(|document| NativeHostIdentity {
++            document_id: document.uid,
++            revision: document.revision,
++            dirty: document.is_dirty() || self.native_host_pending_input(),
++        })
++    }
++
++    /// Keep native IME composition and active dialogs out of background serialization.
++    pub fn native_host_pending_input(&self) -> bool {
++        self.session.active().is_some_and(|document| document.composition.is_some())
++            || self.dialog.as_ref().is_some_and(|dialog| dialog.id != "close")
++    }
++
++    /// Parse actual native presentation bytes before reporting opened to the host.
++    pub fn native_host_open(&mut self, name: &str, bytes: &[u8]) -> Result<NativeHostIdentity, NativeHostFailure> {
++        let presentation = deckcraft_engine::cmd::file::open_host_presentation(name, bytes)
++            .map_err(|error| NativeHostFailure::SerializationFailed(error.to_string()))?;
++        deckcraft_engine::cmd::file::add_opened(&mut self.session, name, Some(name.to_owned()), presentation);
++        self.native_host_identity().ok_or(NativeHostFailure::IdentityChanged)
++    }
++
++    /// Direct existing native serializer; an imported PPTX never silently turns into a copy.
++    pub fn native_host_serialize(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        self.native_host_serialize_options(document_id, name, reason, &json!({}))
++    }
++
++    pub(crate) fn native_host_serialize_options(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, options: &Value) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        if self.session.active().map(|document| document.uid) != Some(document_id) { return Err(NativeHostFailure::IdentityChanged) }
++        if self.dialog.is_some() || (reason == NativeHostSaveReason::Automatic && self.native_host_pending_input()) {
++            return Err(NativeHostFailure::Busy("Finish the native composition or dialog before automatic saving".into()));
++        }
++        if reason == NativeHostSaveReason::Manual {
++            self.session.settle_composition();
++        }
++        let document = self.session.active().ok_or(NativeHostFailure::IdentityChanged)?;
++        let extension = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
++        if !matches!(extension.as_str(), "deckcraft" | "pptx" | "potx" | "ppsx" | "outline" | "txt" | "rtf" | "pdf" | "gif") {
++            return Err(NativeHostFailure::SerializationFailed("Unsupported native presentation output format".into()));
++        }
++        let bytes = match extension.as_str() {
++            "pdf" => deckcraft_engine::cmd::file::pdf_bytes(&document.doc, options),
++            "gif" => deckcraft_engine::cmd::file::gif_bytes(&document.doc, options),
++            _ => deckcraft_engine::cmd::file::save_bytes(&document.doc, &extension),
++        }.map_err(|error| NativeHostFailure::SerializationFailed(error.to_string()))?;
++        let presentation = document.doc.clone();
++        let identity = self.native_host_identity().ok_or(NativeHostFailure::IdentityChanged)?;
++        Ok(NativeHostSnapshot { identity, name: name.to_owned(), bytes,
++            guard: Box::new(move |app| app.session.active().is_some_and(|document| std::sync::Arc::ptr_eq(&document.doc, &presentation))),
++        })
++    }
++
++    /// A durable copy never retargets the original; replacement only cleans the captured revision.
++    pub fn native_host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> bool {
++        if save_as || self.native_host_pending_input() || !self.native_host_identity().is_some_and(|current| current.same_snapshot(snapshot.identity)) || !(snapshot.guard)(self) {
++            return false;
++        }
++        let Some(document) = self.session.active() else { return false };
++        let saved = document.doc.clone();
++        self.session.mark_host_saved(snapshot.identity.document_id, saved)
++    }
++
++    /// The bridge resolves System without touching slide themes, typography or document styles.
++    pub fn native_host_theme(&mut self, dark: bool) -> Result<(), NativeHostFailure> {
++        self.run("view.dark", json!({"on": dark}))
++            .map_err(NativeHostFailure::SerializationFailed)?;
++        Ok(())
++    }
++}
++
++impl SlideApp {
++    pub fn native_host_install_intents(&mut self, sink: NativeHostIntentFn) {
++        self.services.host_save = None;
++        self.native_host_intents = Some(sink);
++    }
++
++    pub(crate) fn native_host_begin_intent(&mut self, save_as: bool, name: Option<String>, serializer: Option<NativeHostSerializer>, continuation: Option<NativeHostContinuation>) -> Result<bool, NativeHostFailure> {
++        let Some(sink) = self.native_host_intents.as_ref() else { return Ok(false) };
++        if self.native_host_job.is_some() {
++            return Err(NativeHostFailure::Busy("A native save intent is already pending".into()));
++        }
++        let document_id = self.session.active().ok_or(NativeHostFailure::IdentityChanged)?.uid;
++        let Some(intent_id) = sink(NativeHostIntent { document_id, save_as, name })? else { return Ok(false) };
++        self.native_host_job = Some(NativeHostJob { intent_id, document_id, serializer, continuation });
++        Ok(true)
++    }
++
++    pub fn native_host_capture_intent(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        let Some(id) = intent_id else { return self.native_host_serialize(document_id, name, reason) };
++        if !self.native_host_job.as_ref().is_some_and(|job| job.intent_id == id && job.document_id == document_id) {
++            return Err(NativeHostFailure::IdentityChanged);
++        }
++        let job = self.native_host_job.take().ok_or(NativeHostFailure::IdentityChanged)?;
++        let result = match job.serializer.as_ref() {
++            Some(serialize) => serialize(self, document_id, name, reason),
++            None => self.native_host_serialize(document_id, name, reason),
++        };
++        self.native_host_job = Some(job);
++        result
++    }
++
++    pub fn native_host_cancel_intent(&mut self, id: &str) {
++        if self.native_host_job.as_ref().is_some_and(|job| job.intent_id == id) { self.native_host_job = None; }
++    }
++
++    pub fn native_host_finish_intent(&mut self, id: &str, exact_replacement: bool) {
++        if !self.native_host_job.as_ref().is_some_and(|job| job.intent_id == id) { return }
++        let Some(job) = self.native_host_job.take() else { return };
++        if exact_replacement && self.session.active().is_some_and(|document| document.uid == job.document_id)
++            && let Some(continuation) = job.continuation
++        { continuation(self); }
++    }
++
++    pub(crate) fn native_host_close_after_save(&mut self) -> Result<bool, NativeHostFailure> {
++        self.native_host_begin_intent(false, None, None, Some(Box::new(|app| {
++            if let Err(error) = app.run("file.close", json!({})) { app.host_status(error); }
++        })))
++    }
++}
+diff --git a/crates/ui-egui/src/backstage/files.rs b/crates/ui-egui/src/backstage/files.rs
+index 4b7cec6..7bf6d43 100644
+--- a/crates/ui-egui/src/backstage/files.rs
++++ b/crates/ui-egui/src/backstage/files.rs
+@@ -210,7 +210,7 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mu
+     ui.horizontal(|ui| {
+         let (r, _) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::hover());
+         crate::dialogs::paint_logo(ui.painter(), r);
+-        ui.label(RichText::new("DeckCraft").font(theme::bold(24.0)).color(t.text));
++        ui.label(RichText::new("Hyori Presentations").font(theme::bold(24.0)).color(t.text));
+     });
+     ui.add_space(18.0);
+     ui.horizontal(|ui| {
+@@ -251,8 +251,6 @@ pub(super) fn home(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: &mu
+             }
+         });
+     }
+-    ui.add_space(30.0);
+-    ui.hyperlink_to("Join the ArtCraft community on Discord", deckcraft_engine::links::DISCORD);
+ }
+ 
+ /// New: a blank presentation, then every theme and starter template, with a search box.
+diff --git a/crates/ui-egui/src/backstage/print.rs b/crates/ui-egui/src/backstage/print.rs
+index db5d6b9..684c253 100644
+--- a/crates/ui-egui/src/backstage/print.rs
++++ b/crates/ui-egui/src/backstage/print.rs
+@@ -84,9 +84,9 @@ pub(super) fn print(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
+             dim(
+                 ui,
+                 if app.services.pick_save.is_some() {
+-                    "DeckCraft prints through a PDF: it opens in your PDF viewer, where you choose the printer."
++                    "This editor prints through a PDF: it opens in your PDF viewer, where you choose the printer."
+                 } else {
+-                    "DeckCraft prints through a PDF: it downloads, ready to print from your browser or PDF viewer."
++                    "This editor prints through a PDF: it downloads, ready to print from your browser or PDF viewer."
+                 },
+             );
+             ui.add_space(14.0);
+diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
+index ed33b9c..5c1a3cc 100644
+--- a/crates/ui-egui/src/dialogs.rs
++++ b/crates/ui-egui/src/dialogs.rs
+@@ -48,7 +48,7 @@ fn title(id: &str) -> &'static str {
+         "paragraph" => "Paragraph",
+         "tabs" => "Tabs",
+         "font" => "Font",
+-        "about" => "About DeckCraft",
++        "about" => "About Hyori Presentations",
+         "preferences" => "Preferences",
+         "autocorrect" => "AutoCorrect",
+         "gridOptions" => "Grid Options",
+@@ -70,10 +70,10 @@ fn title(id: &str) -> &'static str {
+         "smartart" => "Choose a SmartArt Graphic",
+         "bullets" => "Bullets and Numbering",
+         "action" => "Action Settings",
+-        "quit" => "DeckCraft",
++        "quit" => "Hyori Presentations",
+         "themeColors" => "Create New Theme Colors",
+         "themeFonts" => "Create New Theme Fonts",
+-        _ => "DeckCraft",
++        _ => "Hyori Presentations",
+     }
+ }
+ 
+diff --git a/crates/ui-egui/src/dialogs/about.rs b/crates/ui-egui/src/dialogs/about.rs
+index 059543b..82a7e3a 100644
+--- a/crates/ui-egui/src/dialogs/about.rs
++++ b/crates/ui-egui/src/dialogs/about.rs
+@@ -20,15 +20,14 @@ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
+     ui.vertical_centered(|ui| {
+         let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
+         paint_logo(ui.painter(), r);
+-        ui.label(egui::RichText::new("DeckCraft").font(theme::bold(22.0)));
++        ui.label(egui::RichText::new("Hyori Presentations").font(theme::bold(22.0)));
+         ui.label(egui::RichText::new(version_line()).color(t.text_dim));
+         ui.add_space(6.0);
+         ui.label("Presentations and slide shows, rebuilt from scratch in pure Rust.");
+         ui.label("An open-source, clean-room project. Not affiliated with Microsoft.");
+         ui.add_space(6.0);
+-        ui.hyperlink_to("Join our community on Discord", deckcraft_engine::links::DISCORD);
+-        ui.hyperlink_to("getartcraft.com/apps/deckcraft", deckcraft_engine::links::APP_PAGE);
+-        ui.hyperlink_to("Source on GitHub", deckcraft_engine::links::GITHUB);
++        ui.label("Based on DeckCraft by the ArtCraft team.");
++        ui.hyperlink_to("DeckCraft source on GitHub", deckcraft_engine::links::GITHUB);
+         ui.add_space(6.0);
+         ui.label(egui::RichText::new("MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors").size(11.0).color(t.text_faint));
+     });
+@@ -38,7 +37,7 @@ pub fn about(_app: &mut SlideApp, ui: &mut Ui) {
+ /// from `[workspace.package] version` (the single source of truth, `cargo xtask version`); the
+ /// release workflow sets `DECKCRAFT_BUILD_SHA` / `DECKCRAFT_BUILD_DATE` at build time.
+ pub fn version_line() -> String {
+-    let mut s = format!("Version {}", env!("CARGO_PKG_VERSION"));
++    let mut s = format!("Version {}", "0.18.1-hyori-host.1");
+     let sha = option_env!("DECKCRAFT_BUILD_SHA").map(|s| s.get(..9).unwrap_or(s)).filter(|s| !s.is_empty());
+     let date = option_env!("DECKCRAFT_BUILD_DATE").filter(|s| !s.is_empty());
+     match (sha, date) {
+@@ -49,20 +48,19 @@ pub fn version_line() -> String {
+     s
+ }
+ 
+-/// DeckCraft's mark, drawn in code: a slide card with a play triangle in our orange.
++/// Hyori's mark, drawn in code as in the web app's wordmark. Replaces DeckCraft's mark, which a
++/// modified build must not carry (docs/brand/LICENSE-brand.txt).
+ pub fn paint_logo(p: &egui::Painter, r: Rect) {
+-    let orange = Color32::from_rgb(0xF2, 0x6B, 0x1D);
+-    let deep = Color32::from_rgb(0xC2, 0x4E, 0x14);
++    let brand = Color32::from_rgb(0xC5, 0x2F, 0x37);
+     let card = r.shrink(r.width() * 0.08);
+-    p.rect_filled(card.translate(vec2(r.width() * 0.04, r.width() * 0.05)), CornerRadius::same((r.width() * 0.14) as u8), deep);
+-    p.rect_filled(card, CornerRadius::same((r.width() * 0.14) as u8), orange);
+-    let c = card.center();
+-    let s = card.width() * 0.22;
+-    p.add(egui::Shape::convex_polygon(
+-        vec![pos2(c.x - s * 0.7, c.y - s), pos2(c.x + s, c.y), pos2(c.x - s * 0.7, c.y + s)],
++    p.rect_filled(card, CornerRadius::same((r.width() * 0.2) as u8), brand);
++    p.text(
++        card.center(),
++        egui::Align2::CENTER_CENTER,
++        "h",
++        egui::FontId::proportional(card.height() * 0.62),
+         Color32::WHITE,
+-        Stroke::NONE,
+-    ));
++    );
+ }
+ 
+ #[cfg(test)]
+diff --git a/crates/ui-egui/src/dialogs/body.rs b/crates/ui-egui/src/dialogs/body.rs
+index 932cd46..0108681 100644
+--- a/crates/ui-egui/src/dialogs/body.rs
++++ b/crates/ui-egui/src/dialogs/body.rs
+@@ -338,6 +338,14 @@ fn dlg_close(app: &mut SlideApp, ui: &mut Ui, _d: &mut Dialog) -> bool {
+         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+             let save = ui.add(egui::Button::new(egui::RichText::new("Save").color(t.accent_text)).fill(t.accent).min_size(vec2(72.0, 24.0)));
+             if save.clicked() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
++                if app.native_host_intents.is_some() {
++                    match app.native_host_close_after_save() {
++                        Ok(true) => done = true,
++                        Ok(false) => app.host_status("Cloud replacement cannot become a local download".into()),
++                        Err(error) => app.host_status(error.to_string()),
++                    }
++                    return;
++                }
+                 app.save();
+                 // In the browser a save is a download: the presentation stays "unsaved". A page
+                 // that keeps the files saves it for real, so a failed save keeps it open.
+diff --git a/crates/ui-egui/src/dialogs/find.rs b/crates/ui-egui/src/dialogs/find.rs
+index c702db9..6ba593c 100644
+--- a/crates/ui-egui/src/dialogs/find.rs
++++ b/crates/ui-egui/src/dialogs/find.rs
+@@ -49,7 +49,7 @@ pub(super) fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bo
+                 p["with"] = json!(d.get("with", ""));
+                 let msg = match app.session.execute("text.replace", &p) {
+                     Ok(v) => format!("Replaced {} occurrence(s).", v.get("replaced").and_then(Value::as_u64).unwrap_or(0)),
+-                    Err(_) => format!("DeckCraft can't find “{text}”."),
++                    Err(_) => format!("Can't find “{text}”."),
+                 };
+                 d.fields.insert("status".into(), msg);
+                 d.fields.remove("cur");
+@@ -64,7 +64,7 @@ pub(super) fn find_dialog(app: &mut SlideApp, ui: &mut Ui, d: &mut Dialog) -> bo
+     if find_next {
+         let list = app.session.execute("text.find", &q).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default();
+         if list.is_empty() {
+-            d.fields.insert("status".into(), format!("DeckCraft can't find “{text}”."));
++            d.fields.insert("status".into(), format!("Can't find “{text}”."));
+             d.fields.remove("cur");
+         } else {
+             let n = d.get("next", "0").parse::<usize>().unwrap_or(0) % list.len();
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index 08fcc23..2e3f7e4 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -10,8 +10,8 @@
+ /// prompt shows both, and an AppImage's menu entry gets the icon.
+ #[cfg(not(target_arch = "wasm32"))]
+ pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
+-    icon_png: Some(include_bytes!("../../../assets/app-icon/hicolor/128x128/apps/ai.storyteller.deckcraft.png")),
+-    accent: Some([0xf0, 0x7a, 0x1e]),
++    icon_png: Some(include_bytes!("../../../assets/hyori-mark.png")),
++    accent: Some([0xc5, 0x2f, 0x37]),
+     ..craft_update::suite::DECKCRAFT
+ };
+ 
+@@ -49,6 +49,7 @@ use serde_json::{Value, json};
+ pub use control::{ControlRequest, ControlResponse};
+ 
+ mod app;
++pub use app::{NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntent, NativeHostIntentFn, NativeHostSerializer, NativeHostContinuation, NativeHostJob};
+ mod clock;
+ mod ime_hooks;
+ pub mod panels;
+@@ -137,7 +138,7 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
+         Some("Cmd+P"),
+         "{layout?, perPage?, slides?, includeHidden?, frame?, paper?: letter|a4|legal|a3, orientation?: portrait|landscape}",
+     ),
+-    ("app.about", "About DeckCraft", None, "{}"),
++    ("app.about", "About Hyori Presentations", None, "{}"),
+     ("app.checkUpdates", "Check for Updates…", None, "{}"),
+     ("app.palette", "Command Palette", Some("Cmd+Shift+P"), "{}"),
+     ("app.preferences", "Preferences…", Some("Cmd+,"), "{}"),
+@@ -223,6 +224,8 @@ pub struct SlideApp {
+     pub table_pen: serde_json::Value,
+     pub session: Session,
+     pub services: Services,
++    pub(crate) native_host_intents: Option<crate::NativeHostIntentFn>,
++    pub(crate) native_host_job: Option<crate::NativeHostJob>,
+     pub ui: UiState,
+     pub textures: textures::Textures,
+     pub control_rx: Option<Receiver<ControlRequest>>,
+diff --git a/crates/ui-egui/src/menus.rs b/crates/ui-egui/src/menus.rs
+index fb4c50f..a4e0c26 100644
+--- a/crates/ui-egui/src/menus.rs
++++ b/crates/ui-egui/src/menus.rs
+@@ -307,7 +307,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
+                 ("Set Up Show…", "show.setup"),
+             ],
+         ),
+-        ("Help", vec![("About DeckCraft", "app.about"), ("Check for Updates…", "app.checkUpdates"), ("Command Palette", "app.palette")]),
++        ("Help", vec![("About Hyori Presentations", "app.about"), ("Check for Updates…", "app.checkUpdates"), ("Command Palette", "app.palette")]),
+     ]
+ }
+ 
+diff --git a/crates/ui-egui/src/ribbon/title_bar.rs b/crates/ui-egui/src/ribbon/title_bar.rs
+index 6c7e825..253c351 100644
+--- a/crates/ui-egui/src/ribbon/title_bar.rs
++++ b/crates/ui-egui/src/ribbon/title_bar.rs
+@@ -55,7 +55,7 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
+         let dirty = app.session.active().is_some_and(|d| d.is_dirty());
+         crate::qat::show(app, &mut child);
+         let title =
+-            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "DeckCraft".into());
++            app.session.active().map(|d| format!("{}{}", d.title(), if dirty { " — Edited" } else { "" })).unwrap_or_else(|| "Hyori Presentations".into());
+         ui.painter().text(rect.center(), Align2::CENTER_CENTER, title, theme::font(13.0), t.text);
+         // Right side.
+         let mut right = ui.new_child(
+@@ -82,7 +82,8 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
+         }
+         if icon_toggle(
+             &mut right,
+-            if app.ui.brightness == theme::Brightness::Dark { Icon::Sparkle } else { Icon::Palette },
++            // One icon in both themes, as View › Dark Mode draws it.
++            Icon::Palette,
+             "Light/Dark appearance",
+             true,
+             false,
+diff --git a/crates/ui-egui/src/show/presenter.rs b/crates/ui-egui/src/show/presenter.rs
+index 38b8d76..c17497f 100644
+--- a/crates/ui-egui/src/show/presenter.rs
++++ b/crates/ui-egui/src/show/presenter.rs
+@@ -148,7 +148,7 @@ pub(super) fn presenter_window(ctx: &egui::Context, show: &mut Show, doc: &std::
+     };
+     ctx.show_viewport_immediate(
+         egui::ViewportId::from_hash_of("deckcraft_presenter"),
+-        egui::ViewportBuilder::default().with_title("Presenter View — DeckCraft").with_inner_size([1100.0, 700.0]),
++        egui::ViewportBuilder::default().with_title("Presenter View — Hyori Presentations").with_inner_size([1100.0, 700.0]),
+         |ui, _| {
+             if !keyboard(ui.ctx(), show, doc, now, true) {
+                 *keep = false;
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 2e14bba..0b9ed98 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -56,64 +56,64 @@ impl Tokens {
+     pub fn light() -> Self {
+         Tokens {
+             dark: false,
+-            chrome: Color32::from_rgb(0xF5, 0xF5, 0xF5),
+-            card: Color32::WHITE,
+-            card_border: Color32::from_rgb(0xE3, 0xE3, 0xE3),
+-            text_field: Color32::from_rgb(0xEB, 0xEB, 0xEB),
+-            canvas: Color32::from_rgb(0xF0, 0xF0, 0xF0),
+-            text: Color32::from_rgb(0x24, 0x24, 0x24),
+-            text_dim: Color32::from_rgb(0x5C, 0x5C, 0x5C),
+-            text_faint: Color32::from_rgb(0x99, 0x99, 0x99),
+-            border: Color32::from_rgb(0xD6, 0xD6, 0xD6),
+-            separator: Color32::from_rgb(0xE1, 0xE1, 0xE1),
+-            hover: Color32::from_rgb(0xEB, 0xEB, 0xEB),
+-            pressed: Color32::from_rgb(0xDE, 0xDE, 0xDE),
+-            selected: Color32::from_rgb(0xE6, 0xE6, 0xE6),
+-            accent: Color32::from_rgb(0xD9, 0x5A, 0x1A),
+-            accent_text: Color32::WHITE,
+-            contextual: Color32::from_rgb(0xC2, 0x4E, 0x14),
++            chrome: Color32::from_rgba_unmultiplied(241, 238, 232, 255),
++            card: Color32::from_rgba_unmultiplied(255, 253, 249, 255),
++            card_border: Color32::from_rgba_unmultiplied(24, 22, 20, 28),
++            text_field: Color32::from_rgba_unmultiplied(236, 232, 225, 255),
++            canvas: Color32::from_rgba_unmultiplied(241, 238, 232, 255),
++            text: Color32::from_rgba_unmultiplied(24, 22, 20, 255),
++            text_dim: Color32::from_rgba_unmultiplied(102, 97, 91, 255),
++            text_faint: Color32::from_rgba_unmultiplied(102, 97, 91, 255),
++            border: Color32::from_rgba_unmultiplied(24, 22, 20, 28),
++            separator: Color32::from_rgba_unmultiplied(24, 22, 20, 28),
++            hover: Color32::from_rgba_unmultiplied(233, 229, 222, 255),
++            pressed: Color32::from_rgba_unmultiplied(236, 232, 225, 255),
++            selected: Color32::from_rgba_unmultiplied(233, 229, 222, 255),
++            accent: Color32::from_rgba_unmultiplied(24, 22, 20, 255),
++            accent_text: Color32::from_rgba_unmultiplied(255, 253, 249, 255),
++            contextual: Color32::from_rgba_unmultiplied(24, 22, 20, 255),
+             selection: Color32::from_rgb(0x7A, 0x7A, 0x7A),
+             handle_fill: Color32::WHITE,
+             handle_stroke: Color32::from_rgb(0x6E, 0x6E, 0x6E),
+             guide: Color32::from_rgb(0xE8, 0x5D, 0x2A),
+             caret: Color32::BLACK,
+             text_selection: Color32::from_rgba_unmultiplied(0x5A, 0x8F, 0xE0, 90),
+-            field_bg: Color32::WHITE,
+-            control: Color32::from_rgb(0xD6, 0xD6, 0xD6),
+-            control_hover: Color32::from_rgb(0xC8, 0xC8, 0xC8),
+-            control_pressed: Color32::from_rgb(0xBC, 0xBC, 0xBC),
++            field_bg: Color32::from_rgba_unmultiplied(255, 253, 249, 255),
++            control: Color32::from_rgba_unmultiplied(141, 136, 131, 255),
++            control_hover: Color32::from_rgba_unmultiplied(102, 97, 91, 255),
++            control_pressed: Color32::from_rgba_unmultiplied(102, 97, 91, 255),
+             shadow: Color32::from_black_alpha(28),
+         }
+     }
+     pub fn dark() -> Self {
+         Tokens {
+             dark: true,
+-            chrome: Color32::from_rgb(0x26, 0x26, 0x26),
+-            card: Color32::from_rgb(0x33, 0x33, 0x33),
+-            card_border: Color32::from_rgb(0x44, 0x44, 0x44),
+-            text_field: Color32::from_rgb(0x2A, 0x2A, 0x2A),
+-            canvas: Color32::from_rgb(0x1E, 0x1E, 0x1E),
+-            text: Color32::from_rgb(0xEE, 0xEE, 0xEE),
+-            text_dim: Color32::from_rgb(0xBB, 0xBB, 0xBB),
+-            text_faint: Color32::from_rgb(0x88, 0x88, 0x88),
+-            border: Color32::from_rgb(0x4A, 0x4A, 0x4A),
+-            separator: Color32::from_rgb(0x48, 0x48, 0x48),
+-            hover: Color32::from_rgb(0x40, 0x40, 0x40),
+-            pressed: Color32::from_rgb(0x4C, 0x4C, 0x4C),
+-            selected: Color32::from_rgb(0x47, 0x47, 0x47),
+-            accent: Color32::from_rgb(0xF2, 0x6B, 0x1D),
+-            accent_text: Color32::WHITE,
+-            contextual: Color32::from_rgb(0xF5, 0x8A, 0x4B),
++            chrome: Color32::from_rgba_unmultiplied(7, 8, 10, 255),
++            card: Color32::from_rgba_unmultiplied(17, 18, 20, 255),
++            card_border: Color32::from_rgba_unmultiplied(255, 255, 255, 20),
++            text_field: Color32::from_rgba_unmultiplied(28, 29, 32, 255),
++            canvas: Color32::from_rgba_unmultiplied(7, 8, 10, 255),
++            text: Color32::from_rgba_unmultiplied(255, 255, 255, 255),
++            text_dim: Color32::from_rgba_unmultiplied(156, 156, 157, 255),
++            text_faint: Color32::from_rgba_unmultiplied(156, 156, 157, 255),
++            border: Color32::from_rgba_unmultiplied(255, 255, 255, 20),
++            separator: Color32::from_rgba_unmultiplied(255, 255, 255, 20),
++            hover: Color32::from_rgba_unmultiplied(35, 36, 39, 255),
++            pressed: Color32::from_rgba_unmultiplied(28, 29, 32, 255),
++            selected: Color32::from_rgba_unmultiplied(35, 36, 39, 255),
++            accent: Color32::from_rgba_unmultiplied(230, 230, 231, 255),
++            accent_text: Color32::from_rgba_unmultiplied(27, 28, 30, 255),
++            contextual: Color32::from_rgba_unmultiplied(255, 255, 255, 255),
+             selection: Color32::from_rgb(0xAA, 0xAA, 0xAA),
+             handle_fill: Color32::WHITE,
+             handle_stroke: Color32::from_rgb(0x6E, 0x6E, 0x6E),
+             guide: Color32::from_rgb(0xF2, 0x8A, 0x4B),
+             caret: Color32::BLACK,
+             text_selection: Color32::from_rgba_unmultiplied(0x5A, 0x8F, 0xE0, 90),
+-            field_bg: Color32::from_rgb(0x2A, 0x2A, 0x2A),
+-            control: Color32::from_rgb(0x2A, 0x2A, 0x2A),
+-            control_hover: Color32::from_rgb(0x40, 0x40, 0x40),
+-            control_pressed: Color32::from_rgb(0x4C, 0x4C, 0x4C),
++            field_bg: Color32::from_rgba_unmultiplied(17, 18, 20, 255),
++            control: Color32::from_rgba_unmultiplied(103, 105, 108, 255),
++            control_hover: Color32::from_rgba_unmultiplied(163, 164, 167, 255),
++            control_pressed: Color32::from_rgba_unmultiplied(163, 164, 167, 255),
+             shadow: Color32::from_black_alpha(90),
+         }
+     }

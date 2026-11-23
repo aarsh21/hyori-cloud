@@ -3,10 +3,13 @@ import { lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
 import pins from "../../tooling/artcraft/builds/deckcraft-host-v1/tool-pins.json" with { type: "json" };
+import { noticeMembers } from "./closure-collect.ts";
 import { cargoMetadataSchema, hostInclusiveIds, parseTargetTree } from "./closure-graph.ts";
 import { checkClosureEvidence } from "./closure.ts";
+import { digest } from "./content-schema.ts";
 import { sha256 } from "./evidence-bytes.ts";
-import { nativeApps, readPinnedSource } from "./native-v3-source.ts";
+import { candidateArtifactVersions, readCandidateSource } from "./native-v3-candidate.ts";
+import { nativeApps, nativeSourceCommits, readPinnedSource } from "./native-v3-source.ts";
 import { nativeProductNames } from "./native-v3-marks.ts";
 
 const commandIds = ["rustc", "cargo-build", "metadata", "normal-tree", "host-tree", "trunk"];
@@ -50,6 +53,31 @@ const planSchema = z.object({
 
 const resultSchema = z.object({ status: z.number(), elapsedMs: z.number() });
 
+const candidateNoticeRoot = new URL("../../tooling/artcraft/notices-r6/", import.meta.url);
+
+const candidateGraphsSchema = z.array(
+  z.object({
+    app: z.enum(nativeApps),
+    normalSha256: digest,
+    hostInclusiveSha256: digest,
+    inherited: z.array(z.string()),
+    supplemental: z.array(z.string()),
+  }),
+);
+
+const candidateNoticesSchema = z.object({
+  packages: z.array(
+    z.object({
+      id: z.string(),
+      members: z.array(z.object({ sha256: digest, bytes: z.number().int().positive() })).min(1),
+    }),
+  ),
+});
+
+const candidateAuditSchema = z.object({
+  audits: z.array(z.object({ app: z.enum(nativeApps), cargoLockSha256: digest })),
+});
+
 type FileRecord = { path: string; bytes: number; sha256: string };
 
 /** Canonical payload identity shared with the server: ASCII-sorted compact {path,bytes,sha256}. */
@@ -72,9 +100,20 @@ export async function collectNativeEvidence(
   const plan = planSchema.parse(JSON.parse(planBytes.toString()));
   const { app } = plan;
   const prefix = `${app}/${plan.artifactVersion}`;
-  const { original } = readPinnedSource(app, await readFile(archivePath));
+  const candidate = plan.artifactVersion === candidateArtifactVersions[app];
 
-  if (sha256(original.get("Cargo.lock")!) !== plan.sourceCargoLockSha256)
+  const { pin, original } = (candidate ? readCandidateSource : readPinnedSource)(
+    app,
+    await readFile(archivePath),
+  );
+
+  if (
+    pin.sourceSha256 !== plan.sourcePin.sha256 ||
+    pin.sourceUrl !== plan.sourcePin.url ||
+    ("commit" in pin ? pin.commit : nativeSourceCommits[app]) !== plan.sourcePin.commit ||
+    pin.version !== plan.upstreamVersion ||
+    sha256(original.get("Cargo.lock")!) !== plan.sourceCargoLockSha256
+  )
     throw new Error("Build plan names a different tagged source");
 
   await mkdir(output);
@@ -133,19 +172,82 @@ export async function collectNativeEvidence(
     metadata,
   );
 
-  const closure = await checkClosureEvidence();
-  const recorded = closure.manifest.apps.find((entry) => entry.app === app);
+  const { manifest: closure } = await checkClosureEvidence();
+  const normalJson = normalize(JSON.stringify(normal));
+  const hostJson = JSON.stringify(hostIds.map(normalize).sort());
 
-  if (!recorded || normalize(JSON.stringify(normal)) !== JSON.stringify(recorded.normal))
-    throw new Error(
-      "Modified build graph differs from the noticed upstream graph; review required",
+  if (candidate) {
+    const graphs = await readFile(new URL("graphs.json", candidateNoticeRoot));
+    const notices = await readFile(new URL("notices.json", candidateNoticeRoot));
+
+    const recorded = candidateGraphsSchema
+      .parse(JSON.parse(graphs.toString()))
+      .find((entry) => entry.app === app);
+
+    if (
+      !recorded ||
+      sha256(Buffer.from(normalJson)) !== recorded.normalSha256 ||
+      sha256(Buffer.from(hostJson)) !== recorded.hostInclusiveSha256
+    )
+      throw new Error(`Modified ${app} build graph differs from the noticed r6 graph`);
+
+    const included = new Set(hostIds);
+    const inherited = new Set(closure.packages.map(({ id }) => id));
+    const external = metadata.packages.filter(({ id, source }) => source && included.has(id));
+
+    const noticesById = new Map(
+      candidateNoticesSchema
+        .parse(JSON.parse(notices.toString()))
+        .packages.map((entry) => [entry.id, entry]),
     );
 
-  if (
-    JSON.stringify(hostIds.map(normalize).sort()) !==
-    JSON.stringify([...recorded.hostInclusiveIds].sort())
-  )
-    throw new Error("Modified host graph differs from the noticed upstream graph");
+    if (
+      JSON.stringify(external.map(({ id }) => id).sort()) !==
+        JSON.stringify([...recorded.inherited, ...recorded.supplemental].sort()) ||
+      recorded.inherited.some((id) => !inherited.has(id))
+    )
+      throw new Error(`Incomplete ${app} r6 dependency notice inventory`);
+
+    for (const id of recorded.supplemental) {
+      const entry = noticesById.get(id);
+
+      if (!entry) throw new Error(`Missing r6 notice evidence for ${id}`);
+
+      for (const member of entry.members) {
+        const path = `texts/${member.sha256}`;
+        const bytes = await readFile(new URL(path, candidateNoticeRoot));
+
+        if (bytes.length !== member.bytes || sha256(bytes) !== member.sha256)
+          throw new Error(`R6 notice text changed: ${id} ${path}`);
+
+        if (!assets.some((asset) => asset.path === `dependency-notices/${path}`))
+          await retain(`dependency-notices/${path}`, bytes);
+      }
+    }
+
+    const audit = await readFile(new URL("rustsec.json", candidateNoticeRoot));
+
+    const audited = candidateAuditSchema.parse(JSON.parse(audit.toString())).audits.find(
+      (entry) => entry.app === app,
+    );
+
+    if (audited?.cargoLockSha256 !== plan.sourceCargoLockSha256)
+      throw new Error(`RustSec audit does not match the ${app} build lock`);
+
+    await retain("dependency-notices/graphs.json", graphs);
+    await retain("dependency-notices/notices.json", notices);
+    await retain("dependency-notices/rustsec.json", audit);
+  } else {
+    const recorded = closure.apps.find((entry) => entry.app === app);
+
+    if (!recorded || normalJson !== JSON.stringify(recorded.normal))
+      throw new Error(
+        "Modified build graph differs from the noticed upstream graph; review required",
+      );
+
+    if (hostJson !== JSON.stringify([...recorded.hostInclusiveIds].sort()))
+      throw new Error("Modified host graph differs from the noticed upstream graph");
+  }
 
   // native-v3-container.ts leaves its exact command and exit beside the stage; r1 ran natively.
   let container: { command: Buffer; result: Buffer } | null = null;
@@ -179,7 +281,11 @@ export async function collectNativeEvidence(
     await retain(`modified-source/${changed.path}`, bytes);
   }
 
-  for (const path of originalLegalPaths) {
+  const legalPaths = candidate
+    ? [...new Set([...originalLegalPaths, ...noticeMembers(original, "", null).paths])]
+    : originalLegalPaths;
+
+  for (const path of legalPaths) {
     const bytes = await readFile(join(stageRoot, "input/source", path));
 
     if (!original.get(path)?.equals(bytes))
@@ -210,6 +316,9 @@ export async function collectNativeEvidence(
   const wasm = artifact.filter((asset) => asset.path.endsWith("_bg.wasm"));
 
   if (wasm.length !== 1) throw new Error("Expected exactly one editor WASM output");
+
+  if (candidate && app === "pdfcraft" && artifact.some(({ path }) => /ocr|\.onnx$/iu.test(path)))
+    throw new Error("Hosted PDF must not ship OCR workers or model assets");
 
   const html = await readFile(join(output, "artifact/index.html"), "utf8");
 
@@ -245,7 +354,7 @@ export async function collectNativeEvidence(
     // Absent for apps that embed no fonts: JSON omits undefined.
     embeddedFonts: plan.embeddedFonts ?? undefined,
     changedFiles: plan.patchedFiles,
-    originalLegalBytesUnchanged: originalLegalPaths.map((path) => ({
+    originalLegalBytesUnchanged: legalPaths.map((path) => ({
       path,
       sha256: sha256(original.get(path)!),
     })),

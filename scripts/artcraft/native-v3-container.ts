@@ -6,7 +6,7 @@ import { sha256 } from "./evidence-bytes.ts";
 import { nativeApps } from "./native-v3-source.ts";
 
 /** Resource bounds for one editor build; builds run one at a time so the host stays usable. */
-export const nativeContainerLimits = { memory: "6g", cpus: "6", pids: "512" } as const;
+export const nativeContainerLimits = { memory: "6g", cpus: "4", pids: "512" } as const;
 
 /**
  * Runs a prepared native v3 stage in the pinned Rust image: no network, unprivileged, read-only

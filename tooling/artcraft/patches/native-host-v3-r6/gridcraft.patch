@@ -1,0 +1,1705 @@
+diff --git a/apps/gridcraft-web/index.html b/apps/gridcraft-web/index.html
+index 321aa302..35d41666 100644
+--- a/apps/gridcraft-web/index.html
++++ b/apps/gridcraft-web/index.html
+@@ -3,8 +3,8 @@
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+-  <title>GridCraft</title>
+-  <link data-trunk rel="icon" href="../../assets/app-icon/gridcraft.ico" />
++  <title>Hyori Spreadsheets</title>
++  <link data-trunk rel="icon" href="hyori-mark.ico" />
+   <link data-trunk rel="rust" data-bin="gridcraft-web" data-wasm-opt="z" data-weak-refs />
+   <style>
+     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f3f3f3; }
+@@ -15,6 +15,6 @@
+ </head>
+ <body>
+   <canvas id="gridcraft_canvas"></canvas>
+-  <div id="gridcraft_loading">Loading GridCraft&hellip;</div>
++  <div id="gridcraft_loading">Loading Hyori Spreadsheets&hellip;</div>
+ </body>
+ </html>
+diff --git a/apps/gridcraft-web/src/main.rs b/apps/gridcraft-web/src/main.rs
+index 823a68e9..23a15577 100644
+--- a/apps/gridcraft-web/src/main.rs
++++ b/apps/gridcraft-web/src/main.rs
+@@ -9,24 +9,16 @@
+ //! files are read asynchronously.
+ //!
+ //! URL query flags: `?webgl` forces WebGL2; `?sample=sales|budget|grades` opens a sample;
+-//! `?host=parent` (inside an `<iframe>`) talks to a same-origin parent page instead: it sends the
+-//! workbook to open and stores what GridCraft saves (`host`). A page can host GridCraft in its
+-//! own document (no iframe) with `data-host="page"` on the canvas, talking over DOM `CustomEvent`s
+-//! on the canvas. `&author=` names the user for notes and comments in either host mode.
+-//! `window.gridcraft` (`craft-web-api`) is the page command API in every mode: `request`,
+-//! `execute`, `commands`, `docInspect`, `uiInspect` and `screenshot` over the control methods
+-//! (`api`).
++//! `?host=parent` talks to Hyori using its opaque-origin, durable native protocol.
+ //! `?chrome=none|notitlebar|nofiletab` leaves the title bar and/or the File tab undrawn for a host
+ //! that embeds the sheet in its own window (see `Chrome`). Preferences (theme, interface size,
+ //! editing options…) are kept in `localStorage` (`prefs`).
+ #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+ 
+-#[cfg(any(target_arch = "wasm32", test))]
+-mod api;
+ #[cfg(target_arch = "wasm32")]
+-mod host;
+-#[cfg(any(target_arch = "wasm32", test))]
+-mod hostmode;
++mod native_host;
++#[cfg(target_arch = "wasm32")]
++mod native_frame;
+ #[cfg(any(target_arch = "wasm32", test))]
+ mod prefs;
+ #[cfg(target_arch = "wasm32")]
+diff --git a/apps/gridcraft-web/src/native_frame.rs b/apps/gridcraft-web/src/native_frame.rs
+new file mode 100644
+index 00000000..9584a4c7
+--- /dev/null
++++ b/apps/gridcraft-web/src/native_frame.rs
+@@ -0,0 +1,33 @@
++use crate::native_host::{NativeHostAdapter, NativeHostFailure, NativeHostFrame, NativeHostIdentity, NativeHostIntentFn, NativeHostSaveReason, NativeHostSnapshot};
++use gridcraft_ui_egui::SheetApp;
++
++impl NativeHostAdapter for SheetApp {
++    fn host_identity(&self) -> Option<NativeHostIdentity> { self.native_host_identity() }
++    fn host_pending_input(&self) -> bool { self.native_host_pending_input() }
++    fn host_install_intents(&mut self, sink: NativeHostIntentFn) { self.native_host_install_intents(sink); }
++    fn host_open(&mut self, name: &str, bytes: &[u8]) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
++        self.native_host_open(name, bytes)
++    }
++    fn host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
++        self.native_host_poll_open()
++    }
++    fn host_capture(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        self.native_host_capture_job(document_id, name, reason, intent_id)
++    }
++    fn host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> Result<bool, NativeHostFailure> {
++        Ok(self.native_host_acknowledge(snapshot, save_as))
++    }
++    fn host_finish_intent(&mut self, intent_id: &str, exact_replacement: bool) {
++        self.native_host_finish_intent(intent_id, exact_replacement);
++    }
++    fn host_cancel_intent(&mut self, intent_id: &str) { self.native_host_cancel_intent(intent_id); }
++    fn host_theme(&mut self, preference: &str, _resolved_dark: bool) -> Result<(), NativeHostFailure> {
++        self.native_host_theme(preference)
++    }
++}
++
++pub(crate) fn report_failure(error: NativeHostFailure) {
++    log::error!("native host: {error}");
++    // Keep the frame/snapshot alive after failure; a local error is never a durable acknowledgement.
++    let _ = NativeHostFrame::failed(&error.to_string());
++}
+diff --git a/apps/gridcraft-web/src/native_host.rs b/apps/gridcraft-web/src/native_host.rs
+new file mode 100644
+index 00000000..168be573
+--- /dev/null
++++ b/apps/gridcraft-web/src/native_host.rs
+@@ -0,0 +1,542 @@
++pub use eframe::egui;
++pub use gridcraft_ui_egui::{NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntent, NativeHostIntentFn};
++pub const NATIVE_ARTIFACT_VERSION: &str = "0.19.1-hyori-host.1";
++use wasm_bindgen::{JsValue, JsCast as _};
++use wasm_bindgen::closure::Closure;
++
++#[wasm_bindgen::prelude::wasm_bindgen(module = "/hyori-native-host.js")]
++extern "C" {
++    #[wasm_bindgen(js_name = hostRequested)]
++    fn js_requested() -> bool;
++    #[wasm_bindgen(catch, js_name = prepareHost)]
++    fn js_prepare(app: &str, version: &str) -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = attachHostRepaint)]
++    fn js_attach_repaint(callback: &js_sys::Function) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostReady)]
++    fn js_ready() -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostFailed)]
++    fn js_failed(message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostDetached)]
++    fn js_detached(message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostCanExport)]
++    fn js_can_export(name: &str) -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostHasPendingSave)]
++    fn js_has_pending_save() -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostHasRecoverySnapshot)]
++    fn js_has_recovery_snapshot() -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSystemDark)]
++    fn js_system_dark() -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeOpen)]
++    fn js_take_open() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostOpened)]
++    fn js_opened(open_id: &str, document_id: &str, revision: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostOpenFailed)]
++    fn js_open_failed(open_id: &str, message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostObserved)]
++    fn js_observed(document_id: &str, revision: &str, dirty: bool) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSaveRequested)]
++    fn js_save_requested(document_id: &str, save_as: bool, name: &JsValue, intent_id: &str) -> Result<bool, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeSaveRequest)]
++    fn js_take_save_request() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSerialized)]
++    fn js_serialized(request_id: &str, document_id: &str, revision: &str, name: &str, bytes: &[u8], save_as: bool) -> Result<String, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostSerializationFailed)]
++    fn js_serialization_failed(request_id: &str, code: &str, message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeCancellation)]
++    fn js_take_cancellation() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeFailure)]
++    fn js_take_failure() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeDiscard)]
++    fn js_take_discard() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeAcknowledgement)]
++    fn js_take_ack() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostAcknowledged)]
++    fn js_acknowledged(before_document: &JsValue, before_revision: &str, current_document: &JsValue, current_revision: &str, dirty: bool) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostTakeThemeRequest)]
++    fn js_take_theme() -> Result<JsValue, JsValue>;
++    #[wasm_bindgen(catch, js_name = hostThemeFailed)]
++    fn js_theme_failed(request_id: &str, message: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostThemeApplied)]
++    fn js_theme_applied(request_id: &str, theme: &str, resolved: &str) -> Result<(), JsValue>;
++    #[wasm_bindgen(catch, js_name = hostShowPdf)]
++    fn js_show_pdf(bytes: &[u8]) -> Result<(), JsValue>;
++}
++
++/// Hosted print. A sandboxed page can't show a PDF, in a child frame or a tab of its own, so the
++/// PDF is downloaded and the person prints it from their viewer. False when not hosted.
++#[allow(dead_code)] // PDF prints its own window and Deck downloads; only Word and Grid call this.
++pub fn show_pdf(bytes: &[u8]) -> Result<bool, String> {
++    if !js_requested() { return Ok(false) }
++    js_show_pdf(bytes).map(|()| true).map_err(|error| error.as_string().unwrap_or_else(|| format!("{error:?}")))
++}
++
++fn js_failure(value: JsValue) -> NativeHostFailure {
++    NativeHostFailure::SerializationFailed(value.as_string().unwrap_or_else(|| format!("{value:?}")))
++}
++
++fn field(value: &JsValue, name: &str) -> Result<JsValue, NativeHostFailure> {
++    js_sys::Reflect::get(value, &JsValue::from_str(name)).map_err(js_failure)
++}
++
++fn text(value: &JsValue, name: &str) -> Result<String, NativeHostFailure> {
++    field(value, name)?.as_string().ok_or_else(|| NativeHostFailure::SerializationFailed(format!("Missing native binding field {name}")))
++}
++
++fn optional_text(value: &JsValue, name: &str) -> Result<Option<String>, NativeHostFailure> {
++    let value = field(value, name)?;
++    if value.is_null() || value.is_undefined() { return Ok(None) }
++    value.as_string().map(Some).ok_or_else(|| NativeHostFailure::SerializationFailed(format!("Invalid native binding field {name}")))
++}
++
++fn boolean(value: &JsValue, name: &str) -> Result<bool, NativeHostFailure> {
++    field(value, name)?.as_bool().ok_or_else(|| NativeHostFailure::SerializationFailed(format!("Invalid native binding field {name}")))
++}
++
++fn native_number(value: &JsValue, name: &str) -> Result<u64, NativeHostFailure> {
++    text(value, name)?.parse().map_err(|_| NativeHostFailure::SerializationFailed(format!("Invalid native u64 field {name}")))
++}
++
++fn absent(value: &JsValue) -> bool { value.is_null() || value.is_undefined() }
++
++fn document_value(identity: Option<NativeHostIdentity>) -> JsValue {
++    identity.map(|identity| JsValue::from_str(&identity.document_id.to_string())).unwrap_or(JsValue::NULL)
++}
++
++/// Per-engine adapter implemented in the web crate. Shared frame code owns IPC and the clock.
++pub trait NativeHostAdapter {
++    fn host_identity(&self) -> Option<NativeHostIdentity>;
++    fn host_pending_input(&self) -> bool;
++    fn host_install_intents(&mut self, sink: NativeHostIntentFn);
++
++    /// None means a correlated interactive open is pending, not parsed readiness.
++    fn host_open(&mut self, name: &str, bytes: &[u8]) -> Result<Option<NativeHostIdentity>, NativeHostFailure>;
++    fn host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure>;
++
++    /// Only PDF annotations have authors; other engines leave this display-only preference alone.
++    fn host_annotation_author(&mut self, _display_name: &str) {}
++
++    fn host_capture(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure>;
++    fn host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> Result<bool, NativeHostFailure>;
++
++    /// Called only after saved/currentRevision was posted. False must drop, never defer, the job.
++    fn host_finish_intent(&mut self, intent_id: &str, exact_replacement: bool);
++    fn host_cancel_intent(&mut self, intent_id: &str);
++
++    /// System remains an actual native preference where supported; Deck resolves it to dark/light.
++    fn host_theme(&mut self, preference: &str, resolved_dark: bool) -> Result<(), NativeHostFailure>;
++}
++
++use std::cell::RefCell;
++use std::rc::Rc;
++
++mod clock;
++use clock::NativeHostClock;
++
++#[derive(Default)]
++struct IntentQueue {
++    sequence: u64,
++    opened: bool,
++    pending: bool,
++    queued: Option<(String, NativeHostIntent)>,
++}
++
++struct Confirmation {
++    before: Option<NativeHostIdentity>,
++    before_revision: u64,
++    post_revision: u64,
++    applied: bool,
++    cancelled: bool,
++}
++
++struct Captured {
++    request_id: String,
++    open_id: String,
++    revision: u64,
++    save_as: bool,
++    intent_id: Option<String>,
++    snapshot: NativeHostSnapshot,
++    confirmation: Option<Confirmation>,
++}
++
++struct ThemeApplication {
++    request_id: String,
++    preference: String,
++    resolved_dark: bool,
++}
++
++/// Shared protocol owner for one actual native web application, not an emulated editor.
++pub struct NativeHostFrame {
++    clock: NativeHostClock,
++    intents: Rc<RefCell<IntentQueue>>,
++    _repaint: Closure<dyn FnMut()>,
++    opening: Option<String>,
++    pending: Option<Captured>,
++    host_dirty: bool,
++    theme: Option<ThemeApplication>,
++    system_theme: bool,
++    last_system_dark: Option<bool>,
++    input_pending: bool,
++}
++
++impl NativeHostFrame {
++    pub fn prepare(app: &str, version: &str) -> Result<bool, NativeHostFailure> {
++        js_prepare(app, version).map_err(js_failure)
++    }
++
++    pub fn new(ctx: &egui::Context, app: &mut impl NativeHostAdapter) -> Result<Option<Self>, NativeHostFailure> {
++        if !js_requested() { return Ok(None) }
++        let repaint_ctx = ctx.clone();
++        let repaint = Closure::<dyn FnMut()>::new(move || repaint_ctx.request_repaint());
++        js_attach_repaint(repaint.as_ref().unchecked_ref()).map_err(js_failure)?;
++        let intents = Rc::new(RefCell::new(IntentQueue::default()));
++        let sink = intents.clone();
++        let sink_ctx = ctx.clone();
++        app.host_install_intents(Box::new(move |intent| {
++            let mut queue = sink.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?;
++            if !queue.opened { return Err(NativeHostFailure::Busy("Wait for the native document to open".into())) }
++            // Unsupported explicit exports keep their existing local pipeline and exact options.
++            // Replacement NEVER falls through to a local download or optimistic native clean.
++            if intent.save_as {
++                let name = intent.name.as_deref().ok_or_else(|| NativeHostFailure::SerializationFailed("Explicit export needs a name".into()))?;
++                if !js_can_export(name).map_err(js_failure)? { return Ok(None) }
++            }
++            // A plain replacement during an in-flight save is not an error the user can act on:
++            // publish_intent hands it to the host, which coalesces it or quietly cancels the job.
++            if queue.queued.is_some() || (intent.save_as && (queue.pending || js_has_pending_save().map_err(js_failure)?)) {
++                return Err(NativeHostFailure::Busy("A native save is already pending".into()));
++            }
++            queue.sequence = queue.sequence.checked_add(1).ok_or_else(|| NativeHostFailure::SerializationFailed("Native intent sequence exhausted".into()))?;
++            let id = format!("{}:{}", intent.document_id, queue.sequence);
++            queue.queued = Some((id.clone(), intent));
++            sink_ctx.request_repaint();
++            Ok(Some(id))
++        }));
++        Ok(Some(Self { clock: NativeHostClock::default(), intents, _repaint: repaint,
++            opening: None, pending: None, host_dirty: false, theme: None,
++            system_theme: false, last_system_dark: None, input_pending: false }))
++    }
++
++    pub fn ready() -> Result<(), NativeHostFailure> {
++        if js_requested() { js_ready().map_err(js_failure)?; }
++        Ok(())
++    }
++
++    pub fn failed(message: &str) -> Result<(), NativeHostFailure> {
++        if js_requested() { js_failed(message).map_err(js_failure)?; }
++        Ok(())
++    }
++
++    pub fn note_input(&mut self, app: &impl NativeHostAdapter, raw: &egui::RawInput) -> Result<(), NativeHostFailure> {
++        // Manual settling must never consume a live editor before UI applies this input batch.
++        // Retain the fence across discarded passes and hidden logic-only ticks.
++        self.input_pending |= !raw.events.is_empty() || !raw.dropped_files.is_empty();
++        self.clock.note_input(raw, app.host_pending_input())
++    }
++
++    fn revision(&mut self, app: &impl NativeHostAdapter) -> Result<u64, NativeHostFailure> {
++        let model = app.host_identity();
++        // Do not latch ordinary draft dirtiness: cancelling an uncaptured draft must emit false.
++        // Only an outstanding replacement capture creates a durability overlay (see capture).
++        self.clock.observe(model, app.host_pending_input(), self.host_dirty)
++    }
++
++    fn effective_dirty(&self, app: &impl NativeHostAdapter) -> bool {
++        self.host_dirty || app.host_pending_input() || app.host_identity().is_some_and(|model| model.dirty)
++    }
++
++    fn observe(&mut self, app: &impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let revision = self.revision(app)?;
++        if !self.intents.try_borrow().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.opened { return Ok(()) }
++        if let Some(model) = app.host_identity() {
++            js_observed(&model.document_id.to_string(), &revision.to_string(), self.effective_dirty(app)).map_err(js_failure)?;
++        } else {
++            js_detached("The native document was closed; reopen a cloud source before replacing it").map_err(js_failure)?;
++        }
++        Ok(())
++    }
++
++    fn opened(&mut self, app: &impl NativeHostAdapter, identity: NativeHostIdentity) -> Result<(), NativeHostFailure> {
++        let Some(open_id) = self.opening.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        if app.host_identity().map(|model| model.document_id) != Some(identity.document_id) {
++            return Err(NativeHostFailure::IdentityChanged);
++        }
++        self.host_dirty = false;
++        let revision = self.clock.observe(Some(identity), app.host_pending_input(), self.host_dirty)?;
++        js_opened(open_id, &identity.document_id.to_string(), &revision.to_string()).map_err(js_failure)?;
++        self.opening = None;
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.opened = true;
++        Ok(())
++    }
++
++    fn process_open(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        if self.opening.is_some() { return Ok(()) }
++        let command = js_take_open().map_err(js_failure)?;
++        if absent(&command) { return Ok(()) }
++        let open_id = text(&command, "openId")?;
++        let name = text(&command, "name")?;
++        let bytes = js_sys::Uint8Array::new(&field(&command, "bytes")?);
++        if bytes.length() == 0 || bytes.length() > 64 * 1024 * 1024 {
++            return js_open_failed(&open_id, "Native open exceeds its byte bound").map_err(js_failure);
++        }
++        app.host_annotation_author(optional_text(&command, "annotationAuthor")?.as_deref().unwrap_or("Guest"));
++        self.opening = Some(open_id.clone());
++        match app.host_open(&name, &bytes.to_vec()) {
++            Ok(Some(identity)) => self.opened(app, identity),
++            Ok(None) => Ok(()),
++            Err(error) => {
++                self.opening = None;
++                js_open_failed(&open_id, &error.to_string()).map_err(js_failure)
++            }
++        }
++    }
++
++    fn poll_open(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        if self.opening.is_none() { return Ok(()) }
++        match app.host_poll_open() {
++            Ok(Some(identity)) => self.opened(app, identity),
++            Ok(None) => Ok(()),
++            Err(error) => {
++                let Some(open_id) = self.opening.take() else { return Err(NativeHostFailure::IdentityChanged) };
++                js_open_failed(&open_id, &error.to_string()).map_err(js_failure)
++            }
++        }
++    }
++
++    fn fence(&mut self, app: &mut impl NativeHostAdapter, message: &JsValue) -> Result<(), NativeHostFailure> {
++        if let Some(id) = optional_text(message, "intentId")? {
++            app.host_cancel_intent(&id);
++            if let Some(pending) = self.pending.as_mut()
++                && pending.intent_id.as_deref() == Some(id.as_str())
++                && let Some(confirmation) = pending.confirmation.as_mut()
++            { confirmation.cancelled = true; }
++        }
++        Ok(())
++    }
++
++    fn process_fences(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let cancellation = js_take_cancellation().map_err(js_failure)?;
++        if !absent(&cancellation) { self.fence(app, &cancellation)?; }
++        let failure = js_take_failure().map_err(js_failure)?;
++        if !absent(&failure) { self.fence(app, &failure)?; }
++        let discard = js_take_discard().map_err(js_failure)?;
++        if !absent(&discard) { self.discard(app, &discard)?; }
++        Ok(())
++    }
++
++    /// The host kept this snapshot itself and will never persist it. Drop it and its job so a
++    /// later capture can run; the live document's dirty state is left exactly as it is.
++    fn discard(&mut self, app: &mut impl NativeHostAdapter, message: &JsValue) -> Result<(), NativeHostFailure> {
++        let Some(captured) = self.pending.as_ref() else { return Ok(()) };
++        if text(message, "requestId")? != captured.request_id || captured.confirmation.is_some() { return Ok(()) }
++        let Some(captured) = self.pending.take() else { return Ok(()) };
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
++        if let Some(id) = captured.intent_id { app.host_cancel_intent(&id); }
++        Ok(())
++    }
++
++    fn process_ack(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let ack = js_take_ack().map_err(js_failure)?;
++        if absent(&ack) { return Ok(()) }
++        let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        if text(&ack, "requestId")? != captured.request_id
++            || text(&ack, "openId")? != captured.open_id
++            || native_number(&ack, "documentId")? != captured.snapshot.identity.document_id
++            || native_number(&ack, "revision")? != captured.revision
++        { return Err(NativeHostFailure::IdentityChanged) }
++
++        if captured.confirmation.is_none() {
++            let before = app.host_identity();
++            let before_revision = self.revision(app)?;
++            let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++            let exact = before_revision == captured.revision
++                && before.is_some_and(|model| model.same_snapshot(captured.snapshot.identity))
++                && !app.host_pending_input();
++            let cancelled = boolean(&ack, "continuationCancelled")?;
++            let result = if exact && !captured.save_as {
++                app.host_acknowledge(&captured.snapshot, false)
++            } else { Ok(false) };
++            let applied = matches!(result, Ok(true));
++            if applied { self.host_dirty = false; }
++            if exact && !captured.save_as && !applied {
++                self.clock.invalidate()?;
++                self.host_dirty = true;
++            }
++            let post_revision = self.revision(app)?;
++            let Some(captured) = self.pending.as_mut() else { return Err(NativeHostFailure::IdentityChanged) };
++            captured.confirmation = Some(Confirmation { before, before_revision, post_revision, applied, cancelled });
++            // Do not retry PDF mark_saved after partial/native failure. An explicit confirmation
++            // retry reports current dirty state, without applying the captured graph a second time.
++            result?;
++        }
++        self.confirm(app)
++    }
++
++    fn confirm(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let current_revision = self.revision(app)?;
++        let current = app.host_identity();
++        let dirty = self.effective_dirty(app);
++        let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        let Some(confirmation) = captured.confirmation.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        js_acknowledged(&document_value(confirmation.before), &confirmation.before_revision.to_string(),
++            &document_value(current), &current_revision.to_string(), dirty).map_err(js_failure)?;
++        let continue_action = confirmation.applied && !confirmation.cancelled
++            && !captured.save_as && confirmation.post_revision == current_revision && !dirty;
++        let intent_id = captured.intent_id.clone();
++        self.pending = None;
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
++        if let Some(id) = intent_id { app.host_finish_intent(&id, continue_action); }
++        Ok(())
++    }
++
++    fn process_capture(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        if self.pending.is_some() || self.opening.is_some() { return Ok(()) }
++        let command = js_take_save_request().map_err(js_failure)?;
++        if absent(&command) { return Ok(()) }
++        let request_id = text(&command, "requestId")?;
++        let open_id = text(&command, "openId")?;
++        let document_id = native_number(&command, "documentId")?;
++        let name = text(&command, "name")?;
++        let intent_id = optional_text(&command, "intentId")?;
++        let save_as = boolean(&command, "saveAs")?;
++        let reason = match text(&command, "reason")?.as_str() {
++            "manual" => NativeHostSaveReason::Manual,
++            "automatic" => NativeHostSaveReason::Automatic,
++            _ => return Err(NativeHostFailure::SerializationFailed("Invalid capture reason".into())),
++        };
++        let snapshot = match app.host_capture(document_id, &name, reason, intent_id.as_deref()) {
++            Ok(snapshot) => snapshot,
++            Err(error) => {
++                if let Some(id) = intent_id { app.host_cancel_intent(&id); }
++                js_serialization_failed(&request_id, error.code(), &error.to_string()).map_err(js_failure)?;
++                return Ok(());
++            }
++        };
++        if snapshot.identity.document_id != document_id || snapshot.name != name
++            || snapshot.bytes.is_empty() || snapshot.bytes.len() > 64 * 1024 * 1024
++        {
++            if let Some(id) = intent_id { app.host_cancel_intent(&id); }
++            js_serialization_failed(&request_id, "serialization-failed", "Native capture differs from its authorized document, name or byte bound").map_err(js_failure)?;
++            return Ok(());
++        }
++        // Undo may return to the OLD native baseline while this captured edit becomes the NEW
++        // server baseline. Keep replacement work dirty until exact acknowledgement reconciles it.
++        self.host_dirty |= !save_as && snapshot.identity.dirty;
++        let revision = self.revision(app)?;
++        self.observe(app)?;
++        self.pending = Some(Captured { request_id, open_id, revision, save_as, intent_id,
++            snapshot, confirmation: None });
++        self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = true;
++        let Some(captured) = self.pending.as_ref() else { return Err(NativeHostFailure::IdentityChanged) };
++        // Store Rust recovery before posting. A failed post must not discard this snapshot/job.
++        let result = js_serialized(&captured.request_id, &document_id.to_string(), &revision.to_string(),
++            &captured.snapshot.name, &captured.snapshot.bytes, save_as);
++        if let Err(error) = result {
++            let error = js_failure(error);
++            if !js_has_recovery_snapshot().map_err(js_failure)? {
++                // Rejected before publication: no uncertain write exists. Keep the live native
++                // document dirty, release only this invalid output and report its capture failure.
++                let rejected = self.pending.take().ok_or(NativeHostFailure::IdentityChanged)?;
++                self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.pending = false;
++                if let Some(id) = rejected.intent_id { app.host_cancel_intent(&id); }
++                js_serialization_failed(&rejected.request_id, error.code(), &error.to_string()).map_err(js_failure)?;
++                return Ok(());
++            }
++            return Err(error);
++        }
++        Ok(())
++    }
++
++    fn publish_intent(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let intent = self.intents.try_borrow_mut().map_err(|_| NativeHostFailure::Busy("Native intent queue is in use".into()))?.queued.take();
++        let Some((id, intent)) = intent else { return Ok(()) };
++        let name = intent.name.as_deref().map(JsValue::from_str).unwrap_or(JsValue::UNDEFINED);
++        match js_save_requested(&intent.document_id.to_string(), intent.save_as, &name, &id) {
++            Ok(true) => Ok(()),
++            Ok(false) => { app.host_cancel_intent(&id); Ok(()) }
++            Err(error) => { app.host_cancel_intent(&id); Err(js_failure(error)) }
++        }
++    }
++
++    fn process_theme(&mut self, app: &mut impl NativeHostAdapter) -> Result<(), NativeHostFailure> {
++        let command = js_take_theme().map_err(js_failure)?;
++        let system_dark = js_system_dark().map_err(js_failure)?;
++        if !absent(&command) {
++            let preference = text(&command, "theme")?;
++            let resolved_dark = match preference.as_str() { "dark" => true, "light" => false, "system" => system_dark,
++                _ => return Err(NativeHostFailure::SerializationFailed("Unknown native theme".into())) };
++            let request_id = text(&command, "requestId")?;
++            if let Err(error) = app.host_theme(&preference, resolved_dark) {
++                return js_theme_failed(&request_id, &error.to_string()).map_err(js_failure);
++            }
++            self.system_theme = preference == "system";
++            self.last_system_dark = Some(system_dark);
++            self.theme = Some(ThemeApplication { request_id, preference, resolved_dark });
++        } else if self.system_theme && self.last_system_dark != Some(system_dark) {
++            app.host_theme("system", system_dark)?;
++            self.last_system_dark = Some(system_dark);
++            if let Some(theme) = self.theme.as_mut() { theme.resolved_dark = system_dark; }
++        }
++        Ok(())
++    }
++
++    pub fn before_logic(&mut self, app: &mut impl NativeHostAdapter, _ctx: &egui::Context) -> Result<(), NativeHostFailure> {
++        self.process_fences(app)?;
++        self.process_ack(app)?;
++        self.process_open(app)?;
++        self.process_theme(app)
++    }
++
++    pub fn after_logic(&mut self, app: &mut impl NativeHostAdapter, ctx: &egui::Context) -> Result<(), NativeHostFailure> {
++        guard_urls(ctx);
++        self.poll_open(app)?;
++        self.observe(app)?;
++        if self.input_pending { return Ok(()) }
++        self.process_capture(app)
++    }
++
++    pub fn after_ui(&mut self, app: &mut impl NativeHostAdapter, ctx: &egui::Context) -> Result<(), NativeHostFailure> {
++        guard_urls(ctx);
++        if ctx.will_discard() { return Ok(()) }
++        self.input_pending = false;
++        self.poll_open(app)?;
++        self.observe(app)?;
++        self.publish_intent(app)?;
++        let was_pending = self.pending.is_some();
++        self.process_capture(app)?;
++        if !was_pending && self.pending.is_some() { ctx.request_repaint(); }
++        if let Some(theme) = self.theme.as_ref()
++            && ctx.global_style().visuals.dark_mode == theme.resolved_dark
++        {
++            js_theme_applied(&theme.request_id, &theme.preference, if theme.resolved_dark { "dark" } else { "light" }).map_err(js_failure)?;
++            self.theme = None;
++        }
++        Ok(())
++    }
++}
++
++/// Document links run with Hyori's origin, so a crafted `javascript:` or `data:` link must never
++/// reach the browser. Only absolute web and mail links open, always in a new, unrelated tab.
++fn guard_urls(ctx: &egui::Context) {
++    let urls: Vec<String> = ctx.output_mut(|output| {
++        let mut urls = Vec::new();
++        output.commands.retain(|command| match command {
++            egui::OutputCommand::OpenUrl(open) => { urls.push(open.url.clone()); false }
++            _ => true,
++        });
++        urls
++    });
++    for url in urls {
++        if let Some(url) = allowed_url(&url)
++            && let Some(window) = eframe::web_sys::window()
++        {
++            let _ = window.open_with_url_and_target_and_features(&url, "_blank", "noopener,noreferrer");
++        }
++    }
++}
++
++/// Browsers drop leading C0/space and every tab/newline before reading a scheme; do the same.
++fn allowed_url(url: &str) -> Option<String> {
++    let url: String = url.trim_start_matches(|c: char| c <= ' ').chars().filter(|c| !matches!(c, '\t' | '\n' | '\r')).collect();
++    let (scheme, _) = url.split_once(':')?;
++    matches!(scheme.to_ascii_lowercase().as_str(), "http" | "https" | "mailto").then_some(url)
++}
+diff --git a/apps/gridcraft-web/src/web.rs b/apps/gridcraft-web/src/web.rs
+index 1108c4c1..be291328 100644
+--- a/apps/gridcraft-web/src/web.rs
++++ b/apps/gridcraft-web/src/web.rs
+@@ -2,6 +2,7 @@
+ 
+ use gridcraft_engine::Session;
+ use gridcraft_ui_egui::{Inbox, Services, SheetApp};
++use crate::native_host::{NativeHostFrame, NATIVE_ARTIFACT_VERSION};
+ use wasm_bindgen::JsCast as _;
+ use wasm_bindgen::JsValue;
+ 
+@@ -11,7 +12,11 @@ const LOADING_ID: &str = "gridcraft_loading";
+ /// Starts the eframe web runner for the GridCraft canvas. It adjusts the WebGPU device limits to the adapter's, optionally selects the WebGL backend from the query string, and builds the shell with the requested sample or host bridge, browser language rules, stored preferences and the loading/error page state.
+ pub fn start() {
+     eframe::WebLogger::init(log::LevelFilter::Info).ok();
+-    wasm_bindgen_futures::spawn_local(async {
++    let hosted = match NativeHostFrame::prepare("gridcraft", NATIVE_ARTIFACT_VERSION) {
++        Ok(hosted) => hosted,
++        Err(error) => { crate::native_frame::report_failure(error); return; }
++    };
++    wasm_bindgen_futures::spawn_local(async move {
+         let Some(document) = web_sys::window().and_then(|w| w.document()) else {
+             log::error!("no document");
+             return;
+@@ -37,13 +42,6 @@ pub fn start() {
+         {
+             create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
+         }
+-        // Host modes (`craft-web-host`): `?host=parent`, a same-origin page framing GridCraft (such
+-        // as a Nextcloud app), opens workbooks in it and stores what it saves (`host`). Unframed
+-        // there is no parent, so that URL on its own stays the normal app with downloads.
+-        // `data-host="page"` on the canvas opts a page in instead: it runs GridCraft in its own
+-        // document and talks over DOM `CustomEvent`s on the canvas.
+-        let bridge = crate::host::Bridge::detect(&canvas);
+-        let app_bridge = bridge.clone();
+         let result = eframe::WebRunner::new()
+             .start(
+                 canvas,
+@@ -52,16 +50,13 @@ pub fn start() {
+                     let inbox: Inbox = Inbox::default();
+                     let mut session = Session::new();
+                     // In host mode the host sends the workbook to edit; no sample meanwhile.
+-                    let q = if app_bridge.is_some() { String::new() } else { query() };
++                    let q = if hosted { String::new() } else { query() };
+                     if let Some(name) = q.split(['?', '&']).find_map(|kv| kv.strip_prefix("sample=")) {
+                         let _ = session.execute("file.new", serde_json::json!({"sample": name}));
+                     } else if q.contains("sample") {
+                         let _ = session.execute("file.new", serde_json::json!({"sample": "sales"}));
+                     }
+-                    let mut services = services(inbox.clone(), cc.egui_ctx.clone());
+-                    if let Some(bridge) = &app_bridge {
+-                        bridge.connect(&mut services, inbox.clone(), cc.egui_ctx.clone());
+-                    }
++                    let services = services(inbox.clone(), cc.egui_ctx.clone());
+                     let mut app = SheetApp::new(session, services);
+                     app.ui.system_theme = true;
+                     // `?chrome=none|notitlebar|nofiletab`: a host that embeds the sheet in its own window and owns the files
+@@ -92,25 +87,26 @@ pub fn start() {
+                     crate::prefs::restore(&mut app, stored_ui.as_deref(), stored_prefs.as_deref());
+                     let mut prefs = crate::prefs::PrefsSync::new(stored_ui, stored_prefs);
+                     SheetApp::setup_context_for_language(&cc.egui_ctx, false, app.ui.language);
+-                    if let Some(bridge) = &app_bridge {
++                    if hosted {
+                         prefs.keep_user_name(app.session.prefs.user_name.clone());
+                         if let Some(author) = query_param("author") {
+-                            crate::host::Bridge::set_author(&mut app, &author);
++                            let author: String = author.trim().chars().take(200).collect();
++                            if !author.is_empty() { app.session.prefs.user_name = author; }
+                         }
+-                        bridge.post_ready();
+                     }
+-                    crate::api::install(&mut app, cc.egui_ctx.clone());
+-                    Ok(Box::new(WebShell { app, inbox, bridge: app_bridge, prefs }))
++                    let native_host = NativeHostFrame::new(&cc.egui_ctx, &mut app)?;
++                    Ok(Box::new(WebShell { app, inbox, native_host, prefs }))
+                 }),
+             )
+             .await;
+-        if let (Err(e), Some(bridge)) = (&result, &bridge) {
+-            bridge.post_failed(&format!("{e:?}"));
++        match &result {
++            Ok(()) => { if let Err(error) = NativeHostFrame::ready() { crate::native_frame::report_failure(error); } }
++            Err(error) => { let _ = NativeHostFrame::failed(&format!("{error:?}")); }
+         }
+         if let Some(el) = document.get_element_by_id(LOADING_ID) {
+             match result {
+                 Ok(()) => el.remove(),
+-                Err(e) => el.set_inner_html(&format!("<p>GridCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
++                Err(e) => el.set_inner_html(&format!("<p>Hyori Spreadsheets failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
+             }
+         }
+     });
+@@ -127,7 +123,7 @@ fn query_param(key: &str) -> Option<String> {
+ struct WebShell {
+     app: SheetApp,
+     inbox: Inbox,
+-    bridge: Option<crate::host::Bridge>,
++    native_host: Option<NativeHostFrame>,
+     prefs: crate::prefs::PrefsSync,
+ }
+ 
+@@ -157,7 +153,11 @@ impl eframe::App for WebShell {
+                 }
+             });
+         }
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.before_logic(&mut self.app, ctx) { crate::native_frame::report_failure(error); }
+         self.app.logic(ctx);
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.after_logic(&mut self.app, ctx) { crate::native_frame::report_failure(error); }
+         // Store changed preferences straight away: a reload or closed tab runs no exit code (#1562).
+         let changed = self.prefs.changed(&self.app);
+         if !changed.is_empty() {
+@@ -176,14 +176,15 @@ impl eframe::App for WebShell {
+ 
+     /// Forwards a browser frame's raw input to the shared app before eframe handles it.
+     fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.note_input(&self.app, raw) { crate::native_frame::report_failure(error); }
+         self.app.raw_input_hook(ctx, raw);
+     }
+ 
+     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+         self.app.ui(ui);
+-        if let Some(bridge) = &self.bridge {
+-            bridge.sync(&mut self.app);
+-        }
++        if let Some(host) = self.native_host.as_mut()
++            && let Err(error) = host.after_ui(&mut self.app, ui.ctx()) { crate::native_frame::report_failure(error); }
+     }
+ }
+ 
+@@ -283,6 +284,7 @@ fn copy_html(html: &str, text: &str) -> Result<(), String> {
+ /// the iframe are both cleaned up once the print dialog closes, so repeated prints don't leak
+ /// them.
+ fn print_pdf(bytes: &[u8]) -> Result<(), String> {
++    if crate::native_host::show_pdf(bytes)? { return Ok(()); }
+     let js = |e: wasm_bindgen::JsValue| format!("{e:?}");
+     let window = web_sys::window().ok_or("no window")?;
+     let document = window.document().ok_or("no document")?;
+diff --git a/crates/ui-egui/src/app.rs b/crates/ui-egui/src/app.rs
+index 94b6b01e..e836ef48 100644
+--- a/crates/ui-egui/src/app.rs
++++ b/crates/ui-egui/src/app.rs
+@@ -13,6 +13,9 @@ use super::{
+ 
+ mod clipboard;
+ mod commands;
++mod native_host;
++pub(crate) use native_host::NativeHostPendingOpen;
++pub use native_host::{NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntent, NativeHostIntentFn, NativeHostSerializer, NativeHostContinuation, NativeHostJob};
+ mod editing;
+ #[cfg(test)]
+ pub(crate) use editing::{DRAFT_CODE_HIDDEN, DRAFT_SHEET_GONE};
+@@ -29,6 +32,9 @@ impl SheetApp {
+     /// Constructs a `SheetApp` with default UI, grid, printing, control and screenshot state and the caller's session and services.
+     pub fn new(session: Session, services: Services) -> SheetApp {
+         SheetApp {
++            native_host_intents: None,
++            native_host_job: None,
++            native_host_open_pending: None,
+             session,
+             ui: UiState::default(),
+             chrome: Chrome::default(),
+diff --git a/crates/ui-egui/src/app/commands.rs b/crates/ui-egui/src/app/commands.rs
+index 6dff45cb..40ece4ba 100644
+--- a/crates/ui-egui/src/app/commands.rs
++++ b/crates/ui-egui/src/app/commands.rs
+@@ -17,6 +17,7 @@ impl SheetApp {
+     }
+ 
+     pub(super) fn run_command(&mut self, id: &str, params: Json) -> Result<Json, String> {
++        if let Some(result) = self.native_host_command(id, &params) { return result; }
+         let switches_window = id.starts_with("window.")
+             || matches!(id, "view.newWindow" | "view.hideWindow" | "view.unhideWindow")
+             || (id == "view.switchWindows" && ["window", "doc"].iter().any(|k| params.get(*k).is_some_and(|d| !d.is_null())));
+@@ -141,7 +142,7 @@ impl SheetApp {
+         if e.contains("is not available right now") {
+             self.toast = Some((e, now_ms()));
+         } else {
+-            self.message = Some(("GridCraft".into(), clean_error(&e)));
++            self.message = Some(("Hyori Spreadsheets".into(), clean_error(&e)));
+         }
+     }
+ 
+@@ -306,7 +307,7 @@ impl SheetApp {
+         for req in self.session.take_ui_requests() {
+             match req {
+                 UiRequest::Dialog(name, params) => self.open_dialog(&name, params),
+-                UiRequest::Message(m) => self.message = Some(("GridCraft".into(), m)),
++                UiRequest::Message(m) => self.message = Some(("Hyori Spreadsheets".into(), m)),
+                 UiRequest::EditCell(text) => {
+                     let text = text.map(|text| {
+                         self.session
+diff --git a/crates/ui-egui/src/app/editing.rs b/crates/ui-egui/src/app/editing.rs
+index a5ac8a17..8c012f22 100644
+--- a/crates/ui-egui/src/app/editing.rs
++++ b/crates/ui-egui/src/app/editing.rs
+@@ -25,7 +25,7 @@ impl SheetApp {
+         // refuses `cell.set` anyway): refuse before a draft exists, rather than leaving one that
+         // can never be committed and blocks Save (#2945).
+         if let Some(m) = self.session.locked_cell_message(d.wb.active_sheet(), at) {
+-            self.message = Some(("GridCraft".into(), m));
++            self.message = Some(("Hyori Spreadsheets".into(), m));
+             return;
+         }
+         // A picture has no editable scalar text. Selecting it, F2, or clicking
+@@ -153,13 +153,13 @@ impl SheetApp {
+         // open) can't be entered: drop it with the warning instead of keeping it, which would
+         // block Save with a draft that can never be committed (#2945).
+         if let Some(m) = self.session.locked_cell_message(ed.sheet, ed.cell) {
+-            self.message = Some(("GridCraft".into(), m));
++            self.message = Some(("Hyori Spreadsheets".into(), m));
+             return true;
+         }
+         let text = match self.session.active().map(|d| formula_locale::canonical(&text, ed.locale, &d.wb, ed.sheet, ed.cell)) {
+             Some(Ok(text)) => text,
+             Some(Err(error)) => {
+-                self.message = Some(("GridCraft".into(), error.to_string()));
++                self.message = Some(("Hyori Spreadsheets".into(), error.to_string()));
+                 self.editor = Some(ed);
+                 self.session.mode = gridcraft_engine::Mode::Edit;
+                 return false;
+@@ -171,7 +171,7 @@ impl SheetApp {
+             && let Some((dv, msg)) = gridcraft_engine::cmd::data::check_validation(&d.wb, ed.sheet, ed.cell, &text)
+         {
+             if dv.error_style == gridcraft_engine::model::ErrorStyle::Stop {
+-                let title = if dv.error_title.is_empty() { "GridCraft".to_string() } else { dv.error_title.clone() };
++                let title = if dv.error_title.is_empty() { "Hyori Spreadsheets".to_string() } else { dv.error_title.clone() };
+                 self.message = Some((title, msg));
+                 self.editor = Some(ed);
+                 self.session.mode = gridcraft_engine::Mode::Edit;
+@@ -183,7 +183,7 @@ impl SheetApp {
+         if self.session.active().is_some_and(|d| d.wb.active_sheet() != ed.sheet)
+             && let Err(e) = self.session.run("sheet.activate", json!({"sheet": ed.sheet}))
+         {
+-            self.message = Some(("GridCraft".into(), clean_error(&e)));
++            self.message = Some(("Hyori Spreadsheets".into(), clean_error(&e)));
+             self.editor = Some(ed);
+             self.session.mode = gridcraft_engine::Mode::Edit;
+             return false;
+@@ -212,7 +212,7 @@ impl SheetApp {
+                 true
+             }
+             Err(e) => {
+-                self.message = Some(("GridCraft".into(), clean_error(&e)));
++                self.message = Some(("Hyori Spreadsheets".into(), clean_error(&e)));
+                 self.editor = Some(ed);
+                 self.session.mode = gridcraft_engine::Mode::Edit;
+                 false
+diff --git a/crates/ui-egui/src/app/files.rs b/crates/ui-egui/src/app/files.rs
+index 0cbde92a..dc7fdf96 100644
+--- a/crates/ui-egui/src/app/files.rs
++++ b/crates/ui-egui/src/app/files.rs
+@@ -6,7 +6,7 @@ impl SheetApp {
+             Ok(r) => self.after_open(Some(path), &r),
+             // A password-protected workbook: ask for the password; the dialog opens it.
+             Err(e) if e.contains(gridcraft_engine::io::PASSWORD_REQUIRED) => self.open_dialog("openPassword", json!({"path": path})),
+-            Err(e) => self.message = Some(("GridCraft".into(), clean_error(&e))),
++            Err(e) => self.message = Some(("Hyori Spreadsheets".into(), clean_error(&e))),
+         }
+         self.after_engine();
+     }
+@@ -95,7 +95,7 @@ impl SheetApp {
+                     self.backstage = None;
+                     self.open_dialog("openPassword", json!({"name": name, "base64": b64}));
+                 }
+-                Err(e) => self.message = Some(("GridCraft".into(), clean_error(&e))),
++                Err(e) => self.message = Some(("Hyori Spreadsheets".into(), clean_error(&e))),
+             }
+             self.after_engine();
+         }
+@@ -105,6 +105,7 @@ impl SheetApp {
+     /// `logic` so a hidden or logic-only frame still saves; the monotonic timestamp check keeps a
+     /// forced hidden UI pass from saving the same change twice.
+     pub(super) fn autosave(&mut self, ctx: &egui::Context) {
++        if self.native_host_intents.is_some() { return; }
+         let dirty_xlsx = self.session.active().is_some_and(|d| d.is_dirty() && d.path.as_deref().is_some_and(|p| p.ends_with(".xlsx")));
+         let now = crate::monotonic_ms();
+         let autosave_due =
+diff --git a/crates/ui-egui/src/app/native_host.rs b/crates/ui-egui/src/app/native_host.rs
+new file mode 100644
+index 00000000..924aa2f2
+--- /dev/null
++++ b/crates/ui-egui/src/app/native_host.rs
+@@ -0,0 +1,339 @@
++/// Why the host requested native capture; only explicit manual actions may settle live editors.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum NativeHostSaveReason {
++    /// An explicit user Save/SaveCopy action.
++    Manual,
++    /// Background capture must preserve a live editor or report busy.
++    Automatic,
++}
++
++/// Native model identity, never a backend file revision or JavaScript number.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct NativeHostIdentity {
++    pub document_id: u64,
++    pub revision: u64,
++    pub dirty: bool,
++}
++
++/// Bytes produced by the engine, captured with the identity after native input settling.
++pub struct NativeHostSnapshot {
++    pub identity: NativeHostIdentity,
++    pub name: String,
++    pub bytes: Vec<u8>,
++    // Additional native snapshot witness. Never serialized as an IPC revision or pointer value.
++    guard: Box<dyn Fn(&NativeHostApp) -> bool>,
++}
++
++#[derive(Debug)]
++pub enum NativeHostFailure {
++    Busy(String),
++    IdentityChanged,
++    SerializationFailed(String),
++}
++
++impl NativeHostFailure {
++    pub fn code(&self) -> &'static str {
++        match self {
++            Self::Busy(_) => "busy",
++            Self::IdentityChanged => "identity-changed",
++            Self::SerializationFailed(_) => "serialization-failed",
++        }
++    }
++}
++
++impl std::fmt::Display for NativeHostFailure {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::Busy(message) | Self::SerializationFailed(message) => formatter.write_str(message),
++            Self::IdentityChanged => formatter.write_str("The native document no longer matches the host source"),
++        }
++    }
++}
++
++impl std::error::Error for NativeHostFailure {}
++
++impl NativeHostIdentity {
++    /// Dirty is deliberately excluded: only document/revision equality identifies a snapshot.
++    pub fn same_snapshot(self, other: Self) -> bool {
++        self.document_id == other.document_id && self.revision == other.revision
++    }
++}
++
++/// Native UI intent metadata. Its ID is allocated by the frame sink, never by the parent.
++pub struct NativeHostIntent {
++    pub document_id: u64,
++    pub save_as: bool,
++    pub name: Option<String>,
++}
++
++/// Some(id) delegates to cloud; None preserves an explicitly chosen unsupported local export.
++/// Replacement never falls through to a local download. Busy must not replace an existing job.
++pub type NativeHostIntentFn = Box<dyn Fn(NativeHostIntent) -> Result<Option<String>, NativeHostFailure>>;
++
++/// A native export closure retains the exact chosen options, but accepts a renamed destination.
++/// This is a private native job, not a second IPC contract or an intercepted command callback.
++pub type NativeHostSerializer = Box<dyn Fn(&mut NativeHostApp, u64, &str, NativeHostSaveReason) -> Result<NativeHostSnapshot, NativeHostFailure>>;
++
++/// A held New/Open/Close action can run only after an exact, uncancelled durable replacement.
++pub type NativeHostContinuation = Box<dyn FnOnce(&mut NativeHostApp)>;
++
++/// The app owns chosen export options and any continuation; the frame owns captured save bytes.
++/// Cancellation drops this job, never the independent immutable snapshot or source dirty state.
++pub struct NativeHostJob {
++    pub intent_id: String,
++    pub document_id: u64,
++    pub serializer: Option<NativeHostSerializer>,
++    pub continuation: Option<NativeHostContinuation>,
++}
++
++use super::*;
++
++type NativeHostApp = crate::SheetApp;
++
++impl SheetApp {
++    /// Committed native model identity, plus conservative pending-input dirty state.
++    pub fn native_host_identity(&self) -> Option<NativeHostIdentity> {
++        self.session.active().map(|document| NativeHostIdentity {
++            document_id: document.uid,
++            revision: document.revision,
++            dirty: document.is_dirty() || self.native_host_pending_input(),
++        })
++    }
++
++    /// Do not consume a live cell/text-box editor from a background autosave.
++    pub fn native_host_pending_input(&self) -> bool {
++        self.editor.is_some() || self.text_box_editor.is_some() || self.name_box.is_some()
++            || self.synthetic_pending || !self.synthetic.is_empty()
++            || self.dialog.as_ref().is_some_and(|dialog| dialog.name != "saveChanges")
++    }
++
++    /// A password prompt carries a private native marker; another opened workbook cannot answer it.
++    pub fn native_host_open(&mut self, name: &str, bytes: &[u8]) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
++        if self.native_host_open_pending.is_some() || self.native_host_pending_input() {
++            return Err(NativeHostFailure::Busy("Finish the current native input before opening a workbook".into()));
++        }
++        let previous = self.session.active().map(|document| document.uid);
++        let params = json!({"name": name, "base64": gridcraft_engine::io::base64_encode(bytes)});
++        match self.run("file.open", params.clone()) {
++            Ok(result) => self.after_open(None, &result),
++            Err(error) if error.contains(gridcraft_engine::io::PASSWORD_REQUIRED) => {
++                self.open_dialog("openPassword", params);
++                let dialog = self.dialog.as_mut().filter(|dialog| dialog.name == "openPassword")
++                    .ok_or(NativeHostFailure::IdentityChanged)?;
++                let marker = std::sync::Arc::new(());
++                dialog.native_host_open = Some(marker.clone());
++                self.native_host_open_pending = Some(NativeHostPendingOpen { marker, result: None });
++                return Ok(None);
++            }
++            Err(error) => return Err(NativeHostFailure::SerializationFailed(error)),
++        }
++        let identity = self.native_host_identity().ok_or(NativeHostFailure::IdentityChanged)?;
++        if previous == Some(identity.document_id) { return Err(NativeHostFailure::IdentityChanged); }
++        self.backstage = None;
++        Ok(Some(identity))
++    }
++
++    /// Direct native serialization; the exact requested name also controls workbook-internal links.
++    pub fn native_host_serialize(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        if self.session.active().map(|document| document.uid) != Some(document_id) {
++            return Err(NativeHostFailure::IdentityChanged);
++        }
++        if self.dialog.as_ref().is_some_and(|dialog| dialog.name != "saveChanges")
++            || self.synthetic_pending || !self.synthetic.is_empty()
++            || (reason == NativeHostSaveReason::Automatic && self.native_host_pending_input()) {
++            return Err(NativeHostFailure::Busy("Finish the active native cell, text-box edit or dialog before automatic saving".into()));
++        }
++        if reason == NativeHostSaveReason::Manual {
++            self.settle_drafts().map_err(NativeHostFailure::Busy)?;
++        }
++        self.store_view_state();
++        let document = self.session.active().ok_or(NativeHostFailure::IdentityChanged)?;
++        let bytes = gridcraft_engine::io::save_bytes(&document.wb, name)
++            .map_err(|error| NativeHostFailure::SerializationFailed(error.to_string()))?;
++        let workbook = document.wb.clone();
++        let identity = self.native_host_identity().ok_or(NativeHostFailure::IdentityChanged)?;
++        if identity.document_id != document_id {
++            return Err(NativeHostFailure::IdentityChanged);
++        }
++        Ok(NativeHostSnapshot { identity, name: name.to_owned(), bytes,
++            guard: Box::new(move |app| app.session.active().is_some_and(|document| std::sync::Arc::ptr_eq(&document.wb, &workbook))),
++        })
++    }
++
++    /// A replacement ack updates only the exact current workbook baseline, never another tab.
++    pub fn native_host_acknowledge(&mut self, snapshot: &NativeHostSnapshot, save_as: bool) -> bool {
++        if save_as || self.native_host_pending_input() || !self.native_host_identity().is_some_and(|current| current.same_snapshot(snapshot.identity)) || !(snapshot.guard)(self) {
++            return false;
++        }
++        let Some(document) = self.session.active_mut() else { return false };
++        document.saved = document.wb.clone();
++        true
++    }
++
++    /// Change the native preference; actual palette application happens in the native UI pass.
++    pub fn native_host_theme(&mut self, preference: &str) -> Result<(), NativeHostFailure> {
++        self.run("view.theme", json!({"mode": preference}))
++            .map_err(NativeHostFailure::SerializationFailed)?;
++        Ok(())
++    }
++}
++
++pub(crate) struct NativeHostPendingOpen {
++    pub marker: std::sync::Arc<()>,
++    pub result: Option<Result<NativeHostIdentity, NativeHostFailure>>,
++}
++
++impl SheetApp {
++    pub fn native_host_install_intents(&mut self, sink: NativeHostIntentFn) {
++        self.native_host_intents = Some(sink);
++    }
++
++    fn native_host_queue(
++        &mut self,
++        document_id: u64,
++        name: Option<String>,
++        save_as: bool,
++        continuation: Option<NativeHostContinuation>,
++    ) -> Result<bool, NativeHostFailure> {
++        if self.native_host_job.is_some() {
++            return Err(NativeHostFailure::Busy("A native save is already awaiting its result".into()));
++        }
++        let sink = self.native_host_intents.as_ref().ok_or(NativeHostFailure::IdentityChanged)?;
++        let extension = name.as_deref().and_then(|name| std::path::Path::new(name).extension())
++            .and_then(|extension| extension.to_str()).map(str::to_owned);
++        let Some(intent_id) = sink(NativeHostIntent { document_id, save_as, name })? else {
++            if save_as { return Ok(false); }
++            return Err(NativeHostFailure::SerializationFailed("Cloud replacement cannot fall back to a local download".into()));
++        };
++        self.native_host_job = Some(NativeHostJob {
++            intent_id,
++            document_id,
++            serializer: Some(Box::new(move |app, document_id, destination, reason| {
++                let selected = std::path::Path::new(destination).extension().and_then(|extension| extension.to_str());
++                if extension.as_deref().is_some_and(|expected| selected != Some(expected)) {
++                    return Err(NativeHostFailure::SerializationFailed("The selected native output format cannot change during destination selection".into()));
++                }
++                app.native_host_serialize(document_id, destination, reason)
++            })),
++            continuation,
++        });
++        Ok(true)
++    }
++
++    pub(crate) fn native_host_command(&mut self, command: &str, params: &Json) -> Option<Result<Json, String>> {
++        if self.native_host_intents.is_none() || !matches!(command, "file.save" | "file.saveAs") {
++            return None;
++        }
++        let result = (|| {
++            let document = self.session.active().ok_or(NativeHostFailure::IdentityChanged)?;
++            let document_id = document.uid;
++            let chosen = params.get("path").and_then(Json::as_str).filter(|name| !name.is_empty());
++            let save_as = command == "file.saveAs" || chosen.is_some();
++            let name = chosen.map(str::to_owned).or_else(|| save_as.then(|| {
++                let title = document.display_title();
++                let stem = std::path::Path::new(&title).file_stem().and_then(|stem| stem.to_str()).unwrap_or("Book");
++                format!("{stem}.xlsx")
++            }));
++            if self.native_host_queue(document_id, name.clone(), save_as, None)? {
++                return Ok(json!({"pending": true}));
++            }
++            // Only an explicitly unsupported local copy reaches this path. Keep the native
++            // chosen filename/format, but never run file.save's path/baseline mutation.
++            let name = name.ok_or(NativeHostFailure::IdentityChanged)?;
++            if std::path::Path::new(&name).extension().and_then(|extension| extension.to_str()).is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")) {
++                self.settle_drafts().map_err(NativeHostFailure::Busy)?;
++                self.store_view_state();
++                // Native Save As PDF is the print pipeline, not workbook serialization. Preserve
++                // every chosen print option; only replace the disk destination with local download.
++                let mut options = params.clone();
++                options.as_object_mut().ok_or(NativeHostFailure::IdentityChanged)?.remove("path");
++                let result = self.session.run("file.exportPdf", options)
++                    .map_err(|error| NativeHostFailure::SerializationFailed(error.to_string()))?;
++                let bytes = result.get("base64").and_then(Json::as_str).and_then(gridcraft_engine::io::base64_decode)
++                    .ok_or_else(|| NativeHostFailure::SerializationFailed("Native PDF export returned no bytes".into()))?;
++                let download = self.services.download.as_ref().ok_or_else(|| NativeHostFailure::SerializationFailed("Local PDF export is unavailable".into()))?;
++                download(&name, &bytes);
++                return Ok(json!({"name": name, "bytes": bytes.len(), "localExport": true}));
++            }
++            let snapshot = self.native_host_serialize(document_id, &name, NativeHostSaveReason::Manual)?;
++            let download = self.services.download.as_ref().ok_or_else(|| NativeHostFailure::SerializationFailed("Local export is unavailable".into()))?;
++            download(&snapshot.name, &snapshot.bytes);
++            Ok(json!({"name": snapshot.name, "bytes": snapshot.bytes.len(), "localExport": true}))
++        })();
++        Some(result.map_err(|error: NativeHostFailure| error.to_string()))
++    }
++
++    pub(crate) fn native_host_save_changes(&mut self, answer: crate::SaveAnswer, quitting: bool, ctx: &egui::Context) -> Option<bool> {
++        if self.native_host_intents.is_none() || !matches!(answer, crate::SaveAnswer::Save) {
++            return None;
++        }
++        let Some(document_id) = self.native_host_identity().map(|identity| identity.document_id) else { return Some(false) };
++        let ctx = ctx.clone();
++        let after: NativeHostContinuation = Box::new(move |app| {
++            if app.session.active().is_some_and(|document| document.uid == document_id) {
++                app.run_or_alert("file.close", json!({"force": true, "document": true}));
++                if quitting { app.continue_quit(&ctx); }
++            }
++        });
++        match self.native_host_queue(document_id, None, false, Some(after)) {
++            Ok(true) => Some(true),
++            Ok(false) => Some(false),
++            Err(error) => { self.alert(error.to_string()); Some(false) }
++        }
++    }
++
++    pub fn native_host_capture_job(&mut self, document_id: u64, name: &str, reason: NativeHostSaveReason, intent_id: Option<&str>) -> Result<NativeHostSnapshot, NativeHostFailure> {
++        let Some(intent_id) = intent_id else { return self.native_host_serialize(document_id, name, reason) };
++        if !self.native_host_job.as_ref().is_some_and(|job| job.intent_id == intent_id && job.document_id == document_id) {
++            return Err(NativeHostFailure::IdentityChanged);
++        }
++        let job = self.native_host_job.take().ok_or(NativeHostFailure::IdentityChanged)?;
++        let result = match job.serializer.as_ref() {
++            Some(serialize) => serialize(self, document_id, name, reason),
++            None => self.native_host_serialize(document_id, name, reason),
++        };
++        self.native_host_job = Some(job);
++        result
++    }
++
++    pub fn native_host_cancel_intent(&mut self, intent_id: &str) {
++        if self.native_host_job.as_ref().is_some_and(|job| job.intent_id == intent_id) {
++            self.native_host_job = None;
++        }
++    }
++
++    pub fn native_host_finish_intent(&mut self, intent_id: &str, exact_replacement: bool) {
++        if !self.native_host_job.as_ref().is_some_and(|job| job.intent_id == intent_id) { return; }
++        let Some(job) = self.native_host_job.take() else { return };
++        if exact_replacement && !self.native_host_pending_input()
++            && self.native_host_identity().is_some_and(|identity| identity.document_id == job.document_id)
++            && let Some(after) = job.continuation {
++            after(self);
++        }
++    }
++
++    pub(crate) fn native_host_password_opened(&mut self, marker: Option<&std::sync::Arc<()>>) {
++        let identity = self.native_host_identity().ok_or(NativeHostFailure::IdentityChanged);
++        if let Some(pending) = self.native_host_open_pending.as_mut()
++            && marker.is_some_and(|marker| std::sync::Arc::ptr_eq(marker, &pending.marker)) {
++            pending.result = Some(identity);
++        }
++    }
++
++    pub fn native_host_poll_open(&mut self) -> Result<Option<NativeHostIdentity>, NativeHostFailure> {
++        let Some(pending) = self.native_host_open_pending.as_mut() else { return Ok(None) };
++        if let Some(result) = pending.result.take() {
++            self.native_host_open_pending = None;
++            let opened = result?;
++            return self.native_host_identity().filter(|current| current.document_id == opened.document_id)
++                .map(Some).ok_or(NativeHostFailure::IdentityChanged);
++        }
++        let waiting = self.dialog.as_ref().and_then(|dialog| dialog.native_host_open.as_ref())
++            .is_some_and(|marker| std::sync::Arc::ptr_eq(marker, &pending.marker));
++        if !waiting {
++            self.native_host_open_pending = None;
++            return Err(NativeHostFailure::SerializationFailed("The requested native workbook open was cancelled or replaced".into()));
++        }
++        Ok(None)
++    }
++}
+diff --git a/crates/ui-egui/src/app/prefs.rs b/crates/ui-egui/src/app/prefs.rs
+index 151374e6..a0e0931d 100644
+--- a/crates/ui-egui/src/app/prefs.rs
++++ b/crates/ui-egui/src/app/prefs.rs
+@@ -61,7 +61,7 @@ impl SheetApp {
+         updates_ui::start(self, true);
+         #[cfg(target_arch = "wasm32")]
+         {
+-            self.message = Some(("GridCraft".into(), "The web version is always the latest release.".into()));
++            self.message = Some(("Hyori Spreadsheets".into(), "The web version is always the latest release.".into()));
+         }
+     }
+ 
+diff --git a/crates/ui-egui/src/app/quit.rs b/crates/ui-egui/src/app/quit.rs
+index 7f364829..220f89f7 100644
+--- a/crates/ui-egui/src/app/quit.rs
++++ b/crates/ui-egui/src/app/quit.rs
+@@ -56,6 +56,7 @@ impl SheetApp {
+     /// Returns whether the question is settled: Save keeps it open when the cell being edited
+     /// can't be entered.
+     pub fn answer_save_changes(&mut self, answer: SaveAnswer, quitting: bool, ctx: &egui::Context) -> bool {
++        if let Some(result) = self.native_host_save_changes(answer, quitting, ctx) { return result; }
+         match answer {
+             SaveAnswer::Cancel => {}
+             SaveAnswer::DontSave => {
+diff --git a/crates/ui-egui/src/backstage.rs b/crates/ui-egui/src/backstage.rs
+index 194533d3..f6df1928 100644
+--- a/crates/ui-egui/src/backstage.rs
++++ b/crates/ui-egui/src/backstage.rs
+@@ -754,13 +754,13 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+         return match app.run(id, json!({"path": path})) {
+             Ok(_) => true,
+             Err(e) => {
+-                app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+                 false
+             }
+         };
+     }
+     if app.services.download.is_none() {
+-        app.message = Some(("GridCraft".into(), "Exporting needs a file picker, which this window doesn't have.".into()));
++        app.message = Some(("Hyori Spreadsheets".into(), "Exporting needs a file picker, which this window doesn't have.".into()));
+         return false;
+     }
+     if fmt == "pdf" {
+@@ -768,7 +768,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+         return match app.run(id, json!({})) {
+             Ok(_) => true,
+             Err(e) => {
+-                app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+                 false
+             }
+         };
+@@ -787,7 +787,7 @@ pub fn export_as(app: &mut SheetApp, fmt: &str) -> bool {
+             }
+         }
+         Err(e) => {
+-            app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++            app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+             false
+         }
+     }
+@@ -798,11 +798,11 @@ fn account(app: &mut SheetApp, ui: &mut Ui) {
+     let t = Tokens::get(ui.ctx());
+     let lang = app.ui.language;
+     section(ui, lang, "Product Information");
+-    ui.label(RichText::new("GridCraft").font(theme::ui_bold(16.0)).color(t.text));
++    ui.label(RichText::new("Hyori Spreadsheets").font(theme::ui_bold(16.0)).color(t.text));
+     ui.add_space(8.0);
+     egui::Grid::new("backstage_account").num_columns(2).spacing(vec2(18.0, 8.0)).show(ui, |ui| {
+         for (label, value) in
+-            [("Version", env!("CARGO_PKG_VERSION").to_string()), ("Platform", platform()), ("Licence", env!("CARGO_PKG_LICENSE").to_string())]
++            [("Version", "0.19.1-hyori-host.1".to_string()), ("Platform", platform()), ("Licence", env!("CARGO_PKG_LICENSE").to_string())]
+         {
+             ui.label(RichText::new(lang.tr(label)).color(t.text_dim));
+             ui.label(value);
+@@ -811,13 +811,13 @@ fn account(app: &mut SheetApp, ui: &mut Ui) {
+     });
+     ui.add_space(18.0);
+     ui.horizontal(|ui| {
+-        if square_button(ui, Icon::Info, lang.tr("About GridCraft")).clicked() {
++        if square_button(ui, Icon::Info, "About Hyori Spreadsheets").clicked() {
+             app.open_dialog("about", json!({}));
+         }
+         ui.add_space(12.0);
+         ui.vertical(|ui| {
+             ui.add_space(14.0);
+-            ui.label(RichText::new(lang.tr("About GridCraft")).font(theme::ui_bold(13.5)).color(t.text));
++            ui.label(RichText::new("About Hyori Spreadsheets").font(theme::ui_bold(13.5)).color(t.text));
+             dim(ui, lang.tr("Version, contributors and the AI models that helped"));
+         });
+     });
+diff --git a/crates/ui-egui/src/backstage/options.rs b/crates/ui-egui/src/backstage/options.rs
+index faef32a5..019095b3 100644
+--- a/crates/ui-egui/src/backstage/options.rs
++++ b/crates/ui-egui/src/backstage/options.rs
+@@ -27,9 +27,13 @@ pub(super) fn options(app: &mut SheetApp, ui: &mut Ui) {
+     }
+     ui.add_space(18.0);
+     section(ui, lang, "Options|Save");
+-    let mut autosave = app.ui.autosave;
+-    if ui.checkbox(&mut autosave, lang.tr("Save .xlsx workbooks automatically after every change")).changed() {
+-        app.toggle_autosave();
++    if app.native_host_intents.is_some() {
++        ui.label("Saving managed by Hyori");
++    } else {
++        let mut autosave = app.ui.autosave;
++        if ui.checkbox(&mut autosave, lang.tr("Save .xlsx workbooks automatically after every change")).changed() {
++            app.toggle_autosave();
++        }
+     }
+     let Some((calc, view)) = app.session.active().map(|d| (d.wb.calc.clone(), d.wb.view)) else { return };
+     ui.add_space(18.0);
+@@ -164,7 +168,7 @@ fn iteration_options(app: &mut SheetApp, ui: &mut Ui, lang: Language, calc: &gri
+ /// committed the field is consumed so it doesn't also dismiss the message box in this frame.
+ fn refuse(app: &mut SheetApp, ui: &mut Ui, text: &str) {
+     ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+-    app.message = Some(("GridCraft".into(), app.ui.language.tr(text).into()));
++    app.message = Some(("Hyori Spreadsheets".into(), app.ui.language.tr(text).into()));
+ }
+ 
+ /// Maximum Iterations as typed: a whole number from 1 to 32767, or `None` (Excel refuses others).
+diff --git a/crates/ui-egui/src/dialogs.rs b/crates/ui-egui/src/dialogs.rs
+index 47b21530..47cec1ee 100644
+--- a/crates/ui-egui/src/dialogs.rs
++++ b/crates/ui-egui/src/dialogs.rs
+@@ -55,6 +55,7 @@ pub enum Field {
+ 
+ #[derive(Clone, Debug)]
+ pub struct Dialog {
++    pub(crate) native_host_open: Option<std::sync::Arc<()>>,
+     pub name: String,
+     pub title: String,
+     pub fields: Vec<Field>,
+@@ -225,6 +226,7 @@ impl Dialog {
+     /// Creates a command-backed form with its initial field values.
+     fn form(name: &str, title: &str, command: &'static str, fields: Vec<Field>, defaults: Json) -> Dialog {
+         Dialog {
++            native_host_open: None,
+             name: name.into(),
+             title: title.into(),
+             fields,
+@@ -250,6 +252,7 @@ impl Dialog {
+     /// Creates a dialog whose body handles its own controls instead of a standard form.
+     pub(crate) fn custom(name: &str, title: &str, defaults: Json) -> Dialog {
+         Dialog {
++            native_host_open: None,
+             name: name.into(),
+             title: title.into(),
+             fields: vec![],
+@@ -1009,7 +1012,7 @@ impl Dialog {
+             "commandSearch" => Dialog::custom("commandSearch", "Search Commands", json!({})),
+             "agents" => Dialog::custom("agents", "Agent Control", json!({})),
+             "about" => {
+-                let mut d = Dialog::custom("about", "About GridCraft", json!({}));
++                let mut d = Dialog::custom("about", "About Hyori Spreadsheets", json!({}));
+                 d.tab = match p("tab").as_str() {
+                     Some(t @ ("Contributors" | "Models")) => t.to_string(),
+                     _ => "About".into(),
+@@ -1112,7 +1115,7 @@ impl Dialog {
+             "controlQuestion" => return crate::control_ui::open_question(&params),
+             "saveCopy" => Dialog::custom("saveCopy", "Save a Copy", json!({"format": p("format")})),
+             "saveChanges" => Dialog::custom("saveChanges", "Save Changes?", json!({"title": p("title"), "quit": p("quit")})),
+-            "start" => Dialog::custom("start", "GridCraft", json!({})),
++            "start" => Dialog::custom("start", "Hyori Spreadsheets", json!({})),
+             "comments" => {
+                 app.grid.pane = None;
+                 app.run_or_alert("review.showComments", json!({"on": true}));
+diff --git a/crates/ui-egui/src/dialogs/about.rs b/crates/ui-egui/src/dialogs/about.rs
+index a95878e9..2ec6e355 100644
+--- a/crates/ui-egui/src/dialogs/about.rs
++++ b/crates/ui-egui/src/dialogs/about.rs
+@@ -15,12 +15,11 @@ pub(super) fn about(ui: &mut egui::Ui, d: &mut Dialog) {
+         "Contributors" => crate::credits::contributors_ui(ui),
+         "Models" => crate::credits::models_ui(ui),
+         _ => {
+-            ui.heading("GridCraft");
+-            ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
++            ui.heading("Hyori Spreadsheets");
++            ui.label(format!("Version {}", "0.19.1-hyori-host.1"));
+             ui.add_space(4.0);
+-            ui.label("A clean-room, open-source, Rust-native spreadsheet. Part of ArtCraft.");
+-            ui.hyperlink_to("getartcraft.com/apps/gridcraft", "https://getartcraft.com/apps/gridcraft");
+-            ui.hyperlink_to("Join the ArtCraft Discord", "https://discord.gg/artcraft");
++            ui.label("Based on GridCraft by the ArtCraft team. This modified version is not an official ArtCraft product.");
++            ui.hyperlink_to("GridCraft source on GitHub", "https://github.com/storytold/gridcraft");
+         }
+     }
+ }
+diff --git a/crates/ui-egui/src/dialogs/show.rs b/crates/ui-egui/src/dialogs/show.rs
+index e4cd5bb2..ede1cf49 100644
+--- a/crates/ui-egui/src/dialogs/show.rs
++++ b/crates/ui-egui/src/dialogs/show.rs
+@@ -439,6 +439,7 @@ pub fn show(app: &mut SheetApp, ctx: &egui::Context) {
+                 } else if d.name == "openPassword" {
+                     let path = d.values.get("path").and_then(Json::as_str).map(str::to_string);
+                     app.after_open(path.as_deref(), &r);
++                    app.native_host_password_opened(d.native_host_open.as_ref());
+                 }
+             }
+             // Data Analysis asks before replacing data in its output range.
+diff --git a/crates/ui-egui/src/formula_bar.rs b/crates/ui-egui/src/formula_bar.rs
+index 96fbdcfc..da58f585 100644
+--- a/crates/ui-egui/src/formula_bar.rs
++++ b/crates/ui-egui/src/formula_bar.rs
+@@ -413,7 +413,7 @@ fn name_box(app: &mut SheetApp, ui: &mut egui::Ui, t: &Tokens) -> Rect {
+                     app.run("formulas.defineName", json!({"name": target}))
+                 };
+                 if let Err(e) = r {
+-                    app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                    app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+                 }
+                 app.grid.ensure_visible = true;
+             }
+diff --git a/crates/ui-egui/src/grid/interact.rs b/crates/ui-egui/src/grid/interact.rs
+index 2f6007c3..a15e4956 100644
+--- a/crates/ui-egui/src/grid/interact.rs
++++ b/crates/ui-egui/src/grid/interact.rs
+@@ -568,7 +568,7 @@ fn handle_cell_double_click(app: &mut SheetApp, input: &InteractionInput<'_>, c:
+                 Ok(_) => return true,
+                 Err(e) if e == not_a_value_cell => {}
+                 Err(e) => {
+-                    app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                    app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+                     return true;
+                 }
+             }
+@@ -775,7 +775,7 @@ fn handle_release(app: &mut SheetApp, input: &InteractionInput<'_>) {
+                     let mode = if mods.command { "alternate" } else { "series" };
+                     match app.run("edit.autoFill", json!({"source": src.a1(), "target": t.a1(), "mode": mode})) {
+                         Ok(_) => set_fill_tag(app, src, t),
+-                        Err(e) => app.message = Some(("GridCraft".into(), crate::clean_error(&e))),
++                        Err(e) => app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e))),
+                     }
+                 }
+             }
+@@ -796,7 +796,7 @@ fn handle_release(app: &mut SheetApp, input: &InteractionInput<'_>) {
+             }
+             Drag::MoveCols { source, before: Some(before) } => {
+                 if let Err(e) = app.run("sheet.moveColumns", json!({"cols": source.a1(), "before": before})) {
+-                    app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                    app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+                 }
+             }
+             _ => {}
+@@ -816,7 +816,7 @@ fn format_painter_apply(app: &mut SheetApp) {
+         if let Some(dest) = dest
+             && let Err(e) = app.run("edit.formatPainter", json!({"apply": dest}))
+         {
+-            app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++            app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+         }
+     }
+ }
+diff --git a/crates/ui-egui/src/grid/menus.rs b/crates/ui-egui/src/grid/menus.rs
+index e9ee1a97..8706a7bc 100644
+--- a/crates/ui-egui/src/grid/menus.rs
++++ b/crates/ui-egui/src/grid/menus.rs
+@@ -339,14 +339,14 @@ pub(super) fn fill_options_tag(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo,
+     if let Some(mode) = chosen {
+         if let Err(e) = app.run("edit.undo", json!({})) {
+             app.grid.fill_tag = None;
+-            app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++            app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+             return;
+         }
+         match app.run("edit.autoFill", json!({"source": tag.src.a1(), "target": tag.target.a1(), "mode": mode})) {
+             Ok(_) => set_fill_tag(app, tag.src, tag.target),
+             Err(e) => {
+                 app.grid.fill_tag = None;
+-                app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+             }
+         }
+     }
+@@ -374,7 +374,7 @@ pub(super) fn fill_menu(app: &mut SheetApp, ui: &mut egui::Ui, was_open: bool) {
+                         let direction = if target.width() != src.width() { "rows" } else { "columns" };
+                         app.open_dialog("series", json!({"direction": direction}));
+                     } else if let Err(e) = app.run("edit.autoFill", json!({"source": src.a1(), "target": target.a1(), "mode": mode})) {
+-                        app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
++                        app.message = Some(("Hyori Spreadsheets".into(), crate::clean_error(&e)));
+                     }
+                 }
+             }
+diff --git a/crates/ui-egui/src/lib.rs b/crates/ui-egui/src/lib.rs
+index f2bcf3cf..7516e709 100644
+--- a/crates/ui-egui/src/lib.rs
++++ b/crates/ui-egui/src/lib.rs
+@@ -10,7 +10,7 @@
+ /// prompt shows both, and an AppImage's menu entry gets the icon.
+ #[cfg(not(target_arch = "wasm32"))]
+ pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
+-    icon_png: Some(include_bytes!("../../../assets/app-icon/hicolor/128x128/apps/ai.storyteller.gridcraft.png")),
++    icon_png: Some(include_bytes!("../../../assets/hyori-mark.png")),
+     accent: Some([0x1f, 0x9d, 0x55]),
+     ..craft_update::suite::GRIDCRAFT
+ };
+@@ -72,6 +72,7 @@ use serde_json::{Value as Json, json};
+ pub use control::{ControlRequest, ControlResponse};
+ 
+ mod app;
++pub use app::{NativeHostFailure, NativeHostIdentity, NativeHostSnapshot, NativeHostSaveReason, NativeHostIntent, NativeHostIntentFn, NativeHostSerializer, NativeHostContinuation, NativeHostJob};
+ mod clock;
+ mod services;
+ mod state;
+@@ -219,6 +220,9 @@ pub struct Perf {
+ }
+ 
+ pub struct SheetApp {
++    pub(crate) native_host_intents: Option<NativeHostIntentFn>,
++    pub(crate) native_host_job: Option<NativeHostJob>,
++    pub(crate) native_host_open_pending: Option<app::NativeHostPendingOpen>,
+     pub session: Session,
+     pub ui: UiState,
+     /// The window chrome to draw (see [`Chrome`]).
+diff --git a/crates/ui-egui/src/ribbon/automate.rs b/crates/ui-egui/src/ribbon/automate.rs
+index f2546658..037535a7 100644
+--- a/crates/ui-egui/src/ribbon/automate.rs
++++ b/crates/ui-egui/src/ribbon/automate.rs
+@@ -85,12 +85,12 @@ pub(super) fn automate(app: &mut SheetApp, ui: &mut Ui) {
+     if __k.clicked() {
+         app.open_dialog("journal", json!({}));
+     }
+-    let __k = big_button(ui, Icon::Script, "Check for\nUpdates…", "Look for a newer GridCraft release", false);
++    let __k = big_button(ui, Icon::Script, "Check for\nUpdates…", "Look for a newer release", false);
+     control_keytip(app, ui, &__k, "checkForUpdates");
+     if __k.clicked() {
+         app.run_or_alert("app.checkForUpdates", json!({}));
+     }
+-    let __k = big_button(ui, Icon::Script, "About\nGridCraft", "Version, contributors and the AI models that helped", false);
++    let __k = big_button(ui, Icon::Script, "About", "Version, contributors and the AI models that helped", false);
+     control_keytip(app, ui, &__k, "about");
+     if __k.clicked() {
+         app.open_dialog("about", json!({}));
+diff --git a/crates/ui-egui/src/ribbon/title_bar.rs b/crates/ui-egui/src/ribbon/title_bar.rs
+index 29bd4f27..a3f613ce 100644
+--- a/crates/ui-egui/src/ribbon/title_bar.rs
++++ b/crates/ui-egui/src/ribbon/title_bar.rs
+@@ -47,6 +47,9 @@ pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
+         }
+         ui.horizontal_centered(|ui| {
+             ui.add_space(TITLE_LEFT_PAD);
++            if app.native_host_intents.is_some() {
++                ui.label(egui::RichText::new("Saving managed by Hyori").font(theme::ui_font(12.5)).color(t.text_dim));
++            } else {
+             // AutoSave toggle (saves after each change when the workbook has a file).
+             ui.label(egui::RichText::new(app.ui.language.tr("AutoSave")).font(theme::ui_font(12.5)).color(t.text_dim));
+             let on = app.ui.autosave;
+@@ -58,6 +61,7 @@ pub fn title_bar(app: &mut SheetApp, ui: &mut Ui) {
+             if resp.on_hover_text(app.ui.language.tr("AutoSave: save after every change (workbooks saved to a file)")).clicked() {
+                 app.toggle_autosave();
+             }
++            }
+             ui.add_space(6.0);
+             let __k = icon_button(ui, Icon::Home, t.text_dim, "Home", vec2(26.0, ch));
+             control_keytip(app, ui, &__k, "start");
+diff --git a/crates/ui-egui/src/theme.rs b/crates/ui-egui/src/theme.rs
+index 9ebf1994..78420bd1 100644
+--- a/crates/ui-egui/src/theme.rs
++++ b/crates/ui-egui/src/theme.rs
+@@ -216,39 +216,39 @@ impl Tokens {
+     fn palette(dark: bool) -> Tokens {
+         Tokens {
+             dark,
+-            window: pick(dark, Color32::from_rgb(0xF3, 0xF3, 0xF3), Color32::from_rgb(0x29, 0x29, 0x29)),
+-            ribbon: pick(dark, Color32::from_rgb(0xFF, 0xFF, 0xFF), Color32::from_rgb(0x33, 0x33, 0x33)),
+-            ribbon_border: pick(dark, Color32::from_rgb(0xE3, 0xE3, 0xE3), Color32::from_rgb(0x40, 0x40, 0x40)),
+-            text: pick(dark, Color32::from_rgb(0x24, 0x24, 0x24), Color32::from_rgb(0xEE, 0xEE, 0xEE)),
+-            text_dim: pick(dark, Color32::from_rgb(0x61, 0x61, 0x61), Color32::from_rgb(0xB0, 0xB0, 0xB0)),
+-            text_disabled: pick(dark, Color32::from_rgb(0xB0, 0xB0, 0xB0), Color32::from_rgb(0x70, 0x70, 0x70)),
+-            accent: pick(dark, Color32::from_rgb(0x10, 0x7C, 0x41), Color32::from_rgb(0x5C, 0xC5, 0x87)),
+-            accent_dark: pick(dark, Color32::from_rgb(0x0B, 0x5E, 0x31), Color32::from_rgb(0x3F, 0xA8, 0x6C)),
+-            accent_soft: pick(dark, Color32::from_rgb(0xDF, 0xF1, 0xE6), Color32::from_rgb(0x23, 0x45, 0x31)),
+-            hover: pick(dark, Color32::from_rgb(0xEB, 0xEB, 0xEB), Color32::from_rgb(0x42, 0x42, 0x42)),
+-            pressed: pick(dark, Color32::from_rgb(0xDD, 0xDD, 0xDD), Color32::from_rgb(0x4D, 0x4D, 0x4D)),
+-            separator: pick(dark, Color32::from_rgb(0xE0, 0xE0, 0xE0), Color32::from_rgb(0x48, 0x48, 0x48)),
++            window: pick(dark, Color32::from_rgba_unmultiplied(241, 238, 232, 255), Color32::from_rgba_unmultiplied(7, 8, 10, 255)),
++            ribbon: pick(dark, Color32::from_rgba_unmultiplied(255, 253, 249, 255), Color32::from_rgba_unmultiplied(17, 18, 20, 255)),
++            ribbon_border: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 28), Color32::from_rgba_unmultiplied(255, 255, 255, 20)),
++            text: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 255), Color32::from_rgba_unmultiplied(255, 255, 255, 255)),
++            text_dim: pick(dark, Color32::from_rgba_unmultiplied(102, 97, 91, 255), Color32::from_rgba_unmultiplied(156, 156, 157, 255)),
++            text_disabled: pick(dark, Color32::from_rgba_unmultiplied(102, 97, 91, 255), Color32::from_rgba_unmultiplied(156, 156, 157, 255)),
++            accent: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 255), Color32::from_rgba_unmultiplied(230, 230, 231, 255)),
++            accent_dark: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 255), Color32::from_rgba_unmultiplied(255, 255, 255, 255)),
++            accent_soft: pick(dark, Color32::from_rgba_unmultiplied(233, 229, 222, 255), Color32::from_rgba_unmultiplied(35, 36, 39, 255)),
++            hover: pick(dark, Color32::from_rgba_unmultiplied(233, 229, 222, 255), Color32::from_rgba_unmultiplied(35, 36, 39, 255)),
++            pressed: pick(dark, Color32::from_rgba_unmultiplied(236, 232, 225, 255), Color32::from_rgba_unmultiplied(28, 29, 32, 255)),
++            separator: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 28), Color32::from_rgba_unmultiplied(255, 255, 255, 20)),
+             grid_bg: Color32::WHITE,
+-            desk: pick(dark, Color32::from_rgb(0xDE, 0xDE, 0xDE), Color32::from_rgb(0x3A, 0x3A, 0x3A)),
++            desk: pick(dark, Color32::from_rgba_unmultiplied(241, 238, 232, 255), Color32::from_rgba_unmultiplied(7, 8, 10, 255)),
+             gridline: Color32::from_rgb(0xE1, 0xE1, 0xE1),
+-            header_bg: pick(dark, Color32::from_rgb(0xF8, 0xF8, 0xF8), Color32::from_rgb(0x30, 0x30, 0x30)),
+-            header_text: pick(dark, Color32::from_rgb(0x42, 0x42, 0x42), Color32::from_rgb(0xCC, 0xCC, 0xCC)),
+-            header_line: pick(dark, Color32::from_rgb(0xD6, 0xD6, 0xD6), Color32::from_rgb(0x45, 0x45, 0x45)),
+-            header_sel_bg: pick(dark, Color32::from_rgb(0xE1, 0xE1, 0xE1), Color32::from_rgb(0x45, 0x45, 0x45)),
+-            header_sel_text: pick(dark, Color32::from_rgb(0x0B, 0x5E, 0x31), Color32::from_rgb(0x6F, 0xD3, 0x9A)),
+-            header_all_bg: pick(dark, Color32::from_rgb(0xC8, 0xE6, 0xD3), Color32::from_rgb(0x2E, 0x55, 0x3E)),
++            header_bg: pick(dark, Color32::from_rgba_unmultiplied(255, 253, 249, 255), Color32::from_rgba_unmultiplied(17, 18, 20, 255)),
++            header_text: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 255), Color32::from_rgba_unmultiplied(255, 255, 255, 255)),
++            header_line: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 28), Color32::from_rgba_unmultiplied(255, 255, 255, 20)),
++            header_sel_bg: pick(dark, Color32::from_rgba_unmultiplied(233, 229, 222, 255), Color32::from_rgba_unmultiplied(35, 36, 39, 255)),
++            header_sel_text: pick(dark, Color32::from_rgba_unmultiplied(24, 22, 20, 255), Color32::from_rgba_unmultiplied(255, 255, 255, 255)),
++            header_all_bg: pick(dark, Color32::from_rgba_unmultiplied(236, 232, 225, 255), Color32::from_rgba_unmultiplied(28, 29, 32, 255)),
+             sel_fill: pick(dark, Color32::from_rgba_unmultiplied(0x10, 0x7C, 0x41, 0x1C), Color32::from_rgba_unmultiplied(0x10, 0x7C, 0x41, 0x24)),
+             active_row: pick(dark, Color32::from_rgba_unmultiplied(0x10, 0x7C, 0x41, 0x2C), Color32::from_rgba_unmultiplied(0x6F, 0xD3, 0x9A, 0x30)),
+             sel_border: Color32::from_rgb(0x10, 0x7C, 0x41),
+-            input_bg: pick(dark, Color32::WHITE, Color32::from_rgb(0x1F, 0x1F, 0x1F)),
+-            input_border: pick(dark, Color32::from_rgb(0xD1, 0xD1, 0xD1), Color32::from_rgb(0x50, 0x50, 0x50)),
+-            tab_bar: pick(dark, Color32::from_rgb(0xF3, 0xF3, 0xF3), Color32::from_rgb(0x29, 0x29, 0x29)),
+-            tab_active: pick(dark, Color32::WHITE, Color32::from_rgb(0x3A, 0x3A, 0x3A)),
+-            status_bar: pick(dark, Color32::from_rgb(0xF3, 0xF3, 0xF3), Color32::from_rgb(0x29, 0x29, 0x29)),
++            input_bg: pick(dark, Color32::from_rgba_unmultiplied(255, 253, 249, 255), Color32::from_rgba_unmultiplied(17, 18, 20, 255)),
++            input_border: pick(dark, Color32::from_rgba_unmultiplied(141, 136, 131, 255), Color32::from_rgba_unmultiplied(103, 105, 108, 255)),
++            tab_bar: pick(dark, Color32::from_rgba_unmultiplied(241, 238, 232, 255), Color32::from_rgba_unmultiplied(7, 8, 10, 255)),
++            tab_active: pick(dark, Color32::from_rgba_unmultiplied(255, 253, 249, 255), Color32::from_rgba_unmultiplied(17, 18, 20, 255)),
++            status_bar: pick(dark, Color32::from_rgba_unmultiplied(241, 238, 232, 255), Color32::from_rgba_unmultiplied(7, 8, 10, 255)),
+             cell_text: Color32::BLACK,
+-            menu_bg: pick(dark, Color32::WHITE, Color32::from_rgb(0x30, 0x30, 0x30)),
++            menu_bg: pick(dark, Color32::from_rgba_unmultiplied(255, 253, 249, 255), Color32::from_rgba_unmultiplied(23, 24, 27, 255)),
+             shadow: pick(dark, Color32::from_black_alpha(40), Color32::from_black_alpha(90)),
+-            danger: pick(dark, Color32::from_rgb(0xC4, 0x2B, 0x1C), Color32::from_rgb(0xFF, 0x95, 0x85)),
++            danger: pick(dark, Color32::from_rgba_unmultiplied(179, 48, 34, 255), Color32::from_rgba_unmultiplied(249, 120, 106, 255)),
+             error_check_green: pick(dark, Color32::from_rgb(0x1E, 0x8E, 0x3E), Color32::from_rgb(0x4C, 0xC2, 0x6B)),
+             warning_fill: Color32::from_rgb(0xF2, 0xB7, 0x05),
+             warning_ink: Color32::BLACK,
+@@ -256,7 +256,7 @@ impl Tokens {
+             notice_warn_border: pick(dark, Color32::from_rgb(0xF0, 0xC3, 0x6E), Color32::from_rgb(0x7A, 0x67, 0x30)),
+             notice_info_bg: pick(dark, Color32::from_rgb(0xEA, 0xF2, 0xFB), Color32::from_rgb(0x24, 0x33, 0x44)),
+             notice_info_border: pick(dark, Color32::from_rgb(0xB9, 0xD2, 0xEC), Color32::from_rgb(0x3B, 0x55, 0x72)),
+-            on_accent: pick(dark, Color32::WHITE, rgb(0x0F2A1A)),
++            on_accent: pick(dark, Color32::from_rgba_unmultiplied(255, 253, 249, 255), Color32::from_rgba_unmultiplied(27, 28, 30, 255)),
+             cat: pick(
+                 dark,
+                 [rgb(0x2F6FCF), rgb(0x1E8A4C), rgb(0xC8601A), rgb(0xC8372D), rgb(0x8350C8), rgb(0x13808A), rgb(0x9C6C00), rgb(0x5A6B7D)],

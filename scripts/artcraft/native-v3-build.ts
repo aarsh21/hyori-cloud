@@ -4,6 +4,7 @@ import { z } from "zod";
 import pins from "../../tooling/artcraft/builds/deckcraft-host-v1/tool-pins.json" with { type: "json" };
 import deckFonts from "../../tooling/artcraft/patches/native-host-v3/deck-fonts.json" with { type: "json" };
 import { readToolArchive, sha256 } from "./evidence-bytes.ts";
+import { composeCandidateSource, readCandidateSource } from "./native-v3-candidate.ts";
 import {
   composeNativeSource,
   nativeApps,
@@ -54,6 +55,7 @@ export async function prepareNativeBuild(
   tools: string,
   archivePath: string,
   fontsDirectory?: string,
+  candidate = false,
 ) {
   // Deck embeds Inter through upstream's own craft-fonts build input; no other app takes fonts.
   if ((app === "deckcraft") !== (fontsDirectory !== undefined))
@@ -77,9 +79,13 @@ export async function prepareNativeBuild(
     throw new Error("Bun input changed");
 
   const archive = await readFile(archivePath);
-  const { pin, original } = readPinnedSource(app, archive);
+  const { pin, original } = (candidate ? readCandidateSource : readPinnedSource)(app, archive);
   const authored = await nativeAuthoredInputs();
-  const composed = await composeNativeSource(app, original, authored);
+
+  const composed = candidate
+    ? await composeCandidateSource(app, original, authored, destination)
+    : await composeNativeSource(app, original, authored);
+
   const files: { path: string; bytes: number; sha256: string }[] = [];
 
   async function retain(path: string, bytes: Buffer) {
@@ -248,7 +254,11 @@ ${deckFonts.copyright}. Licensed under the SIL Open Font License, Version 1.1 ($
     app,
     artifactVersion: composed.version,
     upstreamVersion: pin.version,
-    sourcePin: { url: pin.sourceUrl, sha256: pin.sourceSha256, commit: nativeSourceCommits[app] },
+    sourcePin: {
+      url: pin.sourceUrl,
+      sha256: pin.sourceSha256,
+      commit: "commit" in pin ? pin.commit : nativeSourceCommits[app],
+    },
     sourceCargoLockSha256: sha256(original.get("Cargo.lock")!),
     stages: composed.stages,
     paletteCssSha256: composed.paletteCssSha256,
@@ -272,11 +282,13 @@ ${deckFonts.copyright}. Licensed under the SIL Open Font License, Version 1.1 ($
 }
 
 if (import.meta.main) {
-  const [, , app, destination, cache, tools, source, fonts] = process.argv;
+  const args = process.argv.slice(2);
+  const candidate = args[0] === "--candidate";
+  const [app, destination, cache, tools, source, fonts] = candidate ? args.slice(1) : args;
 
-  if (!app || !destination || !cache || !tools || !source || process.argv.length > 8)
+  if (!app || !destination || !cache || !tools || !source || args.length > (candidate ? 7 : 6))
     throw new Error(
-      "Usage: bun scripts/artcraft/native-v3-build.ts APP NEW_STAGING PUBLIC_CARGO_HOME PINNED_TOOLS VERIFIED_SOURCE_TAR_GZ [CRAFT_FONTS_DIR, Deck only]",
+      "Usage: bun scripts/artcraft/native-v3-build.ts [--candidate] APP NEW_STAGING PUBLIC_CARGO_HOME PINNED_TOOLS VERIFIED_SOURCE_TAR_GZ [CRAFT_FONTS_DIR, Deck only]",
     );
 
   console.log(
@@ -288,6 +300,7 @@ if (import.meta.main) {
         resolve(tools),
         resolve(source),
         fonts === undefined ? undefined : resolve(fonts),
+        candidate,
       ),
     ),
   );

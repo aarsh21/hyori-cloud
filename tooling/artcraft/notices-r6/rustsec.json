@@ -1,0 +1,501 @@
+{
+  "tool": "cargo-audit 0.23.0",
+  "advisoryDb": "8b75c83c3c9142dd18e93d75b8d895a13d285861",
+  "lockfileScope": "all locked packages; yanks not checked",
+  "audits": [
+    {
+      "app": "wordcraft",
+      "cargoLockSha256": "2d90aab982aeafb4c1c1dac6e26bf4a5ad50e26c833b4ad17b24d2869bcf6c82",
+      "lockPackages": 704,
+      "findings": [
+        {
+          "advisory": "RUSTSEC-2026-0592",
+          "title": "Stack overflow in `Url::origin()` on nested `blob:` URLs",
+          "package": "url@2.5.8",
+          "tier": "lock-only",
+          "patched": [
+            ">=2.5.9"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0367",
+          "title": " Insecure Preservation of SUID/SGID Bits during ZIP Extraction Leading to Potential Privilege Escalation",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0545",
+          "title": "AES entries returned without checking their authentication code when the data ends early or is empty",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0369",
+          "title": "ZipStreamReader::extract() and ZipArchive::extract() apply Unix permissions through symlinks without confining the target",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0368",
+          "title": "zip: `ZipArchive::extract` creates symbolic links whose attacker-controlled targets are outside the destination directory",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0548",
+          "title": "`ZipStreamReader` extracts entries under local-header names that can differ from the central directory",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.5"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0429",
+          "title": "zip: `ZipArchive::extract` aborts the process on a symlink entry with a large declared size",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0543",
+          "title": "chrono is unmaintained",
+          "package": "chrono@0.4.45",
+          "tier": "wasm-normal",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2024-0370",
+          "title": "proc-macro-error is unmaintained",
+          "package": "proc-macro-error@1.0.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0371",
+          "title": "`zbus_names` is unmaintained",
+          "package": "zbus_names@4.3.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0370",
+          "title": "`zvariant` is unmaintained",
+          "package": "zvariant@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0372",
+          "title": "`zvariant_derive` is unmaintained",
+          "package": "zvariant_derive@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0486",
+          "title": "xattr functions mark unwritten bytes as initialized when given a zero-length buffer",
+          "package": "rustix@1.1.5",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.1.6"
+          ]
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0386",
+          "title": "`AsyncFd::new` and related constructors violate I/O safety",
+          "package": "tokio@1.53.2",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.51.6, <1.52.0",
+            ">=1.53.3"
+          ]
+        }
+      ]
+    },
+    {
+      "app": "gridcraft",
+      "cargoLockSha256": "6e667fecf8b8d778b5c75d5f819c8c727838f343e563faa6ed6a88c2519d6c4f",
+      "lockPackages": 656,
+      "findings": [
+        {
+          "advisory": "RUSTSEC-2026-0592",
+          "title": "Stack overflow in `Url::origin()` on nested `blob:` URLs",
+          "package": "url@2.5.8",
+          "tier": "lock-only",
+          "patched": [
+            ">=2.5.9"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0383",
+          "title": "Bundled root certificates allow trust in distrusted emSign intermediates",
+          "package": "webpki-root-certs@1.0.9",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.0.10"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0367",
+          "title": " Insecure Preservation of SUID/SGID Bits during ZIP Extraction Leading to Potential Privilege Escalation",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0545",
+          "title": "AES entries returned without checking their authentication code when the data ends early or is empty",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0369",
+          "title": "ZipStreamReader::extract() and ZipArchive::extract() apply Unix permissions through symlinks without confining the target",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0368",
+          "title": "zip: `ZipArchive::extract` creates symbolic links whose attacker-controlled targets are outside the destination directory",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0548",
+          "title": "`ZipStreamReader` extracts entries under local-header names that can differ from the central directory",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.5"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0429",
+          "title": "zip: `ZipArchive::extract` aborts the process on a symlink entry with a large declared size",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0543",
+          "title": "chrono is unmaintained",
+          "package": "chrono@0.4.45",
+          "tier": "wasm-normal",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2024-0370",
+          "title": "proc-macro-error is unmaintained",
+          "package": "proc-macro-error@1.0.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0371",
+          "title": "`zbus_names` is unmaintained",
+          "package": "zbus_names@4.3.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0370",
+          "title": "`zvariant` is unmaintained",
+          "package": "zvariant@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0372",
+          "title": "`zvariant_derive` is unmaintained",
+          "package": "zvariant_derive@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0486",
+          "title": "xattr functions mark unwritten bytes as initialized when given a zero-length buffer",
+          "package": "rustix@1.1.5",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.1.6"
+          ]
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0386",
+          "title": "`AsyncFd::new` and related constructors violate I/O safety",
+          "package": "tokio@1.53.2",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.51.6, <1.52.0",
+            ">=1.53.3"
+          ]
+        }
+      ]
+    },
+    {
+      "app": "deckcraft",
+      "cargoLockSha256": "f68bca3cd775c423cb1ea7e4bb4b7f4580f0a3695514319c5b7ca0cf3ebcbc3d",
+      "lockPackages": 629,
+      "findings": [
+        {
+          "advisory": "RUSTSEC-2026-0592",
+          "title": "Stack overflow in `Url::origin()` on nested `blob:` URLs",
+          "package": "url@2.5.8",
+          "tier": "lock-only",
+          "patched": [
+            ">=2.5.9"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0367",
+          "title": " Insecure Preservation of SUID/SGID Bits during ZIP Extraction Leading to Potential Privilege Escalation",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0545",
+          "title": "AES entries returned without checking their authentication code when the data ends early or is empty",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0369",
+          "title": "ZipStreamReader::extract() and ZipArchive::extract() apply Unix permissions through symlinks without confining the target",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0368",
+          "title": "zip: `ZipArchive::extract` creates symbolic links whose attacker-controlled targets are outside the destination directory",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0548",
+          "title": "`ZipStreamReader` extracts entries under local-header names that can differ from the central directory",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.5"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0429",
+          "title": "zip: `ZipArchive::extract` aborts the process on a symlink entry with a large declared size",
+          "package": "zip@3.0.0",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=9.0.0"
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0543",
+          "title": "chrono is unmaintained",
+          "package": "chrono@0.4.45",
+          "tier": "wasm-normal",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0206",
+          "title": "`rustybuzz` is unmaintained",
+          "package": "rustybuzz@0.20.1",
+          "tier": "wasm-normal",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0192",
+          "title": "`ttf-parser` is unmaintained",
+          "package": "ttf-parser@0.25.1",
+          "tier": "wasm-normal",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0371",
+          "title": "`zbus_names` is unmaintained",
+          "package": "zbus_names@4.3.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0370",
+          "title": "`zvariant` is unmaintained",
+          "package": "zvariant@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0372",
+          "title": "`zvariant_derive` is unmaintained",
+          "package": "zvariant_derive@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0486",
+          "title": "xattr functions mark unwritten bytes as initialized when given a zero-length buffer",
+          "package": "rustix@1.1.5",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.1.6"
+          ]
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0386",
+          "title": "`AsyncFd::new` and related constructors violate I/O safety",
+          "package": "tokio@1.53.2",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.51.6, <1.52.0",
+            ">=1.53.3"
+          ]
+        }
+      ]
+    },
+    {
+      "app": "pdfcraft",
+      "cargoLockSha256": "89d1e94212cc1bde1f22129bbfc84ad87ba985504b1cd8fd61cd4a1fefc2bd8d",
+      "lockPackages": 870,
+      "findings": [
+        {
+          "advisory": "RUSTSEC-2023-0071",
+          "title": "Marvin Attack: potential key recovery through timing sidechannels",
+          "package": "rsa@0.10.0-rc.18",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=0.10.0"
+          ]
+        },
+        {
+          "advisory": "RUSTSEC-2026-0592",
+          "title": "Stack overflow in `Url::origin()` on nested `blob:` URLs",
+          "package": "url@2.5.8",
+          "tier": "wasm-normal",
+          "patched": [
+            ">=2.5.9"
+          ]
+        }
+      ],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0543",
+          "title": "chrono is unmaintained",
+          "package": "chrono@0.4.45",
+          "tier": "wasm-normal",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2024-0370",
+          "title": "proc-macro-error is unmaintained",
+          "package": "proc-macro-error@1.0.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0371",
+          "title": "`zbus_names` is unmaintained",
+          "package": "zbus_names@4.3.4",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0370",
+          "title": "`zvariant` is unmaintained",
+          "package": "zvariant@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unmaintained",
+          "advisory": "RUSTSEC-2026-0372",
+          "title": "`zvariant_derive` is unmaintained",
+          "package": "zvariant_derive@5.15.0",
+          "tier": "lock-only",
+          "patched": []
+        },
+        {
+          "kind": "unsound",
+          "advisory": "RUSTSEC-2026-0386",
+          "title": "`AsyncFd::new` and related constructors violate I/O safety",
+          "package": "tokio@1.53.1",
+          "tier": "lock-only",
+          "patched": [
+            ">=1.51.6, <1.52.0",
+            ">=1.53.3"
+          ]
+        }
+      ]
+    }
+  ]
+}

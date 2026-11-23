@@ -3,9 +3,11 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { PDF_ANNOTATION_AUTHOR_VERSIONS } from "@hyori-cloud/client-sdk/editor-runtime";
 import { nativeArtifactVersions } from "./native-frame-patch.ts";
+import { candidateArtifactVersions } from "./native-v3-candidate.ts";
 
-test("the pinned PDFCraft build receives annotation authors from the SDK", () => {
+test("both supported PDFCraft builds receive annotation authors from the SDK", () => {
   expect(PDF_ANNOTATION_AUTHOR_VERSIONS).toContain(nativeArtifactVersions.pdfcraft);
+  expect(PDF_ANNOTATION_AUTHOR_VERSIONS).toContain(candidateArtifactVersions.pdfcraft);
 });
 
 // Bundle authored code and its public dependency boundary; do not execute any vendor WASM.
