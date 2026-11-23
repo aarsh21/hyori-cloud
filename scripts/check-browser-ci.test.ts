@@ -26,9 +26,14 @@ test("browser CI covers every registered non-editor scenario", () => {
 
       const argument = node.arguments[0];
 
-      if ((selector || explicit) && argument !== undefined && ts.isStringLiteral(argument)) {
-        if (argument.text !== "editors") registered.add(argument.text);
-      }
+      if (
+        (selector || explicit) &&
+        argument !== undefined &&
+        ts.isStringLiteral(argument) &&
+        // These scenarios require verified editor bundles, which this CI job does not mount.
+        !["editors", "editor-recovery", "editor-rollover"].includes(argument.text)
+      )
+        registered.add(argument.text);
     }
 
     ts.forEachChild(node, visit);
