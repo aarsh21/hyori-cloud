@@ -136,6 +136,7 @@ Deploy r6 as the current bundle and keep the exact r5 bundle as a separate, read
    ```
 
    Reload the gateway **before** switching the backend's current selection. r5's existing version paths keep resolving with r5's CSP while the old backend is still serving. Check both bundles' entry URLs and CSP before exposing new r6 opens. The current notices stay under `/artcraft/legal/`; the retained notices and manifest are under `/artcraft/retained/`. Asset CORS stays wildcard and noncredentialed.
+
 3. Keep r5 for at least 24 hours after new opens start using r6, and longer if open r5 tabs still need time to save. In a later release, remove the retained backend overlay and retained gateway routes/mount after the drain. Removing them intentionally ends r5 session support; it is not an automatic timer or a step in this rollout.
 
 ## Opt-in gateway client addresses for authentication limits

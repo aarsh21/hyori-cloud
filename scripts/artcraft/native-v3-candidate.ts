@@ -98,7 +98,10 @@ export async function composeCandidateSource(
 
   const web = `apps/${app}-web`;
   const version = candidateArtifactVersions[app];
-  const host = files.get(`${web}/src/${app === "deckcraft" ? "host" : "native_host"}.rs`)?.toString();
+
+  const host = files
+    .get(`${web}/src/${app === "deckcraft" ? "host" : "native_host"}.rs`)
+    ?.toString();
 
   if (!host?.includes(`pub const NATIVE_ARTIFACT_VERSION: &str = "${version}";`))
     throw new Error(`${app} host handshake does not match its artifact version ${version}`);
