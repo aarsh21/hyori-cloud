@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright-core";
 import { syntheticDeckCraft } from "../../artcraft/deckcraft-synthetic.ts";
+import { candidateArtifactVersions } from "../../artcraft/native-v3-candidate.ts";
 
 export type EditorApp = "wordcraft" | "gridcraft" | "pdfcraft" | "deckcraft";
 
@@ -166,7 +167,12 @@ export function createEditorCases(work: string) {
       ".pdf",
       () => "a drawn ink stroke across the page, with “Original words.” under it",
       async (page, top) => {
-        await page.mouse.click(309, top + 259);
+        // PDFCraft 0.22 has more tools above the pen in its floating toolbar.
+        const updated = page.frames().some((frame) =>
+          frame.url().includes(`/artcraft/pdfcraft/${candidateArtifactVersions.pdfcraft}/`),
+        );
+
+        await page.mouse.click(309, top + (updated ? 327 : 259));
         await page.waitForTimeout(1000);
         await page.mouse.move(500, top + 400);
         await page.mouse.down();
