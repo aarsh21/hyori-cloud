@@ -9,7 +9,7 @@ export const NATIVE_MAX_BYTES = 64 * 1024 * 1024;
 export const PDF_ANNOTATION_AUTHOR_VERSIONS: readonly string[] = [
   "0.17.0-hyori-host.4",
   "0.17.0-hyori-host.5",
-  "0.22.0-hyori-host.1",
+  "0.22.0-hyori-host.2",
 ];
 
 // Keep this leaf contract independent of product RPC schemas: the frame never calls the API.

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
 import pins from "../../tooling/artcraft/builds/deckcraft-host-v1/tool-pins.json" with { type: "json" };
@@ -8,8 +8,17 @@ import { cargoMetadataSchema, hostInclusiveIds, parseTargetTree } from "./closur
 import { checkClosureEvidence } from "./closure.ts";
 import { digest } from "./content-schema.ts";
 import { sha256 } from "./evidence-bytes.ts";
-import { candidateArtifactVersions, readCandidateSource } from "./native-v3-candidate.ts";
-import { nativeApps, nativeSourceCommits, readPinnedSource } from "./native-v3-source.ts";
+import {
+  candidateArtifactVersions,
+  composeCandidateSource,
+  readCandidateSource,
+} from "./native-v3-candidate.ts";
+import {
+  nativeApps,
+  nativeAuthoredInputs,
+  nativeSourceCommits,
+  readPinnedSource,
+} from "./native-v3-source.ts";
 import { nativeProductNames } from "./native-v3-marks.ts";
 
 const commandIds = ["rustc", "cargo-build", "metadata", "normal-tree", "host-tree", "trunk"];
@@ -30,6 +39,7 @@ const planSchema = z.object({
   upstreamVersion: z.string(),
   sourcePin: z.object({ url: z.string(), sha256: z.string(), commit: z.string() }),
   sourceCargoLockSha256: z.string(),
+  buildCargoLockSha256: digest.optional(),
   stages: z.array(z.string()),
   paletteCssSha256: z.string(),
   hostJavaScriptSha256: z.string(),
@@ -75,7 +85,16 @@ const candidateNoticesSchema = z.object({
 });
 
 const candidateAuditSchema = z.object({
-  audits: z.array(z.object({ app: z.enum(nativeApps), cargoLockSha256: digest })),
+  audits: z.array(
+    z.object({
+      app: z.enum(nativeApps),
+      artifactVersion: z.string(),
+      cargoLockSha256: digest,
+      normalSha256: digest,
+      hostInclusiveSha256: digest,
+      findings: z.array(z.object({ waiver: z.string().min(1) })),
+    }),
+  ),
 });
 
 type FileRecord = { path: string; bytes: number; sha256: string };
@@ -150,9 +169,45 @@ export async function collectNativeEvidence(
   }
 
   const lock = await readFile(join(stageRoot, "output/Cargo.lock"));
+  const buildLockSha256 = sha256(lock);
+  const hostedPdf = candidate && app === "pdfcraft";
 
-  if (sha256(lock) !== plan.sourceCargoLockSha256)
+  if (buildLockSha256 !== (plan.buildCargoLockSha256 ?? plan.sourceCargoLockSha256))
+    throw new Error("Built lock changed from the prepared build input");
+
+  // The tagged archive is authoritative except for the committed hosted PDF patch. Replay that
+  // patch so a staged plan alone cannot authorize a different lock or a stale host handshake.
+  if (hostedPdf) {
+    const scratch = await mkdtemp(join(dirname(output), ".check-dependencies-"));
+
+    try {
+      const reviewed = await composeCandidateSource(
+        app,
+        original,
+        await nativeAuthoredInputs(),
+        scratch,
+      );
+
+      for (const path of [
+        "Cargo.lock",
+        "crates/engine/Cargo.toml",
+        "crates/ui-egui/Cargo.toml",
+        "apps/pdfcraft-web/src/native_host.rs",
+      ]) {
+        const input = await readFile(join(stageRoot, "input/source", path));
+
+        if (
+          !reviewed.files.get(path)?.equals(input) ||
+          (path === "Cargo.lock" && !lock.equals(input))
+        )
+          throw new Error(`Hosted PDF has an unreviewed build input: ${path}`);
+      }
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  } else if (buildLockSha256 !== plan.sourceCargoLockSha256) {
     throw new Error("Built lock changed from tagged source");
+  }
 
   // The dependency graph must equal the one whose notices the shared legal tree already carries.
   const root = `/hyori-native-v3/${app}/work/source`;
@@ -171,6 +226,25 @@ export async function collectNativeEvidence(
     await readFile(join(stageRoot, "output/host-tree.stdout"), "utf8"),
     metadata,
   );
+
+  if (hostedPdf) {
+    const target = new Set(normal.packages.map(({ id }) => id));
+    const dependencies = metadata.packages.filter(({ id }) => target.has(id));
+
+    const recognition = dependencies.filter(({ name }) =>
+      /(?:^|[-_])(?:ocr|ocrs|rten|onnx)(?:$|[-_])/iu.test(name),
+    );
+
+    if (recognition.length)
+      throw new Error(
+        `Hosted PDF target includes OCR dependencies: ${recognition.map(({ id }) => id).join(", ")}`,
+      );
+
+    const urls = dependencies.filter(({ name }) => name === "url");
+
+    if (urls.length !== 1 || urls[0]?.version !== "2.5.9")
+      throw new Error("Hosted PDF target does not use the reviewed url 2.5.9 dependency");
+  }
 
   const { manifest: closure } = await checkClosureEvidence();
   const normalJson = normalize(JSON.stringify(normal));
@@ -227,12 +301,17 @@ export async function collectNativeEvidence(
 
     const audit = await readFile(new URL("rustsec.json", candidateNoticeRoot));
 
-    const audited = candidateAuditSchema.parse(JSON.parse(audit.toString())).audits.find(
-      (entry) => entry.app === app,
-    );
+    const audited = candidateAuditSchema
+      .parse(JSON.parse(audit.toString()))
+      .audits.find((entry) => entry.app === app);
 
-    if (audited?.cargoLockSha256 !== plan.sourceCargoLockSha256)
-      throw new Error(`RustSec audit does not match the ${app} build lock`);
+    if (
+      audited?.cargoLockSha256 !== buildLockSha256 ||
+      audited.artifactVersion !== plan.artifactVersion ||
+      audited.normalSha256 !== recorded.normalSha256 ||
+      audited.hostInclusiveSha256 !== recorded.hostInclusiveSha256
+    )
+      throw new Error(`RustSec audit waivers do not match the ${app} artifact, lock and graphs`);
 
     await retain("dependency-notices/graphs.json", graphs);
     await retain("dependency-notices/notices.json", notices);
@@ -317,7 +396,7 @@ export async function collectNativeEvidence(
 
   if (wasm.length !== 1) throw new Error("Expected exactly one editor WASM output");
 
-  if (candidate && app === "pdfcraft" && artifact.some(({ path }) => /ocr|\.onnx$/iu.test(path)))
+  if (hostedPdf && artifact.some(({ path }) => /ocr|\.onnx$/iu.test(path)))
     throw new Error("Hosted PDF must not ship OCR workers or model assets");
 
   const html = await readFile(join(output, "artifact/index.html"), "utf8");
@@ -346,8 +425,9 @@ export async function collectNativeEvidence(
     productPresentation: nativeProductNames[app],
     sourcePin: plan.sourcePin,
     sourceCargoLockSha256: plan.sourceCargoLockSha256,
-    cargoLockUnchanged: true,
-    cargoManifestsUnchanged: true,
+    buildCargoLockSha256: hostedPdf ? buildLockSha256 : undefined,
+    cargoLockUnchanged: buildLockSha256 === plan.sourceCargoLockSha256,
+    cargoManifestsUnchanged: !plan.patchedFiles.some(({ path }) => path.endsWith("Cargo.toml")),
     stages: plan.stages,
     paletteCssSha256: plan.paletteCssSha256,
     hostJavaScriptSha256: plan.hostJavaScriptSha256,
@@ -358,10 +438,18 @@ export async function collectNativeEvidence(
       path,
       sha256: sha256(original.get(path)!),
     })),
-    dependencyGraphEqualsNoticedUpstreamGraph: {
-      targetNormalPackages: normal.packages.length,
-      hostInclusivePackages: hostIds.length,
-    },
+    dependencyGraphEqualsNoticedUpstreamGraph: hostedPdf
+      ? undefined
+      : { targetNormalPackages: normal.packages.length, hostInclusivePackages: hostIds.length },
+    hostedPdfDependencyGraph: hostedPdf
+      ? {
+          target: "wasm32-unknown-unknown",
+          targetNormalPackages: normal.packages.length,
+          hostInclusivePackages: hostIds.length,
+          recognitionDependencies: "none",
+          urlVersion: "2.5.9",
+        }
+      : undefined,
   };
 
   const sourceSummaryBytes = Buffer.from(`${JSON.stringify(sourceSummary, null, 2)}\n`);
@@ -374,7 +462,7 @@ export async function collectNativeEvidence(
     artifactVersion: plan.artifactVersion,
     officialReleaseReplaced: false,
     buildInputsSha256: sha256(planBytes),
-    cargoLockSha256: sha256(lock),
+    cargoLockSha256: buildLockSha256,
     tools: pins,
     execution: container
       ? "Restricted container (container-command.json): pinned Rust base image, no network, unprivileged, read-only root, all capabilities dropped, no-new-privileges, bounded memory/CPU/processes; read-only input/driver/tools mounts at the driver's absolute paths. Cargo and Trunk --locked --offline."

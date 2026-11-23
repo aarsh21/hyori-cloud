@@ -349,7 +349,7 @@ Changes from the tagged upstream source: direct native host methods, correlated 
 ${hostedChanges[app]}
 ${
   revision === r6
-    ? "See ../../dependency-notices-r6/notices.json for the new dependency notices and ../../NOTICE-INDEX.md for the inherited notices. Hosted PDF does not ship the OCR worker or models."
+    ? "See ../../dependency-notices-r6/notices.json for new dependency notices, ../../dependency-notices-r6/rustsec.json for the audit and scoped waivers, and ../../NOTICE-INDEX.md for inherited notices. Hosted PDF does not compile OCR into its main WASM or ship its worker or models."
     : "Dependency notices are unchanged from the upstream graph and are in ../../NOTICE-INDEX.md."
 }
 `,
@@ -537,8 +537,9 @@ Modified builds of ${authority.apps.map(({ app, artifactVersion }) => `${upstrea
 
 - [Inherited notices](NOTICE-INDEX.md) and [adopted data](adopted-data/ADOPTION.md).
 - [New dependency notices and retained license texts](dependency-notices-r6/notices.json).
+- [RustSec audit and browser-artifact waivers](dependency-notices-r6/rustsec.json).
 - Each modified build: native-host-v3/<app>/MODIFICATIONS.md, with changed source and original upstream legal files.
-- Hosted PDF excludes the OCR worker and models. This inventory is not a legal opinion or complete compiler-generated content audit.
+- Hosted PDF excludes OCR, RTen and ONNX from its main WASM, and does not ship the OCR worker or models. This inventory is not a legal opinion or complete compiler-generated content audit.
 `)
       : noticeIndex,
   );

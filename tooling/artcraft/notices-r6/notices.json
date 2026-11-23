@@ -12488,6 +12488,28 @@
       "upstreamSupplementReplacedGaps": []
     },
     {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#form_urlencoded@1.2.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "sourceSha256": "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e",
+      "cratePath": "",
+      "license": "MIT OR Apache-2.0",
+      "members": [
+        {
+          "member": "LICENSE-APACHE",
+          "path": "texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "bytes": 10847
+        },
+        {
+          "member": "LICENSE-MIT",
+          "path": "texts/20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e",
+          "sha256": "20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e",
+          "bytes": 1072
+        }
+      ],
+      "upstreamSupplementReplacedGaps": []
+    },
+    {
       "id": "registry+https://github.com/rust-lang/crates.io-index#generic-array@0.14.7",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
       "sourceSha256": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
@@ -13895,6 +13917,28 @@
           "path": "texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
           "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
           "bytes": 1023
+        }
+      ],
+      "upstreamSupplementReplacedGaps": []
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#url@2.5.9",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "sourceSha256": "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a",
+      "cratePath": "",
+      "license": "MIT OR Apache-2.0",
+      "members": [
+        {
+          "member": "LICENSE-APACHE",
+          "path": "texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "bytes": 10847
+        },
+        {
+          "member": "LICENSE-MIT",
+          "path": "texts/b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5",
+          "sha256": "b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5",
+          "bytes": 1072
         }
       ],
       "upstreamSupplementReplacedGaps": []

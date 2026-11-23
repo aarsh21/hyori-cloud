@@ -2,10 +2,14 @@
   "tool": "cargo-audit 0.23.0",
   "advisoryDb": "8b75c83c3c9142dd18e93d75b8d895a13d285861",
   "lockfileScope": "all locked packages; yanks not checked",
+  "waiverScope": "Only the listed browser artifact versions built from the listed lock and wasm32-unknown-unknown graphs/features. No native or future artifacts; re-evaluate on a lock, graph or artifact change. Warnings are separate and are not waivers.",
   "audits": [
     {
       "app": "wordcraft",
+      "artifactVersion": "0.18.1-hyori-host.1",
       "cargoLockSha256": "2d90aab982aeafb4c1c1dac6e26bf4a5ad50e26c833b4ad17b24d2869bcf6c82",
+      "normalSha256": "ce21941b5f3ed337d7a0d87ac757e5955d954a0737a5369b1a18aa248566dd40",
+      "hostInclusiveSha256": "01f2319e707c07642c2e4963f816841ddc7bc447f5c70697ca450c9122e02144",
       "lockPackages": 704,
       "findings": [
         {
@@ -15,7 +19,8 @@
           "tier": "lock-only",
           "patched": [
             ">=2.5.9"
-          ]
+          ],
+          "waiver": "This locked URL dependency is absent from both the selected WASM normal graph and the host-inclusive production closure."
         },
         {
           "advisory": "RUSTSEC-2026-0367",
@@ -24,7 +29,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not extract a ZIP to a host filesystem or preserve privileged filesystem mode bits."
         },
         {
           "advisory": "RUSTSEC-2026-0545",
@@ -33,7 +39,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "The pinned WASM zip 3.0.0 feature set does not include AES, so it does not build the affected AES implementation."
         },
         {
           "advisory": "RUSTSEC-2026-0369",
@@ -42,7 +49,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not extract to a filesystem or apply archived permissions through symlinks."
         },
         {
           "advisory": "RUSTSEC-2026-0368",
@@ -51,7 +59,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not invoke the filesystem extraction API that creates symlinks."
         },
         {
           "advisory": "RUSTSEC-2026-0548",
@@ -60,7 +69,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.5"
-          ]
+          ],
+          "waiver": "The document import paths use seekable, in-memory ZipArchive readers, not the streaming extraction API."
         },
         {
           "advisory": "RUSTSEC-2026-0429",
@@ -69,7 +79,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not invoke the filesystem extraction API or its special handling of symlink entries."
         }
       ],
       "warnings": [
@@ -138,7 +149,10 @@
     },
     {
       "app": "gridcraft",
+      "artifactVersion": "0.19.1-hyori-host.1",
       "cargoLockSha256": "6e667fecf8b8d778b5c75d5f819c8c727838f343e563faa6ed6a88c2519d6c4f",
+      "normalSha256": "ab42f7ea3e1cd29c38c7952e3e1b988756ba3f47371a5e103ca5ef05b6ef4a32",
+      "hostInclusiveSha256": "2a75bd688435523eefef1a58bbbf6b1a4260b4c2956fd642bef662b1f749953d",
       "lockPackages": 656,
       "findings": [
         {
@@ -148,7 +162,8 @@
           "tier": "lock-only",
           "patched": [
             ">=2.5.9"
-          ]
+          ],
+          "waiver": "This locked URL dependency is absent from both the selected WASM normal graph and the host-inclusive production closure."
         },
         {
           "advisory": "RUSTSEC-2026-0383",
@@ -157,7 +172,8 @@
           "tier": "lock-only",
           "patched": [
             ">=1.0.10"
-          ]
+          ],
+          "waiver": "This locked webpki-root-certs dependency is absent from both the selected WASM normal graph and the host-inclusive production closure."
         },
         {
           "advisory": "RUSTSEC-2026-0367",
@@ -166,7 +182,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not extract a ZIP to a host filesystem or preserve privileged filesystem mode bits."
         },
         {
           "advisory": "RUSTSEC-2026-0545",
@@ -175,7 +192,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "The pinned WASM zip 3.0.0 feature set does not include AES, so it does not build the affected AES implementation."
         },
         {
           "advisory": "RUSTSEC-2026-0369",
@@ -184,7 +202,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not extract to a filesystem or apply archived permissions through symlinks."
         },
         {
           "advisory": "RUSTSEC-2026-0368",
@@ -193,7 +212,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not invoke the filesystem extraction API that creates symlinks."
         },
         {
           "advisory": "RUSTSEC-2026-0548",
@@ -202,7 +222,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.5"
-          ]
+          ],
+          "waiver": "The document import paths use seekable, in-memory ZipArchive readers, not the streaming extraction API."
         },
         {
           "advisory": "RUSTSEC-2026-0429",
@@ -211,7 +232,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not invoke the filesystem extraction API or its special handling of symlink entries."
         }
       ],
       "warnings": [
@@ -280,7 +302,10 @@
     },
     {
       "app": "deckcraft",
+      "artifactVersion": "0.18.1-hyori-host.1",
       "cargoLockSha256": "f68bca3cd775c423cb1ea7e4bb4b7f4580f0a3695514319c5b7ca0cf3ebcbc3d",
+      "normalSha256": "177ddd9656fb2b3d898dc724dd4e4f0b996187acc01c95e355295d7a4b30363b",
+      "hostInclusiveSha256": "0eedf06f7c722d7e3301b5c0bc05b06b8d1c535b2757fb9a6f8651fe7a442f7b",
       "lockPackages": 629,
       "findings": [
         {
@@ -290,7 +315,8 @@
           "tier": "lock-only",
           "patched": [
             ">=2.5.9"
-          ]
+          ],
+          "waiver": "This locked URL dependency is absent from both the selected WASM normal graph and the host-inclusive production closure."
         },
         {
           "advisory": "RUSTSEC-2026-0367",
@@ -299,7 +325,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not extract a ZIP to a host filesystem or preserve privileged filesystem mode bits."
         },
         {
           "advisory": "RUSTSEC-2026-0545",
@@ -308,7 +335,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "The pinned WASM zip 3.0.0 feature set does not include AES, so it does not build the affected AES implementation."
         },
         {
           "advisory": "RUSTSEC-2026-0369",
@@ -317,7 +345,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not extract to a filesystem or apply archived permissions through symlinks."
         },
         {
           "advisory": "RUSTSEC-2026-0368",
@@ -326,7 +355,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not invoke the filesystem extraction API that creates symlinks."
         },
         {
           "advisory": "RUSTSEC-2026-0548",
@@ -335,7 +365,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.5"
-          ]
+          ],
+          "waiver": "The document import paths use seekable, in-memory ZipArchive readers, not the streaming extraction API."
         },
         {
           "advisory": "RUSTSEC-2026-0429",
@@ -344,7 +375,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=9.0.0"
-          ]
+          ],
+          "waiver": "ZIP members stay in memory; the editor does not invoke the filesystem extraction API or its special handling of symlink entries."
         }
       ],
       "warnings": [
@@ -421,7 +453,10 @@
     },
     {
       "app": "pdfcraft",
-      "cargoLockSha256": "89d1e94212cc1bde1f22129bbfc84ad87ba985504b1cd8fd61cd4a1fefc2bd8d",
+      "artifactVersion": "0.22.0-hyori-host.2",
+      "cargoLockSha256": "2ac296e18db3d4500a98fc14f6419db9b016af2ebc87380df12bf53a24590a15",
+      "normalSha256": "f776f7c85f21e6d71a9099c71cfe2517f8f063d8790502c1f22bf51b8e75bdd7",
+      "hostInclusiveSha256": "8d65c4a0bde9f852de5c53b04c1d31f57cb06408e5ec02147d86daf93387463d",
       "lockPackages": 870,
       "findings": [
         {
@@ -431,16 +466,8 @@
           "tier": "wasm-normal",
           "patched": [
             ">=0.10.0"
-          ]
-        },
-        {
-          "advisory": "RUSTSEC-2026-0592",
-          "title": "Stack overflow in `Url::origin()` on nested `blob:` URLs",
-          "package": "url@2.5.8",
-          "tier": "wasm-normal",
-          "patched": [
-            ">=2.5.9"
-          ]
+          ],
+          "waiver": "The PDF browser uses RSA public-key signature verification, not private-key signing/decryption. The wasm32 RSA signing branch in crates/sign/src/keys.rs rejects signing."
         }
       ],
       "warnings": [

@@ -8,9 +8,9 @@
       "app": "wordcraft",
       "artifactVersion": "0.18.1-hyori-host.1",
       "sourceArchiveSha256": "55e6e6ca0e988a7ba320bef506e3910d2e2e5c1d1599a79571e144947438ab92",
-      "buildManifestSha256": "f2a39adc959cff5f68f419c19acadf3f778255f82e4be6b7d89e427a8c68e2a6",
+      "buildManifestSha256": "e8d0deffdc20b6ce967be52a438e8a779f6ab85601e2215a6a1e6942ec12f24a",
       "payloadSha256": "aa1f446274618b7e5c827776b1d2611331e476f0a3eace26a1ddb0031f141b58",
-      "receiptSha256": "c78761c39250ea9fcdb9ffa1787d5aca6eda97607b5d3b3f6641057f670b4f95",
+      "receiptSha256": "8bb8e0ce059185e13e95a6f3ad0089b07ee9de5c4e86756a23b35c13108b3d51",
       "sourceSummarySha256": "0e04473a85637bbe6050c65d1042debd416f9db71a47961602bf36c7c53aca1e",
       "wasmSha256": "a3610a836d09fb02bdb608190b238991daa5e0c80c4e024f3508ec9c344f8c91"
     },
@@ -18,29 +18,29 @@
       "app": "gridcraft",
       "artifactVersion": "0.19.1-hyori-host.1",
       "sourceArchiveSha256": "4adb7b981de97f31c61e5be67ac7b2bcd84e2559647b5c8c39561bbcce199c5e",
-      "buildManifestSha256": "c8f132aa4da80cbf8479dff84bcdb53b9e2f0552e174d25ec45309594dc76d02",
+      "buildManifestSha256": "901b6a48f78217c4799c51f3718c9df9fc78ba8d66550955ae706d096be8f8fd",
       "payloadSha256": "5cad50d73c91621ff089eddad3647bf46306e21077135d526399e29fa581fea1",
-      "receiptSha256": "c8c8c21603702af386f225f3c345298467d46dda992f0835773ceb740c9a46ad",
+      "receiptSha256": "7d835e533367774f7e0d8bb50ce98bbee0b6bf8dbed5bfa6a891d73be753cd35",
       "sourceSummarySha256": "9122e1f0c2799bd57371cab99e9ce9539a22d3343f0e75bd1cb15ed56773e391",
       "wasmSha256": "ac10c413d17014eba32c085128794246bedbef95d80fc21de4e0b2149ca2d5ee"
     },
     {
       "app": "pdfcraft",
-      "artifactVersion": "0.22.0-hyori-host.1",
+      "artifactVersion": "0.22.0-hyori-host.2",
       "sourceArchiveSha256": "e9165e846d61fdd2fcc5f53c587178750b791f4b0fa6d57212b7e0adab20be7f",
-      "buildManifestSha256": "fd98fca1c0c61fe32975c507316349335201ee966b0e4401c71275b3b9d50a3a",
-      "payloadSha256": "3dc57f6805fbc3e4278cdb3e19cf2d74b375fa7963309e16ffbb3163ee4411ae",
-      "receiptSha256": "a8eaadc6c1300a82baa05218b0b98ff02ba8e62a4bf2455fbdc2dda332d9f74c",
-      "sourceSummarySha256": "ee02d984fd69906b04a91b9bf08f4c80eee0ea81686938253d8fc1a1fdb01114",
-      "wasmSha256": "2be760d3e1961a236e6a99fba154a65743425e4f39cb8fe71ecab1dee6e1acf0"
+      "buildManifestSha256": "5460cb02929da57ec2496bdab4c1ebc7e757a357447ac2fcd4bcc800ba87f815",
+      "payloadSha256": "d1795f19c11f7f2b63803019ab4e3fff01137a35d1356afe8323f2d7f20a1fe0",
+      "receiptSha256": "f7a5b34483d41ec9be6cf0c97a11d65aa72ea10af7365951674878b46a24b2fb",
+      "sourceSummarySha256": "f6cc85cbe433ec5e0f3458c1ff87cae94a784fb71c6a45538f4f59985793d16c",
+      "wasmSha256": "135441fec3db4c60507542d120f72a4c88a3f770d6c24a34bb38df26db39f22f"
     },
     {
       "app": "deckcraft",
       "artifactVersion": "0.18.1-hyori-host.1",
       "sourceArchiveSha256": "df8827f38677020445a68d5fd5779adfdb74dd72b127c3d06ba7dff60fbfa738",
-      "buildManifestSha256": "1a7a7094578fa5b8e20b9801f11c5be1daaca1e46695dbc33d692f84f0bc3fa2",
+      "buildManifestSha256": "6639a76235d34ff5c7cab9963ceeec5595d2d4c1ed0bea905d31c7ae49625015",
       "payloadSha256": "47bbeb90976ff5fb1d35bec67813efe70776181f86907824c6394758318d0869",
-      "receiptSha256": "eee2262a74ffa0625ec7b3713769b920d05bf3a2cee3e047f442aca026c5794f",
+      "receiptSha256": "ee4a586324d8ebe918227c75769c6b7a416a3f099a892dcc80e9b6158b2c3103",
       "sourceSummarySha256": "a3ab30b9b96f59739975d5973739d8e848f39d92696cc5f59454524adcbd5cb0",
       "wasmSha256": "c2bfd44c9523ace6f50e1210f651cf813934dde82ed8461dd67953e6c3b70dc2"
     }

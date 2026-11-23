@@ -96,7 +96,8 @@ export async function prepareNativeBuild(
 
   for (const [path, bytes] of composed.files) await retain(`source/${path}`, bytes);
 
-  const lock = lockSchema.parse(Bun.TOML.parse(original.get("Cargo.lock")!.toString()));
+  const buildLock = composed.files.get("Cargo.lock")!;
+  const lock = lockSchema.parse(Bun.TOML.parse(buildLock.toString()));
   let crates = 0;
 
   for (const pkg of lock.package) {
@@ -248,6 +249,9 @@ ${deckFonts.copyright}. Licensed under the SIL Open Font License, Version 1.1 ($
     { flag: "wx" },
   );
 
+  const sourceCargoLockSha256 = sha256(original.get("Cargo.lock")!);
+  const buildCargoLockSha256 = sha256(buildLock);
+
   const plan = {
     schemaVersion: 1,
     kind: "hyori-native-host-v3-build-inputs",
@@ -259,7 +263,9 @@ ${deckFonts.copyright}. Licensed under the SIL Open Font License, Version 1.1 ($
       sha256: pin.sourceSha256,
       commit: "commit" in pin ? pin.commit : nativeSourceCommits[app],
     },
-    sourceCargoLockSha256: sha256(original.get("Cargo.lock")!),
+    sourceCargoLockSha256,
+    buildCargoLockSha256:
+      buildCargoLockSha256 === sourceCargoLockSha256 ? undefined : buildCargoLockSha256,
     stages: composed.stages,
     paletteCssSha256: composed.paletteCssSha256,
     hostJavaScriptSha256: composed.hostJavaScriptSha256,

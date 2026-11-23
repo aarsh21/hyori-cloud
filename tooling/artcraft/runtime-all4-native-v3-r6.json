@@ -4,12 +4,12 @@
   "bundleRoot": "tooling/artcraft/.generated/runtime-all4-native-v3-r6",
   "manifest": "runtime-bundle-manifest.json",
   "runtimeManifestSchemaVersion": 2,
-  "manifestBytes": 1300368,
-  "manifestSha256": "5c4fe334698ecaed039ba1c790d0d691bedf0cbefd3d1409c5a33b362ab61c4e",
-  "assetFiles": 4247,
-  "assetBytes": 294132172,
+  "manifestBytes": 1307502,
+  "manifestSha256": "47c05d81c1e4cdad9380b513b3f8d4afbed902828df0249c60a44200de31a241",
+  "assetFiles": 4271,
+  "assetBytes": 290426497,
   "transportSidecarFiles": 8,
-  "transportSidecarBytes": 62177899,
+  "transportSidecarBytes": 60940717,
   "encoder": "gzip-level6-mtime0-os255-v1",
   "fileMode": "0444",
   "directoryMode": "0555",
@@ -55,15 +55,15 @@
     },
     {
       "app": "pdfcraft",
-      "version": "0.22.0-hyori-host.1",
+      "version": "0.22.0-hyori-host.2",
       "role": "current",
       "bridge": "hyori-correlated-host-v3",
       "protocol": 3,
-      "assetUrl": "/artcraft/pdfcraft/0.22.0-hyori-host.1/index.html?host=parent",
-      "payloadSha256": "3dc57f6805fbc3e4278cdb3e19cf2d74b375fa7963309e16ffbb3163ee4411ae",
-      "wasmSha256": "2be760d3e1961a236e6a99fba154a65743425e4f39cb8fe71ecab1dee6e1acf0",
+      "assetUrl": "/artcraft/pdfcraft/0.22.0-hyori-host.2/index.html?host=parent",
+      "payloadSha256": "d1795f19c11f7f2b63803019ab4e3fff01137a35d1356afe8323f2d7f20a1fe0",
+      "wasmSha256": "135441fec3db4c60507542d120f72a4c88a3f770d6c24a34bb38df26db39f22f",
       "cspScriptHashes": [
-        "sha256-+YgZevKlLlW+Efd/v17Po/OB1uBF6YJ3okpxfwkWFBM="
+        "sha256-ISByzVz9W7+qcd/JHaFjlqUFYz3XmV7qWbI5cXvjZnk="
       ]
     },
     {

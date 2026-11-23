@@ -268,18 +268,18 @@
     },
     {
       "path": "dependency-notices/graphs.json",
-      "bytes": 97893,
-      "sha256": "853b17d0aeca610c10045544e10882d89de7c870d6be69a7425e6e800012fd51"
+      "bytes": 96595,
+      "sha256": "de5865c47a584f51b9ec293a86fdfd5d7a1c30484aa92a405f96a59abadb65ed"
     },
     {
       "path": "dependency-notices/notices.json",
-      "bytes": 662941,
-      "sha256": "e0488fa6157eae5e328090bfa6688cb7762bde39d90c059fd224bbe852f43853"
+      "bytes": 664773,
+      "sha256": "03b84b6a52276bc3e93d84f932939624a81c758bb061e041840ce6d5e280c129"
     },
     {
       "path": "dependency-notices/rustsec.json",
-      "bytes": 15873,
-      "sha256": "06c4ca2d4e1e0fdd5511f5edf89f0d6c2942252261d0704f2cfe8013ce57a62b"
+      "bytes": 20108,
+      "sha256": "c976718b72f437fa5db8e25241dc687d689b50a89b14d23daf3e942201d06eaa"
     },
     {
       "path": "dependency-notices/texts/07fc70bfeb985cc1a87a8587d0a0c80bab11c86c9dc3fd95b6f0cb332f983e96",

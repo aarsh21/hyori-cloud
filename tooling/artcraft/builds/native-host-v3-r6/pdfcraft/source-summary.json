@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "hyori-native-host-v3-source-summary",
   "app": "pdfcraft",
-  "artifactVersion": "0.22.0-hyori-host.1",
+  "artifactVersion": "0.22.0-hyori-host.2",
   "upstreamVersion": "0.22.0",
   "productPresentation": "Hyori PDF",
   "sourcePin": {
@@ -11,8 +11,9 @@
     "commit": "ac140f809d554981a5276d748e6193fcf4d4bdfa"
   },
   "sourceCargoLockSha256": "89d1e94212cc1bde1f22129bbfc84ad87ba985504b1cd8fd61cd4a1fefc2bd8d",
-  "cargoLockUnchanged": true,
-  "cargoManifestsUnchanged": true,
+  "buildCargoLockSha256": "2ac296e18db3d4500a98fc14f6419db9b016af2ebc87380df12bf53a24590a15",
+  "cargoLockUnchanged": false,
+  "cargoManifestsUnchanged": false,
   "stages": [
     "candidate-source-patch",
     "shared-native-assets"
@@ -20,6 +21,11 @@
   "paletteCssSha256": "fc0d241ea299fa3b2afea54fc2670627e99ab55a78954bd2d68382131a9af11c",
   "hostJavaScriptSha256": "bd036f1cfeb6f7242ec70c30cd9cfbc2cde6e0f0b5b854d0e9ffb98e4dbd3c82",
   "changedFiles": [
+    {
+      "path": "Cargo.lock",
+      "before": "89d1e94212cc1bde1f22129bbfc84ad87ba985504b1cd8fd61cd4a1fefc2bd8d",
+      "after": "2ac296e18db3d4500a98fc14f6419db9b016af2ebc87380df12bf53a24590a15"
+    },
     {
       "path": "apps/pdfcraft-web/Trunk.toml",
       "before": "d4ad015a0f7a3d8355539864efecea1339c8fc732a4f1493e6a11f771e74519e",
@@ -53,7 +59,7 @@
     {
       "path": "apps/pdfcraft-web/src/native_host.rs",
       "before": null,
-      "after": "288598430741a2be2163c690bc1819f289859dfe20e2c111c329556dbffe15b6"
+      "after": "09556ffa33141731fa073000ef7b7c768d7f1ec8b38db64948e8e798e3c58536"
     },
     {
       "path": "apps/pdfcraft-web/src/native_host/clock.rs",
@@ -66,14 +72,69 @@
       "after": "c6b686a41b36cc71a4b19296889d1ec1c66c15e8c471814a27491075ffff9f2e"
     },
     {
+      "path": "crates/engine/Cargo.toml",
+      "before": "29d23fe42714c72f4fa8bbafe294947efbade79fce800e714f29a2e16f0d302a",
+      "after": "51033f6edde759d8b8cb024cd6a4006b34fc454eae2adbb7f3bccbfc50963d46"
+    },
+    {
+      "path": "crates/engine/src/actions.rs",
+      "before": "ec165dca478c43d02169858147f9500fce2c3287755793a349f991a80e865f64",
+      "after": "8b14cdfa28e2856402db629367e910a1008d056da4a11d1a04a9e3d38dcefcaf"
+    },
+    {
+      "path": "crates/engine/src/catalog.rs",
+      "before": "d54407586565e9b2b947b2990240c664d48aac52fdcedc6ab190db69f2101e76",
+      "after": "954212d62122cfe56df1fa2a0ea23c2ec0d86dc688926f70e466c999add1ead9"
+    },
+    {
       "path": "crates/engine/src/commands.rs",
       "before": "62f66f138877426b0a01b54c4669288699d440363cf86977ca3e110c2a9a4b00",
-      "after": "0fa75f0f86c4d037fd9589f3ff021ba3595f94f4866b083f9d67614768e329a8"
+      "after": "256f33307bdba5f80cb912cbdbe1856d54f890179b64dcc73031ea8f1eda2c81"
+    },
+    {
+      "path": "crates/engine/src/edit.rs",
+      "before": "5750ea9f240da6893611d1d6082fb0a80654442e2e9a434e6c76809349578d88",
+      "after": "b90027870d6c027a24c089bb2bca1ef1d2ddd76dadf323ebe447ca5cec58e850"
+    },
+    {
+      "path": "crates/engine/src/edit/labels.rs",
+      "before": "b45f4ed85c17020932e03a1a6fd79e30609599b6a9673c30db0c5ee06659b931",
+      "after": "a80a23192849b072d7ab754e23c120f6211c90a284f946592975d7e95794fe96"
+    },
+    {
+      "path": "crates/engine/src/edit/run.rs",
+      "before": "fa93df82a7ea0feaa63f631fa40192651eb4658bc2c2cd4fda4ea68cec740e63",
+      "after": "c7e214336feb027504a52fe809b3c63819010b209dea91776dcff08e79611c61"
+    },
+    {
+      "path": "crates/engine/src/history.rs",
+      "before": "ce6fe8213b87f7e2eae406de5c8532d1be7412c7ca5a1e95cbdc7359721f584e",
+      "after": "a0bd5b74bf48568a61a5955bb24326e75148a18640c8d5bcecc9b918b58c45c8"
+    },
+    {
+      "path": "crates/engine/src/js.rs",
+      "before": "1ea1ba90c92a96e317e3abb5b03b128c68d60731d8d1617ac8621ef37d7c744c",
+      "after": "55322cbb245f934606950d6d3f8cfd3da8877615ba982eacfa196c0eceed5d1e"
+    },
+    {
+      "path": "crates/engine/src/lib.rs",
+      "before": "5c88acde2f6765ce8e80bf248ee6beec64c0cd650d8e7c9942bbbf376cab4a73",
+      "after": "209ebe07c8420a3391aaaf2cc01be098804480aaaaaec88540f4e9a3de82fa8e"
     },
     {
       "path": "crates/engine/src/links.rs",
       "before": "da081fa7376800a3dd1054443400bfa26d080e058d85758070c48d2a9da4d558",
       "after": "9a920042ba75a629b66f58a2f46593fee7b18bf953f57e8ca2c65382c9727ace"
+    },
+    {
+      "path": "crates/engine/src/scan_fields.rs",
+      "before": "74ec8825026ecedc174f34f38bc164d4907719caa7576782e8742c1c12bec05c",
+      "after": "f7dbcc8c039ab6ee70cbe243d8a4f671788b11d279bf3691f4653c18e8ea8a3f"
+    },
+    {
+      "path": "crates/ui-egui/Cargo.toml",
+      "before": "f81439181dd29c0990c1efe98f77ee127dea1cfbb3641fe70569797063d6e0f1",
+      "after": "4010cf77a72c5d9114eccb8fef1a3a507c4263c1e38382b52286a7f61644c961"
     },
     {
       "path": "crates/ui-egui/hyori-pdf-print.js",
@@ -83,7 +144,12 @@
     {
       "path": "crates/ui-egui/src/app.rs",
       "before": "eb8045c4fecb5d18843b3bf5b71a5049e09d97cab6ab243e8c512dce4c60a84d",
-      "after": "a0e1e87c62655a008b4c71dcf38afaae4ec7b4fa53d72503ed414c0f6d15168a"
+      "after": "60b3768f33e37abb36341f06ff827d295897d6f3a537ebcd971374dd34100542"
+    },
+    {
+      "path": "crates/ui-egui/src/app/control.rs",
+      "before": "20d75d52e1e4824975ac07ee69fa9a5a17b140be00ad19313617b5979ed3c8c8",
+      "after": "86a3691c938209e6b087ef32d3ad14d50d72f706d7637c9d7544e74c9e8748b1"
     },
     {
       "path": "crates/ui-egui/src/app/files.rs",
@@ -91,19 +157,39 @@
       "after": "b7ee3d2d764e6808620c695d7241b00a139a91dc90cba3b9747b4e64c50e2d3b"
     },
     {
+      "path": "crates/ui-egui/src/app/prefs.rs",
+      "before": "095c187f7b573dde6fcf33f7f92e00150a81aec37f3e69dd5c4a6d4798d25263",
+      "after": "74c9da1d6bfc9d4dbad74b6880bb93cfc672419f60e99c10b89fe22cf7cf1b5d"
+    },
+    {
+      "path": "crates/ui-egui/src/canvas.rs",
+      "before": "cb6a7644b08ec79d5c6186ee1bf7bb79f2557cbeab63eb3f283d20aab103c895",
+      "after": "688b66eb22dafcb7746b0ff490a4b1701c039bc19ee75c79c2602a4f7fc54e92"
+    },
+    {
       "path": "crates/ui-egui/src/chrome.rs",
       "before": "ccdfaa49dd7e79f4156da350314af885f6237c9a2c7f80c93d4c4dc802412eae",
       "after": "fc1c976f64b93a3c22ce1415c8f23778c8e426a94bf442d920af0c44aa392c9e"
     },
     {
+      "path": "crates/ui-egui/src/commands.rs",
+      "before": "5b733efea83e64e78f72175d56dffff57de23cc3387b31ae8c8cc042483835cc",
+      "after": "be0a489a55e7d17107c188a2fe36b832b6b61cc00ee7597b206202482af2402b"
+    },
+    {
       "path": "crates/ui-egui/src/dialogs.rs",
       "before": "d5fc0abae7a00cce0ad233786d025bd17380b8bdf8c557bb93e915fdf366805e",
-      "after": "9132fdbf1fd9c76864c9f6b2e2ec1096a8856ae8d6222afa200544a177316ec1"
+      "after": "f5025ffe5afbf9caa714ece226d9632e5429604f136a14c4f399a9a2454b4cef"
     },
     {
       "path": "crates/ui-egui/src/editing.rs",
       "before": "c1214f5e30fa8a35bb404cdbe2e02b91dfb61024a463f02389385ba160d03768",
       "after": "6e12c8145c20d80208bd20ea9e81332f731358f23c664b75ef20afc767286566"
+    },
+    {
+      "path": "crates/ui-egui/src/editing/close.rs",
+      "before": "5a3058cba6fc8444e791e4824baf06cb906a080e9516217c2ff2aca9ddea9e6b",
+      "after": "fa94e4b2a6cefa8a15afd80a9c357e4a7665b89d4ee1f5df018723081841786b"
     },
     {
       "path": "crates/ui-egui/src/editing/native_host.rs",
@@ -123,7 +209,7 @@
     {
       "path": "crates/ui-egui/src/lib.rs",
       "before": "308a30642050b5d6c49d1017208b3fed4e84c532c04829af32121432421ca11a",
-      "after": "2c4b1286380998d50fa5273b0bde00debbcb75cdff41a8d6e5744a5585e9299a"
+      "after": "41252de154137836e1b1d828a6ac2193624d5f2d616622131c4188cb115eb6c5"
     },
     {
       "path": "crates/ui-egui/src/menus.rs",
@@ -131,24 +217,49 @@
       "after": "141160c5883946c4a84357a4b8105b180a04d4026b3d0ae13d98d2625172fc23"
     },
     {
+      "path": "crates/ui-egui/src/state.rs",
+      "before": "b404b87c0124f1b22b9e3431dae22089880ee2876ba956af67c078d97a9338fb",
+      "after": "1c26f252f12ef8fd2e60ec92c72e12d7722f58be0f0ebd7edb6927c969cc3c6e"
+    },
+    {
       "path": "crates/ui-egui/src/theme.rs",
       "before": "b0b8abf78ee8e6199f0cb479dd9b88052a7dcad820541c721a9e78ffa8a69dd9",
       "after": "fb45331dd58afad3508bdcc245738c58f4004e2a20bb06c2d712f032af147bee"
     },
     {
+      "path": "crates/ui-egui/src/tools/content_ui.rs",
+      "before": "1962bf3063ef4f5b23e5a3d4f8b20b5506ffa7eecd5046817e08c2e1f497c858",
+      "after": "e2dba3f332ec1f8b64e48bf11a427995ae246057c12f1617e06be98dab2e7dcf"
+    },
+    {
+      "path": "crates/ui-egui/src/tools/edit_text_ui/image.rs",
+      "before": "ea106c5408bad9cf32a1dcfc508a15098bf9348a6b0f09e515a8ce801c38ddea",
+      "after": "f9757cc67829fbe0188f977c4fbbe1db82b59fe50192d34255d1dd6a8a01f515"
+    },
+    {
       "path": "crates/ui-egui/src/widgets.rs",
       "before": "79e026281b1c15e95834c39f9121a3eca10a6aa9f3a05e452aa83ea4dd8ffd7b",
-      "after": "feb9349cab2f5c6e2a9ffc88be245cab0cd7ac098c9d7d461cc859204f9670a3"
+      "after": "d3ebc7fc8ec87e1b9a300e0a0ca7701c9f94817895ed49197bf4df4bfa6bcf47"
+    },
+    {
+      "path": "crates/ui-egui/src/workflows.rs",
+      "before": "d5fb10171be4782d2208125aa75f7d7276f0254352d0768b3f6c530c6a3e0d4f",
+      "after": "bdfed6f2e1a67213e98320baf34f7a70c6de7e5c102cfa5d5f6f9216cad113dd"
+    },
+    {
+      "path": "crates/ui-egui/src/workflows/files.rs",
+      "before": "1d60ffb2690bb8a234cb2e7af3cec2ebb93610d32731e186933f502f9f49ebe8",
+      "after": "72dd42144ab3666a27210a0ba29259a2c2010caa82d49c40522ad9b93014a934"
     },
     {
       "path": "crates/ui-egui/src/workflows/ocr_ui.rs",
       "before": "a6f9a9d4a147df477cb0620a583d335e2e845ee71cbf3d2531d8ff89406693ac",
-      "after": "b4e3024ecb723f2a9f6017e52055a7c69632b0a8a748485c426cc5ba16dec41d"
+      "after": "42bb003ef76cd01d1ef1d5afbc7ba0565a19182447b621fa4fd059c27858e48f"
     },
     {
-      "path": "crates/ui-egui/src/workflows/ocr_web.rs",
-      "before": "4cfc8ade652128194e5ab6c4c52adbde037d678e197e2847238984e5a136a43b",
-      "after": "7f33f864522f536cc93d0bafa5996f4f9891c674c936a1d245b5d47ca5b591ae"
+      "path": "crates/ui-egui/src/workflows/scan_clean_ui.rs",
+      "before": "8aa2102f496371ec1887ac16ab3aa3105fa6ed28caf175df02e74417ba594581",
+      "after": "f1598011c9731a6b3b30041b395f5fd1299e4e0afe3e885a491fa8dd39a2616a"
     },
     {
       "path": "crates/ui-egui/src/workflows/web_print.rs",
@@ -334,8 +445,11 @@
       "sha256": "88238b572dcc5d0f6fa98ce4c4a749d43cea25050ec9afffd63ec691d525812a"
     }
   ],
-  "dependencyGraphEqualsNoticedUpstreamGraph": {
-    "targetNormalPackages": 438,
-    "hostInclusivePackages": 486
+  "hostedPdfDependencyGraph": {
+    "target": "wasm32-unknown-unknown",
+    "targetNormalPackages": 421,
+    "hostInclusivePackages": 469,
+    "recognitionDependencies": "none",
+    "urlVersion": "2.5.9"
   }
 }

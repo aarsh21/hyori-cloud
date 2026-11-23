@@ -9,7 +9,7 @@ const patchRoot = new URL("../../tooling/artcraft/patches/native-host-v3-r6/", i
 export const candidateArtifactVersions = {
   wordcraft: "0.18.1-hyori-host.1",
   gridcraft: "0.19.1-hyori-host.1",
-  pdfcraft: "0.22.0-hyori-host.1",
+  pdfcraft: "0.22.0-hyori-host.2",
   deckcraft: "0.18.1-hyori-host.1",
 } as const;
 
@@ -57,6 +57,16 @@ export async function composeCandidateSource(
       .map((entry) => {
         const path = /^\d+\t\d+\t((?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+)$/u.exec(entry)?.[1];
 
+        // The hosted PDF build changes only these dependency inputs: native-only OCR and the
+        // patched URL parser. Other ports must preserve the upstream dependency declarations.
+        if (
+          app === "pdfcraft" &&
+          (path === "Cargo.lock" ||
+            path === "crates/engine/Cargo.toml" ||
+            path === "crates/ui-egui/Cargo.toml")
+        )
+          return path;
+
         if (
           !path ||
           !/^(?:apps|crates)\//u.test(path) ||
@@ -87,6 +97,11 @@ export async function composeCandidateSource(
   }
 
   const web = `apps/${app}-web`;
+  const version = candidateArtifactVersions[app];
+  const host = files.get(`${web}/src/${app === "deckcraft" ? "host" : "native_host"}.rs`)?.toString();
+
+  if (!host?.includes(`pub const NATIVE_ARTIFACT_VERSION: &str = "${version}";`))
+    throw new Error(`${app} host handshake does not match its artifact version ${version}`);
 
   const generated = new Map([
     [`${web}/hyori-mark.ico`, authored.favicon],
@@ -112,7 +127,7 @@ export async function composeCandidateSource(
   });
 
   return {
-    version: candidateArtifactVersions[app],
+    version,
     files,
     changes: changes.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
     stages: ["candidate-source-patch", "shared-native-assets"],

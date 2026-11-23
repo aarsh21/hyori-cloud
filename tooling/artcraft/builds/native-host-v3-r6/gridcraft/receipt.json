@@ -6,7 +6,7 @@
   "bridge": "hyori-correlated-host-v3",
   "protocol": 3,
   "sourceArchiveSha256": "4adb7b981de97f31c61e5be67ac7b2bcd84e2559647b5c8c39561bbcce199c5e",
-  "buildManifestSha256": "c8f132aa4da80cbf8479dff84bcdb53b9e2f0552e174d25ec45309594dc76d02",
+  "buildManifestSha256": "901b6a48f78217c4799c51f3718c9df9fc78ba8d66550955ae706d096be8f8fd",
   "sourceSummarySha256": "9122e1f0c2799bd57371cab99e9ce9539a22d3343f0e75bd1cb15ed56773e391",
   "wasmSha256": "ac10c413d17014eba32c085128794246bedbef95d80fc21de4e0b2149ca2d5ee",
   "payloadSha256": "5cad50d73c91621ff089eddad3647bf46306e21077135d526399e29fa581fea1",
