@@ -321,6 +321,7 @@ try {
 
   // Only when named: it depends on the bundle handed to this run, and takes a long time.
   if (only?.includes("editors")) await runEditorScenarios(run);
+  else if (only?.includes("editor-recovery")) await runEditorScenarios(run, true);
 
   if (only?.includes("thumbnail-latency")) await runThumbnailLatencyObservation(run, artifacts);
 

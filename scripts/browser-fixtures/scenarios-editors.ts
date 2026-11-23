@@ -703,7 +703,7 @@ async function nativeLifecycle(run: CoreRun, cases: EditorCases) {
   await context.close();
 }
 
-export async function runEditorScenarios(run: CoreRun) {
+export async function runEditorScenarios(run: CoreRun, recoveryOnly = false) {
   const { report, editorBundle } = run;
 
   if (editorBundle === null) {
@@ -716,6 +716,9 @@ export async function runEditorScenarios(run: CoreRun) {
 
   try {
     const cases = createEditorCases(work);
+
+    if (recoveryOnly) return await runEditorRecoveryScenarios(run, cases);
+
     // A tray showing a failure isn't a subject to capture, so setup failures report in words only.
     const quiet = { captureFailure: false };
 

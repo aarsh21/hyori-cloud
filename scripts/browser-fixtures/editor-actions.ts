@@ -5,7 +5,7 @@ import type { BrowserContext, Page } from "playwright-core";
 import type { EditorApp, EditorCase } from "./editor-probe/cases.ts";
 import type { FrontHandler } from "./front-proxy.ts";
 import { downloadBytes, hydrated, rowMenu, uploadFiles } from "./page-actions.ts";
-import { openPage } from "./scenarios-core.ts";
+import { openPage, waitForHydration } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { waitForTrayIdle } from "./scenarios-photos.ts";
 
@@ -137,17 +137,16 @@ export async function waitForEditor(
   const frame = await element?.contentFrame();
   assert.ok(frame, "the editor frame has no browsing context");
 
-  // These recipes belong only to the unchanged legacy engines, not the new native chrome.
-  // The child may observe a resize after the parent. Don't apply a second correction from
-  // its stale viewport; wait for the measured dimensions before sending canvas coordinates.
-  await page.setViewportSize({ width: 1280, height: 800 + Math.round(box.y) });
-  await frame.waitForFunction(() => innerWidth === 1280 && innerHeight === 800);
-
-  assert.deepEqual(
-    await frame.evaluate(() => ({ width: innerWidth, height: innerHeight })),
-    { width: 1280, height: 800 },
-    "the legacy editor's measured inner viewport",
-  );
+  // The coordinate recipes need an exact canvas size. Measure height after settling the
+  // page width, which can change the header's height. Measure the frame, not its top inset.
+  await page.bringToFront();
+  await page.setViewportSize(EDITOR_VIEWPORT);
+  box = await page.locator(FRAME).boundingBox();
+  assert.ok(box !== null);
+  await page.setViewportSize({ width: 1280, height: 800 + Math.round(844 - box.height) });
+  await frame.waitForFunction(() => innerWidth === 1280 && innerHeight === 800, undefined, {
+    polling: 100,
+  });
   await page.waitForTimeout(PAINT_MS);
   box = await page.locator(FRAME).boundingBox();
   assert.ok(box !== null);
@@ -269,16 +268,17 @@ export async function assertEarlierVersions(
   bound: "exactly" | "at least" = "exactly",
 ) {
   await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForHydration(page);
   await rowIn(page, name).waitFor();
 
-  const answered = page.waitForResponse(
-    (response) =>
-      response.request().postData()?.includes('"operation":"files.versions"') === true &&
-      response.ok(),
-  );
-
-  await rowMenu(page, name, "Version history…");
-  await answered;
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().postData()?.includes('"operation":"files.versions"') === true &&
+        response.ok(),
+    ),
+    rowMenu(page, name, "Version history…"),
+  ]);
 
   const dialog = page.getByRole("dialog");
   const restore = dialog.getByRole("button", { name: "Restore" });

@@ -28,7 +28,7 @@ import {
 import type { EditorCase, EditorCases } from "./editor-probe/cases.ts";
 import { downloadBytes, rowMenu, signIn } from "./page-actions.ts";
 import { accountPassword, addUser, openUsers } from "./scenarios-admin.ts";
-import { freshContext, openPage, ownerPage } from "./scenarios-core.ts";
+import { freshContext, openPage, ownerPage, waitForHydration } from "./scenarios-core.ts";
 import type { CoreRun } from "./scenarios-core.ts";
 import { createFolder } from "./scenarios-photos.ts";
 import { createLink, revokeLink } from "./scenarios-sharing.ts";
@@ -213,17 +213,23 @@ async function saveFailureRetried(run: CoreRun, item: EditorCase, page: Page, pa
   const name = `retry-${item.app}${item.extension}`;
 
   await page.goto(`${run.origin}${path}`, { waitUntil: "domcontentloaded" });
+  await waitForHydration(page);
 
   const top = await openFromRow(page, name);
   const traceStart = front.trace.length;
 
   const prepares = savedRequest(run, "editors.prepareSave").length;
+  const refused = operationCount(front, "editors.prepareSave", 503);
   const completed = operationCount(front, "editors.completeSave", 200);
+  const native = await inNativeEditor(run, page);
+  // The native host retries a transient refusal three times. Keep the refusal in place for
+  // those attempts so this case always reaches manual recovery, even in slow Chromium runs.
+  const refusals = native ? 4 : 1;
 
-  // Before the edit: a protocol 2 editor starts its own save as soon as it has one.
-  front.refuse((record) => record.operation === "editors.prepareSave", 503, 1);
+  front.refuse((record) => record.operation === "editors.prepareSave", 503, refusals);
   await editDocument(page, item, top, RETRIED);
   await page.keyboard.press("Control+s");
+  await untilOperation(front, "editors.prepareSave", refused + refusals, 503);
   await barStatus(page, /^Not saved$/).waitFor({ timeout: 60_000 });
   await barButton(page, "Download my version").waitFor();
   assert.equal(operationCount(front, "editors.completeSave", 200), completed, "completed saves");
@@ -234,10 +240,13 @@ async function saveFailureRetried(run: CoreRun, item: EditorCase, page: Page, pa
 
   const attempts = savedRequest(run, "editors.prepareSave").slice(prepares);
 
-  // Only the refused save has to come back under its own ID; a protocol 2 editor may go on to
-  // save later edits in the background, under new ones.
-  assert.ok(attempts.length >= 2, "there was no second attempt");
-  assert.equal(attempts[1], attempts[0], "a retry reused the same save ID");
+  // Later edits can save under a new ID. Only the failed save and its retries must keep theirs.
+  assert.ok(attempts[0], "the failed save had no ID");
+  assert.equal(attempts.slice(0, refusals + 1).length, refusals + 1, "missing retry");
+  assert.ok(
+    attempts.slice(0, refusals + 1).every((id) => id === attempts[0]),
+    "retry changed save ID",
+  );
 
   const versions = await versionsMade(run, page, traceStart);
 
@@ -252,27 +261,40 @@ async function lostReplyRetried(run: CoreRun, item: EditorCase, page: Page, path
   const name = `lost-reply-${item.app}${item.extension}`;
 
   await page.goto(`${run.origin}${path}`, { waitUntil: "domcontentloaded" });
+  await waitForHydration(page);
 
   const top = await openFromRow(page, name);
   const traceStart = front.trace.length;
 
   const completed = operationCount(front, "editors.completeSave", 200);
+  const native = await inNativeEditor(run, page);
 
-  // Before the edit: a protocol 2 editor starts its own save as soon as it has one.
-  front.abandonRequest((record) => record.operation === "editors.completeSave", 1500, true);
+  // The server commits before the proxy drops the reply body. The native host should recover
+  // automatically, so a temporary Retry button is not required to be clickable.
+  front.dropReply((record) => record.operation === "editors.completeSave");
   await editDocument(page, item, top, RETRIED);
   await page.keyboard.press("Control+s");
-  await barStatus(page, /^Not saved$/).waitFor({ timeout: 60_000 });
-  await barButton(page, "Retry save").click();
-  await untilOperation(front, "editors.completeSave", completed + 1);
+
+  if (!native) {
+    await barStatus(page, /^Not saved$/).waitFor({ timeout: 60_000 });
+    await barButton(page, "Retry save").click();
+  }
+
+  await untilOperation(front, "editors.completeSave", completed + 2);
   await barStatus(page, "All changes saved").waitFor({ timeout: 20_000 });
 
+  const attempts = front.trace
+    .slice(traceStart)
+    .filter((record) => record.operation === "editors.completeSave" && record.status === 200);
+
+  assert.equal(attempts[0]?.outcome, "dropped", "the first committed reply was not dropped");
+  const id = (body: string | null) => /"saveId":"([^"]+)"/.exec(body ?? "")?.[1];
+  const saved = id(attempts[0]?.rpcBody ?? null);
+  assert.ok(saved, "the committed save had no ID");
+  assert.equal(id(attempts[1]?.rpcBody ?? null), saved, "the replay changed save ID");
   report.observe(
     `${item.label} completeSave attempts after a lost reply`,
-    front.trace
-      .filter((record) => record.operation === "editors.completeSave")
-      .slice(-2)
-      .map((record) => record.outcome),
+    attempts.map((record) => record.outcome),
   );
 
   const versions = await versionsMade(run, page, traceStart);
