@@ -50,6 +50,11 @@ function zipContains(work: string, saved: Buffer, text: string) {
   return result.stdout.trim() === "yes";
 }
 
+const usesCandidate = (page: Page, app: EditorApp) =>
+  page
+    .frames()
+    .some((frame) => frame.url().includes(`/artcraft/${app}/${candidateArtifactVersions[app]}/`));
+
 /** The synthetic documents and how to really edit each. Nothing here comes from outside the repo. */
 export function createEditorCases(work: string) {
   const documents = join(work, "documents");
@@ -99,10 +104,13 @@ export function createEditorCases(work: string) {
 
   /** Selects what's at this position, types into it, and leaves it. */
   const typeIntoDeck =
-    (x: number, y: number): EditorCase["edit"] =>
+    (x: number, y: number, appendToText = false): EditorCase["edit"] =>
     async (page, top, marker) => {
-      await page.mouse.click(x, top + y);
+      if (appendToText) await page.mouse.dblclick(x, top + y, { delay: 80 });
+      else await page.mouse.click(x, top + y);
       await page.waitForTimeout(1000);
+
+      if (appendToText) await page.keyboard.press("End");
       await page.keyboard.type(marker, { delay: 120 });
       await page.waitForTimeout(800);
       await page.keyboard.press("Escape");
@@ -157,10 +165,15 @@ export function createEditorCases(work: string) {
       "Deck from PPTX",
       ".pptx",
       (marker) => `${marker} in the text box, with “Original slide.”`,
-      typeIntoDeck(757, 300),
+      (page, top, marker) =>
+        (usesCandidate(page, "deckcraft") ? typeIntoDeck(620, 273, true) : typeIntoDeck(757, 300))(
+          page,
+          top,
+          marker,
+        ),
     ),
-    // The pen tool, drawn across the page: ink has no text to search for, so bytes show only that a
-    // real annotation exists. What it looks like is for the reopened render.
+    // The pen tool, drawn across the page: the bytes distinguish ink from a comment, and the
+    // reopened render checks where the stroke actually appears.
     pdf: editorCase(
       "pdfcraft",
       "Pdf",
@@ -168,11 +181,7 @@ export function createEditorCases(work: string) {
       () => "a drawn ink stroke across the page, with “Original words.” under it",
       async (page, top) => {
         // PDFCraft 0.22 has more tools above the pen in its floating toolbar.
-        const updated = page.frames().some((frame) =>
-          frame.url().includes(`/artcraft/pdfcraft/${candidateArtifactVersions.pdfcraft}/`),
-        );
-
-        await page.mouse.click(309, top + (updated ? 327 : 259));
+        await page.mouse.click(309, top + (usesCandidate(page, "pdfcraft") ? 327 : 259));
         await page.waitForTimeout(1000);
         await page.mouse.move(500, top + 400);
         await page.mouse.down();
@@ -185,7 +194,7 @@ export function createEditorCases(work: string) {
         await page.mouse.up();
         await page.waitForTimeout(1000);
       },
-      (saved) => saved.includes("/Annot") || saved.includes("/Ink"),
+      (saved) => /\/Subtype\s*\/Ink\b/.test(saved.toString("latin1")),
     ),
   };
 }
