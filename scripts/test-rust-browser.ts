@@ -233,6 +233,8 @@ try {
   const browser = await chromium.launch({
     headless: true,
     timeout: 30_000,
+    // The full Chromium build has a PDF viewer; the default headless shell does not.
+    channel: only?.includes("editors") ? "chromium" : undefined,
     executablePath: process.env.HYORI_CHROMIUM_PATH,
     args: [chromiumTrustFor(tls.cert), ...(editorBundle === null ? [] : EDITOR_RENDERING_ARGS)],
   });

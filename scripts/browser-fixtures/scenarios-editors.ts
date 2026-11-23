@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { BrowserContext, Page } from "playwright-core";
 import { z } from "zod";
 import { editorContentSecurityPolicy } from "../editor-csp.ts";
@@ -124,6 +124,8 @@ async function bundleServing(run: CoreRun) {
       assert.equal(status, 200);
       assert.equal(headers["x-content-type-options"], "nosniff");
       assert.equal(headers["x-frame-options"], "SAMEORIGIN");
+      assert.equal(headers["access-control-allow-origin"], "*");
+      assert.equal(headers["access-control-allow-credentials"], undefined);
       // Exactly the policy derived from the bundle being served: framing, plus its own loaders.
       assert.equal(
         headers["content-security-policy"],
@@ -719,6 +721,66 @@ export async function runEditorScenarios(run: CoreRun) {
 
     await report.scenario("Editor bundle identity", () => bundleIdentity(run), quiet);
     await report.scenario("Editor bundle serving", () => bundleServing(run), quiet);
+    await report.scenario(
+      "PDF Quick preview",
+      async () => {
+        const { context, page } = await ownerPage(run, { viewport: EDITOR_VIEWPORT });
+
+        try {
+          await report.check(
+            "Space loads the original PDF inline, without opening an editor",
+            async () => {
+              await createFolder(page, "PDF preview");
+              const source = cases.pdf.copyAs("inline-preview");
+              const name = basename(source);
+
+              await uploadDocuments(run, page, [source]);
+
+              const [viewer] = await Promise.all([
+                page.waitForEvent("framenavigated", {
+                  predicate: (frame) => frame.url().startsWith("chrome-extension:"),
+                }),
+                page.getByRole("button", { name, exact: true }).press("Space"),
+              ]);
+
+              const dialog = page.getByRole("dialog", { name });
+              const frame = dialog.locator(`iframe[title="${name}"]`);
+
+              await frame.waitFor({ state: "visible" });
+              const src = await frame.getAttribute("src");
+
+              assert.ok(src);
+
+              const { status, headers, sha256 } = await fetchInPage(
+                page,
+                new URL(src, page.url()).href,
+              );
+
+              assert.equal(status, 200);
+              assert.match(headers["content-type"] ?? "", /^application\/pdf\b/);
+              assert.match(headers["content-disposition"] ?? "", /^inline\b/);
+              assert.match(headers["content-security-policy"] ?? "", /\bsandbox\b/);
+              assert.equal(sha256, sha256Of(readFileSync(source)));
+              assert.equal(await page.locator('[data-slot="hosted-document-frame"]').count(), 0);
+
+              // Chromium creates its viewer before PDFium parses the document. An iframe, a 200,
+              // or even the viewer's initial navigation can all succeed while the pane is still blank.
+              await viewer.getByText("/ 1", { exact: true }).waitFor();
+
+              const screenshot = await report.shot(page, "pdf-quick-preview");
+
+              report.unverified(
+                "PDF Quick preview: what the viewer shows",
+                `Read ${screenshot}: it must show “Original words.” on the PDF page.`,
+              );
+            },
+          );
+        } finally {
+          await context.close();
+        }
+      },
+      quiet,
+    );
     await report.scenario("Editors, signed in", () => signedInRoundTrips(run, cases), quiet);
     await report.scenario("Editors, public links", () => publicRoundTrips(run, cases), quiet);
     await report.scenario("Editors, one-file links", () => singleFileLink(run, cases), quiet);
