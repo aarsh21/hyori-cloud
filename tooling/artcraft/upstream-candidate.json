@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "deployable": false,
+  "editors": [
+    {
+      "app": "wordcraft",
+      "version": "0.18.1",
+      "commit": "079f478bd85df7bcc567e3bafa7d7219096f9c3c",
+      "url": "https://github.com/storytold/wordcraft/releases/download/v0.18.1/wordcraft-web-0.18.1.zip",
+      "bytes": 22536015,
+      "sha256": "3daa7c2d1f209a7eeb2527fcefa3fe31e875848fb1970d68f54edae55fe0bc9f",
+      "sourceUrl": "https://codeload.github.com/storytold/wordcraft/tar.gz/refs/tags/v0.18.1",
+      "sourceSha256": "55e6e6ca0e988a7ba320bef506e3910d2e2e5c1d1599a79571e144947438ab92"
+    },
+    {
+      "app": "gridcraft",
+      "version": "0.19.1",
+      "commit": "476448d7d9f3a5f8e93fcf7d98b47fd52293fe7f",
+      "url": "https://github.com/storytold/gridcraft/releases/download/v0.19.1/gridcraft-web-0.19.1.zip",
+      "bytes": 9679862,
+      "sha256": "48c5d1b101befebb3c5ba3b7a14914f01c3207934813ed07dc4251b7ae116a78",
+      "sourceUrl": "https://codeload.github.com/storytold/gridcraft/tar.gz/refs/tags/v0.19.1",
+      "sourceSha256": "4adb7b981de97f31c61e5be67ac7b2bcd84e2559647b5c8c39561bbcce199c5e"
+    },
+    {
+      "app": "pdfcraft",
+      "version": "0.22.0",
+      "commit": "ac140f809d554981a5276d748e6193fcf4d4bdfa",
+      "url": "https://github.com/storytold/pdfcraft/releases/download/v0.22.0/pdfcraft-web-0.22.0.zip",
+      "bytes": 37379269,
+      "sha256": "5da6db0d6d0d5ae517e9bb62c39eb57285f8befd81ef6555e9a807ccf5da5954",
+      "sourceUrl": "https://codeload.github.com/storytold/pdfcraft/tar.gz/refs/tags/v0.22.0",
+      "sourceSha256": "e9165e846d61fdd2fcc5f53c587178750b791f4b0fa6d57212b7e0adab20be7f"
+    },
+    {
+      "app": "deckcraft",
+      "version": "0.18.1",
+      "commit": "7cc73ab1895ed2e30c8afbcada20c70b9ea0a440",
+      "url": "https://github.com/storytold/deckcraft/releases/download/v0.18.1/deckcraft-web-0.18.1.zip",
+      "bytes": 11910503,
+      "sha256": "3196e537fcfab538aaa2e88584bc74e29bb584459b916ab584ac22fbafe32db5",
+      "sourceUrl": "https://codeload.github.com/storytold/deckcraft/tar.gz/refs/tags/v0.18.1",
+      "sourceSha256": "df8827f38677020445a68d5fd5779adfdb74dd72b127c3d06ba7dff60fbfa738"
+    }
+  ]
+}

@@ -11,8 +11,8 @@
  * Textual success is not a build: authored Rust modules can still fail to compile against a newer
  * upstream API. Network: `git ls-remote` and codeload archive downloads only; nothing is executed.
  *
- *   bun scripts/artcraft/native-v3-drift.ts [--cache DIR] [--json FILE] [--target APP=vX.Y.Z]...
- *     [--fail-on-drift]
+ *   bun scripts/artcraft/native-v3-drift.ts [--cache DIR] [--json FILE]
+ *     [--candidate | --target APP=vX.Y.Z...] [--fail-on-drift]
  *
  * Exit 1 when a pinned tag no longer composes or has moved; with --fail-on-drift, exit 2 when a
  * target tag does not compose or conflicts.
@@ -23,7 +23,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import official from "../../tooling/artcraft/manifest.json" with { type: "json" };
-import { readGitSourceArchive } from "./evidence-bytes.ts";
+import candidate from "../../tooling/artcraft/upstream-candidate.json" with { type: "json" };
+import { readGitSourceArchive, sha256 } from "./evidence-bytes.ts";
 import {
   composeNativeSource,
   nativeApps,
@@ -205,12 +206,23 @@ async function stat(
   return total;
 }
 
-async function measure(app: NativeApp, cache: string, target: string | undefined) {
+async function measure(
+  app: NativeApp,
+  cache: string,
+  target: string | undefined,
+  useCandidate: boolean,
+) {
   const pin = official.editors.find((editor) => editor.app === app)!;
   const pinnedTag = `v${pin.version}`;
   const tags = upstreamTags(app);
   const pinnedCommit = tags.get(pinnedTag);
-  const targetTag = target ?? newest(tags.keys())!;
+  const upgrade = useCandidate ? candidate.editors.find((editor) => editor.app === app) : undefined;
+
+  if (useCandidate && upgrade === undefined) throw new Error(`${app} has no recorded candidate`);
+
+  const targetTag =
+    upgrade === undefined ? (target ?? newest(tags.keys())!) : `v${upgrade.version}`;
+
   const targetCommit = tags.get(targetTag);
 
   if (pinnedCommit !== nativeSourceCommits[app])
@@ -219,6 +231,15 @@ async function measure(app: NativeApp, cache: string, target: string | undefined
     );
 
   if (targetCommit === undefined) throw new Error(`${app} has no upstream tag ${targetTag}`);
+
+  if (upgrade !== undefined && targetCommit !== upgrade.commit)
+    throw new Error(`${app} ${targetTag} no longer points at candidate commit ${upgrade.commit}`);
+
+  const targetArchive = await archive(cache, app, targetTag);
+
+  if (upgrade !== undefined && sha256(targetArchive) !== upgrade.sourceSha256)
+    throw new Error(`${app} ${targetTag} candidate source checksum mismatch`);
+
   const authored = await nativeAuthoredInputs();
   const { original } = readPinnedSource(app, await archive(cache, app, pinnedTag));
   const stages: { stage: string; area: string; lines: LineStat }[] = [];
@@ -243,7 +264,7 @@ async function measure(app: NativeApp, cache: string, target: string | undefined
   }
 
   const upstream = readGitSourceArchive(
-    await archive(cache, app, targetTag),
+    targetArchive,
     `${app}-${targetTag.slice(1)}`,
     targetCommit,
   );
@@ -383,6 +404,7 @@ if (import.meta.main) {
   const targets = new Map<NativeApp, string>();
   let cache = join(tmpdir(), "hyori-artcraft-drift-cache");
   let json: string | undefined;
+  let useCandidate = false;
   let failOnDrift = false;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -390,6 +412,7 @@ if (import.meta.main) {
 
     if (arg === "--cache") cache = args[++index]!;
     else if (arg === "--json") json = args[++index]!;
+    else if (arg === "--candidate") useCandidate = true;
     else if (arg === "--fail-on-drift") failOnDrift = true;
     else if (arg === "--target") {
       const [name, tag] = args[++index]!.split("=");
@@ -400,13 +423,14 @@ if (import.meta.main) {
     } else throw new Error(`Unknown argument ${arg}`);
   }
 
+  if (useCandidate && targets.size > 0) throw new Error("Use either --candidate or --target");
   await mkdir(cache, { recursive: true });
   const reports = [];
   let pinFailure = false;
 
   for (const app of nativeApps) {
     try {
-      reports.push(await measure(app, cache, targets.get(app)));
+      reports.push(await measure(app, cache, targets.get(app), useCandidate));
     } catch (error) {
       pinFailure = true;
       console.error(`${app}: ${error instanceof Error ? error.message : String(error)}`);
